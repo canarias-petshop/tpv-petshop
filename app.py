@@ -146,16 +146,22 @@ with tab2:
 
         st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-        # 3. MANUAL (LIMPIO Y ALINEADO)
+        # --- 3. ARTÍCULO MANUAL (ETIQUETAS RESTAURADAS Y BOTONES + / -) ---
         st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>✍️ Artículo Manual</p>", unsafe_allow_html=True)
         with st.form("f_man", clear_on_submit=True, border=False):
-            # Usamos label_visibility="collapsed" en TODOS para que se alineen perfectamente
-            cm1, cm2, cm3 = st.columns([1.8, 1, 0.7])
-            with cm1: m_nom = st.text_input("m1", placeholder="Nombre...", label_visibility="collapsed")
-            with cm2: m_pre = st.number_input("m2", min_value=0.0, step=0.1, placeholder="Precio €", label_visibility="collapsed")
-            with cm3: m_can = st.number_input("m3", min_value=1, value=1, label_visibility="collapsed")
+            # Ajustamos el ancho para que quepan los botones de + y -
+            cm1, cm2, cm3 = st.columns([1.3, 1, 1]) 
             
-            if st.form_submit_button("➕ Añadir Manual", use_container_width=True):
+            with cm1: 
+                m_nom = st.text_input("Producto", placeholder="Nombre...", label_visibility="visible")
+            with cm2: 
+                # Restauramos la etiqueta "Precio €" y quitamos el colapsado
+                m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", label_visibility="visible")
+            with cm3: 
+                # Restauramos la etiqueta "Cant." para que aparezcan los botones + y -
+                m_can = st.number_input("Cant.", min_value=1, value=1, label_visibility="visible")
+            
+            if st.form_submit_button("➕ Añadir Manual al Carrito", use_container_width=True):
                 if m_nom and m_pre > 0:
                     st.session_state.carrito.append({
                         "Producto": m_nom, "Cantidad": m_can, "Precio": m_pre,
