@@ -85,17 +85,18 @@ with tab1:
             df = pd.DataFrame(res.data)
             st.dataframe(df[['codigo_barras', 'nombre', 'precio_pvp', 'stock_actual']], use_container_width=True, height=380, hide_index=True)
 
-# --- TAB 2: CAJA Y VENTAS (PULIDO FINAL) ---
+# --- TAB 2: CAJA Y VENTAS (AJUSTE DE TÍTULOS Y ESPACIADO) ---
 with tab2:
-    # Reducimos el tamaño de los títulos y los alineamos
+    # Bajamos los títulos y aseguramos que "Tu Carrito" no se corte
     st.markdown("""
-        <div style='display: flex; justify-content: space-between; margin-top: -25px; margin-bottom: 5px;'>
-            <h4 style='margin:0; color: #333;'>🛒 Terminal de Venta</h4>
-            <h4 style='margin:0; color: #333; width: 42%;'>🛒 Tu Carrito</h4>
+        <div style='display: flex; justify-content: space-between; margin-top: 10px; margin-bottom: 10px; padding: 0 5px;'>
+            <h4 style='margin:0; color: #333; white-space: nowrap;'>🛒 Terminal de Venta</h4>
+            <h4 style='margin:0; color: #333; white-space: nowrap; padding-right: 10px;'>🛒 Tu Carrito</h4>
         </div>
     """, unsafe_allow_html=True)
 
-    col_busqueda, col_carrito = st.columns([1.2, 1], gap="small")
+    # Ajustamos un pelín las proporciones de las columnas para dar más sitio al carrito
+    col_busqueda, col_carrito = st.columns([1.1, 1], gap="small")
     
     with col_busqueda:
         res_inv = client.table("productos_y_servicios").select("*").execute()
