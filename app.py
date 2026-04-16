@@ -270,16 +270,35 @@ with tab2:
             with c_cob:
                 bloqueo = (pendiente > 0 and not nombre_deudor)
                 if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
+                    
+                    # 🧹 LIMPIEZA EXTREMA (LA SOLUCIÓN DEFINITIVA) 🧹
+                    # Forzamos a que toda la tabla en pantalla se convierta a formato puro de Python
+                    import json
+                    carrito_limpio = json.loads(edited_df.to_json(orient='records'))
+                    
+                    # 1. Guardar en el Historial
                     client.table("ventas_historial").insert({
-                        "total": float(total_f),           # Blindado
-                        "pagado": float(pagado_hoy),       # Blindado
-                        "pendiente": float(pendiente),     # Blindado
-                        "metodo_pago": str(metodo_log),
+                        "total": float(total_f), 
+                        "pagado": float(pagado_hoy), 
+                        "pendiente": float(pendiente),
+                        "metodo_pago": str(metodo_log), 
                         "cliente_deuda": str(nombre_deudor),
-                        "productos": st.session_state.carrito, # Ya está limpio gracias al truco de arriba
+                        "productos": carrito_limpio, # <--- Metemos el carrito purificado
                         "estado": "Completado" if pendiente == 0 else "Deuda"
                     }).execute()
-                    st.session_state.carrito = []; st.rerun()
+                    
+                    # 2. Restar el Stock
+                    for i in carrito_limpio: # Usamos también el carrito purificado aquí
+                        if not i.get('Manual', False):
+                            res = client.table("productos_y_servicios").select("stock_actual").eq("nombre", i['Producto']).execute()
+                            if res.data:
+                                # Nos aseguramos de que la resta se hace con números normales (int)
+                                n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
+                                client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", i['Producto']).execute()
+                                
+                    # 3. Vaciar y recargar
+                    st.session_state.carrito = []
+                    st.rerun()
             with c_vac:
                 if st.button("🗑️ Vaciar", use_container_width=True):
                     st.session_state.carrito = []; st.rerun()
