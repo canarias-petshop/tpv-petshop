@@ -139,13 +139,21 @@ with tab4:
             df_v = df_v.sort_values(by="id", ascending=False)
             
             # --- PREPARAR LA TABLA VISUAL ---
-            # Formateamos la fecha para que se lea bien (si existe 'created_at')
+            # Formateamos la fecha para que se lea bien
             try:
                 df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
             except:
                 df_v['Fecha'] = "Sin fecha"
                 
-            # Elegimos qué columnas enseñar en la tabla principal
+            # 🛡️ ESCUDO PROTECTOR: Si la columna no existe en Supabase, la rellenamos aquí
+            if 'metodo_pago' not in df_v.columns:
+                df_v['metodo_pago'] = 'Efectivo' # Valor por defecto
+            if 'estado' not in df_v.columns:
+                df_v['estado'] = 'Completado'    # Valor por defecto
+            if 'total' not in df_v.columns:
+                df_v['total'] = 0.0
+
+            # Ahora sí, podemos crear la vista sin que explote
             df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado']].copy()
             df_vista.columns = ['Nº Ticket', 'Fecha', 'Total (€)', 'Método', 'Estado']
             
