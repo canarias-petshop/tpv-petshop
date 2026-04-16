@@ -171,17 +171,17 @@ with tab2:
 
     # --- COLUMNA DERECHA: CARRITO CON DESCUENTOS ---
     with col_carrito:
-        st.markdown("<h4 style='margin:0; color: #333;'>🛒 Tu Carrito</h4>", unsafe_allow_html=True)
-        st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
+        # Eliminado el título duplicado. 
+        # Ponemos un pequeño espacio para que la tabla empiece a la misma altura que "Buscar Producto"
+        st.markdown("<div style='height: 22px;'></div>", unsafe_allow_html=True)
         
         if st.session_state.carrito:
             df_car = pd.DataFrame(st.session_state.carrito)
             
-            # Aseguramos que exista la columna de descuento si no estaba
             if 'Desc. %' not in df_car.columns:
                 df_car['Desc. %'] = 0.0
 
-            # --- TABLA INTERACTIVA CON DESCUENTOS ---
+            # --- TABLA INTERACTIVA ---
             edited_df = st.data_editor(
                 df_car,
                 column_order=("Cantidad", "Producto", "Precio", "Desc. %", "Subtotal"),
@@ -195,11 +195,10 @@ with tab2:
                 hide_index=True,
                 use_container_width=True,
                 num_rows="dynamic",
-                height=180,
+                height=150, # Altura reducida para salvar el botón inferior
                 key="editor_descuentos"
             )
             
-            # Recalcular Subtotales (Precio * Cantidad menos el descuento individual)
             if not edited_df.equals(df_car):
                 edited_df["Subtotal"] = (edited_df["Cantidad"] * edited_df["Precio"]) * (1 - edited_df["Desc. %"] / 100)
                 st.session_state.carrito = edited_df.to_dict('records')
@@ -224,7 +223,6 @@ with tab2:
             c_cob, c_vac = st.columns([2, 1])
             with c_cob: 
                 if st.button("🧧 FINALIZAR VENTA", use_container_width=True, type="primary"):
-                    # Al guardar en Supabase, asegúrate de guardar el 'total_final' con el descuento global aplicado
                     client.table("ventas_historial").insert({
                         "total": total_final, 
                         "metodo_pago": metodo, 
@@ -232,6 +230,15 @@ with tab2:
                         "descuento_global": desc_global,
                         "estado": "Completado"
                     }).execute()
+                    
+                    # Restar stock
+                    for i in st.session_state.carrito:
+                        if not i.get('Manual', False):
+                            res_s = client.table("productos_y_servicios").select("stock_actual").eq("nombre", i['Producto']).execute()
+                            if res_s.data:
+                                n_stock = res_s.data[0]['stock_actual'] - i['Cantidad']
+                                client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", i['Producto']).execute()
+                                
                     st.session_state.carrito = []
                     st.rerun()
             with c_vac: 
