@@ -7,7 +7,24 @@ import streamlit.components.v1 as components
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
 
-# --- MEMORIA DE LA CAJA (SESSION STATE) ---
+# --- TRUCO CSS PARA ELIMINAR ESPACIOS EN BLANCO Y SUBIR TODO ---
+st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 1rem !important;
+            padding-bottom: 0rem !important;
+        }
+        h1 {
+            margin-top: -15px !important;
+            font-size: 2rem !important;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 10px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 2. MEMORIA DE LA CAJA (SESSION STATE) ---
 if 'carrito' not in st.session_state:
     st.session_state['carrito'] = []
 if 'paso_final' not in st.session_state:
@@ -17,7 +34,7 @@ if 'ticket_html' not in st.session_state:
 if "acceso_concedido" not in st.session_state:
     st.session_state.acceso_concedido = False
 
-# --- 2. PUERTA DE SEGURIDAD (CANDADO) ---
+# --- 3. PUERTA DE SEGURIDAD (CANDADO) ---
 if not st.session_state.acceso_concedido:
     st.markdown("<h1 style='text-align: center;'>🔒 Acceso Restringido</h1>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1,2,1])
@@ -31,7 +48,7 @@ if not st.session_state.acceso_concedido:
                 st.error("Contraseña incorrecta")
     st.stop()
 
-# --- 3. CONEXIÓN A LA BASE DE DATOS ---
+# --- 4. CONEXIÓN A LA BASE DE DATOS ---
 try:
     client = SyncPostgrestClient(
         f"{st.secrets['url']}/rest/v1", 
@@ -44,12 +61,17 @@ except Exception as e:
     st.error("Error en las llaves de los Secrets")
     st.stop()
 
-# --- 4. LOGO Y TÍTULO ---
-try:
-    st.image("LOGO.jpg", width=150)
-except:
-    st.write("🐾")
-st.title("🐾 Animalarium - TPV")
+# --- 5. CABECERA COMPACTA (LOGO Y TÍTULO JUNTOS) ---
+col_logo, col_titulo = st.columns([0.5, 6]) # 0.5 hace que la columna del logo sea muy estrecha
+
+with col_logo:
+    try:
+        st.image("LOGO.jpg", width=70) # Logo más pequeñito para que no empuje
+    except:
+        st.write("🐾")
+
+with col_titulo:
+    st.title("Animalarium - TPV")
 
 # --- 5. PESTAÑAS ---
 tab1, tab2, tab3, tab4 = st.tabs(["📦 Productos", "✂️ Servicios", "🛒 Caja de Cobro", "📊 Historial"])
