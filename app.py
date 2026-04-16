@@ -271,34 +271,41 @@ with tab2:
                 bloqueo = (pendiente > 0 and not nombre_deudor)
                 if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
                     
-                    # 🧹 LIMPIEZA EXTREMA (LA SOLUCIÓN DEFINITIVA) 🧹
-                    # Forzamos a que toda la tabla en pantalla se convierta a formato puro de Python
                     import json
                     carrito_limpio = json.loads(edited_df.to_json(orient='records'))
                     
-                    # 1. Guardar en el Historial
-                    client.table("ventas_historial").insert({
-                        "total": float(total_f), 
-                        "pagado": float(pagado_hoy), 
-                        "pendiente": float(pendiente),
-                        "metodo_pago": str(metodo_log), 
-                        "cliente_deuda": str(nombre_deudor),
-                        "productos": carrito_limpio, # <--- Metemos el carrito purificado
-                        "estado": "Completado" if pendiente == 0 else "Deuda"
-                    }).execute()
-                    
-                    # 2. Restar el Stock
-                    for i in carrito_limpio: # Usamos también el carrito purificado aquí
-                        if not i.get('Manual', False):
-                            res = client.table("productos_y_servicios").select("stock_actual").eq("nombre", i['Producto']).execute()
-                            if res.data:
-                                # Nos aseguramos de que la resta se hace con números normales (int)
-                                n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
-                                client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", i['Producto']).execute()
-                                
-                    # 3. Vaciar y recargar
-                    st.session_state.carrito = []
-                    st.rerun()
+                    # 🕵️‍♂️ TRAMPA PARA VER EL ERROR REAL
+                    try:
+                        # 1. Guardar en el Historial
+                        client.table("ventas_historial").insert({
+                            "total": float(total_f), 
+                            "pagado": float(pagado_hoy), 
+                            "pendiente": float(pendiente),
+                            "metodo_pago": str(metodo_log), 
+                            "cliente_deuda": str(nombre_deudor),
+                            "descuento_global": float(desc_g), # <-- Añadimos el descuento por si acaso
+                            "productos": carrito_limpio, 
+                            "estado": "Completado" if pendiente == 0 else "Deuda"
+                        }).execute()
+                        
+                        # 2. Restar el Stock
+                        for i in carrito_limpio:
+                            if not i.get('Manual', False):
+                                res = client.table("productos_y_servicios").select("stock_actual").eq("nombre", i['Producto']).execute()
+                                if res.data:
+                                    n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
+                                    client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", i['Producto']).execute()
+                                    
+                        # 3. Vaciar y recargar
+                        st.success("¡Cobro realizado con éxito!")
+                        import time
+                        time.sleep(1)
+                        st.session_state.carrito = []
+                        st.rerun()
+                        
+                    except Exception as e:
+                        # 🚨 Si Supabase falla, esto mostrará el motivo exacto en la pantalla
+                        st.error(f"🚨 Error exacto de Supabase: {e}")
             with c_vac:
                 if st.button("🗑️ Vaciar", use_container_width=True):
                     st.session_state.carrito = []; st.rerun()
