@@ -134,7 +134,7 @@ with tab4:
         if not df_v.empty:
             # Ordenamos por ID de más nuevo a más viejo
             df_v = df_v.sort_values(by="id", ascending=False)
-            sel = st.selectbox("Seleccionar Ticket:", df_v.apply(lambda x: f"#{x['id']} - {x['total']}€ ({x['estado']})", axis=1))
+            sel = st.selectbox("Seleccionar Ticket:", df_v.apply(lambda x: f"#{x.get('id', '?')} - {x.get('total', 0)}€ ({x.get('estado', 'Completado')})", axis=1))
             id_t = int(sel.split('#')[1].split(' ')[0])
             ticket = df_v[df_v['id'] == id_t].iloc[0]
             
