@@ -4,15 +4,22 @@ from postgrest import SyncPostgrestClient
 from datetime import datetime
 import time
 
-# --- 1. CONFIGURACIÓN Y ESTILO (ESPACIO SEGURO ARRIBA) ---
+# --- 1. CONFIGURACIÓN Y ESTILO (ESPACIO SEGURO Y SIN MARCAS DE STREAMLIT) ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
 
 st.markdown("""
     <style>
-        /* Aumentamos el padding-top a 2.5rem para que NADA se corte arriba */
+        /* Ajustes de espacio de la aplicación */
         .block-container { padding-top: 2.5rem !important; padding-bottom: 0rem !important; }
         .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: -10px !important; }
         [data-testid="column"] { padding: 0 5px !important; }
+        
+        /* 🪄 MAGIA: OCULTAR ELEMENTOS DE STREAMLIT 🪄 */
+        [data-testid="stAppDeployButton"] {display: none !important;} /* Oculta el botón de Manage App */
+        [data-testid="stToolbar"] {display: none !important;} /* Oculta las herramientas superiores */
+        #MainMenu {visibility: hidden;} /* Oculta el menú de hamburguesa superior derecho */
+        footer {visibility: hidden;} /* Oculta el pie de página "Made with Streamlit" */
+        header {visibility: hidden;} /* Oculta la barra superior transparente */
     </style>
     """, unsafe_allow_html=True)
 
