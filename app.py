@@ -4,14 +4,14 @@ from postgrest import SyncPostgrestClient
 from datetime import datetime
 import time
 
-# --- 1. CONFIGURACIÓN Y ESTILO (MÁXIMA COMPACIDAD) ---
+# --- 1. CONFIGURACIÓN Y ESTILO (ESPACIO SEGURO ARRIBA) ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
 
 st.markdown("""
     <style>
-        .block-container { padding-top: 2rem !important; padding-bottom: 0rem !important; }
+        /* Aumentamos el padding-top a 2.5rem para que NADA se corte arriba */
+        .block-container { padding-top: 2.5rem !important; padding-bottom: 0rem !important; }
         .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: -10px !important; }
-        /* Reduce el espacio entre columnas */
         [data-testid="column"] { padding: 0 5px !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -43,13 +43,14 @@ try:
 except:
     st.error("Error de conexión"); st.stop()
 
-# Cabecera limpia
+# --- CABECERA (LOGO GRANDE Y TÍTULO SIN CORTES) ---
 c_logo, c_titulo = st.columns([0.1, 0.9], vertical_alignment="center")
 with c_logo:
-    try: st.image("LOGO.jpg", width=50)
+    try: st.image("LOGO.jpg", width=75) # Logo más grande
     except: st.write("🐾")
 with c_titulo:
-    st.markdown("<h1 style='margin:0; padding:0;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
+    # Letra un poco más pequeña (2rem) y bajada unos milímetros para que no se corte
+    st.markdown("<h1 style='margin: 5px 0 0 0; padding:0; font-size: 2rem;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
 
 tab1, tab2, tab3, tab4 = st.tabs(["📦 Inventario", "🛒 Caja/Ventas", "👥 Clientes", "📜 Historial"])
 
@@ -169,15 +170,16 @@ with tab2:
                     })
                     st.rerun()
 
-    # --- COLUMNA DERECHA: CARRITO (PAGO INTEGRADO Y LIMPIO) ---
+    # --- COLUMNA DERECHA: CARRITO (SÚPER COMPACTO) ---
     with col_carrito:
-        st.markdown("<div style='height: 22px;'></div>", unsafe_allow_html=True)
+        # Espacio reducido a solo 10px
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         
         if st.session_state.carrito:
             df_car = pd.DataFrame(st.session_state.carrito)
             if 'Desc. %' not in df_car.columns: df_car['Desc. %'] = 0.0
 
-            # 1. TABLA INTERACTIVA (Altura fija para no empujar botones)
+            # TABLA (Altura reducida a 110 para salvar los botones de abajo)
             edited_df = st.data_editor(
                 df_car,
                 column_order=("Cantidad", "Producto", "Precio", "Desc. %", "Subtotal"),
@@ -188,7 +190,7 @@ with tab2:
                     "Desc. %": st.column_config.NumberColumn("Desc. %", min_value=0, max_value=100, format="%d%%"),
                     "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True),
                 },
-                hide_index=True, use_container_width=True, num_rows="dynamic", height=130, key="ed_car_vfinal"
+                hide_index=True, use_container_width=True, num_rows="dynamic", height=110, key="ed_car_comp"
             )
             
             if not edited_df.equals(df_car):
@@ -196,9 +198,9 @@ with tab2:
                 st.session_state.carrito = edited_df.to_dict('records')
                 st.rerun()
 
-            st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+            # Separadores más finitos (margin 2px)
+            st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-            # 2. DESCUENTO GLOBAL (Ya no es un misterio)
             sub_antes = edited_df["Subtotal"].sum()
             c_desc_g = st.columns([1])[0]
             with c_desc_g:
@@ -206,32 +208,25 @@ with tab2:
             
             total_f = sub_antes * (1 - desc_g / 100)
             
-            st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-            # 3. ZONA DE PAGO TOTALMENTE INTEGRADA
             metodo = st.radio("p", ["Efectivo", "Tarjeta", "Bizum", "Mixto"], horizontal=True, label_visibility="collapsed")
-            
-            pagado_hoy = 0.0
-            pendiente = 0.0
-            metodo_log = metodo
+            pagado_hoy = 0.0; pendiente = 0.0; metodo_log = metodo
 
-            # Aquí unimos el Total con el Pago en una sola zona visual
             if metodo == "Efectivo":
-                # Tres columnas: TOTAL | ENTREGADO | CAMBIO
                 c_tot, c_ent, c_cam = st.columns([0.8, 1, 1])
                 with c_tot:
-                    st.markdown(f"<p style='margin:0; font-size:12px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
                 with c_ent:
                     entregado = st.number_input("Entregado €", min_value=0.0, value=float(total_f), format="%.2f")
                 with c_cam:
                     cambio = entregado - total_f
                     if cambio >= 0:
-                        st.markdown(f"<p style='margin:0; font-size:12px; color:gray;'>CAMBIO</p><h3 style='margin:0; color:green;'>{cambio:.2f}€</h3>", unsafe_allow_html=True)
+                        st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>CAMBIO</p><h3 style='margin:0; color:green;'>{cambio:.2f}€</h3>", unsafe_allow_html=True)
                         pagado_hoy = total_f
                     else:
-                        st.markdown(f"<p style='margin:0; font-size:12px; color:gray;'>DEUDA</p><h3 style='margin:0; color:orange;'>{-cambio:.2f}€</h3>", unsafe_allow_html=True)
-                        pagado_hoy = entregado
-                        pendiente = -cambio
+                        st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>DEUDA</p><h3 style='margin:0; color:orange;'>{-cambio:.2f}€</h3>", unsafe_allow_html=True)
+                        pagado_hoy = entregado; pendiente = -cambio
 
             elif metodo == "Mixto":
                 st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
@@ -248,13 +243,11 @@ with tab2:
                 st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
                 pagado_hoy = total_f
 
-            # Nombre de deudor si hace falta
             nombre_deudor = ""
             if pendiente > 0:
                 nombre_deudor = st.text_input("👤 Nombre para la deuda:", placeholder="¿Quién debe?")
 
-            # BOTONES FINALES
-            st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height: 2px;'></div>", unsafe_allow_html=True)
             c_cob, c_vac = st.columns([2, 1])
             with c_cob:
                 bloqueo = (pendiente > 0 and not nombre_deudor)
@@ -264,8 +257,7 @@ with tab2:
                         "metodo_pago": metodo_log, "cliente_deuda": nombre_deudor,
                         "productos": st.session_state.carrito, "estado": "Completado" if pendiente == 0 else "Deuda"
                     }).execute()
-                    st.session_state.carrito = []
-                    st.rerun()
+                    st.session_state.carrito = []; st.rerun()
             with c_vac:
                 if st.button("🗑️ Vaciar", use_container_width=True):
                     st.session_state.carrito = []; st.rerun()
