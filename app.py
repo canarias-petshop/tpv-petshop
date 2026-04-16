@@ -170,42 +170,44 @@ with tab4:
                 
                 st.markdown("<hr style='margin: 5px 0px; border-top: 1px solid #ccc;'>", unsafe_allow_html=True)
                 
-                # --- BOTONES COMPACTOS ---
-                col_dev, col_borrar = st.columns(2)
-                
-                with col_dev:
-                    st.markdown("**🔄 Devolución**")
-                    if ticket.get('estado') == "Completado":
-                        # Radio button sin márgenes
+                # --- ZONA DE ACCIÓN (ALINEACIÓN PERFECTA) ---
+                if ticket.get('estado') == "Completado":
+                    
+                    # FILA 1: Controles (A la misma altura)
+                    c_ctrl1, c_ctrl2 = st.columns(2)
+                    with c_ctrl1:
                         m_dev = st.radio("Vía:", ["Efectivo", "Tarjeta"], horizontal=True, key=f"dev_{id_t}", label_visibility="collapsed")
-                        if st.button("Procesar Devolución", use_container_width=True):
+                    with c_ctrl2:
+                        # Ponemos la casilla justo encima de su botón
+                        confirmar = st.checkbox("⚠️ Confirmar anulación total", key=f"check_{id_t}")
+                    
+                    # FILA 2: Botones (A la misma altura)
+                    c_btn1, c_btn2 = st.columns(2)
+                    with c_btn1:
+                        if st.button("🔄 PROCESAR DEVOLUCIÓN", use_container_width=True):
                             client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", id_t).execute()
                             st.rerun()
-                    else:
-                        st.caption(f"Estado: {ticket.get('estado')}")
-
-                with col_borrar:
-                    st.markdown("**❌ Anular (Borrar)**")
-                    # En lugar de st.warning, un texto pequeño (caption)
-                    st.caption("Restaura el stock y borra el registro.")
-                    confirmar = st.checkbox("Confirmar", key=f"check_{id_t}")
+                    with c_btn2:
+                        if st.button("🔥 BORRAR TICKET", use_container_width=True, disabled=not confirmar):
+                            with st.spinner("Borrando..."):
+                                try:
+                                    if prods:
+                                        for p in prods:
+                                            res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
+                                            if res_p.data:
+                                                n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
+                                                client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
+                                    
+                                    client.table("ventas_historial").delete().eq("id", id_t).execute()
+                                    st.success("Borrado")
+                                    time.sleep(1)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error("Error al borrar")
+                else:
+                    # Si ya está devuelto, mostramos el estado en una línea finita
+                    st.caption(f"Ticket ya procesado. Estado: {ticket.get('estado')}")
                     
-                    if st.button("🔥 BORRAR TICKET", use_container_width=True, disabled=not confirmar):
-                        with st.spinner("Borrando..."):
-                            try:
-                                if prods:
-                                    for p in prods:
-                                        res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
-                                        if res_p.data:
-                                            n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
-                                            client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
-                                
-                                client.table("ventas_historial").delete().eq("id", id_t).execute()
-                                st.success("Borrado")
-                                time.sleep(1)
-                                st.rerun()
-                            except Exception as e:
-                                st.error("Error al borrar")
         else:
             st.write("No hay ventas.")
     else:
