@@ -4,30 +4,14 @@ from postgrest import SyncPostgrestClient
 from datetime import datetime
 import time
 
-# --- 1. CONFIGURACIÓN DE DISEÑO PROFESIONAL Y COMPACTO ---
+# --- 1. CONFIGURACIÓN DE PÁGINA (SEGURA) ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
 
+# CSS Suave: Solo quitamos el exceso de arriba sin romper la app
 st.markdown("""
     <style>
-        /* Ajuste de márgenes superiores para evitar cortes */
-        .block-container { padding-top: 1.5rem !important; padding-bottom: 0rem !important; }
-        
-        /* Reducir espacio entre todos los elementos (interlineado) */
-        .element-container, .stVerticalBlock { gap: 0.3rem !important; margin-bottom: 0.1rem !important; }
-        
-        /* Títulos más pequeños y juntos */
-        h1 { font-size: 1.4rem !important; margin-bottom: 0px !important; padding-bottom: 0px !important; }
-        h3 { font-size: 1.1rem !important; margin-top: 0px !important; margin-bottom: 2px !important; }
-        
-        /* Hacer los buscadores más cortos y estéticos */
-        .stSelectbox, .stTextInput, .stNumberInput { max-width: 90% !important; }
-        
-        /* Ajuste de las pestañas */
-        .stTabs [data-baseweb="tab-list"] { gap: 5px; }
-        .stTabs [data-baseweb="tab"] { height: 35px; padding-top: 5px; font-size: 14px; }
-        
-        /* Alineación de avisos (el cuadro azul) */
-        .stAlert { padding: 0.5rem !important; margin-top: 0px !important; }
+        .block-container { padding-top: 2.5rem !important; padding-bottom: 0rem !important; }
+        .stSelectbox, .stTextInput, .stNumberInput { max-width: 95% !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -58,14 +42,13 @@ try:
 except:
     st.error("Error de conexión"); st.stop()
 
-# --- 5. CABECERA ---
-# Usamos un contenedor con alineación para que no se corte arriba
-header_col1, header_col2 = st.columns([0.1, 0.9], vertical_alignment="center")
-with header_col1:
-    try: st.image("LOGO.jpg", width=45) 
+# --- 5. CABECERA (NATURAL, SIN CORTES) ---
+c_logo, c_titulo = st.columns([0.8, 8], vertical_alignment="center")
+with c_logo:
+    try: st.image("LOGO.jpg", width=60) # Logo restaurado
     except: st.write("🐾")
-with header_col2:
-    st.markdown("<h1>Animalarium - TPV</h1>", unsafe_allow_html=True)
+with c_titulo:
+    st.title("Animalarium - TPV")
 
 tab1, tab2, tab3, tab4 = st.tabs(["📦 Inventario", "🛒 Caja/Ventas", "👥 Clientes", "📜 Historial"])
 
@@ -101,84 +84,118 @@ with tab1:
             df = pd.DataFrame(res.data)
             st.dataframe(df[['codigo_barras', 'nombre', 'precio_pvp', 'stock_actual']], use_container_width=True, height=380, hide_index=True)
 
-# --- TAB 2: CAJA Y VENTAS (ALINEACIÓN Y COMPACIDAD MÁXIMA) ---
+# --- TAB 2: CAJA Y VENTAS (LIMPIA Y ALINEADA) ---
 with tab2:
-    # Definimos columnas con un gap (espacio) pequeño
-    col_busqueda, col_carrito = st.columns([1, 1], gap="small")
+    # Usamos gap="medium" para no agobiar visualmente la pantalla
+    col_busqueda, col_carrito = st.columns([1.2, 1], gap="medium")
     
     with col_busqueda:
-        st.markdown("<h3>🛒 Terminal de Venta</h3>", unsafe_allow_html=True)
+        # Título principal de la columna izquierda
+        st.markdown("### 🛒 Terminal de Venta")
         
         res_inv = client.table("productos_y_servicios").select("*").execute()
         df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
         
         # 1. BUSCADOR
-        st.markdown("<p style='font-weight:bold; font-size:13px; margin:0;'>🔍 Buscar por Nombre</p>", unsafe_allow_html=True)
+        st.markdown("**🔍 Buscar por Nombre**")
         if not df_inv.empty:
             opciones = df_inv.apply(lambda x: f"{x['nombre']} | {x['precio_pvp']}€", axis=1).tolist()
-            prod_sel = st.selectbox("b", opciones, index=None, placeholder="Escribir...", label_visibility="collapsed", key="sb_n")
+            prod_sel = st.selectbox("Busca el producto", opciones, index=None, placeholder="Escribe el nombre del producto...", label_visibility="collapsed")
             
             if prod_sel:
-                # Lógica de extracción de nombre y stock
                 nombre_sel = prod_sel.split(" | ")[0]
                 fila_p = df_inv[df_inv['nombre'] == nombre_sel].iloc[0]
-                st.markdown(f"<p style='margin:0; font-size:10px; color:green;'>Stock: {fila_p['stock_actual']}</p>", unsafe_allow_html=True)
+                
+                # Aviso de stock
+                st.caption(f"📦 Stock disponible: **{fila_p['stock_actual']}**")
                 
                 c1, c2 = st.columns(2)
-                with c1: cant = st.number_input("c", min_value=1, value=1, label_visibility="collapsed", key="cant_b")
+                with c1: cant = st.number_input("Cantidad_b", min_value=1, value=1, label_visibility="collapsed", key="cant_b")
                 with c2: 
-                    if st.button("➕ Añadir", use_container_width=True, type="primary"):
+                    if st.button("➕ Añadir al carro", use_container_width=True, type="primary", key="btn_b"):
                         st.session_state.carrito.append({
                             "Producto": fila_p['nombre'], "Cantidad": cant, "Precio": fila_p['precio_pvp'],
                             "Subtotal": cant * float(fila_p['precio_pvp']), "IGIC": fila_p.get('tipo_igic', 7), "Manual": False
                         })
                         st.rerun()
+        else: st.info("Inventario vacío.")
 
-        st.markdown("<hr style='margin: 4px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+        st.divider() # Línea separadora segura nativa
 
         # 2. PISTOLA
-        st.markdown("<p style='font-weight:bold; font-size:13px; margin:0;'>📇 Escáner de Pistola</p>", unsafe_allow_html=True)
-        c_cod, c_cant2 = st.columns([2, 1])
-        with c_cant2: cant_p = st.number_input("p", min_value=1, value=1, label_visibility="collapsed", key="cant_p")
-        with c_cod: 
-            cod_leido = st.text_input("k", placeholder="Pistola...", label_visibility="collapsed", key="input_pistola")
-        
-        # (Lógica de la pistola igual...)
+        st.markdown("**📇 Escáner de Pistola**")
+        if 'limpiar_codigo' in st.session_state and st.session_state.limpiar_codigo:
+            st.session_state.input_pistola = ""
+            st.session_state.limpiar_codigo = False
 
-        st.markdown("<hr style='margin: 4px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+        c_cod, c_cant2 = st.columns([2, 1])
+        with c_cant2: cant_p = st.number_input("Cantidad_p", min_value=1, value=1, label_visibility="collapsed", key="cant_p")
+        with c_cod: cod_leido = st.text_input("Codigo_p", placeholder="Haz clic aquí y pasa la pistola...", label_visibility="collapsed", key="input_pistola")
+        
+        if cod_leido and not df_inv.empty:
+            coincid = df_inv[df_inv['codigo_barras'] == cod_leido]
+            if not coincid.empty:
+                fila_pist = coincid.iloc[0]
+                st.session_state.carrito.append({
+                    "Producto": fila_pist['nombre'], "Cantidad": cant_p, "Precio": fila_pist['precio_pvp'],
+                    "Subtotal": cant_p * float(fila_pist['precio_pvp']), "IGIC": fila_pist.get('tipo_igic', 7), "Manual": False
+                })
+                st.session_state.limpiar_codigo = True
+                st.rerun()
+            else: 
+                st.error("⚠️ Código no encontrado.")
+                st.session_state.limpiar_codigo = True
+                time.sleep(1); st.rerun()
+
+        st.divider()
 
         # 3. MANUAL
-        st.markdown("<p style='font-weight:bold; font-size:13px; margin:0;'>✍️ Artículo Manual</p>", unsafe_allow_html=True)
+        st.markdown("**✍️ Artículo Manual Suelto**")
         with st.form("f_man", clear_on_submit=True, border=False):
-            m_nom = st.text_input("n", placeholder="Nombre artículo...", label_visibility="collapsed")
+            m_nom = st.text_input("Concepto", placeholder="Nombre del artículo suelto...", label_visibility="collapsed")
             c_m1, c_m2 = st.columns([2, 1])
-            with c_m1: m_pre = st.number_input("€", min_value=0.0, step=0.1)
-            with c_m2: m_can = st.number_input("q", min_value=1, value=1)
-            st.form_submit_button("➕ Añadir", use_container_width=True)
+            with c_m1: m_pre = st.number_input("Precio final €", min_value=0.0, step=0.1)
+            with c_m2: m_can = st.number_input("Cantidad_m", min_value=1, value=1, label_visibility="collapsed")
+            
+            if st.form_submit_button("➕ Añadir manual", use_container_width=True):
+                if m_nom and m_pre > 0:
+                    st.session_state.carrito.append({
+                        "Producto": m_nom, "Cantidad": m_can, "Precio": m_pre,
+                        "Subtotal": m_can * float(m_pre), "IGIC": 0, "Manual": True
+                    })
+                    st.rerun()
+                else: st.error("Faltan datos o el precio es 0.")
 
-    # --- COLUMNA DERECHA: CARRITO (SINCRONIZADA) ---
+    # --- COLUMNA DERECHA: CARRITO ---
     with col_carrito:
-        # Título a la misma altura
-        st.markdown("<h3>🛒 Tu Carrito</h3>", unsafe_allow_html=True)
+        # Usamos el MISMO tamaño de título (###) que en la izquierda para que se alineen solos
+        st.markdown("### 🛒 Tu Carrito")
         
-        # El espacio antes del carrito se iguala con el buscador
-        st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
+        # Para que el cuadro de "vacío" o la tabla empiecen donde el buscador, ponemos un título vacío
+        st.markdown("**Resumen de compra**")
         
         if st.session_state.carrito:
             df_car = pd.DataFrame(st.session_state.carrito)
-            st.dataframe(df_car[['Cantidad', 'Producto', 'Subtotal']], use_container_width=True, hide_index=True, height=120)
+            # Altura ajustada a 150px
+            st.dataframe(df_car[['Cantidad', 'Producto', 'Subtotal']], use_container_width=True, hide_index=True, height=150)
             
             total_v = sum(item['Subtotal'] for item in st.session_state.carrito)
-            st.markdown(f"<p style='text-align: right; font-weight:bold; font-size:18px; margin:0;'>Total: {total_v:.2f}€</p>", unsafe_allow_html=True)
+            st.markdown(f"### Total a pagar: {total_v:.2f}€", unsafe_allow_html=True)
             
-            # Zona de cobro compacta
-            st.radio("p", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, label_visibility="collapsed")
+            st.divider()
+            
+            # Zona de cobro
+            metodo = st.radio("Pago:", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, label_visibility="collapsed")
             c_cob, c_vac = st.columns([2, 1])
-            with c_cob: st.button("🧧 FINALIZAR", use_container_width=True, type="primary")
-            with c_vac: st.button("🗑️ Vaciar", use_container_width=True)
+            with c_cob: 
+                if st.button("🧧 FINALIZAR", use_container_width=True, type="primary"):
+                    # (Aquí va tu código de guardar en Supabase, restar stock y hacer el ticket HTML que ya tenías)
+                    pass
+            with c_vac: 
+                if st.button("🗑️ Vaciar", use_container_width=True):
+                    st.session_state.carrito = []; st.rerun()
         else:
-            # Este es el cuadro azul (st.info) que ahora estará alineado con el primer buscador
-            st.info("El carrito está vacío. Selecciona productos a la izquierda.")
+            st.info("El carrito está vacío. Empieza a añadir productos desde la izquierda.")
             
 # --- TAB 4: HISTORIAL Y DEVOLUCIONES (VERSIÓN CORREGIDA) ---
 with tab4:
