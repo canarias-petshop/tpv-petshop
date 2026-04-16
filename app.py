@@ -124,7 +124,7 @@ with tab2:
         st.markdown(st.session_state.ticket_html, unsafe_allow_html=True)
         if st.button("Cerrar Ticket"): st.session_state.ticket_html = None; st.rerun()
 
-# --- TAB 4: HISTORIAL Y DEVOLUCIONES (VERSIÓN SEGURA) ---
+# --- TAB 4: HISTORIAL Y DEVOLUCIONES (TABLA INTERACTIVA) ---
 with tab4:
     st.markdown("### 📜 Historial de Ventas")
     
@@ -138,61 +138,86 @@ with tab4:
             # Ordenamos por ID para ver lo más nuevo arriba
             df_v = df_v.sort_values(by="id", ascending=False)
             
-            # Selector de ticket con protección .get por si falta la columna 'estado' o 'total'
-            opciones_ticket = df_v.apply(
-                lambda x: f"#{x.get('id', '?')} - {x.get('total', 0)}€ ({x.get('estado', 'Completado')})", 
-                axis=1
+            # --- PREPARAR LA TABLA VISUAL ---
+            # Formateamos la fecha para que se lea bien (si existe 'created_at')
+            try:
+                df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+            except:
+                df_v['Fecha'] = "Sin fecha"
+                
+            # Elegimos qué columnas enseñar en la tabla principal
+            df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado']].copy()
+            df_vista.columns = ['Nº Ticket', 'Fecha', 'Total (€)', 'Método', 'Estado']
+            
+            st.write("👆 **Haz clic en cualquier fila de la tabla** para ver los detalles del ticket y gestionar devoluciones.")
+            
+            # --- TABLA INTERACTIVA (Aquí ocurre la magia del clic) ---
+            evento = st.dataframe(
+                df_vista,
+                use_container_width=True,
+                hide_index=True,
+                height=250, # Altura fija para que no ocupe toda la pantalla
+                on_select="rerun", # Si hacen clic, la app reacciona
+                selection_mode="single-row" # Solo deja seleccionar una fila a la vez
             )
             
-            sel = st.selectbox("Seleccionar un Ticket para ver o devolver:", opciones_ticket)
-            
-            # Extraemos el ID del texto seleccionado
-            id_t = int(sel.split('#')[1].split(' ')[0])
-            ticket = df_v[df_v['id'] == id_t].iloc[0]
-            
-            st.divider()
-            st.info(f"🔍 Detalle del Ticket #{id_t}")
-            
-            # --- MOSTRAR PRODUCTOS (Con protección por si la columna no existe) ---
-            productos_vendidos = ticket.get('productos', [])
-            
-            if productos_vendidos:
-                # Si es una lista de diccionarios, lo convertimos a tabla limpia
-                try:
-                    df_items = pd.DataFrame(productos_vendidos)
-                    st.dataframe(df_items[['Producto', 'Cantidad', 'Precio', 'Subtotal']], use_container_width=True, hide_index=True)
-                except:
-                    st.write(productos_vendidos) # Si falla el formato, lo muestra como texto
-            else:
-                st.warning("⚠️ Este ticket no tiene productos registrados (Venta antigua o de prueba).")
-
-            # --- GESTIÓN DE DEVOLUCIÓN ---
-            st.divider()
-            estado_actual = ticket.get('estado', 'Completado')
-            
-            if estado_actual == "Completado":
-                st.subheader("🔄 Realizar Devolución")
-                m_dev = st.radio("Método de Reembolso:", ["Efectivo", "Tarjeta", "Vale"], horizontal=True)
+            # --- SI EL USUARIO HA PINCHADO EN UNA FILA ---
+            if len(evento.selection.rows) > 0:
+                # Averiguamos qué fila pinchó
+                fila_pinchada = evento.selection.rows[0]
+                # Sacamos el ID del ticket de esa fila
+                id_t = int(df_vista.iloc[fila_pinchada]['Nº Ticket'])
+                # Buscamos todos los datos de ese ticket en el dataframe original
+                ticket = df_v[df_v['id'] == id_t].iloc[0]
                 
-                if st.button("Confirmar Devolución Total", type="primary", use_container_width=True):
-                    with st.spinner("Procesando..."):
-                        try:
-                            # 1. Marcamos como DEVUELTO en Supabase
-                            client.table("ventas_historial").update({
-                                "estado": "DEVUELTO", 
-                                "motivo_devolucion": f"Devolución vía {m_dev}"
-                            }).eq("id", id_t).execute()
-                            
-                            st.success(f"✅ Ticket #{id_t} marcado como DEVUELTO.")
-                            st.balloons()
-                            time.sleep(2)
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error al devolver: {e}")
-            else:
-                st.error(f"Este ticket ya consta como {estado_actual.upper()}.")
-                if ticket.get('motivo_devolucion'):
-                    st.info(f"Motivo: {ticket['motivo_devolucion']}")
+                st.divider()
+                st.info(f"🔍 Detalle del Ticket #{id_t} - {ticket['Fecha']}")
+                
+                # --- MOSTRAR PRODUCTOS ---
+                productos_vendidos = ticket.get('productos', [])
+                if productos_vendidos:
+                    try:
+                        df_items = pd.DataFrame(productos_vendidos)
+                        st.dataframe(df_items[['Producto', 'Cantidad', 'Precio', 'Subtotal']], use_container_width=True, hide_index=True)
+                    except:
+                        st.write(productos_vendidos)
+                else:
+                    st.warning("⚠️ Este ticket no tiene productos registrados (Venta antigua o de prueba).")
+
+                # --- GESTIÓN DE DEVOLUCIÓN ---
+                st.divider()
+                estado_actual = ticket.get('estado', 'Completado')
+                
+                if estado_actual == "Completado":
+                    st.subheader("🔄 Realizar Devolución")
+                    m_dev = st.radio("Método de Reembolso:", ["Efectivo", "Tarjeta", "Vale"], horizontal=True)
+                    
+                    if st.button("Confirmar Devolución Total", type="primary", use_container_width=True):
+                        with st.spinner("Procesando..."):
+                            try:
+                                # A. Devolver stock (opcional, si lo necesitas aquí)
+                                for p in productos_vendidos:
+                                    res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
+                                    if res_p.data:
+                                        stock_ahora = res_p.data[0]['stock_actual']
+                                        client.table("productos_y_servicios").update({"stock_actual": stock_ahora + p['Cantidad']}).eq("nombre", p['Producto']).execute()
+
+                                # B. Marcamos como DEVUELTO en Supabase
+                                client.table("ventas_historial").update({
+                                    "estado": "DEVUELTO", 
+                                    "motivo_devolucion": f"Devolución vía {m_dev}"
+                                }).eq("id", id_t).execute()
+                                
+                                st.success(f"✅ Ticket #{id_t} marcado como DEVUELTO.")
+                                st.balloons()
+                                time.sleep(2)
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al devolver: {e}")
+                else:
+                    st.error(f"Este ticket ya consta como {estado_actual.upper()}.")
+                    if ticket.get('motivo_devolucion'):
+                        st.info(f"Motivo: {ticket['motivo_devolucion']}")
         else:
             st.write("Aún no hay ventas en el historial.")
     else:
