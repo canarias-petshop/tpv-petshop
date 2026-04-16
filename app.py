@@ -124,33 +124,76 @@ with tab2:
         st.markdown(st.session_state.ticket_html, unsafe_allow_html=True)
         if st.button("Cerrar Ticket"): st.session_state.ticket_html = None; st.rerun()
 
-# --- TAB 4: HISTORIAL Y DEVOLUCIONES ---
+# --- TAB 4: HISTORIAL Y DEVOLUCIONES (VERSIÓN SEGURA) ---
 with tab4:
     st.markdown("### 📜 Historial de Ventas")
-    # USAMOS EL NOMBRE EXACTO: ventas_historial
+    
+    # 1. Intentamos leer la tabla de Supabase
     res_v = client.table("ventas_historial").select("*").execute()
+    
     if res_v.data:
         df_v = pd.DataFrame(res_v.data)
+        
         if not df_v.empty:
-            # Ordenamos por ID de más nuevo a más viejo
+            # Ordenamos por ID para ver lo más nuevo arriba
             df_v = df_v.sort_values(by="id", ascending=False)
-            sel = st.selectbox("Seleccionar Ticket:", df_v.apply(lambda x: f"#{x.get('id', '?')} - {x.get('total', 0)}€ ({x.get('estado', 'Completado')})", axis=1))
+            
+            # Selector de ticket con protección .get por si falta la columna 'estado' o 'total'
+            opciones_ticket = df_v.apply(
+                lambda x: f"#{x.get('id', '?')} - {x.get('total', 0)}€ ({x.get('estado', 'Completado')})", 
+                axis=1
+            )
+            
+            sel = st.selectbox("Seleccionar un Ticket para ver o devolver:", opciones_ticket)
+            
+            # Extraemos el ID del texto seleccionado
             id_t = int(sel.split('#')[1].split(' ')[0])
             ticket = df_v[df_v['id'] == id_t].iloc[0]
             
-            st.info(f"Contenido del Ticket #{id_t}")
-            st.write(ticket['productos'])
+            st.divider()
+            st.info(f"🔍 Detalle del Ticket #{id_t}")
             
-            if ticket['estado'] == "Completado":
-                m_dev = st.radio("Método de Devolución:", ["Efectivo", "Tarjeta"], horizontal=True)
-                if st.button("🔄 PROCESAR DEVOLUCIÓN TOTAL"):
-                    # 1. Marcar como devuelto en ventas_historial
-                    client.table("ventas_historial").update({
-                        "estado": "DEVUELTO", 
-                        "motivo_devolucion": f"Vía {m_dev}"
-                    }).eq("id", id_t).execute()
-                    st.success("✅ Ticket marcado como DEVUELTO"); st.rerun()
+            # --- MOSTRAR PRODUCTOS (Con protección por si la columna no existe) ---
+            productos_vendidos = ticket.get('productos', [])
+            
+            if productos_vendidos:
+                # Si es una lista de diccionarios, lo convertimos a tabla limpia
+                try:
+                    df_items = pd.DataFrame(productos_vendidos)
+                    st.dataframe(df_items[['Producto', 'Cantidad', 'Precio', 'Subtotal']], use_container_width=True, hide_index=True)
+                except:
+                    st.write(productos_vendidos) # Si falla el formato, lo muestra como texto
+            else:
+                st.warning("⚠️ Este ticket no tiene productos registrados (Venta antigua o de prueba).")
+
+            # --- GESTIÓN DE DEVOLUCIÓN ---
+            st.divider()
+            estado_actual = ticket.get('estado', 'Completado')
+            
+            if estado_actual == "Completado":
+                st.subheader("🔄 Realizar Devolución")
+                m_dev = st.radio("Método de Reembolso:", ["Efectivo", "Tarjeta", "Vale"], horizontal=True)
+                
+                if st.button("Confirmar Devolución Total", type="primary", use_container_width=True):
+                    with st.spinner("Procesando..."):
+                        try:
+                            # 1. Marcamos como DEVUELTO en Supabase
+                            client.table("ventas_historial").update({
+                                "estado": "DEVUELTO", 
+                                "motivo_devolucion": f"Devolución vía {m_dev}"
+                            }).eq("id", id_t).execute()
+                            
+                            st.success(f"✅ Ticket #{id_t} marcado como DEVUELTO.")
+                            st.balloons()
+                            time.sleep(2)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al devolver: {e}")
+            else:
+                st.error(f"Este ticket ya consta como {estado_actual.upper()}.")
+                if ticket.get('motivo_devolucion'):
+                    st.info(f"Motivo: {ticket['motivo_devolucion']}")
         else:
-            st.write("Historial vacío.")
+            st.write("Aún no hay ventas en el historial.")
     else:
-        st.write("No se pudo cargar el historial.")
+        st.error("No se pudo conectar con la tabla 'ventas_historial' en Supabase.")
