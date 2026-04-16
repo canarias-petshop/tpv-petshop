@@ -4,14 +4,13 @@ from postgrest import SyncPostgrestClient
 from datetime import datetime
 import time
 
-# --- 1. CONFIGURACIÓN DE PÁGINA (SEGURA) ---
+# --- 1. CONFIGURACIÓN DE PÁGINA (COMPRESIÓN SEGURA) ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
 
-# CSS Suave: Solo quitamos el exceso de arriba sin romper la app
 st.markdown("""
     <style>
-        .block-container { padding-top: 2.5rem !important; padding-bottom: 0rem !important; }
-        .stSelectbox, .stTextInput, .stNumberInput { max-width: 95% !important; }
+        /* Un padding superior de 2rem es seguro para que el logo no choque con el techo */
+        .block-container { padding-top: 2rem !important; padding-bottom: 0rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -42,13 +41,13 @@ try:
 except:
     st.error("Error de conexión"); st.stop()
 
-# --- 5. CABECERA (NATURAL, SIN CORTES) ---
+# --- CABECERA SEGURA ---
 c_logo, c_titulo = st.columns([0.8, 8], vertical_alignment="center")
 with c_logo:
-    try: st.image("LOGO.jpg", width=60) # Logo restaurado
+    try: st.image("LOGO.jpg", width=60)
     except: st.write("🐾")
 with c_titulo:
-    st.title("Animalarium - TPV")
+    st.markdown("<h1 style='margin:0;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
 
 tab1, tab2, tab3, tab4 = st.tabs(["📦 Inventario", "🛒 Caja/Ventas", "👥 Clientes", "📜 Historial"])
 
@@ -84,35 +83,33 @@ with tab1:
             df = pd.DataFrame(res.data)
             st.dataframe(df[['codigo_barras', 'nombre', 'precio_pvp', 'stock_actual']], use_container_width=True, height=380, hide_index=True)
 
-# --- TAB 2: CAJA Y VENTAS (LIMPIA Y ALINEADA) ---
+# --- TAB 2: CAJA Y VENTAS (COMPACTA MEDIANTE HTML) ---
 with tab2:
-    # Usamos gap="medium" para no agobiar visualmente la pantalla
     col_busqueda, col_carrito = st.columns([1.2, 1], gap="medium")
     
+    # --- COLUMNA IZQUIERDA ---
     with col_busqueda:
-        # Título principal de la columna izquierda
-        st.markdown("### 🛒 Terminal de Venta")
+        # Título ajustado al milímetro
+        st.markdown("<h3 style='margin-top: -10px; margin-bottom: 10px;'>🛒 Terminal de Venta</h3>", unsafe_allow_html=True)
         
         res_inv = client.table("productos_y_servicios").select("*").execute()
         df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
         
         # 1. BUSCADOR
-        st.markdown("**🔍 Buscar por Nombre**")
+        st.markdown("<p style='margin: 0 0 5px 0; font-weight: bold;'>🔍 Buscar por Nombre</p>", unsafe_allow_html=True)
         if not df_inv.empty:
             opciones = df_inv.apply(lambda x: f"{x['nombre']} | {x['precio_pvp']}€", axis=1).tolist()
-            prod_sel = st.selectbox("Busca el producto", opciones, index=None, placeholder="Escribe el nombre del producto...", label_visibility="collapsed")
+            prod_sel = st.selectbox("b", opciones, index=None, placeholder="Escribe el nombre del producto...", label_visibility="collapsed")
             
             if prod_sel:
                 nombre_sel = prod_sel.split(" | ")[0]
                 fila_p = df_inv[df_inv['nombre'] == nombre_sel].iloc[0]
-                
-                # Aviso de stock
-                st.caption(f"📦 Stock disponible: **{fila_p['stock_actual']}**")
+                st.markdown(f"<p style='margin:0; font-size:12px; color:green;'>Stock: {fila_p['stock_actual']}</p>", unsafe_allow_html=True)
                 
                 c1, c2 = st.columns(2)
-                with c1: cant = st.number_input("Cantidad_b", min_value=1, value=1, label_visibility="collapsed", key="cant_b")
+                with c1: cant = st.number_input("cb", min_value=1, value=1, label_visibility="collapsed", key="cant_b")
                 with c2: 
-                    if st.button("➕ Añadir al carro", use_container_width=True, type="primary", key="btn_b"):
+                    if st.button("➕ Añadir al carro", use_container_width=True, type="primary"):
                         st.session_state.carrito.append({
                             "Producto": fila_p['nombre'], "Cantidad": cant, "Precio": fila_p['precio_pvp'],
                             "Subtotal": cant * float(fila_p['precio_pvp']), "IGIC": fila_p.get('tipo_igic', 7), "Manual": False
@@ -120,17 +117,18 @@ with tab2:
                         st.rerun()
         else: st.info("Inventario vacío.")
 
-        st.divider() # Línea separadora segura nativa
+        # Línea separadora ultra-fina (ahorra mucho espacio)
+        st.markdown("<hr style='margin: 10px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
         # 2. PISTOLA
-        st.markdown("**📇 Escáner de Pistola**")
+        st.markdown("<p style='margin: 0 0 5px 0; font-weight: bold;'>📇 Escáner de Pistola</p>", unsafe_allow_html=True)
         if 'limpiar_codigo' in st.session_state and st.session_state.limpiar_codigo:
             st.session_state.input_pistola = ""
             st.session_state.limpiar_codigo = False
 
         c_cod, c_cant2 = st.columns([2, 1])
-        with c_cant2: cant_p = st.number_input("Cantidad_p", min_value=1, value=1, label_visibility="collapsed", key="cant_p")
-        with c_cod: cod_leido = st.text_input("Codigo_p", placeholder="Haz clic aquí y pasa la pistola...", label_visibility="collapsed", key="input_pistola")
+        with c_cant2: cant_p = st.number_input("cp", min_value=1, value=1, label_visibility="collapsed", key="cant_p")
+        with c_cod: cod_leido = st.text_input("ip", placeholder="Haz clic aquí y pasa la pistola...", label_visibility="collapsed", key="input_pistola")
         
         if cod_leido and not df_inv.empty:
             coincid = df_inv[df_inv['codigo_barras'] == cod_leido]
@@ -140,22 +138,20 @@ with tab2:
                     "Producto": fila_pist['nombre'], "Cantidad": cant_p, "Precio": fila_pist['precio_pvp'],
                     "Subtotal": cant_p * float(fila_pist['precio_pvp']), "IGIC": fila_pist.get('tipo_igic', 7), "Manual": False
                 })
-                st.session_state.limpiar_codigo = True
-                st.rerun()
+                st.session_state.limpiar_codigo = True; st.rerun()
             else: 
                 st.error("⚠️ Código no encontrado.")
-                st.session_state.limpiar_codigo = True
-                time.sleep(1); st.rerun()
+                st.session_state.limpiar_codigo = True; time.sleep(1); st.rerun()
 
-        st.divider()
+        st.markdown("<hr style='margin: 10px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
         # 3. MANUAL
-        st.markdown("**✍️ Artículo Manual Suelto**")
+        st.markdown("<p style='margin: 0 0 5px 0; font-weight: bold;'>✍️ Artículo Manual Suelto</p>", unsafe_allow_html=True)
         with st.form("f_man", clear_on_submit=True, border=False):
-            m_nom = st.text_input("Concepto", placeholder="Nombre del artículo suelto...", label_visibility="collapsed")
+            m_nom = st.text_input("cm", placeholder="Nombre del artículo suelto...", label_visibility="collapsed")
             c_m1, c_m2 = st.columns([2, 1])
             with c_m1: m_pre = st.number_input("Precio final €", min_value=0.0, step=0.1)
-            with c_m2: m_can = st.number_input("Cantidad_m", min_value=1, value=1, label_visibility="collapsed")
+            with c_m2: m_can = st.number_input("Cant.", min_value=1, value=1, label_visibility="collapsed")
             
             if st.form_submit_button("➕ Añadir manual", use_container_width=True):
                 if m_nom and m_pre > 0:
@@ -164,38 +160,53 @@ with tab2:
                         "Subtotal": m_can * float(m_pre), "IGIC": 0, "Manual": True
                     })
                     st.rerun()
-                else: st.error("Faltan datos o el precio es 0.")
 
     # --- COLUMNA DERECHA: CARRITO ---
     with col_carrito:
-        # Usamos el MISMO tamaño de título (###) que en la izquierda para que se alineen solos
-        st.markdown("### 🛒 Tu Carrito")
-        
-        # Para que el cuadro de "vacío" o la tabla empiecen donde el buscador, ponemos un título vacío
-        st.markdown("**Resumen de compra**")
+        # Título idéntico al de la izquierda para que queden 100% alineados
+        st.markdown("<h3 style='margin-top: -10px; margin-bottom: 10px;'>🛒 Tu Carrito</h3>", unsafe_allow_html=True)
         
         if st.session_state.carrito:
             df_car = pd.DataFrame(st.session_state.carrito)
-            # Altura ajustada a 150px
-            st.dataframe(df_car[['Cantidad', 'Producto', 'Subtotal']], use_container_width=True, hide_index=True, height=150)
+            # Altura ajustada
+            st.dataframe(df_car[['Cantidad', 'Producto', 'Subtotal']], use_container_width=True, hide_index=True, height=160)
             
             total_v = sum(item['Subtotal'] for item in st.session_state.carrito)
-            st.markdown(f"### Total a pagar: {total_v:.2f}€", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='text-align: right; margin: 0;'>Total: {total_v:.2f}€</h3>", unsafe_allow_html=True)
             
-            st.divider()
+            st.markdown("<hr style='margin: 10px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
             
-            # Zona de cobro
             metodo = st.radio("Pago:", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, label_visibility="collapsed")
             c_cob, c_vac = st.columns([2, 1])
             with c_cob: 
                 if st.button("🧧 FINALIZAR", use_container_width=True, type="primary"):
-                    # (Aquí va tu código de guardar en Supabase, restar stock y hacer el ticket HTML que ya tenías)
-                    pass
+                    base = sum(i['Subtotal']/(1+(i.get('IGIC',7)/100)) for i in st.session_state.carrito)
+                    client.table("ventas_historial").insert({"total": total_v, "metodo_pago": metodo, "productos": st.session_state.carrito, "estado": "Completado"}).execute()
+                    
+                    for i in st.session_state.carrito:
+                        if not i.get('Manual', False):
+                            res_s = client.table("productos_y_servicios").select("stock_actual").eq("nombre", i['Producto']).execute()
+                            if res_s.data:
+                                n_stock = res_s.data[0]['stock_actual'] - i['Cantidad']
+                                client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", i['Producto']).execute()
+                    
+                    st.session_state.ticket_html = f"<div style='font-family:monospace; width:260px; margin:auto; padding:10px; border:1px solid #ccc; background:white; color:black;'><center><b>ANIMALARIUM</b><br>Raquel Trujillo Hernández<br>TOTAL: {total_v:.2f}€</center></div>"
+                    st.session_state.carrito = []; st.rerun()
             with c_vac: 
                 if st.button("🗑️ Vaciar", use_container_width=True):
                     st.session_state.carrito = []; st.rerun()
         else:
-            st.info("El carrito está vacío. Empieza a añadir productos desde la izquierda.")
+            # Quitamos el st.info (que es enorme) y ponemos un texto HTML simple y bonito
+            st.markdown("""
+                <div style='background-color: #e8f4f8; padding: 15px; border-radius: 8px; text-align: center; color: #005275; margin-top: 5px;'>
+                    🛒 El carrito está vacío.<br><small>Añade productos desde el panel izquierdo.</small>
+                </div>
+            """, unsafe_allow_html=True)
+
+    if st.session_state.ticket_html:
+        st.markdown(st.session_state.ticket_html, unsafe_allow_html=True)
+        if st.button("Cerrar Ticket", use_container_width=True):
+            st.session_state.ticket_html = None; st.rerun()
             
 # --- TAB 4: HISTORIAL Y DEVOLUCIONES (VERSIÓN CORREGIDA) ---
 with tab4:
