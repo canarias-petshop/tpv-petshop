@@ -10,21 +10,21 @@ st.set_page_config(page_title="Animalarium TPV", layout="wide")
 # --- CSS SEGURO (Sin márgenes negativos que escondan el texto) ---
 st.markdown("""
     <style>
-        /* Reducimos el espacio superior al mínimo seguro */
+        /* Ajuste equilibrado para que no se corten las letras */
         .block-container {
-            padding-top: 1.8rem !important;
+            padding-top: 3.5rem !important;
             padding-bottom: 0rem !important;
         }
-        /* Títulos principales más pequeños */
+        /* Título principal con tamaño cómodo */
         h1 {
-            font-size: 1.8rem !important;
-            margin-bottom: 0px !important;
+            font-size: 2rem !important;
+            margin: 0px !important;
+            padding: 0px !important;
         }
-        /* Títulos de las columnas (h3) más compactos */
+        /* Subtítulos de las secciones */
         h3 {
-            font-size: 1.2rem !important;
-            margin-top: -10px !important;
-            margin-bottom: 5px !important;
+            font-size: 1.1rem !important;
+            margin-top: 0px !important;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -67,23 +67,17 @@ except Exception as e:
     st.error("Error en las llaves de los Secrets")
     st.stop()
 
-# --- 5. CABECERA COMPACTA (LOGO Y TÍTULO ALINEADOS) ---
-# Creamos las columnas y forzamos que el contenido se alinee al centro verticalmente
-col_logo, col_titulo = st.columns([1, 10], vertical_alignment="center")
+# --- 5. CABECERA COMPACTA ---
+col_logo, col_titulo = st.columns([0.8, 8], vertical_alignment="center")
 
 with col_logo:
     try:
-        # Ajustamos el ancho para que no "empuje" al título fuera de la fila
-        st.image("LOGO.jpg", width=65) 
+        st.image("LOGO.jpg", width=70) # Un pelín más grande para que se vea bien
     except:
         st.write("🐾")
 
 with col_titulo:
-    # Usamos un estilo de título que no tenga márgenes extra
-    st.markdown(
-        "<h1 style='margin: 0; padding: 0;'>Animalarium - TPV</h1>", 
-        unsafe_allow_html=True
-    )
+    st.title("Animalarium - TPV")
 
 # --- 5. PESTAÑAS ---
 tab1, tab2, tab3, tab4 = st.tabs(["📦 Productos", "✂️ Servicios", "🛒 Caja de Cobro", "📊 Historial"])
