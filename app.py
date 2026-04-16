@@ -279,6 +279,7 @@ with tab2:
                     st.session_state.carrito = []; st.rerun()
         else:
             st.markdown("<div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; color: #666; border: 1px solid #ddd;'>🛒 Carrito vacío.</div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)
             
 # --- TAB 4: HISTORIAL Y DEVOLUCIONES (VERSIÓN CORREGIDA) ---
 with tab4:
@@ -341,13 +342,14 @@ with tab4:
                     # El botón de Devolución aparece si el estado NO es devuelto
                     if "DEVUELTO" not in estado_raw:
                         if st.button("🔄 PROCESAR DEVOLUCIÓN", use_container_width=True):
-                            # IMPORTANTE: Aquí también sumamos el stock al devolver
+                            # IMPORTANTE: Sumamos el stock SOLO si no es un artículo manual
                             if prods:
                                 for p in prods:
-                                    res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
-                                    if res_p.data:
-                                        n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
-                                        client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
+                                    if not p.get('Manual', False): # <-- EL ESCUDO PROTECTOR
+                                        res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
+                                        if res_p.data:
+                                            n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
+                                            client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
                             
                             client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", id_t).execute()
                             st.success("Devolución realizada y stock restaurado")
@@ -358,10 +360,11 @@ with tab4:
                     if st.button("🔥 ANULAR Y BORRAR TODO", use_container_width=True, disabled=not confirmar):
                         if prods:
                             for p in prods:
-                                res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
-                                if res_p.data:
-                                    n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
-                                    client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
+                                if not p.get('Manual', False): # <-- EL ESCUDO PROTECTOR
+                                    res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
+                                    if res_p.data:
+                                        n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
+                                        client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
                         
                         client.table("ventas_historial").delete().eq("id", id_t).execute()
                         st.success("Ticket eliminado y stock restaurado")
