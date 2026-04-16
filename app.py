@@ -169,33 +169,61 @@ with tab2:
                     })
                     st.rerun()
 
-    # --- COLUMNA DERECHA: CARRITO ---
+    # --- COLUMNA DERECHA: CARRITO INTERACTIVO ---
     with col_carrito:
-        # Espacio para alinear con el buscador de la izquierda
-        st.markdown("<div style='height: 22px;'></div>", unsafe_allow_html=True)
+        st.markdown("<h4 style='margin:0; color: #333; white-space: nowrap; padding-right: 10px;'>🛒 Tu Carrito</h4>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
         
         if st.session_state.carrito:
+            # Convertimos el carrito a DataFrame para editarlo
             df_car = pd.DataFrame(st.session_state.carrito)
-            st.dataframe(df_car[['Cantidad', 'Producto', 'Subtotal']], use_container_width=True, hide_index=True, height=150)
             
-            total_v = sum(item['Subtotal'] for item in st.session_state.carrito)
+            # --- TABLA EDITABLE ---
+            # Permite borrar filas y editar celdas. Ajustamos columnas para que sea cómodo.
+            edited_df = st.data_editor(
+                df_car,
+                column_order=("Cantidad", "Producto", "Precio", "Subtotal"),
+                column_config={
+                    "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1, step=1, width="small"),
+                    "Producto": st.column_config.TextColumn("Producto", disabled=True), # El nombre mejor no tocarlo para no liarse
+                    "Precio": st.column_config.NumberColumn("Precio €", format="%.2f"),
+                    "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True),
+                },
+                hide_index=True,
+                use_container_width=True,
+                num_rows="dynamic", # Esto permite eliminar filas (seleccionando y dando a papelera/Supr)
+                height=200,
+                key="editor_carrito"
+            )
+            
+            # Si el usuario edita la tabla, recalculamos subtotales y guardamos
+            if not edited_df.equals(df_car):
+                edited_df["Subtotal"] = edited_df["Cantidad"] * edited_df["Precio"]
+                st.session_state.carrito = edited_df.to_dict('records')
+                st.rerun()
+
+            # Cálculo del Total actualizado
+            total_v = edited_df["Subtotal"].sum()
             st.markdown(f"<h4 style='text-align: right; margin: 0;'>Total: {total_v:.2f}€</h4>", unsafe_allow_html=True)
             
-            st.markdown("<hr style='margin: 5px 0px;'>", unsafe_allow_html=True)
-            metodo = st.radio("p", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, label_visibility="collapsed")
+            st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
             
+            # Zona de cobro
+            metodo = st.radio("p", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, label_visibility="collapsed")
             c_cob, c_vac = st.columns([2, 1])
             with c_cob: 
-                if st.button("🧧 FINALIZAR", use_container_width=True, type="primary"):
-                    # (Aquí va tu lógica de guardar en Supabase...)
-                    st.session_state.carrito = []; st.rerun()
+                if st.button("🧧 FINALIZAR VENTA", use_container_width=True, type="primary"):
+                    # ... (Tu lógica de cobrar se mantiene igual)
+                    st.session_state.carrito = []
+                    st.rerun()
             with c_vac: 
                 if st.button("🗑️ Vaciar", use_container_width=True):
-                    st.session_state.carrito = []; st.rerun()
+                    st.session_state.carrito = []
+                    st.rerun()
         else:
             st.markdown("""
-                <div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; color: #666; border: 1px solid #ddd; font-size: 13px;'>
-                    🛒 Carrito vacío. Selecciona productos.
+                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; color: #666; border: 1px solid #ddd; font-size: 13px;'>
+                    🛒 El carrito está vacío.<br><small>Añade productos desde el panel izquierdo.</small>
                 </div>
             """, unsafe_allow_html=True)
             
