@@ -85,13 +85,13 @@ with tab1:
             df = pd.DataFrame(res.data)
             st.dataframe(df[['codigo_barras', 'nombre', 'precio_pvp', 'stock_actual']], use_container_width=True, height=380, hide_index=True)
 
-# --- TAB 2: CAJA Y VENTAS (EL DISEÑO DEFINITIVO) ---
+# --- TAB 2: CAJA Y VENTAS (PULIDO FINAL) ---
 with tab2:
-    # Alineamos los dos títulos principales
+    # Reducimos el tamaño de los títulos y los alineamos
     st.markdown("""
-        <div style='display: flex; justify-content: space-between; margin-top: -20px;'>
-            <h3 style='width: 55%;'>🛒 Terminal de Venta</h3>
-            <h3 style='width: 45%;'>🛒 Tu Carrito</h3>
+        <div style='display: flex; justify-content: space-between; margin-top: -25px; margin-bottom: 5px;'>
+            <h4 style='margin:0; color: #333;'>🛒 Terminal de Venta</h4>
+            <h4 style='margin:0; color: #333; width: 42%;'>🛒 Tu Carrito</h4>
         </div>
     """, unsafe_allow_html=True)
 
@@ -102,10 +102,10 @@ with tab2:
         df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
         
         # 1. BUSCADOR
-        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 14px;'>🔍 Buscar Producto</p>", unsafe_allow_html=True)
+        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>🔍 Buscar Producto</p>", unsafe_allow_html=True)
         if not df_inv.empty:
             opciones = df_inv.apply(lambda x: f"{x['nombre']} | {x['precio_pvp']}€", axis=1).tolist()
-            prod_sel = st.selectbox("s1", opciones, index=None, placeholder="Escribir nombre...", label_visibility="collapsed", key="sb_n")
+            prod_sel = st.selectbox("s1", opciones, index=None, placeholder="Escribe para buscar...", label_visibility="collapsed", key="sb_n")
             
             if prod_sel:
                 nombre_sel = prod_sel.split(" | ")[0]
@@ -121,10 +121,10 @@ with tab2:
                         })
                         st.rerun()
         
-        st.markdown("<hr style='margin: 8px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
         # 2. PISTOLA
-        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 14px;'>📇 Escáner de Pistola</p>", unsafe_allow_html=True)
+        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>📇 Escáner de Pistola</p>", unsafe_allow_html=True)
         if 'limpiar_codigo' in st.session_state and st.session_state.limpiar_codigo:
             st.session_state.input_pistola = ""
             st.session_state.limpiar_codigo = False
@@ -143,17 +143,18 @@ with tab2:
                 })
                 st.session_state.limpiar_codigo = True; st.rerun()
 
-        st.markdown("<hr style='margin: 8px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-        # 3. MANUAL (FIX: Todo en una sola fila de 3 columnas)
-        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 14px;'>✍️ Artículo Manual</p>", unsafe_allow_html=True)
+        # 3. MANUAL (LIMPIO Y ALINEADO)
+        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>✍️ Artículo Manual</p>", unsafe_allow_html=True)
         with st.form("f_man", clear_on_submit=True, border=False):
-            cm1, cm2, cm3 = st.columns([2, 1, 0.8])
+            # Usamos label_visibility="collapsed" en TODOS para que se alineen perfectamente
+            cm1, cm2, cm3 = st.columns([1.8, 1, 0.7])
             with cm1: m_nom = st.text_input("m1", placeholder="Nombre...", label_visibility="collapsed")
-            with cm2: m_pre = st.number_input("m2", min_value=0.0, step=0.1, placeholder="Precio €")
-            with cm3: m_can = st.number_input("m3", min_value=1, value=1)
+            with cm2: m_pre = st.number_input("m2", min_value=0.0, step=0.1, placeholder="Precio €", label_visibility="collapsed")
+            with cm3: m_can = st.number_input("m3", min_value=1, value=1, label_visibility="collapsed")
             
-            if st.form_submit_button("➕ Añadir Manual al Carrito", use_container_width=True):
+            if st.form_submit_button("➕ Añadir Manual", use_container_width=True):
                 if m_nom and m_pre > 0:
                     st.session_state.carrito.append({
                         "Producto": m_nom, "Cantidad": m_can, "Precio": m_pre,
@@ -163,15 +164,15 @@ with tab2:
 
     # --- COLUMNA DERECHA: CARRITO ---
     with col_carrito:
-        # Añadimos un pequeño espacio para que el aviso azul se alinee con el primer buscador
-        st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+        # Espacio para alinear con el buscador de la izquierda
+        st.markdown("<div style='height: 22px;'></div>", unsafe_allow_html=True)
         
         if st.session_state.carrito:
             df_car = pd.DataFrame(st.session_state.carrito)
-            st.dataframe(df_car[['Cantidad', 'Producto', 'Subtotal']], use_container_width=True, hide_index=True, height=160)
+            st.dataframe(df_car[['Cantidad', 'Producto', 'Subtotal']], use_container_width=True, hide_index=True, height=150)
             
             total_v = sum(item['Subtotal'] for item in st.session_state.carrito)
-            st.markdown(f"<h3 style='text-align: right; margin: 0;'>Total: {total_v:.2f}€</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='text-align: right; margin: 0;'>Total: {total_v:.2f}€</h4>", unsafe_allow_html=True)
             
             st.markdown("<hr style='margin: 5px 0px;'>", unsafe_allow_html=True)
             metodo = st.radio("p", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, label_visibility="collapsed")
@@ -179,15 +180,14 @@ with tab2:
             c_cob, c_vac = st.columns([2, 1])
             with c_cob: 
                 if st.button("🧧 FINALIZAR", use_container_width=True, type="primary"):
-                    # Lógica de cobro...
+                    # (Aquí va tu lógica de guardar en Supabase...)
                     st.session_state.carrito = []; st.rerun()
             with c_vac: 
                 if st.button("🗑️ Vaciar", use_container_width=True):
                     st.session_state.carrito = []; st.rerun()
         else:
-            # Cuadro de aviso alineado
             st.markdown("""
-                <div style='background-color: #e8f4f8; padding: 12px; border-radius: 5px; color: #005275; border: 1px solid #b6effb;'>
+                <div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; color: #666; border: 1px solid #ddd; font-size: 13px;'>
                     🛒 Carrito vacío. Selecciona productos.
                 </div>
             """, unsafe_allow_html=True)
