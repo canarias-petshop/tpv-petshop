@@ -60,36 +60,29 @@ def enviar_ticket_email(email_destino, contenido_html):
 
 # --- TAB 1: PRODUCTOS ---
 with tab1:
-    col1, col2 = st.columns([1, 1.5])  # Ajustamos el ancho de las columnas
+    # Ajustamos las proporciones: 1 para el formulario, 3 para la tabla (mucho más ancha)
+    col1, col2 = st.columns([1, 3]) 
 
     with col1:
-        st.header("Añadir Producto/Servicio")
+        st.subheader("Nuevo Producto")
         with st.form("nuevo_prod", clear_on_submit=True):
-            cod_barras = st.text_input("📷 Código de Barras / Referencia")
-            nombre = st.text_input("Nombre del Producto o Servicio")
+            cod_barras = st.text_input("📷 Código / Ref.")
+            nombre = st.text_input("Nombre")
             cat = st.selectbox("Categoría", ["Alimentación", "Higiene", "Accesorios", "Veterinaria", "Peluquería"])
             
             st.divider()
-            st.subheader("💰 Costes e Impuestos")
+            p_compra_neto = st.number_input("Coste (Neto)", min_value=0.0, step=0.1)
+            valor_tipo_igic = st.selectbox("IGIC %", [7, 0, 3, 15], index=0)
             
-            # Alineamos las 3 columnas a la misma altura
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                p_compra_neto = st.number_input("Precio Compra", min_value=0.0, step=0.1, help="Sin IGIC")
-            with c2:
-                valor_tipo_igic = st.selectbox("IGIC %", [7, 0, 3, 15], index=0)
-            with c3:
-                # Añadimos un espacio vacío arriba para que el texto baje a la altura de las casillas
-                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-                p_compra_total = p_compra_neto * (1 + (valor_tipo_igic/100))
-                st.write(f"Total: **{p_compra_total:.2f}€**")
+            # Cálculo rápido visual
+            p_compra_total = p_compra_neto * (1 + (valor_tipo_igic/100))
+            st.caption(f"Coste con impuesto: {p_compra_total:.2f}€")
             
             st.divider()
-            st.subheader("🏷️ Venta al Público")
-            p_venda = st.number_input("PVP FINAL", min_value=0.0, step=0.1)
-            stock = st.number_input("Stock Inicial", min_value=0)
+            p_venda = st.number_input("PVP Final", min_value=0.0, step=0.1)
+            stock = st.number_input("Stock", min_value=0)
             
-            if st.form_submit_button("Guardar en Inventario"):
+            if st.form_submit_button("Añadir al Inventario"):
                 client.table("productos_y_servicios").insert({
                     "codigo_barras": cod_barras, 
                     "nombre": nombre, 
@@ -99,18 +92,36 @@ with tab1:
                     "tipo_igic": valor_tipo_igic,
                     "stock_actual": stock
                 }).execute()
-                st.success(f"✅ {nombre} guardado correctamente.")
+                st.success("✅ Añadido")
                 st.rerun()
 
     with col2:
-        st.header("Inventario Actual")
-        # Aquí configuramos la tabla para que muestre TODAS las columnas
-        res = client.table("productos_y_servicios").select("codigo_barras, nombre, categoria, precio_compra, tipo_igic, precio_pvp, stock_actual").execute()
+        st.subheader("📦 Control de Inventario")
+        # Traemos los datos. NOTA: Si da error, verifica los nombres en Supabase
+        res = client.table("productos_y_servicios").select("*").execute()
+        
         if res.data:
             df = pd.DataFrame(res.data)
-            # Renombramos las columnas para que se vean bonitas en la tabla
-            df.columns = ["Código", "Producto", "Categoría", "Coste (Neto)", "IGIC %", "PVP Final", "Stock"]
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            
+            # Seleccionamos solo las columnas que queremos ver y en qué orden
+            # Asegúrate de que estos nombres existan en tu Supabase
+            columnas_visibles = {
+                "codigo_barras": "Código",
+                "nombre": "Producto",
+                "categoria": "Categoría",
+                "precio_compra": "Coste (Neto)",
+                "tipo_igic": "IGIC %",
+                "precio_pvp": "PVP Final",
+                "stock_actual": "Stock"
+            }
+            
+            # Filtramos y renombramos para la vista
+            df_ver = df[list(columnas_visibles.keys())].rename(columns=columnas_visibles)
+            
+            # Mostramos la tabla ocupando todo el ancho
+            st.dataframe(df_ver, use_container_width=True, hide_index=True)
+        else:
+            st.info("Aún no hay productos registrados.")
 # --- TAB 2: SERVICIOS ---
 with tab2:
     col_s1, col_s2 = st.columns([1, 2])
