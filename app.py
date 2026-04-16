@@ -173,7 +173,7 @@ with tab4:
                 with col_c1:
                     # Si NO está devuelto, permitimos elegir método de reembolso
                     if "DEVUELTO" not in estado_raw:
-                        m_dev = st.radio("Reembolso:", ["Efectivo", "Tarjeta"], horizontal=True, key=f"rd_{id_t}", label_visibility="collapsed")
+                        m_dev = st.radio("Reembolso:", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, key=f"rd_{id_t}", label_visibility="collapsed")
                     else:
                         st.error("TICKET YA DEVUELTO")
                 with col_c2:
