@@ -169,63 +169,76 @@ with tab2:
                     })
                     st.rerun()
 
-    # --- COLUMNA DERECHA: CARRITO INTERACTIVO ---
+    # --- COLUMNA DERECHA: CARRITO CON DESCUENTOS ---
     with col_carrito:
-        st.markdown("<h4 style='margin:0; color: #333; white-space: nowrap; padding-right: 10px;'>🛒 Tu Carrito</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='margin:0; color: #333;'>🛒 Tu Carrito</h4>", unsafe_allow_html=True)
         st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
         
         if st.session_state.carrito:
-            # Convertimos el carrito a DataFrame para editarlo
             df_car = pd.DataFrame(st.session_state.carrito)
             
-            # --- TABLA EDITABLE ---
-            # Permite borrar filas y editar celdas. Ajustamos columnas para que sea cómodo.
+            # Aseguramos que exista la columna de descuento si no estaba
+            if 'Desc. %' not in df_car.columns:
+                df_car['Desc. %'] = 0.0
+
+            # --- TABLA INTERACTIVA CON DESCUENTOS ---
             edited_df = st.data_editor(
                 df_car,
-                column_order=("Cantidad", "Producto", "Precio", "Subtotal"),
+                column_order=("Cantidad", "Producto", "Precio", "Desc. %", "Subtotal"),
                 column_config={
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1, step=1, width="small"),
-                    "Producto": st.column_config.TextColumn("Producto", disabled=True), # El nombre mejor no tocarlo para no liarse
+                    "Producto": st.column_config.TextColumn("Producto", disabled=True),
                     "Precio": st.column_config.NumberColumn("Precio €", format="%.2f"),
+                    "Desc. %": st.column_config.NumberColumn("Desc. %", min_value=0, max_value=100, format="%d%%"),
                     "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True),
                 },
                 hide_index=True,
                 use_container_width=True,
-                num_rows="dynamic", # Esto permite eliminar filas (seleccionando y dando a papelera/Supr)
-                height=200,
-                key="editor_carrito"
+                num_rows="dynamic",
+                height=180,
+                key="editor_descuentos"
             )
             
-            # Si el usuario edita la tabla, recalculamos subtotales y guardamos
+            # Recalcular Subtotales (Precio * Cantidad menos el descuento individual)
             if not edited_df.equals(df_car):
-                edited_df["Subtotal"] = edited_df["Cantidad"] * edited_df["Precio"]
+                edited_df["Subtotal"] = (edited_df["Cantidad"] * edited_df["Precio"]) * (1 - edited_df["Desc. %"] / 100)
                 st.session_state.carrito = edited_df.to_dict('records')
                 st.rerun()
 
-            # Cálculo del Total actualizado
-            total_v = edited_df["Subtotal"].sum()
-            st.markdown(f"<h4 style='text-align: right; margin: 0;'>Total: {total_v:.2f}€</h4>", unsafe_allow_html=True)
-            
+            # --- DESCUENTO GLOBAL ---
             st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+            
+            subtotal_antes_global = edited_df["Subtotal"].sum()
+            
+            c_desc_g1, c_desc_g2 = st.columns([1.5, 1])
+            with c_desc_g1:
+                desc_global = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=0, step=1)
+            with c_desc_g2:
+                total_final = subtotal_antes_global * (1 - desc_global / 100)
+                st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>{total_final:.2f}€</h3>", unsafe_allow_html=True)
+                if desc_global > 0:
+                    st.markdown(f"<p style='text-align: right; margin:0; font-size:11px; color:gray;'>Ahorro: {subtotal_antes_global - total_final:.2f}€</p>", unsafe_allow_html=True)
             
             # Zona de cobro
             metodo = st.radio("p", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, label_visibility="collapsed")
             c_cob, c_vac = st.columns([2, 1])
             with c_cob: 
                 if st.button("🧧 FINALIZAR VENTA", use_container_width=True, type="primary"):
-                    # ... (Tu lógica de cobrar se mantiene igual)
+                    # Al guardar en Supabase, asegúrate de guardar el 'total_final' con el descuento global aplicado
+                    client.table("ventas_historial").insert({
+                        "total": total_final, 
+                        "metodo_pago": metodo, 
+                        "productos": st.session_state.carrito,
+                        "descuento_global": desc_global,
+                        "estado": "Completado"
+                    }).execute()
                     st.session_state.carrito = []
                     st.rerun()
             with c_vac: 
                 if st.button("🗑️ Vaciar", use_container_width=True):
-                    st.session_state.carrito = []
-                    st.rerun()
+                    st.session_state.carrito = []; st.rerun()
         else:
-            st.markdown("""
-                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; color: #666; border: 1px solid #ddd; font-size: 13px;'>
-                    🛒 El carrito está vacío.<br><small>Añade productos desde el panel izquierdo.</small>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown("<div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; color: #666; border: 1px solid #ddd; font-size: 13px;'>🛒 Carrito vacío.</div>", unsafe_allow_html=True)
             
 # --- TAB 4: HISTORIAL Y DEVOLUCIONES (VERSIÓN CORREGIDA) ---
 with tab4:
