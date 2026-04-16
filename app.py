@@ -14,12 +14,21 @@ st.markdown("""
         .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: -10px !important; }
         [data-testid="column"] { padding: 0 5px !important; }
         
-        /* 🪄 MAGIA: OCULTAR ELEMENTOS DE STREAMLIT 🪄 */
-        [data-testid="stAppDeployButton"] {display: none !important;} /* Oculta el botón de Manage App */
-        [data-testid="stToolbar"] {display: none !important;} /* Oculta las herramientas superiores */
-        #MainMenu {visibility: hidden;} /* Oculta el menú de hamburguesa superior derecho */
-        footer {visibility: hidden;} /* Oculta el pie de página "Made with Streamlit" */
-        header {visibility: hidden;} /* Oculta la barra superior transparente */
+        /* 🪄 MAGIA: OCULTAR ELEMENTOS DE STREAMLIT (Nivel Extremo) 🪄 */
+        #MainMenu {visibility: hidden;} /* Menú de arriba a la derecha */
+        footer {visibility: hidden;} /* Pie de página */
+        header {visibility: hidden;} /* Cabecera transparente */
+        
+        /* Ocultar botones de "Deploy" de la barra superior */
+        [data-testid="stAppDeployButton"] {display: none !important;}
+        [data-testid="stToolbar"] {display: none !important;}
+        .stDeployButton {display: none !important;}
+        
+        /* 🚨 ELIMINAR EL BOTÓN INFERIOR DERECHO "MANAGE APP" EN LA NUBE 🚨 */
+        #st-viewer-badge {display: none !important;}
+        [data-testid="viewerBadge"] {display: none !important;}
+        .viewerBadge_container__1QSob {display: none !important;}
+        .viewerBadge_link__1S137 {display: none !important;}
     </style>
     """, unsafe_allow_html=True)
 
