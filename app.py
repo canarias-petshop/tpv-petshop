@@ -124,11 +124,11 @@ with tab2:
         st.markdown(st.session_state.ticket_html, unsafe_allow_html=True)
         if st.button("Cerrar Ticket"): st.session_state.ticket_html = None; st.rerun()
 
-# --- TAB 4: HISTORIAL, DEVOLUCIONES Y ANULACIÓN TOTAL ---
+# --- TAB 4: HISTORIAL COMPACTO ---
 with tab4:
-    st.markdown("### 📜 Historial de Ventas")
+    # Título más pegado arriba
+    st.markdown("<h3 style='margin-top: -10px; margin-bottom: 5px;'>📜 Historial</h3>", unsafe_allow_html=True)
     
-    # 1. Traer datos de Supabase
     res_v = client.table("ventas_historial").select("*").execute()
     
     if res_v.data:
@@ -137,80 +137,76 @@ with tab4:
         if not df_v.empty:
             df_v = df_v.sort_values(by="id", ascending=False)
             
-            # Formatear fecha
-            try:
-                df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
-            except:
-                df_v['Fecha'] = "---"
+            try: df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+            except: df_v['Fecha'] = "---"
                 
-            # Escudo protector para columnas
             for col in ['metodo_pago', 'estado', 'total']:
                 if col not in df_v.columns: df_v[col] = "N/A"
 
             df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado']].copy()
-            df_vista.columns = ['Nº Ticket', 'Fecha', 'Total (€)', 'Método', 'Estado']
+            df_vista.columns = ['Nº', 'Fecha', 'Total (€)', 'Método', 'Estado']
             
-            st.write("👆 **Selecciona una fila** para gestionar el ticket.")
+            st.markdown("<p style='font-size:12px; margin-bottom:0px;'>👆 Haz clic en una fila para ver y gestionar.</p>", unsafe_allow_html=True)
             
+            # Altura reducida a 180 para que no empuje hacia abajo
             evento = st.dataframe(
-                df_vista, use_container_width=True, hide_index=True, height=250,
+                df_vista, use_container_width=True, hide_index=True, height=180,
                 on_select="rerun", selection_mode="single-row"
             )
             
             if len(evento.selection.rows) > 0:
                 fila_idx = evento.selection.rows[0]
-                id_t = int(df_vista.iloc[fila_idx]['Nº Ticket'])
+                id_t = int(df_vista.iloc[fila_idx]['Nº'])
                 ticket = df_v[df_v['id'] == id_t].iloc[0]
                 
-                st.divider()
-                st.info(f"🔍 Detalle del Ticket #{id_t}")
+                # Línea separadora muy fina
+                st.markdown("<hr style='margin: 5px 0px; border-top: 1px solid #ccc;'>", unsafe_allow_html=True)
+                st.markdown(f"**🔍 Ticket #{id_t}**") # Texto simple en lugar de st.info
                 
-                # Mostrar productos
                 prods = ticket.get('productos', [])
                 if prods:
-                    st.dataframe(pd.DataFrame(prods)[['Producto', 'Cantidad', 'Precio', 'Subtotal']], use_container_width=True, hide_index=True)
+                    # Tabla de productos pequeña (120px)
+                    st.dataframe(pd.DataFrame(prods)[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True, height=120)
                 
-                # --- OPCIONES DE GESTIÓN ---
+                st.markdown("<hr style='margin: 5px 0px; border-top: 1px solid #ccc;'>", unsafe_allow_html=True)
+                
+                # --- BOTONES COMPACTOS ---
                 col_dev, col_borrar = st.columns(2)
                 
                 with col_dev:
-                    st.markdown("#### 🔄 Devolución Estándar")
+                    st.markdown("**🔄 Devolución**")
                     if ticket.get('estado') == "Completado":
-                        m_dev = st.radio("Reembolso por:", ["Efectivo", "Tarjeta"], horizontal=True, key=f"dev_{id_t}")
+                        # Radio button sin márgenes
+                        m_dev = st.radio("Vía:", ["Efectivo", "Tarjeta"], horizontal=True, key=f"dev_{id_t}", label_visibility="collapsed")
                         if st.button("Procesar Devolución", use_container_width=True):
-                            # (Aquí va el código de devolución que ya teníamos...)
                             client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", id_t).execute()
                             st.rerun()
                     else:
-                        st.write("Ticket ya devuelto o anulado.")
+                        st.caption(f"Estado: {ticket.get('estado')}")
 
                 with col_borrar:
-                    st.markdown("#### ❌ Anulación Total")
-                    st.warning("Esto borrará el ticket para siempre y repondrá el stock.")
+                    st.markdown("**❌ Anular (Borrar)**")
+                    # En lugar de st.warning, un texto pequeño (caption)
+                    st.caption("Restaura el stock y borra el registro.")
+                    confirmar = st.checkbox("Confirmar", key=f"check_{id_t}")
                     
-                    # Botón de seguridad para no borrar por error
-                    confirmar = st.checkbox("Confirmar que quiero ELIMINAR este registro", key=f"check_{id_t}")
-                    
-                    if st.button("🔥 BORRAR TICKET Y RESTAURAR TODO", use_container_width=True, disabled=not confirmar):
-                        with st.spinner("Restaurando sistema..."):
+                    if st.button("🔥 BORRAR TICKET", use_container_width=True, disabled=not confirmar):
+                        with st.spinner("Borrando..."):
                             try:
-                                # 1. RESTAURAR STOCK
                                 if prods:
                                     for p in prods:
                                         res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
                                         if res_p.data:
-                                            nuevo_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
-                                            client.table("productos_y_servicios").update({"stock_actual": nuevo_stock}).eq("nombre", p['Producto']).execute()
+                                            n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
+                                            client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
                                 
-                                # 2. BORRAR TICKET DE LA BASE DE DATOS
                                 client.table("ventas_historial").delete().eq("id", id_t).execute()
-                                
-                                st.success(f"Ticket #{id_t} eliminado. Stock repuesto.")
-                                time.sleep(1.5)
+                                st.success("Borrado")
+                                time.sleep(1)
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"Error al borrar: {e}")
+                                st.error("Error al borrar")
         else:
             st.write("No hay ventas.")
     else:
-        st.error("Error al conectar con Supabase.")
+        st.error("Error de conexión.")
