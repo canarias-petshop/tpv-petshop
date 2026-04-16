@@ -211,7 +211,9 @@ with tab2:
             
             if not edited_df.equals(df_car):
                 edited_df["Subtotal"] = (edited_df["Cantidad"] * edited_df["Precio"]) * (1 - edited_df["Desc. %"] / 100)
-                st.session_state.carrito = edited_df.to_dict('records')
+                # TRUCO: Pasamos la tabla a texto y de nuevo a diccionario para limpiar los números "raros"
+                import json
+                st.session_state.carrito = json.loads(edited_df.to_json(orient='records'))
                 st.rerun()
 
             # Separadores más finitos (margin 2px)
@@ -269,9 +271,13 @@ with tab2:
                 bloqueo = (pendiente > 0 and not nombre_deudor)
                 if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
                     client.table("ventas_historial").insert({
-                        "total": total_f, "pagado": pagado_hoy, "pendiente": pendiente,
-                        "metodo_pago": metodo_log, "cliente_deuda": nombre_deudor,
-                        "productos": st.session_state.carrito, "estado": "Completado" if pendiente == 0 else "Deuda"
+                        "total": float(total_f),           # Blindado
+                        "pagado": float(pagado_hoy),       # Blindado
+                        "pendiente": float(pendiente),     # Blindado
+                        "metodo_pago": str(metodo_log),
+                        "cliente_deuda": str(nombre_deudor),
+                        "productos": st.session_state.carrito, # Ya está limpio gracias al truco de arriba
+                        "estado": "Completado" if pendiente == 0 else "Deuda"
                     }).execute()
                     st.session_state.carrito = []; st.rerun()
             with c_vac:
@@ -280,7 +286,7 @@ with tab2:
         else:
             st.markdown("<div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; color: #666; border: 1px solid #ddd;'>🛒 Carrito vacío.</div>", unsafe_allow_html=True)
         st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)
-            
+
 # --- TAB 4: HISTORIAL Y DEVOLUCIONES (VERSIÓN CORREGIDA) ---
 with tab4:
     st.markdown("<h3 style='margin-top: -15px; margin-bottom: 5px;'>📜 Historial</h3>", unsafe_allow_html=True)
