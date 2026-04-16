@@ -4,6 +4,24 @@ from postgrest import SyncPostgrestClient
 from datetime import datetime
 import streamlit.components.v1 as components
 
+# --- PUERTA DE SEGURIDAD (CANDADO) ---
+if "acceso_concedido" not in st.session_state:
+    st.session_state.acceso_concedido = False
+
+if not st.session_state.acceso_concedido:
+    st.markdown("<h1 style='text-align: center;'>🔒 Acceso Restringido</h1>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        clave = st.text_input("Introduce la contraseña de la tienda:", type="password")
+        if st.button("Entrar al TPV", use_container_width=True):
+            if clave == st.secrets["password"]:
+                st.session_state.acceso_concedido = True
+                st.rerun()
+            else:
+                st.error("Contraseña incorrecta. Inténtalo de nuevo.")
+    st.stop() # Esto es la magia: oculta todo lo de abajo hasta poner la clave correcta
+# -------------------------------------
+
 # --- 1. CONFIGURACIÓN ---
 url = "https://zpzhsmyyyfxqbjjiuana.supabase.co" 
 key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwemhzbXl5eWZ4cWJqaml1YW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDMwMTYsImV4cCI6MjA5MTY3OTAxNn0.SY-y9w7X6fgXzvIMvQ-t0Ppyyj1b9Gaxu-FRgOgDuD8"
