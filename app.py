@@ -10,19 +10,21 @@ st.set_page_config(page_title="Animalarium TPV", layout="wide")
 # --- CSS SEGURO (Sin márgenes negativos que escondan el texto) ---
 st.markdown("""
     <style>
-        /* Ajustamos el espacio superior para que no se coma el texto */
+        /* Reducimos el espacio superior al mínimo seguro */
         .block-container {
-            padding-top: 2.5rem !important; 
+            padding-top: 1.8rem !important;
             padding-bottom: 0rem !important;
         }
-        /* Estilo para los títulos sin moverlos fuera de sitio */
+        /* Títulos principales más pequeños */
         h1 {
-            font-size: 2.2rem !important;
-            padding-bottom: 10px !important;
+            font-size: 1.8rem !important;
+            margin-bottom: 0px !important;
         }
-        /* Ajuste de pestañas */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 15px;
+        /* Títulos de las columnas (h3) más compactos */
+        h3 {
+            font-size: 1.2rem !important;
+            margin-top: -10px !important;
+            margin-bottom: 5px !important;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -92,40 +94,33 @@ def enviar_ticket_email(email_destino, contenido_html):
 
 # --- TAB 1: PRODUCTOS ---
 with tab1:
-    # Ajustamos proporciones a 1.2 y 2.5 para equilibrar mejor los pesos
-    col_form, col_tabla = st.columns([1.2, 2.5]) 
+    # Ajustamos proporciones
+    col_form, col_tabla = st.columns([1.1, 2.5]) 
 
     with col_form:
-        st.markdown("### 📝 Nuevo Registro")
+        st.markdown("### 📝 Nuevo Producto") # Título más pequeño
         with st.form("nuevo_prod", clear_on_submit=True):
-            # Fila 1: Nombre (ocupa todo el ancho para legibilidad)
-            nombre = st.text_input("Nombre del Producto/Servicio", placeholder="Ej: Pienso Perro 10kg")
+            nombre = st.text_input("Nombre", placeholder="Producto...")
             
-            # Fila 2: Código y Categoría en la misma línea
             f2_c1, f2_c2 = st.columns(2)
             with f2_c1:
-                cod_barras = st.text_input("📷 Código/Ref")
+                cod_barras = st.text_input("📷 Código")
             with f2_c2:
-                cat = st.selectbox("Categoría", ["Alimentación", "Higiene", "Accesorios", "Veterinaria", "Peluquería"])
+                cat = st.selectbox("Categoría", ["Alimentación", "Higiene", "Accesorios", "Varios"])
             
-            # Fila 3: Coste e IGIC en la misma línea
             f3_c1, f3_c2 = st.columns(2)
             with f3_c1:
-                p_compra_neto = st.number_input("Coste Neto (€)", min_value=0.0, step=0.1)
+                p_compra_neto = st.number_input("Coste Neto", min_value=0.0, step=0.1)
             with f3_c2:
-                valor_tipo_igic = st.selectbox("IGIC %", [7, 0, 3, 15], index=0)
+                valor_tipo_igic = st.selectbox("IGIC %", [7, 0, 3, 15])
             
-            # Fila 4: PVP y Stock en la misma línea
             f4_c1, f4_c2 = st.columns(2)
             with f4_c1:
-                p_venda = st.number_input("PVP Final (€)", min_value=0.0, step=0.1)
+                p_venda = st.number_input("PVP Final", min_value=0.0, step=0.1)
             with f4_c2:
                 stock = st.number_input("Stock", min_value=0)
             
-            # Botón de guardado (quitamos divisores para ahorrar espacio)
-            enviar = st.form_submit_button("🚀 GUARDAR PRODUCTO", use_container_width=True)
-            
-            if enviar:
+            if st.form_submit_button("🚀 GUARDAR", use_container_width=True):
                 client.table("productos_y_servicios").insert({
                     "codigo_barras": cod_barras, 
                     "nombre": nombre, 
@@ -135,7 +130,7 @@ with tab1:
                     "tipo_igic": valor_tipo_igic,
                     "stock_actual": stock
                 }).execute()
-                st.success("✅ Guardado")
+                st.success("✅ Hecho")
                 st.rerun()
 
     with col_tabla:
@@ -154,11 +149,10 @@ with tab1:
             }
             df_ver = df[list(columnas_visibles.keys())].rename(columns=columnas_visibles)
             
-            # TRUCO CLAVE: Añadimos 'height' para que la tabla no crezca hacia abajo infinitamente
-            # 400 o 500 es ideal para que quepa en una pantalla de portátil
-            st.dataframe(df_ver, use_container_width=True, hide_index=True, height=450)
+            # --- CAMBIO CLAVE: Altura reducida a 380 para que no lo tape el botón de Streamlit ---
+            st.dataframe(df_ver, use_container_width=True, hide_index=True, height=380)
         else:
-            st.info("Inventario vacío")
+            st.info("Vacío")
 # --- TAB 2: SERVICIOS ---
 with tab2:
     col_s1, col_s2 = st.columns([1, 2])
