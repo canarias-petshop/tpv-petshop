@@ -74,28 +74,29 @@ with tab1:
             with c1:
                 p_compra_neto = st.number_input("Precio Compra (Sin IGIC)", min_value=0.0, step=0.1)
             with c2:
-                tipo_igic = st.selectbox("Tipo IGIC %", [7, 0, 3, 15], index=0)
+                # Usamos el nombre que elegiste para la variable
+                valor_tipo_igic = st.selectbox("Tipo IGIC %", [7, 0, 3, 15], index=0)
             with c3:
-                # Calculamos el precio de compra con IGIC solo para información
-                p_compra_total = p_compra_neto * (1 + (tipo_igic/100))
+                p_compra_total = p_compra_neto * (1 + (valor_tipo_igic/100))
                 st.write(f"Coste Total: **{p_compra_total:.2f}€**")
             
             st.divider()
             st.subheader("🏷️ Venta al Público")
-            p_venda = st.number_input("Precio de Venta (PVP FINAL)", min_value=0.0, step=0.1, help="Este es el precio que pagará el cliente en caja")
+            p_venda = st.number_input("Precio de Venta (PVP FINAL)", min_value=0.0, step=0.1)
             stock = st.number_input("Stock Inicial", min_value=0)
             
             if st.form_submit_button("Guardar en Inventario"):
+                # AQUÍ ESTÁ EL CAMBIO CLAVE:
                 client.table("productos_y_servicios").insert({
                     "codigo_barras": cod_barras, 
                     "nombre": nombre, 
                     "categoria": cat, 
                     "precio_compra": p_compra_neto, 
                     "precio_pvp": p_venda, 
-                    "igic": tipo_igic, # Guardamos el tipo de IGIC para facturación
+                    "tipo_igic": valor_tipo_igic, # <--- Nombre exacto de tu columna en Supabase
                     "stock_actual": stock
                 }).execute()
-                st.success(f"✅ {nombre} registrado. Coste con IGIC: {p_compra_total:.2f}€")
+                st.success(f"✅ {nombre} guardado. Coste con IGIC: {p_compra_total:.2f}€")
                 st.rerun()
     with col2:
         res = client.table("productos_y_servicios").select("*").neq("categoria", "Peluquería").execute()
