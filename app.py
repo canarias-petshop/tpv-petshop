@@ -7,19 +7,22 @@ import streamlit.components.v1 as components
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
 
-# --- TRUCO CSS PARA ELIMINAR ESPACIOS EN BLANCO Y SUBIR TODO ---
+# --- CSS SEGURO (Sin márgenes negativos que escondan el texto) ---
 st.markdown("""
     <style>
+        /* Ajustamos el espacio superior para que no se coma el texto */
         .block-container {
-            padding-top: 1rem !important;
+            padding-top: 2.5rem !important; 
             padding-bottom: 0rem !important;
         }
+        /* Estilo para los títulos sin moverlos fuera de sitio */
         h1 {
-            margin-top: -15px !important;
-            font-size: 2rem !important;
+            font-size: 2.2rem !important;
+            padding-bottom: 10px !important;
         }
+        /* Ajuste de pestañas */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 10px;
+            gap: 15px;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -36,7 +39,8 @@ if "acceso_concedido" not in st.session_state:
 
 # --- 3. PUERTA DE SEGURIDAD (CANDADO) ---
 if not st.session_state.acceso_concedido:
-    st.markdown("<h1 style='text-align: center;'>🔒 Acceso Restringido</h1>", unsafe_allow_html=True)
+    # Usamos st.header en lugar de h1 manual para que sea más estable
+    st.header("🔒 Acceso Restringido")
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         clave = st.text_input("Introduce la contraseña de la tienda:", type="password")
@@ -61,16 +65,19 @@ except Exception as e:
     st.error("Error en las llaves de los Secrets")
     st.stop()
 
-# --- 5. CABECERA COMPACTA (LOGO Y TÍTULO JUNTOS) ---
-col_logo, col_titulo = st.columns([0.5, 6]) # 0.5 hace que la columna del logo sea muy estrecha
+# --- 5. CABECERA COMPACTA ---
+# He subido el valor a 0.8 para que el logo tenga sitio de sobra
+col_logo, col_titulo = st.columns([0.8, 6]) 
 
 with col_logo:
     try:
-        st.image("LOGO.jpg", width=70) # Logo más pequeñito para que no empuje
+        # El logo un poco más pequeño para asegurar que no empuja
+        st.image("LOGO.jpg", width=80) 
     except:
         st.write("🐾")
 
 with col_titulo:
+    # Usamos st.title normal para que no falle
     st.title("Animalarium - TPV")
 
 # --- 5. PESTAÑAS ---
