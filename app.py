@@ -124,33 +124,30 @@ with tab2:
         st.markdown(st.session_state.ticket_html, unsafe_allow_html=True)
         if st.button("Cerrar Ticket"): st.session_state.ticket_html = None; st.rerun()
 
-# --- TAB 4: HISTORIAL COMPACTO ---
+# --- TAB 4: HISTORIAL COMPACTO Y SEGURO ---
 with tab4:
-    # Título más pegado arriba
-    st.markdown("<h3 style='margin-top: -10px; margin-bottom: 5px;'>📜 Historial</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top: -15px; margin-bottom: 5px;'>📜 Historial</h3>", unsafe_allow_html=True)
     
     res_v = client.table("ventas_historial").select("*").execute()
     
     if res_v.data:
         df_v = pd.DataFrame(res_v.data)
-        
         if not df_v.empty:
             df_v = df_v.sort_values(by="id", ascending=False)
             
+            # Formatear fecha y asegurar columnas
             try: df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
             except: df_v['Fecha'] = "---"
-                
+            
             for col in ['metodo_pago', 'estado', 'total']:
                 if col not in df_v.columns: df_v[col] = "N/A"
 
             df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado']].copy()
             df_vista.columns = ['Nº', 'Fecha', 'Total (€)', 'Método', 'Estado']
             
-            st.markdown("<p style='font-size:12px; margin-bottom:0px;'>👆 Haz clic en una fila para ver y gestionar.</p>", unsafe_allow_html=True)
-            
-            # Altura reducida a 180 para que no empuje hacia abajo
+            # Tabla principal compacta
             evento = st.dataframe(
-                df_vista, use_container_width=True, hide_index=True, height=180,
+                df_vista, use_container_width=True, hide_index=True, height=170,
                 on_select="rerun", selection_mode="single-row"
             )
             
@@ -159,56 +156,48 @@ with tab4:
                 id_t = int(df_vista.iloc[fila_idx]['Nº'])
                 ticket = df_v[df_v['id'] == id_t].iloc[0]
                 
-                # Línea separadora muy fina
-                st.markdown("<hr style='margin: 5px 0px; border-top: 1px solid #ccc;'>", unsafe_allow_html=True)
-                st.markdown(f"**🔍 Ticket #{id_t}**") # Texto simple en lugar de st.info
+                st.markdown(f"**🔍 Detalle Ticket #{id_t}**")
                 
                 prods = ticket.get('productos', [])
                 if prods:
-                    # Tabla de productos pequeña (120px)
-                    st.dataframe(pd.DataFrame(prods)[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True, height=120)
+                    st.dataframe(pd.DataFrame(prods)[['Producto', 'Cantidad', 'Subtotal']], 
+                                 use_container_width=True, hide_index=True, height=110)
+
+                # --- LÓGICA DE CONTROL (FIJADA) ---
+                # Convertimos a minúsculas para que no falle por la mayúscula
+                estado_actual = str(ticket.get('estado', '')).lower().strip()
+
+                st.markdown("<hr style='margin: 5px 0px;'>", unsafe_allow_html=True)
                 
-                st.markdown("<hr style='margin: 5px 0px; border-top: 1px solid #ccc;'>", unsafe_allow_html=True)
-                
-                # --- ZONA DE ACCIÓN (ALINEACIÓN PERFECTA) ---
-                if ticket.get('estado') == "Completado":
-                    
-                    # FILA 1: Controles (A la misma altura)
-                    c_ctrl1, c_ctrl2 = st.columns(2)
-                    with c_ctrl1:
-                        m_dev = st.radio("Vía:", ["Efectivo", "Tarjeta"], horizontal=True, key=f"dev_{id_t}", label_visibility="collapsed")
-                    with c_ctrl2:
-                        # Ponemos la casilla justo encima de su botón
-                        confirmar = st.checkbox("⚠️ Confirmar anulación total", key=f"check_{id_t}")
-                    
-                    # FILA 2: Botones (A la misma altura)
-                    c_btn1, c_btn2 = st.columns(2)
-                    with c_btn1:
-                        if st.button("🔄 PROCESAR DEVOLUCIÓN", use_container_width=True):
+                # Fila 1: Controles
+                col_c1, col_c2 = st.columns(2)
+                with col_c1:
+                    if estado_actual == "completado":
+                        m_dev = st.radio("Reembolso:", ["Efectivo", "Tarjeta"], horizontal=True, key=f"rd_{id_t}", label_visibility="collapsed")
+                    else:
+                        st.write(f"Estado: **{estado_actual.upper()}**")
+                with col_c2:
+                    confirmar = st.checkbox("Confirmar borrar", key=f"chk_{id_t}")
+
+                # Fila 2: Botones
+                col_b1, col_b2 = st.columns(2)
+                with col_b1:
+                    # Solo permitimos devolución si está completado
+                    if estado_actual == "completado":
+                        if st.button("🔄 DEVOLUCIÓN", use_container_width=True):
                             client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", id_t).execute()
                             st.rerun()
-                    with c_btn2:
-                        if st.button("🔥 BORRAR TICKET", use_container_width=True, disabled=not confirmar):
-                            with st.spinner("Borrando..."):
-                                try:
-                                    if prods:
-                                        for p in prods:
-                                            res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
-                                            if res_p.data:
-                                                n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
-                                                client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
-                                    
-                                    client.table("ventas_historial").delete().eq("id", id_t).execute()
-                                    st.success("Borrado")
-                                    time.sleep(1)
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error("Error al borrar")
-                else:
-                    # Si ya está devuelto, mostramos el estado en una línea finita
-                    st.caption(f"Ticket ya procesado. Estado: {ticket.get('estado')}")
-                    
-        else:
-            st.write("No hay ventas.")
-    else:
-        st.error("Error de conexión.")
+                with col_b2:
+                    # El botón de BORRAR siempre disponible si confirmas
+                    if st.button("🔥 ANULAR TICKET", use_container_width=True, disabled=not confirmar):
+                        if prods:
+                            for p in prods:
+                                res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
+                                if res_p.data:
+                                    n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
+                                    client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
+                        client.table("ventas_historial").delete().eq("id", id_t).execute()
+                        st.success("Anulado")
+                        time.sleep(1); st.rerun()
+        else: st.write("Historial vacío.")
+    else: st.error("Error de conexión.")
