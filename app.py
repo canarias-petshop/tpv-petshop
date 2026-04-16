@@ -60,7 +60,8 @@ def enviar_ticket_email(email_destino, contenido_html):
 
 # --- TAB 1: PRODUCTOS ---
 with tab1:
-    col1, col2 = st.columns([1, 2])
+    col1, col2 = st.columns([1, 1.5])  # Ajustamos el ancho de las columnas
+
     with col1:
         st.header("Añadir Producto/Servicio")
         with st.form("nuevo_prod", clear_on_submit=True):
@@ -70,38 +71,46 @@ with tab1:
             
             st.divider()
             st.subheader("💰 Costes e Impuestos")
+            
+            # Alineamos las 3 columnas a la misma altura
             c1, c2, c3 = st.columns(3)
             with c1:
-                p_compra_neto = st.number_input("Precio Compra (Sin IGIC)", min_value=0.0, step=0.1)
+                p_compra_neto = st.number_input("Precio Compra", min_value=0.0, step=0.1, help="Sin IGIC")
             with c2:
-                # Usamos el nombre que elegiste para la variable
-                valor_tipo_igic = st.selectbox("Tipo IGIC %", [7, 0, 3, 15], index=0)
+                valor_tipo_igic = st.selectbox("IGIC %", [7, 0, 3, 15], index=0)
             with c3:
+                # Añadimos un espacio vacío arriba para que el texto baje a la altura de las casillas
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
                 p_compra_total = p_compra_neto * (1 + (valor_tipo_igic/100))
-                st.write(f"Coste Total: **{p_compra_total:.2f}€**")
+                st.write(f"Total: **{p_compra_total:.2f}€**")
             
             st.divider()
             st.subheader("🏷️ Venta al Público")
-            p_venda = st.number_input("Precio de Venta (PVP FINAL)", min_value=0.0, step=0.1)
+            p_venda = st.number_input("PVP FINAL", min_value=0.0, step=0.1)
             stock = st.number_input("Stock Inicial", min_value=0)
             
             if st.form_submit_button("Guardar en Inventario"):
-                # AQUÍ ESTÁ EL CAMBIO CLAVE:
                 client.table("productos_y_servicios").insert({
                     "codigo_barras": cod_barras, 
                     "nombre": nombre, 
                     "categoria": cat, 
                     "precio_compra": p_compra_neto, 
                     "precio_pvp": p_venda, 
-                    "tipo_igic": valor_tipo_igic, # <--- Nombre exacto de tu columna en Supabase
+                    "tipo_igic": valor_tipo_igic,
                     "stock_actual": stock
                 }).execute()
-                st.success(f"✅ {nombre} guardado. Coste con IGIC: {p_compra_total:.2f}€")
+                st.success(f"✅ {nombre} guardado correctamente.")
                 st.rerun()
-    with col2:
-        res = client.table("productos_y_servicios").select("*").neq("categoria", "Peluquería").execute()
-        if res.data: st.dataframe(pd.DataFrame(res.data)[['codigo_barras', 'nombre', 'precio_pvp', 'stock_actual']])
 
+    with col2:
+        st.header("Inventario Actual")
+        # Aquí configuramos la tabla para que muestre TODAS las columnas
+        res = client.table("productos_y_servicios").select("codigo_barras, nombre, categoria, precio_compra, tipo_igic, precio_pvp, stock_actual").execute()
+        if res.data:
+            df = pd.DataFrame(res.data)
+            # Renombramos las columnas para que se vean bonitas en la tabla
+            df.columns = ["Código", "Producto", "Categoría", "Coste (Neto)", "IGIC %", "PVP Final", "Stock"]
+            st.dataframe(df, use_container_width=True, hide_index=True)
 # --- TAB 2: SERVICIOS ---
 with tab2:
     col_s1, col_s2 = st.columns([1, 2])
