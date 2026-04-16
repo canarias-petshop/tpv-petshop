@@ -85,13 +85,12 @@ with tab1:
             df = pd.DataFrame(res.data)
             st.dataframe(df[['codigo_barras', 'nombre', 'precio_pvp', 'stock_actual']], use_container_width=True, height=380, hide_index=True)
 
-# --- TAB 2: CAJA (RESUMEN) ---
+# --- TAB 2: CAJA ---
 with tab2:
     col_caja1, col_caja2 = st.columns([1, 1])
     with col_caja1:
         st.markdown("### 🛒 Carrito")
-        # Aquí iría tu buscador de productos para añadir al carrito...
-        # (Para no hacer el código infinito, asumo que ya tienes la lógica de añadir)
+        # Aquí iría tu buscador para añadir productos...
         if st.session_state.carrito:
             df_car = pd.DataFrame(st.session_state.carrito)
             st.table(df_car)
@@ -100,16 +99,12 @@ with tab2:
             
             if st.button("🧧 COBRAR Y GENERAR TICKET", use_container_width=True):
                 base = sum(i['Subtotal']/(1+(i.get('IGIC',7)/100)) for i in st.session_state.carrito)
-                # Guardar Venta
-                client.table("ventas").insert({
+                # GUARDAR EN VENTAS_HISTORIAL
+                client.table("ventas_historial").insert({
                     "total": total_v, "metodo_pago": metodo, "productos": st.session_state.carrito, "estado": "Completado"
                 }).execute()
-                # Restar Stock
-                for i in st.session_state.carrito:
-                    # Lógica de restar stock aquí...
-                    pass
                 
-                # Ticket HTML
+                # Ticket HTML con tus datos
                 ahora = datetime.now().strftime("%d/%m/%Y %H:%M")
                 st.session_state.ticket_html = f"""
                 <div style="font-family:monospace; width:270px; margin:auto; padding:10px; border:1px solid #ccc; background:white; color:black;">
@@ -117,13 +112,13 @@ with tab2:
                     <hr>
                     {"".join([f"<div>{i['Cantidad']}x {i['Producto'][:15]}... {i['Subtotal']:.2f}€</div>" for i in st.session_state.carrito])}
                     <hr>
-                    <b>TOTAL: {total_v:.2f}€</b> (IGIC Incl.)<br>
-                    <small>Base: {base:.2f}€ | Pago: {metodo}</small>
+                    <b>TOTAL: {total_v:.2f}€</b><br>
+                    <small>Base: {base:.2f}€ | IGIC Inc. | Pago: {metodo}</small>
                     <hr>
                     <center><small>30 días para cambios/devoluciones.<br>¡Gracias! 🐾</small></center>
                 </div>"""
                 st.session_state.carrito = []
-                st.rerun()
+                st.success("Cobrado"); st.rerun()
 
     if st.session_state.ticket_html:
         st.markdown(st.session_state.ticket_html, unsafe_allow_html=True)
@@ -131,23 +126,31 @@ with tab2:
 
 # --- TAB 4: HISTORIAL Y DEVOLUCIONES ---
 with tab4:
-    st.markdown("### 📜 Historial")
-    res_v = client.table("ventas").select("*").order("created_at", desc=True).execute()
+    st.markdown("### 📜 Historial de Ventas")
+    # USAMOS EL NOMBRE EXACTO: ventas_historial
+    res_v = client.table("ventas_historial").select("*").execute()
     if res_v.data:
         df_v = pd.DataFrame(res_v.data)
-        sel = st.selectbox("Ver Ticket:", df_v.apply(lambda x: f"#{x['id']} - {x['total']}€ - {x['estado']}", axis=1))
-        id_t = int(sel.split('#')[1].split(' ')[0])
-        ticket = df_v[df_v['id'] == id_t].iloc[0]
-        
-        st.json(ticket['productos']) # Ver contenido
-        
-        if ticket['estado'] == "Completado":
-            m_dev = st.radio("Devolver por:", ["Efectivo", "Tarjeta"], horizontal=True)
-            if st.button("🔄 PROCESAR DEVOLUCIÓN"):
-                # 1. Sumar Stock
-                for p in ticket['productos']:
-                    # Lógica de sumar stock aquí...
-                    pass
-                # 2. Marcar devuelto
-                client.table("ventas").update({"estado": "DEVUELTO", "motivo_devolucion": f"Vía {m_dev}"}).eq("id", id_t).execute()
-                st.success("Devuelto"); st.rerun()
+        if not df_v.empty:
+            # Ordenamos por ID de más nuevo a más viejo
+            df_v = df_v.sort_values(by="id", ascending=False)
+            sel = st.selectbox("Seleccionar Ticket:", df_v.apply(lambda x: f"#{x['id']} - {x['total']}€ ({x['estado']})", axis=1))
+            id_t = int(sel.split('#')[1].split(' ')[0])
+            ticket = df_v[df_v['id'] == id_t].iloc[0]
+            
+            st.info(f"Contenido del Ticket #{id_t}")
+            st.write(ticket['productos'])
+            
+            if ticket['estado'] == "Completado":
+                m_dev = st.radio("Método de Devolución:", ["Efectivo", "Tarjeta"], horizontal=True)
+                if st.button("🔄 PROCESAR DEVOLUCIÓN TOTAL"):
+                    # 1. Marcar como devuelto en ventas_historial
+                    client.table("ventas_historial").update({
+                        "estado": "DEVUELTO", 
+                        "motivo_devolucion": f"Vía {m_dev}"
+                    }).eq("id", id_t).execute()
+                    st.success("✅ Ticket marcado como DEVUELTO"); st.rerun()
+        else:
+            st.write("Historial vacío.")
+    else:
+        st.write("No se pudo cargar el historial.")
