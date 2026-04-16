@@ -65,20 +65,23 @@ except Exception as e:
     st.error("Error en las llaves de los Secrets")
     st.stop()
 
-# --- 5. CABECERA COMPACTA ---
-# He subido el valor a 0.8 para que el logo tenga sitio de sobra
-col_logo, col_titulo = st.columns([0.8, 6]) 
+# --- 5. CABECERA COMPACTA (LOGO Y TÍTULO ALINEADOS) ---
+# Creamos las columnas y forzamos que el contenido se alinee al centro verticalmente
+col_logo, col_titulo = st.columns([1, 10], vertical_alignment="center")
 
 with col_logo:
     try:
-        # El logo un poco más pequeño para asegurar que no empuja
-        st.image("LOGO.jpg", width=80) 
+        # Ajustamos el ancho para que no "empuje" al título fuera de la fila
+        st.image("LOGO.jpg", width=65) 
     except:
         st.write("🐾")
 
 with col_titulo:
-    # Usamos st.title normal para que no falle
-    st.title("Animalarium - TPV")
+    # Usamos un estilo de título que no tenga márgenes extra
+    st.markdown(
+        "<h1 style='margin: 0; padding: 0;'>Animalarium - TPV</h1>", 
+        unsafe_allow_html=True
+    )
 
 # --- 5. PESTAÑAS ---
 tab1, tab2, tab3, tab4 = st.tabs(["📦 Productos", "✂️ Servicios", "🛒 Caja de Cobro", "📊 Historial"])
