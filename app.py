@@ -95,7 +95,7 @@ with tab2:
             df_car = pd.DataFrame(st.session_state.carrito)
             st.table(df_car)
             total_v = sum(item['Subtotal'] for item in st.session_state.carrito)
-            metodo = st.radio("Pago:", ["Efectivo", "Tarjeta"], horizontal=True)
+            metodo = st.radio("Pago:", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True)
             
             if st.button("🧧 COBRAR Y GENERAR TICKET", use_container_width=True):
                 base = sum(i['Subtotal']/(1+(i.get('IGIC',7)/100)) for i in st.session_state.carrito)
