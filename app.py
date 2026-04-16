@@ -85,31 +85,28 @@ with tab1:
             df = pd.DataFrame(res.data)
             st.dataframe(df[['codigo_barras', 'nombre', 'precio_pvp', 'stock_actual']], use_container_width=True, height=380, hide_index=True)
 
-# --- TAB 2: CAJA Y VENTAS (TODO VISIBLE Y DIRECTO) ---
+# --- TAB 2: CAJA Y VENTAS (ALINEADO Y ULTRA-COMPACTO) ---
 with tab2:
-    # Reducimos el margen superior del título
-    st.markdown("<h3 style='margin-top: -20px; margin-bottom: 5px;'>🛒 Terminal de Venta</h3>", unsafe_allow_html=True)
+    # Subimos el título general para aprovechar el espacio en blanco de arriba
+    st.markdown("<h3 style='margin-top: -25px; margin-bottom: 10px;'>🛒 Terminal de Venta</h3>", unsafe_allow_html=True)
     
     col_busqueda, col_carrito = st.columns([1.2, 1])
     
+    # --- COLUMNA IZQUIERDA: BÚSQUEDA ---
     with col_busqueda:
-        # Cargamos inventario para el buscador
         res_inv = client.table("productos_y_servicios").select("*").execute()
         df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
         
-        # --- 1. BUSCADOR POR NOMBRE (AUTOCOMPLETADO) ---
-        st.markdown("**🔍 Buscar por Nombre**")
+        # 1. BUSCADOR POR NOMBRE
+        st.markdown("**🔍 Buscar por Nombre**") # Este título alinea con el del carrito
         if not df_inv.empty:
-            # Mostramos Nombre primero para facilitar la escritura
             opciones = df_inv.apply(lambda x: f"{x['nombre']} | Cod: {x['codigo_barras']} | {x['precio_pvp']}€", axis=1).tolist()
-            
-            prod_sel = st.selectbox("Buscar:", opciones, index=None, placeholder="Escribe para buscar...", label_visibility="collapsed", key="sb_nombre")
+            prod_sel = st.selectbox("Buscar:", opciones, index=None, placeholder="Escribe para buscar...", label_visibility="collapsed", key="sb_n")
             
             if prod_sel:
                 cod_sel = prod_sel.split(" | Cod: ")[1].split(" | ")[0]
                 fila_p = df_inv[df_inv['codigo_barras'] == cod_sel].iloc[0]
                 
-                # Info de stock rápida
                 st.markdown(f"<p style='margin:0; font-size:12px; color:{'green' if fila_p['stock_actual']>0 else 'red'};'>Stock: {fila_p['stock_actual']}</p>", unsafe_allow_html=True)
                 
                 c1, c2 = st.columns(2)
@@ -125,7 +122,7 @@ with tab2:
 
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-        # --- 2. CÓDIGO DE BARRAS (PISTOLA AUTOMÁTICA) ---
+        # 2. CÓDIGO DE BARRAS
         st.markdown("**📇 Escáner de Pistola**")
         if 'limpiar_codigo' in st.session_state and st.session_state.limpiar_codigo:
             st.session_state.input_pistola = ""
@@ -152,34 +149,40 @@ with tab2:
 
         st.markdown("<hr style='margin: 8px 0px; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-        # --- 3. ARTÍCULO MANUAL (SIN PESTAÑAS, VISIBLE DIRECTAMENTE) ---
+        # 3. ARTÍCULO MANUAL (SIN IGIC)
         st.markdown("**✍️ Artículo Manual Suelto**")
         with st.form("f_man", clear_on_submit=True, border=False):
-            m_nom = st.text_input("Concepto", placeholder="Ej: Correa o Juguete suelto", label_visibility="collapsed")
-            c_m1, c_m2, c_m3 = st.columns([1.5, 1, 1])
-            with c_m1: m_pre = st.number_input("Precio €", min_value=0.0, step=0.1)
-            with c_m2: m_can = st.number_input("Cant.", min_value=1, value=1)
-            with c_m3: m_igi = st.selectbox("IGIC %", [7, 0, 3, 15])
+            m_nom = st.text_input("Concepto", placeholder="Ej: Correa suelta", label_visibility="collapsed")
+            # Ahora solo 2 columnas porque hemos quitado el IGIC
+            c_m1, c_m2 = st.columns([2, 1])
+            with c_m1: m_pre = st.number_input("Precio final €", min_value=0.0, step=0.1)
+            with c_m2: m_can = st.number_input("Cantidad", min_value=1, value=1)
             
-            if st.form_submit_button("➕ Añadir Manual al Carro", use_container_width=True):
+            if st.form_submit_button("➕ Añadir Manual", use_container_width=True):
                 if m_nom and m_pre > 0:
                     st.session_state.carrito.append({
                         "Producto": m_nom, "Cantidad": m_can, "Precio": m_pre,
-                        "Subtotal": m_can * float(m_pre), "IGIC": m_igi, "Manual": True
+                        "Subtotal": m_can * float(m_pre), 
+                        "IGIC": 0, # IGIC a cero por defecto como pediste
+                        "Manual": True
                     })
                     st.rerun()
                 else: st.error("Faltan datos.")
 
-    # --- ZONA DERECHA: CARRITO Y COBRO ---
+    # --- COLUMNA DERECHA: CARRITO Y COBRO ---
     with col_carrito:
+        # Añadido este título para que alinee a la perfección con el de la izquierda
+        st.markdown("**🛒 Tu Carrito**") 
+        
         if st.session_state.carrito:
             df_car = pd.DataFrame(st.session_state.carrito)
-            st.dataframe(df_car[['Cantidad', 'Producto', 'Subtotal']], use_container_width=True, hide_index=True, height=180)
+            # Altura reducida a 150 para evitar empujar la pantalla
+            st.dataframe(df_car[['Cantidad', 'Producto', 'Subtotal']], use_container_width=True, hide_index=True, height=150)
             
             total_v = sum(item['Subtotal'] for item in st.session_state.carrito)
             st.markdown(f"<h3 style='text-align: right; margin-top: -10px; margin-bottom: 5px;'>Total: {total_v:.2f}€</h3>", unsafe_allow_html=True)
             
-            st.markdown("<hr style='margin: 5px 0px;'>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 0px 0px 5px 0px;'>", unsafe_allow_html=True)
             metodo = st.radio("Pago:", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, label_visibility="collapsed")
             
             c_cobrar, c_vaciar = st.columns([2, 1])
@@ -218,7 +221,7 @@ with tab2:
         else:
             st.info("🛒 El carrito está vacío.")
 
-    # TICKET EMERGENTE
+    # --- TICKET EMERGENTE ---
     if st.session_state.ticket_html:
         st.markdown(st.session_state.ticket_html, unsafe_allow_html=True)
         if st.button("Cerrar Ticket", use_container_width=True):
