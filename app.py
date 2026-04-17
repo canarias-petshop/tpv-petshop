@@ -186,41 +186,47 @@ with tab2:
         # 🧾 VISTA 1: SI ACABAMOS DE COBRAR, MOSTRAMOS EL TICKET
         if st.session_state.get('ticket_actual'):
             t = st.session_state.ticket_actual
+            
             st.success("✅ Venta realizada con éxito")
             
+            # Formato HTML del Ticket Profesional (VERSIÓN MINI Y COMPACTA)
             html_ticket = f"""
-            <div id="ticket" style="font-family: 'Courier New', Courier, monospace; padding: 20px; border: 1px solid #eee; width: 100%; max-width: 300px; margin: auto; background-color: #fff; color: #000;">
+            <div id="ticket" style="font-family: 'Courier New', Courier, monospace; padding: 10px; border: 1px solid #eee; width: 100%; max-width: 250px; margin: auto; background-color: #fff; color: #000; line-height: 1.2;">
                 <div style="text-align: center;">
-                    <b style="font-size: 18px;">ANIMALARIUM</b><br>
-                    Raquel Trujillo Hernández<br>
+                    <b style="font-size: 14px;">ANIMALARIUM</b><br>
+                    <span style="font-size: 11px;">Raquel Trujillo Hernández<br>
                     DNI: 78854854K<br>
-                    Calle José Hernández Alfonso, 26<br>
-                    38009 Santa Cruz de Tenerife
+                    C/ José Hernández Alfonso, 26<br>
+                    38009 S/C de Tenerife</span>
                 </div>
                 <br>
-                <div style="font-size: 12px;">Fecha: {t['fecha']}</div>
-                <hr style="border-top: 1px dashed #000;">
-                <table style="width: 100%; font-size: 13px;">
+                <div style="font-size: 10px;">Fecha: {t['fecha']}</div>
+                <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
+                <table style="width: 100%; font-size: 11px;">
             """
             for p in t['productos']:
                 html_ticket += f"<tr><td>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right;'>{p['Subtotal']:.2f}€</td></tr>"
             
             html_ticket += f"""
                 </table>
-                <hr style="border-top: 1px dashed #000;">
-                <div style="text-align: right; font-size: 16px;"><b>TOTAL: {t['total']:.2f}€</b></div>
-                <div style="font-size: 12px; color: #444; margin-top: 10px; text-align: center;">
+                <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
+                <div style="text-align: right; font-size: 14px;"><b>TOTAL: {t['total']:.2f}€</b></div>
+                <div style="font-size: 9px; color: #444; margin-top: 8px; text-align: center;">
                     <b>POLÍTICA DE DEVOLUCIÓN</b><br>
                     Plazo de 14 días con ticket y embalaje original.
                 </div>
             </div>
-            <div style="text-align: center; margin-top: 15px;">
-                <button onclick="window.print()" style="padding: 10px 20px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">🖨️ IMPRIMIR TICKET</button>
+            
+            <div style="text-align: center; margin-top: 10px;">
+                <button onclick="window.print()" style="padding: 6px 15px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 12px;">🖨️ IMPRIMIR TICKET</button>
             </div>
             """
-            import streamlit.components.v1 as components
-            components.html(html_ticket, height=450)
             
+            # 🚨 AQUÍ ESTÁ LA MAGIA: Pasamos de height=450 a height=280 y añadimos scrolling=True
+            import streamlit.components.v1 as components
+            components.html(html_ticket, height=280, scrolling=True)
+            
+            # Botones de Email y Nueva Venta pegaditos abajo
             c_em, c_nv = st.columns(2)
             with c_em:
                 import urllib.parse
