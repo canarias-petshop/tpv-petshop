@@ -17,7 +17,7 @@ st.markdown("""
         /* Pegar las pestañas (Tabs) más cerca del título */
         [data-testid="stTabs"] { margin-top: -15px !important; }
         
-        /* 🪄 MAGIA: OCULTAR ELEMENTOS DE STREAMLIT (Nivel Dios) 🪄 */
+        /* 🪄 MAGIA: OCULTAR ELEMENTOS DE STREAMLIT (Corregido) 🪄 */
         [data-testid="stHeader"] {display: none !important;}
         [data-testid="stFooter"] {display: none !important;}
         footer {visibility: hidden !important;}
@@ -26,8 +26,8 @@ st.markdown("""
         [data-testid="stToolbar"] {display: none !important;}
         #st-viewer-badge {display: none !important;}
         [data-testid="viewerBadge"] {display: none !important;}
-        [data-testid="stIFrame"] {display: none !important;}
-        iframe[src*="badge"] {display: none !important;}
+        
+        /* 🚨 HEMOS QUITADO LA REGLA QUE OCULTABA EL TICKET HTML 🚨 */
     </style>
     """, unsafe_allow_html=True)
 
