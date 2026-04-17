@@ -509,66 +509,65 @@ with tab5:
                 st.error(f"Error al cargar los movimientos: {e}")
 
         with col_der:
-            st.markdown("#### ⚖️ Arqueo y Cierre de Caja")
-            
-           # Calculadora de billetes (Expander ultracompacto)
-            with st.expander("🧮 Calculadora de Monedas y Billetes"):
-                # --- SECCIÓN BILLETES (1 sola fila de 6) ---
-                st.markdown("<p style='font-size: 13px; font-weight: bold; color: gray; margin-bottom: 0px;'>💵 BILLETES</p>", unsafe_allow_html=True)
-                cb1, cb2, cb3, cb4, cb5, cb6 = st.columns(6)
-                with cb1: b200 = st.number_input("200€", 0, step=1, key="b200")
-                with cb2: b100 = st.number_input("100€", 0, step=1, key="b100")
-                with cb3: b50 = st.number_input("50€", 0, step=1, key="b50")
-                with cb4: b20 = st.number_input("20€", 0, step=1, key="b20")
-                with cb5: b10 = st.number_input("10€", 0, step=1, key="b10")
-                with cb6: b5 = st.number_input("5€", 0, step=1, key="b5")
+            # CSS local para pegar los elementos de esta columna
+            st.markdown("""
+                <style>
+                    [data-testid="stExpander"] { margin-bottom: -15px !important; }
+                    .stForm { padding: 10px !important; margin-top: -10px !important; }
+                </style>
+            """, unsafe_allow_html=True)
 
-                st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-                
-                # --- SECCIÓN MONEDAS (1 sola fila de 8) ---
-                st.markdown("<p style='font-size: 13px; font-weight: bold; color: gray; margin-bottom: 0px;'>🪙 MONEDAS</p>", unsafe_allow_html=True)
+            st.markdown("#### ⚖️ Arqueo y Cierre")
+            
+            with st.expander("🧮 Calculadora de Monedas y Billetes", expanded=True):
+                # FILA BILLETES
+                st.markdown("<p style='font-size: 11px; font-weight: bold; color: gray; margin:0;'>💵 BILLETES</p>", unsafe_allow_html=True)
+                cb1, cb2, cb3, cb4, cb5, cb6 = st.columns(6)
+                with cb1: b200 = st.number_input("200", 0, step=1, key="b200")
+                with cb2: b100 = st.number_input("100", 0, step=1, key="b100")
+                with cb3: b50 = st.number_input("50", 0, step=1, key="b50")
+                with cb4: b20 = st.number_input("20", 0, step=1, key="b20")
+                with cb5: b10 = st.number_input("10", 0, step=1, key="b10")
+                with cb6: b5 = st.number_input("5", 0, step=1, key="b5")
+
+                # FILA MONEDAS
+                st.markdown("<p style='font-size: 11px; font-weight: bold; color: gray; margin:0;'>🪙 MONEDAS</p>", unsafe_allow_html=True)
                 cm1, cm2, cm3, cm4, cm5, cm6, cm7, cm8 = st.columns(8)
                 with cm1: m2 = st.number_input("2€", 0, step=1, key="m2")
                 with cm2: m1 = st.number_input("1€", 0, step=1, key="m1")
-                with cm3: m50c = st.number_input("0.50€", 0, step=1, key="m50c")
-                with cm4: m20c = st.number_input("0.20€", 0, step=1, key="m20c")
-                with cm5: m10c = st.number_input("0.10€", 0, step=1, key="m10c")
-                with cm6: m5c = st.number_input("0.05€", 0, step=1, key="m5c")
-                with cm7: m2c = st.number_input("0.02€", 0, step=1, key="m2c")
-                with cm8: m1c = st.number_input("0.01€", 0, step=1, key="m1c")
+                with cm3: m50c = st.number_input(".50", 0, step=1, key="m50c")
+                with cm4: m20c = st.number_input(".20", 0, step=1, key="m20c")
+                with cm5: m10c = st.number_input(".10", 0, step=1, key="m10c")
+                with cm6: m5c = st.number_input(".05", 0, step=1, key="m5c")
+                with cm7: m2c = st.number_input(".02", 0, step=1, key="m2c")
+                with cm8: m1c = st.number_input(".01", 0, step=1, key="m1c")
                 
-                # --- CÁLCULO TOTAL ---
                 total_calc = (b200*200) + (b100*100) + (b50*50) + (b20*20) + (b10*10) + (b5*5) + \
                              (m2*2) + (m1*1) + (m50c*0.50) + (m20c*0.20) + (m10c*0.10) + (m5c*0.05) + \
                              (m2c*0.02) + (m1c*0.01)
-                             
-                st.success(f"**Total Contado: {total_calc:.2f}€**")
+                st.success(f"**Contado: {total_calc:.2f}€**")
 
-            with st.form("form_cierre"):
-                st.markdown("Introduce el dinero real que hay ahora mismo físicamente en el cajón para calcular el descuadre y cerrar la caja.")
-                efectivo_real = st.number_input("💵 Total Efectivo en Cajón €", min_value=0.0, step=1.0, value=float(total_calc) if total_calc > 0 else 0.0)
+            # FORMULARIO DE CIERRE COMPACTO
+            with st.form("form_cierre", border=True):
+                c_inf, c_btn = st.columns([1, 1], vertical_alignment="bottom")
+                with c_inf:
+                    efectivo_real = st.number_input("💵 Efectivo Final €", min_value=0.0, step=1.0, value=float(total_calc))
+                with c_btn:
+                    btn_cierre = st.form_submit_button("🔒 CERRAR CAJA", type="primary", use_container_width=True)
                 
-                if st.form_submit_button("🔒 Cerrar Caja Definitivamente", type="primary", use_container_width=True):
-                    # NOTA PARA RAQUEL: Aquí calcularemos lo que DEBERÍA haber.
-                    # Por ahora hacemos una lógica sencilla: Fondo + Ingresos Extra - Retiradas Extra.
-                    # Para sumar las VENTAS, idealmente tendríamos que cruzar la fecha de `ventas_historial`
-                    # mayores a `caja_actual['created_at']` donde el método sea Efectivo.
-                    
+                if btn_cierre:
                     ingresos = 0; retiradas = 0
                     if res_movs.data:
                         for mov in res_movs.data:
                             if mov['tipo'] == 'Ingreso': ingresos += mov['cantidad']
                             else: retiradas += mov['cantidad']
                     
-                    # Lo ideal sería sumar ventas en efectivo aquí, pero como base:
                     total_teorico_base = fondo_actual + ingresos - retiradas
                     descuadre = efectivo_real - total_teorico_base
                     
                     client.table("control_caja").update({
-                        "estado": "Cerrada",
-                        "total_contado": efectivo_real,
-                        "descuadre": descuadre
+                        "estado": "Cerrada", "total_contado": efectivo_real, "descuadre": descuadre
                     }).eq("id", id_caja).execute()
                     
-                    st.success(f"Caja cerrada con éxito. Descuadre registrado: {descuadre:.2f}€"); 
+                    st.success(f"Cerrada. Descuadre: {descuadre:.2f}€")
                     time.sleep(1.5); st.rerun()
