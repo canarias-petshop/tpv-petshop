@@ -511,24 +511,45 @@ with tab5:
         with col_der:
             st.markdown("#### ⚖️ Arqueo y Cierre de Caja")
             
-            # Calculadora de billetes (Expander para que no ocupe tanto espacio si no se usa)
+           # Calculadora de billetes (Expander para que no ocupe tanto espacio si no se usa)
             with st.expander("🧮 Calculadora de Monedas y Billetes"):
-                cb1, cb2, cb3, cb4 = st.columns(4)
+                # --- SECCIÓN BILLETES ---
+                st.markdown("<p style='font-size: 13px; font-weight: bold; color: gray; margin-bottom: 5px;'>💵 BILLETES</p>", unsafe_allow_html=True)
+                cb1, cb2, cb3 = st.columns(3)
                 with cb1: 
-                    b50 = st.number_input("Billetes 50€", 0, step=1)
-                    b20 = st.number_input("Billetes 20€", 0, step=1)
+                    b200 = st.number_input("200€", 0, step=1, key="b200")
+                    b100 = st.number_input("100€", 0, step=1, key="b100")
                 with cb2: 
-                    b10 = st.number_input("Billetes 10€", 0, step=1)
-                    b5 = st.number_input("Billetes 5€", 0, step=1)
+                    b50 = st.number_input("50€", 0, step=1, key="b50")
+                    b20 = st.number_input("20€", 0, step=1, key="b20")
                 with cb3: 
-                    m2 = st.number_input("Monedas 2€", 0, step=1)
-                    m1 = st.number_input("Monedas 1€", 0, step=1)
-                with cb4: 
-                    m50c = st.number_input("Monedas 0.50€", 0, step=1)
-                    m20c = st.number_input("Monedas 0.20€", 0, step=1)
+                    b10 = st.number_input("10€", 0, step=1, key="b10")
+                    b5 = st.number_input("5€", 0, step=1, key="b5")
+
+                st.markdown("<hr style='margin: 10px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
                 
-                total_calc = (b50*50) + (b20*20) + (b10*10) + (b5*5) + (m2*2) + (m1*1) + (m50c*0.5) + (m20c*0.2)
-                st.info(f"**Total Contado: {total_calc:.2f}€**")
+                # --- SECCIÓN MONEDAS ---
+                st.markdown("<p style='font-size: 13px; font-weight: bold; color: gray; margin-bottom: 5px;'>🪙 MONEDAS</p>", unsafe_allow_html=True)
+                cm1, cm2, cm3, cm4 = st.columns(4)
+                with cm1: 
+                    m2 = st.number_input("2€", 0, step=1, key="m2")
+                    m1 = st.number_input("1€", 0, step=1, key="m1")
+                with cm2: 
+                    m50c = st.number_input("0.50€", 0, step=1, key="m50c")
+                    m20c = st.number_input("0.20€", 0, step=1, key="m20c")
+                with cm3: 
+                    m10c = st.number_input("0.10€", 0, step=1, key="m10c")
+                    m5c = st.number_input("0.05€", 0, step=1, key="m5c")
+                with cm4:
+                    m2c = st.number_input("0.02€", 0, step=1, key="m2c")
+                    m1c = st.number_input("0.01€", 0, step=1, key="m1c")
+                
+                # --- CÁLCULO TOTAL ---
+                total_calc = (b200*200) + (b100*100) + (b50*50) + (b20*20) + (b10*10) + (b5*5) + \
+                             (m2*2) + (m1*1) + (m50c*0.50) + (m20c*0.20) + (m10c*0.10) + (m5c*0.05) + \
+                             (m2c*0.02) + (m1c*0.01)
+                             
+                st.success(f"**Total Contado: {total_calc:.2f}€**")
 
             with st.form("form_cierre"):
                 st.markdown("Introduce el dinero real que hay ahora mismo físicamente en el cajón para calcular el descuadre y cerrar la caja.")
