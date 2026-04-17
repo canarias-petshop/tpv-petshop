@@ -465,18 +465,17 @@ with tab5:
         # Barra de estado superior
         st.success(f"🔓 **CAJA ABIERTA** | Inicio: {fecha_ap} | Fondo: **{fondo_actual:.2f}€**")
 
-        # --- CABECERAS (Subidas un punto hacia arriba) ---
-        st.markdown("<div style='margin-top: -15px;'></div>", unsafe_allow_html=True) 
+        # --- TRUCO MÁGICO: TIRA DE TODO HACIA ARRIBA ---
+        st.markdown("<div style='margin-top: -30px;'></div>", unsafe_allow_html=True) 
         
         c_tit1, c_tit2 = st.columns([1, 1.2], gap="large")
         with c_tit1: st.markdown("<h4 style='margin: 0 0 5px 0;'>💸 Entradas y Salidas</h4>", unsafe_allow_html=True)
         with c_tit2: st.markdown("<h4 style='margin: 0 0 5px 0;'>⚖️ Arqueo y Cierre</h4>", unsafe_allow_html=True)
 
-        # --- CUERPO (Alineación perfecta) ---
+        # --- CUERPO ---
         col_izq, col_der = st.columns([1, 1.2], gap="large")
         
         with col_izq:
-            # Formulario izquierdo con borde nativo
             with st.form("form_movimientos", clear_on_submit=True, border=True):
                 c_tipo, c_cant = st.columns([1, 1])
                 with c_tipo: tipo_mov = st.selectbox("Tipo", ["Retirada 🔻", "Ingreso 🔺"])
@@ -496,7 +495,6 @@ with tab5:
                 st.dataframe(df_m, use_container_width=True, hide_index=True, height=150)
 
         with col_der:
-            # 1. CALCULADORA (Borde nativo para alinear a la misma altura que el izquierdo)
             with st.container(border=True):
                 st.markdown("<p style='font-size: 11px; font-weight: bold; color: gray; margin:0;'>💵 BILLETES</p>", unsafe_allow_html=True)
                 cb1, cb2, cb3, cb4, cb5, cb6 = st.columns(6)
@@ -523,13 +521,17 @@ with tab5:
                              (m2c*0.02) + (m1c*0.01)
                 st.info(f"**Total Contado: {total_calc:.2f}€**")
 
-            # 2. CIERRE (Formulario nativo sano para que el botón respire bien)
+            # 2. CIERRE (Formulario nativo con alineación perfecta)
             with st.form("form_cierre_final", border=True):
                 st.markdown("<p style='margin: 0 0 5px 0; font-weight: bold;'>🔒 Confirmar Cierre</p>", unsafe_allow_html=True)
                 
-                c_f1, c_f2 = st.columns([1, 1], vertical_alignment="bottom")
+                # Ponemos el título fuera del número para que no descuadre el botón
+                st.markdown("<p style='font-size: 14px; margin-bottom: 2px;'>💵 Introduce el Efectivo Real Total:</p>", unsafe_allow_html=True)
+                
+                c_f1, c_f2 = st.columns([1, 1])
                 with c_f1:
-                    efectivo_final = st.number_input("Efectivo Real €", min_value=0.0, value=float(total_calc))
+                    # El campo de texto no tiene etiqueta superior ('collapsed'), empieza a la misma altura que el botón
+                    efectivo_final = st.number_input("Efectivo", min_value=0.0, value=float(total_calc), label_visibility="collapsed")
                 with c_f2:
                     submit_cierre = st.form_submit_button("CERRAR CAJA DEFINITIVA", type="primary", use_container_width=True)
                     
