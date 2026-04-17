@@ -70,7 +70,7 @@ with c_titulo:
     st.markdown("<h1 style='margin: 0; padding: 0; font-size: 1.8rem; line-height: 1;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
 
 # 🚨 AÑADIDA LA PESTAÑA 5: CONTROL CAJA 🚨
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📦 Inventario", "🛒 Caja/Ventas", "👥 Clientes", "📜 Historial", "💰 Control Caja"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", "💰 Control Caja", "📈 Estadísticas"])
 
 # --- TAB 1: PRODUCTOS ---
 with tab1:
@@ -574,3 +574,63 @@ with tab5:
                     }).eq("id", id_caja).execute()
                     st.success(f"Cerrado. Descuadre: {descuadre:.2f}€")
                     time.sleep(1.5); st.rerun()
+
+# --- TAB 6: ESTADÍSTICAS Y CONTABILIDAD ---
+with tab6:
+    st.markdown("<h3 style='margin-bottom: 5px;'>📈 Contabilidad y Estadísticas</h3>", unsafe_allow_html=True)
+    st.write("Resumen global de la salud financiera de Animalarium.")
+    
+    try:
+        # 1. Obtener datos de Ventas y Movimientos
+        res_ventas = client.table("ventas_historial").select("created_at, total, estado").execute()
+        res_movs = client.table("movimientos_caja").select("created_at, tipo, cantidad").execute()
+        
+        # 2. Cálculos rápidos
+        total_ventas = 0.0
+        total_gastos = 0.0
+        
+        df_v = pd.DataFrame()
+        df_m = pd.DataFrame()
+
+        # Procesar Ventas (Ignoramos las devueltas)
+        if res_ventas.data:
+            df_v = pd.DataFrame(res_ventas.data)
+            df_v = df_v[df_v['estado'] != 'DEVUELTO'] # No sumamos lo devuelto
+            if not df_v.empty:
+                total_ventas = df_v['total'].sum()
+                df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.date
+        
+        # Procesar Gastos (Solo retiradas)
+        if res_movs.data:
+            df_m = pd.DataFrame(res_movs.data)
+            df_m_gastos = df_m[df_m['tipo'] == 'Retirada']
+            if not df_m_gastos.empty:
+                total_gastos = df_m_gastos['cantidad'].sum()
+                df_m['Fecha'] = pd.to_datetime(df_m['created_at']).dt.date
+
+        balance_neto = total_ventas - total_gastos
+
+        # 3. Mostrar Tarjetas de Resumen (Métricas)
+        st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            st.metric(label="Ingresos Totales (Ventas)", value=f"{total_ventas:.2f} €")
+        with col_m2:
+            st.metric(label="Gastos Extra (Retiradas)", value=f"-{total_gastos:.2f} €")
+        with col_m3:
+            st.metric(label="Balance Neto", value=f"{balance_neto:.2f} €", delta=f"{balance_neto:.2f} €")
+            
+        st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
+        
+        # 4. Gráfico Visual Sencillo
+        st.markdown("**📊 Evolución de Ventas por Día**")
+        if not df_v.empty:
+            # Agrupamos las ventas por día para el gráfico
+            ventas_diarias = df_v.groupby('Fecha')['total'].sum().reset_index()
+            ventas_diarias.set_index('Fecha', inplace=True)
+            st.bar_chart(ventas_diarias, color="#005275", height=250)
+        else:
+            st.info("Aún no hay suficientes ventas para generar el gráfico.")
+
+    except Exception as e:
+        st.error(f"Error al cargar las estadísticas: {e}")                   
