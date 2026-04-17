@@ -537,12 +537,12 @@ with tab5:
                 cm1, cm2, cm3, cm4, cm5, cm6, cm7, cm8 = st.columns(8)
                 with cm1: m2 = st.number_input("2€", 0, step=1, key="m2")
                 with cm2: m1 = st.number_input("1€", 0, step=1, key="m1")
-                with cm3: m50c = st.number_input(".50", 0, step=1, key="m50c")
-                with cm4: m20c = st.number_input(".20", 0, step=1, key="m20c")
-                with cm5: m10c = st.number_input(".10", 0, step=1, key="m10c")
-                with cm6: m5c = st.number_input(".05", 0, step=1, key="m5c")
-                with cm7: m2c = st.number_input(".02", 0, step=1, key="m2c")
-                with cm8: m1c = st.number_input(".01", 0, step=1, key="m1c")
+                with cm3: m50c = st.number_input("50¢", 0, step=1, key="m50c")
+                with cm4: m20c = st.number_input("20¢", 0, step=1, key="m20c")
+                with cm5: m10c = st.number_input("10¢", 0, step=1, key="m10c")
+                with cm6: m5c = st.number_input("5¢", 0, step=1, key="m5c")
+                with cm7: m2c = st.number_input("2¢", 0, step=1, key="m2c")
+                with cm8: m1c = st.number_input("1¢", 0, step=1, key="m1c")
                 
                 total_calc = (b200*200) + (b100*100) + (b50*50) + (b20*20) + (b10*10) + (b5*5) + \
                              (m2*2) + (m1*1) + (m50c*0.50) + (m20c*0.20) + (m10c*0.10) + (m5c*0.05) + \
