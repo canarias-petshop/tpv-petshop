@@ -9,26 +9,25 @@ st.set_page_config(page_title="Animalarium TPV", layout="wide")
 
 st.markdown("""
     <style>
-        /* Ajustes de espacio de la aplicación */
-        .block-container { padding-top: 2.5rem !important; padding-bottom: 0rem !important; }
+        /* 🚀 Ajustes EXTREMOS de espacio para subir toda la aplicación */
+        .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
         .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: -10px !important; }
         [data-testid="column"] { padding: 0 5px !important; }
         
-        /* 🪄 MAGIA: OCULTAR ELEMENTOS DE STREAMLIT (Nivel Extremo) 🪄 */
-        #MainMenu {visibility: hidden;} /* Menú de arriba a la derecha */
-        footer {visibility: hidden;} /* Pie de página */
-        header {visibility: hidden;} /* Cabecera transparente */
+        /* Pegar las pestañas (Tabs) más cerca del título */
+        [data-testid="stTabs"] { margin-top: -15px !important; }
         
-        /* Ocultar botones de "Deploy" de la barra superior */
+        /* 🪄 MAGIA: OCULTAR ELEMENTOS DE STREAMLIT (Nivel Dios) 🪄 */
+        [data-testid="stHeader"] {display: none !important;}
+        [data-testid="stFooter"] {display: none !important;}
+        footer {visibility: hidden !important;}
         [data-testid="stAppDeployButton"] {display: none !important;}
-        [data-testid="stToolbar"] {display: none !important;}
         .stDeployButton {display: none !important;}
-        
-        /* 🚨 ELIMINAR EL BOTÓN INFERIOR DERECHO "MANAGE APP" EN LA NUBE 🚨 */
+        [data-testid="stToolbar"] {display: none !important;}
         #st-viewer-badge {display: none !important;}
         [data-testid="viewerBadge"] {display: none !important;}
-        .viewerBadge_container__1QSob {display: none !important;}
-        .viewerBadge_link__1S137 {display: none !important;}
+        [data-testid="stIFrame"] {display: none !important;}
+        iframe[src*="badge"] {display: none !important;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -61,14 +60,14 @@ try:
 except:
     st.error("Error de conexión"); st.stop()
 
-# --- CABECERA (LOGO GRANDE Y TÍTULO SIN CORTES) ---
-c_logo, c_titulo = st.columns([0.1, 0.9], vertical_alignment="center")
+# --- CABECERA COMPACTA ---
+c_logo, c_titulo = st.columns([0.08, 0.92], vertical_alignment="center")
 with c_logo:
-    try: st.image("LOGO.jpg", width=75) # Logo más grande
-    except: st.write("🐾")
+    try: st.image("LOGO.jpg", width=60) # Logo un pelín más pequeño
+    except: st.markdown("<h2 style='margin:0; padding:0;'>🐾</h2>", unsafe_allow_html=True)
 with c_titulo:
-    # Letra un poco más pequeña (2rem) y bajada unos milímetros para que no se corte
-    st.markdown("<h1 style='margin: 5px 0 0 0; padding:0; font-size: 2rem;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
+    # Título sin márgenes y bien pegadito
+    st.markdown("<h1 style='margin: 0; padding: 0; font-size: 1.8rem; line-height: 1;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
 
 # 🚨 AÑADIDA LA PESTAÑA 5: CONTROL CAJA 🚨
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📦 Inventario", "🛒 Caja/Ventas", "👥 Clientes", "📜 Historial", "💰 Control Caja"])
