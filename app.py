@@ -356,52 +356,67 @@ with tab2:
 # --- TAB 4: HISTORIAL Y DEVOLUCIONES ---
 with tab4:
     st.markdown("<h3 style='margin-top: -15px; margin-bottom: 5px;'>📜 Historial</h3>", unsafe_allow_html=True)
-    res_v = client.table("ventas_historial").select("*").execute()
     
-    if res_v.data:
-        df_v = pd.DataFrame(res_v.data)
-        if not df_v.empty:
-            df_v = df_v.sort_values(by="id", ascending=False)
-            try: df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
-            except: df_v['Fecha'] = "---"
-            
-            for col in ['metodo_pago', 'estado', 'total']:
-                if col not in df_v.columns: df_v[col] = "N/A"
-
-            df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado']].copy()
-            df_vista.columns = ['Nº', 'Fecha', 'Total (€)', 'Método', 'Estado']
-            
-            evento = st.dataframe(
-                df_vista, use_container_width=True, hide_index=True, height=170,
-                on_select="rerun", selection_mode="single-row"
-            )
-            
-            if len(evento.selection.rows) > 0:
-                fila_idx = evento.selection.rows[0]
-                id_t = int(df_vista.iloc[fila_idx]['Nº'])
-                ticket = df_v[df_v['id'] == id_t].iloc[0]
+    try:
+        res_v = client.table("ventas_historial").select("*").execute()
+        
+        # Comprobamos si la respuesta tiene datos reales
+        if res_v.data and len(res_v.data) > 0:
+            df_v = pd.DataFrame(res_v.data)
+            if not df_v.empty:
+                df_v = df_v.sort_values(by="id", ascending=False)
+                try: df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+                except: df_v['Fecha'] = "---"
                 
-                st.markdown(f"**🔍 Detalle Ticket #{id_t}**")
-                prods = ticket.get('productos', [])
-                if prods:
-                    st.dataframe(pd.DataFrame(prods)[['Producto', 'Cantidad', 'Subtotal']], 
-                                 use_container_width=True, hide_index=True, height=110)
+                for col in ['metodo_pago', 'estado', 'total']:
+                    if col not in df_v.columns: df_v[col] = "N/A"
 
-                estado_raw = str(ticket.get('estado', 'Completado')).upper().strip()
-                st.markdown("<hr style='margin: 5px 0px;'>", unsafe_allow_html=True)
+                df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado']].copy()
+                df_vista.columns = ['Nº', 'Fecha', 'Total (€)', 'Método', 'Estado']
                 
-                col_c1, col_c2 = st.columns(2)
-                with col_c1:
-                    if "DEVUELTO" not in estado_raw:
-                        m_dev = st.radio("Reembolso:", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, key=f"rd_{id_t}", label_visibility="collapsed")
-                    else: st.error("TICKET YA DEVUELTO")
-                with col_c2:
-                    confirmar = st.checkbox("Confirmar borrar registro", key=f"chk_{id_t}")
+                evento = st.dataframe(
+                    df_vista, use_container_width=True, hide_index=True, height=170,
+                    on_select="rerun", selection_mode="single-row"
+                )
+                
+                if len(evento.selection.rows) > 0:
+                    fila_idx = evento.selection.rows[0]
+                    id_t = int(df_vista.iloc[fila_idx]['Nº'])
+                    ticket = df_v[df_v['id'] == id_t].iloc[0]
+                    
+                    st.markdown(f"**🔍 Detalle Ticket #{id_t}**")
+                    prods = ticket.get('productos', [])
+                    if prods:
+                        st.dataframe(pd.DataFrame(prods)[['Producto', 'Cantidad', 'Subtotal']], 
+                                     use_container_width=True, hide_index=True, height=110)
 
-                col_b1, col_b2 = st.columns(2)
-                with col_b1:
-                    if "DEVUELTO" not in estado_raw:
-                        if st.button("🔄 PROCESAR DEVOLUCIÓN", use_container_width=True):
+                    estado_raw = str(ticket.get('estado', 'Completado')).upper().strip()
+                    st.markdown("<hr style='margin: 5px 0px;'>", unsafe_allow_html=True)
+                    
+                    col_c1, col_c2 = st.columns(2)
+                    with col_c1:
+                        if "DEVUELTO" not in estado_raw:
+                            m_dev = st.radio("Reembolso:", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, key=f"rd_{id_t}", label_visibility="collapsed")
+                        else: st.error("TICKET YA DEVUELTO")
+                    with col_c2:
+                        confirmar = st.checkbox("Confirmar borrar registro", key=f"chk_{id_t}")
+
+                    col_b1, col_b2 = st.columns(2)
+                    with col_b1:
+                        if "DEVUELTO" not in estado_raw:
+                            if st.button("🔄 PROCESAR DEVOLUCIÓN", use_container_width=True):
+                                if prods:
+                                    for p in prods:
+                                        if not p.get('Manual', False):
+                                            res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
+                                            if res_p.data:
+                                                n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
+                                                client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
+                                client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", id_t).execute()
+                                st.success("Devolución realizada y stock restaurado")
+                                time.sleep(1); st.rerun()
+                    with col_b2:
+                        if st.button("🔥 ANULAR Y BORRAR TODO", use_container_width=True, disabled=not confirmar):
                             if prods:
                                 for p in prods:
                                     if not p.get('Manual', False):
@@ -409,23 +424,16 @@ with tab4:
                                         if res_p.data:
                                             n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
                                             client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
-                            client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", id_t).execute()
-                            st.success("Devolución realizada y stock restaurado")
+                            client.table("ventas_historial").delete().eq("id", id_t).execute()
+                            st.success("Ticket eliminado y stock restaurado")
                             time.sleep(1); st.rerun()
-                with col_b2:
-                    if st.button("🔥 ANULAR Y BORRAR TODO", use_container_width=True, disabled=not confirmar):
-                        if prods:
-                            for p in prods:
-                                if not p.get('Manual', False):
-                                    res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
-                                    if res_p.data:
-                                        n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
-                                        client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
-                        client.table("ventas_historial").delete().eq("id", id_t).execute()
-                        st.success("Ticket eliminado y stock restaurado")
-                        time.sleep(1); st.rerun()
-        else: st.write("Historial vacío.")
-    else: st.error("Error de conexión.")
+        else:
+            # ¡Mensaje amigable si no hay ventas registradas!
+            st.info("📭 Aún no hay ventas registradas. ¡El historial está vacío!")
+            
+    except Exception as e:
+        # Solo mostramos error si DE VERDAD la base de datos no responde
+        st.error("🔌 Error de conexión con la base de datos.")
 
 
 # --- TAB 5: CONTROL DE CAJA FUERTE ---
