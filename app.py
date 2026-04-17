@@ -511,38 +511,31 @@ with tab5:
         with col_der:
             st.markdown("#### ⚖️ Arqueo y Cierre de Caja")
             
-           # Calculadora de billetes (Expander para que no ocupe tanto espacio si no se usa)
+           # Calculadora de billetes (Expander ultracompacto)
             with st.expander("🧮 Calculadora de Monedas y Billetes"):
-                # --- SECCIÓN BILLETES ---
-                st.markdown("<p style='font-size: 13px; font-weight: bold; color: gray; margin-bottom: 5px;'>💵 BILLETES</p>", unsafe_allow_html=True)
-                cb1, cb2, cb3 = st.columns(3)
-                with cb1: 
-                    b200 = st.number_input("200€", 0, step=1, key="b200")
-                    b100 = st.number_input("100€", 0, step=1, key="b100")
-                with cb2: 
-                    b50 = st.number_input("50€", 0, step=1, key="b50")
-                    b20 = st.number_input("20€", 0, step=1, key="b20")
-                with cb3: 
-                    b10 = st.number_input("10€", 0, step=1, key="b10")
-                    b5 = st.number_input("5€", 0, step=1, key="b5")
+                # --- SECCIÓN BILLETES (1 sola fila de 6) ---
+                st.markdown("<p style='font-size: 13px; font-weight: bold; color: gray; margin-bottom: 0px;'>💵 BILLETES</p>", unsafe_allow_html=True)
+                cb1, cb2, cb3, cb4, cb5, cb6 = st.columns(6)
+                with cb1: b200 = st.number_input("200€", 0, step=1, key="b200")
+                with cb2: b100 = st.number_input("100€", 0, step=1, key="b100")
+                with cb3: b50 = st.number_input("50€", 0, step=1, key="b50")
+                with cb4: b20 = st.number_input("20€", 0, step=1, key="b20")
+                with cb5: b10 = st.number_input("10€", 0, step=1, key="b10")
+                with cb6: b5 = st.number_input("5€", 0, step=1, key="b5")
 
-                st.markdown("<hr style='margin: 10px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
                 
-                # --- SECCIÓN MONEDAS ---
-                st.markdown("<p style='font-size: 13px; font-weight: bold; color: gray; margin-bottom: 5px;'>🪙 MONEDAS</p>", unsafe_allow_html=True)
-                cm1, cm2, cm3, cm4 = st.columns(4)
-                with cm1: 
-                    m2 = st.number_input("2€", 0, step=1, key="m2")
-                    m1 = st.number_input("1€", 0, step=1, key="m1")
-                with cm2: 
-                    m50c = st.number_input("0.50€", 0, step=1, key="m50c")
-                    m20c = st.number_input("0.20€", 0, step=1, key="m20c")
-                with cm3: 
-                    m10c = st.number_input("0.10€", 0, step=1, key="m10c")
-                    m5c = st.number_input("0.05€", 0, step=1, key="m5c")
-                with cm4:
-                    m2c = st.number_input("0.02€", 0, step=1, key="m2c")
-                    m1c = st.number_input("0.01€", 0, step=1, key="m1c")
+                # --- SECCIÓN MONEDAS (1 sola fila de 8) ---
+                st.markdown("<p style='font-size: 13px; font-weight: bold; color: gray; margin-bottom: 0px;'>🪙 MONEDAS</p>", unsafe_allow_html=True)
+                cm1, cm2, cm3, cm4, cm5, cm6, cm7, cm8 = st.columns(8)
+                with cm1: m2 = st.number_input("2€", 0, step=1, key="m2")
+                with cm2: m1 = st.number_input("1€", 0, step=1, key="m1")
+                with cm3: m50c = st.number_input("0.50€", 0, step=1, key="m50c")
+                with cm4: m20c = st.number_input("0.20€", 0, step=1, key="m20c")
+                with cm5: m10c = st.number_input("0.10€", 0, step=1, key="m10c")
+                with cm6: m5c = st.number_input("0.05€", 0, step=1, key="m5c")
+                with cm7: m2c = st.number_input("0.02€", 0, step=1, key="m2c")
+                with cm8: m1c = st.number_input("0.01€", 0, step=1, key="m1c")
                 
                 # --- CÁLCULO TOTAL ---
                 total_calc = (b200*200) + (b100*100) + (b50*50) + (b20*20) + (b10*10) + (b5*5) + \
