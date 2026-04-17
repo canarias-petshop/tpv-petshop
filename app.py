@@ -491,13 +491,22 @@ with tab5:
                         st.error("Debes escribir un motivo.")
             
             # Mostrar tabla de movimientos
-            res_movs = client.table("movimientos_caja").select("tipo, cantidad, motivo").eq("id_caja", id_caja).execute()
-            if res_movs.data:
-                st.markdown("**Movimientos de hoy:**")
-                df_m = pd.DataFrame(res_movs.data)
-                # Damos formato para que se vea más bonito
-                df_m['tipo'] = df_m['tipo'].apply(lambda x: '🔻 Salida' if x == 'Retirada' else '🔺 Entrada')
-                st.dataframe(df_m, use_container_width=True, hide_index=True)
+            try:
+                # Usamos "*" para traer todo sin fallos de espacios y forzamos que el ID sea un número entero
+                res_movs = client.table("movimientos_caja").select("*").eq("id_caja", int(id_caja)).execute()
+                
+                if res_movs.data:
+                    st.markdown("**Movimientos de hoy:**")
+                    df_m = pd.DataFrame(res_movs.data)
+                    # Filtramos y ordenamos las columnas aquí en Pandas, que es más seguro
+                    df_m = df_m[['tipo', 'cantidad', 'motivo']]
+                    df_m['tipo'] = df_m['tipo'].apply(lambda x: '🔻 Salida' if x == 'Retirada' else '🔺 Entrada')
+                    st.dataframe(df_m, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No hay movimientos extra registrados en este turno.")
+            except Exception as e:
+                # Si falla, nuestro propio programa nos chivará el error real
+                st.error(f"Error al cargar los movimientos: {e}")
 
         with col_der:
             st.markdown("#### ⚖️ Arqueo y Cierre de Caja")
