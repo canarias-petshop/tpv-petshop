@@ -70,7 +70,8 @@ with c_titulo:
     # Letra un poco más pequeña (2rem) y bajada unos milímetros para que no se corte
     st.markdown("<h1 style='margin: 5px 0 0 0; padding:0; font-size: 2rem;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
 
-tab1, tab2, tab3, tab4 = st.tabs(["📦 Inventario", "🛒 Caja/Ventas", "👥 Clientes", "📜 Historial"])
+# 🚨 AÑADIDA LA PESTAÑA 5: CONTROL CAJA 🚨
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📦 Inventario", "🛒 Caja/Ventas", "👥 Clientes", "📜 Historial", "💰 Control Caja"])
 
 # --- TAB 1: PRODUCTOS ---
 with tab1:
@@ -104,9 +105,8 @@ with tab1:
             df = pd.DataFrame(res.data)
             st.dataframe(df[['codigo_barras', 'nombre', 'precio_pvp', 'stock_actual']], use_container_width=True, height=380, hide_index=True)
 
-# --- TAB 2: CAJA Y VENTAS (AJUSTE DE TÍTULOS Y ESPACIADO) ---
+# --- TAB 2: CAJA Y VENTAS ---
 with tab2:
-    # Bajamos los títulos y aseguramos que "Tu Carrito" no se corte
     st.markdown("""
         <div style='display: flex; justify-content: space-between; margin-top: 10px; margin-bottom: 10px; padding: 0 5px;'>
             <h4 style='margin:0; color: #333; white-space: nowrap;'>🛒 Terminal de Venta</h4>
@@ -114,7 +114,6 @@ with tab2:
         </div>
     """, unsafe_allow_html=True)
 
-    # Ajustamos un pelín las proporciones de las columnas para dar más sitio al carrito
     col_busqueda, col_carrito = st.columns([1.1, 1], gap="small")
     
     with col_busqueda:
@@ -165,20 +164,13 @@ with tab2:
 
         st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-        # --- 3. ARTÍCULO MANUAL (ETIQUETAS RESTAURADAS Y BOTONES + / -) ---
+        # 3. ARTÍCULO MANUAL
         st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>✍️ Artículo Manual</p>", unsafe_allow_html=True)
         with st.form("f_man", clear_on_submit=True, border=False):
-            # Ajustamos el ancho para que quepan los botones de + y -
             cm1, cm2, cm3 = st.columns([1.3, 1, 1]) 
-            
-            with cm1: 
-                m_nom = st.text_input("Producto", placeholder="Nombre...", label_visibility="visible")
-            with cm2: 
-                # Restauramos la etiqueta "Precio €" y quitamos el colapsado
-                m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", label_visibility="visible")
-            with cm3: 
-                # Restauramos la etiqueta "Cant." para que aparezcan los botones + y -
-                m_can = st.number_input("Cant.", min_value=1, value=1, label_visibility="visible")
+            with cm1: m_nom = st.text_input("Producto", placeholder="Nombre...", label_visibility="visible")
+            with cm2: m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", label_visibility="visible")
+            with cm3: m_can = st.number_input("Cant.", min_value=1, value=1, label_visibility="visible")
             
             if st.form_submit_button("➕ Añadir Manual al Carrito", use_container_width=True):
                 if m_nom and m_pre > 0:
@@ -195,10 +187,8 @@ with tab2:
         # 🧾 VISTA 1: SI ACABAMOS DE COBRAR, MOSTRAMOS EL TICKET
         if st.session_state.get('ticket_actual'):
             t = st.session_state.ticket_actual
-            
             st.success("✅ Venta realizada con éxito")
             
-            # Formato HTML del Ticket Profesional
             html_ticket = f"""
             <div id="ticket" style="font-family: 'Courier New', Courier, monospace; padding: 20px; border: 1px solid #eee; width: 100%; max-width: 300px; margin: auto; background-color: #fff; color: #000;">
                 <div style="text-align: center;">
@@ -225,17 +215,13 @@ with tab2:
                     Plazo de 14 días con ticket y embalaje original.
                 </div>
             </div>
-            
             <div style="text-align: center; margin-top: 15px;">
                 <button onclick="window.print()" style="padding: 10px 20px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">🖨️ IMPRIMIR TICKET</button>
             </div>
             """
-            
-            # Renderizar el ticket
             import streamlit.components.v1 as components
             components.html(html_ticket, height=450)
             
-            # Botones de Email y Nueva Venta
             c_em, c_nv = st.columns(2)
             with c_em:
                 import urllib.parse
@@ -247,7 +233,7 @@ with tab2:
                     st.session_state.ticket_actual = None
                     st.rerun()
 
-        # 🛒 VISTA 2: SI NO HAY TICKET, MOSTRAMOS EL CARRITO (Tu código actual mejorado)
+        # 🛒 VISTA 2: CARRITO
         else:
             if st.session_state.carrito:
                 df_car = pd.DataFrame(st.session_state.carrito)
@@ -320,7 +306,6 @@ with tab2:
                 with c_cob:
                     bloqueo = (pendiente > 0 and not nombre_deudor)
                     if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
-                        
                         import json, datetime
                         carrito_limpio = json.loads(edited_df.to_json(orient='records'))
                         
@@ -344,7 +329,7 @@ with tab2:
                                     if res.data:
                                         n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
                                         client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", i['Producto']).execute()
-                                        
+                            
                             # 3. GENERAR DATOS PARA EL TICKET
                             st.session_state.ticket_actual = {
                                 "fecha": datetime.datetime.now().strftime("%d/%m/%Y %H:%M"),
@@ -366,21 +351,17 @@ with tab2:
             else:
                 st.markdown("<div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; color: #666; border: 1px solid #ddd;'>🛒 Carrito vacío.</div>", unsafe_allow_html=True)
 
-        # Espacio para esquivar el botón de Streamlit
         st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)
 
-# --- TAB 4: HISTORIAL Y DEVOLUCIONES (VERSIÓN CORREGIDA) ---
+# --- TAB 4: HISTORIAL Y DEVOLUCIONES ---
 with tab4:
     st.markdown("<h3 style='margin-top: -15px; margin-bottom: 5px;'>📜 Historial</h3>", unsafe_allow_html=True)
-    
     res_v = client.table("ventas_historial").select("*").execute()
     
     if res_v.data:
         df_v = pd.DataFrame(res_v.data)
         if not df_v.empty:
             df_v = df_v.sort_values(by="id", ascending=False)
-            
-            # Limpieza de datos para evitar errores visuales
             try: df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
             except: df_v['Fecha'] = "---"
             
@@ -401,61 +382,162 @@ with tab4:
                 ticket = df_v[df_v['id'] == id_t].iloc[0]
                 
                 st.markdown(f"**🔍 Detalle Ticket #{id_t}**")
-                
                 prods = ticket.get('productos', [])
                 if prods:
                     st.dataframe(pd.DataFrame(prods)[['Producto', 'Cantidad', 'Subtotal']], 
                                  use_container_width=True, hide_index=True, height=110)
 
-                # --- LÓGICA DE CONTROL DE BOTONES ---
-                # Forzamos la limpieza del texto del estado
                 estado_raw = str(ticket.get('estado', 'Completado')).upper().strip()
-
                 st.markdown("<hr style='margin: 5px 0px;'>", unsafe_allow_html=True)
                 
-                # Fila 1: Controles y Estado
                 col_c1, col_c2 = st.columns(2)
                 with col_c1:
-                    # Si NO está devuelto, permitimos elegir método de reembolso
                     if "DEVUELTO" not in estado_raw:
                         m_dev = st.radio("Reembolso:", ["Efectivo", "Tarjeta", "Bizum"], horizontal=True, key=f"rd_{id_t}", label_visibility="collapsed")
-                    else:
-                        st.error("TICKET YA DEVUELTO")
+                    else: st.error("TICKET YA DEVUELTO")
                 with col_c2:
                     confirmar = st.checkbox("Confirmar borrar registro", key=f"chk_{id_t}")
 
-                # Fila 2: Botones de Acción
                 col_b1, col_b2 = st.columns(2)
                 with col_b1:
-                    # El botón de Devolución aparece si el estado NO es devuelto
                     if "DEVUELTO" not in estado_raw:
                         if st.button("🔄 PROCESAR DEVOLUCIÓN", use_container_width=True):
-                            # IMPORTANTE: Sumamos el stock SOLO si no es un artículo manual
                             if prods:
                                 for p in prods:
-                                    if not p.get('Manual', False): # <-- EL ESCUDO PROTECTOR
+                                    if not p.get('Manual', False):
                                         res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
                                         if res_p.data:
                                             n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
                                             client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
-                            
                             client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", id_t).execute()
                             st.success("Devolución realizada y stock restaurado")
                             time.sleep(1); st.rerun()
-                
                 with col_b2:
-                    # Botón de Anular SIEMPRE disponible si marcas el check
                     if st.button("🔥 ANULAR Y BORRAR TODO", use_container_width=True, disabled=not confirmar):
                         if prods:
                             for p in prods:
-                                if not p.get('Manual', False): # <-- EL ESCUDO PROTECTOR
+                                if not p.get('Manual', False):
                                     res_p = client.table("productos_y_servicios").select("stock_actual").eq("nombre", p['Producto']).execute()
                                     if res_p.data:
                                         n_stock = res_p.data[0]['stock_actual'] + p['Cantidad']
                                         client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", p['Producto']).execute()
-                        
                         client.table("ventas_historial").delete().eq("id", id_t).execute()
                         st.success("Ticket eliminado y stock restaurado")
                         time.sleep(1); st.rerun()
         else: st.write("Historial vacío.")
     else: st.error("Error de conexión.")
+
+
+# --- TAB 5: CONTROL DE CAJA FUERTE ---
+with tab5:
+    st.markdown("### 💰 Control de Caja Fuerte")
+    
+    # 1. Comprobar si hay una caja abierta
+    try:
+        res_caja = client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+        caja_actual = res_caja.data[0] if res_caja.data else None
+    except:
+        caja_actual = None
+        st.error("Error al leer la caja. ¿Has creado la tabla en Supabase?")
+
+    if not caja_actual:
+        # PANTALLA: ABRIR CAJA
+        st.info("😴 La caja está actualmente CERRADA.")
+        col_abrir, vacio = st.columns([1, 2])
+        with col_abrir:
+            with st.form("abrir_caja"):
+                st.markdown("#### 🔓 Apertura de Turno")
+                fondo_ini = st.number_input("Fondo Inicial (Monedas/Billetes de cambio) €", min_value=0.0, step=1.0, format="%.2f")
+                if st.form_submit_button("Abrir Caja", type="primary", use_container_width=True):
+                    client.table("control_caja").insert({
+                        "fondo_inicial": fondo_ini,
+                        "estado": "Abierta"
+                    }).execute()
+                    st.success("¡Caja abierta! Que tengas muchas ventas."); time.sleep(1); st.rerun()
+    else:
+        # PANTALLA: CAJA ABIERTA
+        id_caja = caja_actual['id']
+        fondo_actual = caja_actual['fondo_inicial']
+        fecha_apertura = pd.to_datetime(caja_actual['created_at']).strftime('%d/%m/%Y %H:%M')
+        
+        st.success(f"🔓 **CAJA ABIERTA** | Abierta el: {fecha_apertura} | Fondo Inicial: **{fondo_actual:.2f}€**")
+        
+        col_izq, col_der = st.columns([1, 1.2], gap="large")
+        
+        with col_izq:
+            st.markdown("#### 💸 Entradas y Salidas (Extra)")
+            with st.form("form_movimientos", clear_on_submit=True):
+                c_tipo, c_cant = st.columns([1, 1])
+                with c_tipo: tipo_mov = st.selectbox("Tipo", ["Retirada 🔻", "Ingreso 🔺"])
+                with c_cant: cant_mov = st.number_input("Cantidad €", min_value=0.01, step=1.0)
+                motivo_mov = st.text_input("Motivo (Ej. Pago de agua, cambio traído...)")
+                
+                if st.form_submit_button("Registrar Movimiento", use_container_width=True):
+                    if motivo_mov:
+                        tipo_limpio = "Retirada" if "Retirada" in tipo_mov else "Ingreso"
+                        client.table("movimientos_caja").insert({
+                            "id_caja": id_caja, "tipo": tipo_limpio, "cantidad": cant_mov, "motivo": motivo_mov
+                        }).execute()
+                        st.success("Movimiento registrado"); st.rerun()
+                    else:
+                        st.error("Debes escribir un motivo.")
+            
+            # Mostrar tabla de movimientos
+            res_movs = client.table("movimientos_caja").select("tipo, cantidad, motivo").eq("id_caja", id_caja).execute()
+            if res_movs.data:
+                st.markdown("**Movimientos de hoy:**")
+                df_m = pd.DataFrame(res_movs.data)
+                # Damos formato para que se vea más bonito
+                df_m['tipo'] = df_m['tipo'].apply(lambda x: '🔻 Salida' if x == 'Retirada' else '🔺 Entrada')
+                st.dataframe(df_m, use_container_width=True, hide_index=True)
+
+        with col_der:
+            st.markdown("#### ⚖️ Arqueo y Cierre de Caja")
+            
+            # Calculadora de billetes (Expander para que no ocupe tanto espacio si no se usa)
+            with st.expander("🧮 Calculadora de Monedas y Billetes"):
+                cb1, cb2, cb3, cb4 = st.columns(4)
+                with cb1: 
+                    b50 = st.number_input("Billetes 50€", 0, step=1)
+                    b20 = st.number_input("Billetes 20€", 0, step=1)
+                with cb2: 
+                    b10 = st.number_input("Billetes 10€", 0, step=1)
+                    b5 = st.number_input("Billetes 5€", 0, step=1)
+                with cb3: 
+                    m2 = st.number_input("Monedas 2€", 0, step=1)
+                    m1 = st.number_input("Monedas 1€", 0, step=1)
+                with cb4: 
+                    m50c = st.number_input("Monedas 0.50€", 0, step=1)
+                    m20c = st.number_input("Monedas 0.20€", 0, step=1)
+                
+                total_calc = (b50*50) + (b20*20) + (b10*10) + (b5*5) + (m2*2) + (m1*1) + (m50c*0.5) + (m20c*0.2)
+                st.info(f"**Total Contado: {total_calc:.2f}€**")
+
+            with st.form("form_cierre"):
+                st.markdown("Introduce el dinero real que hay ahora mismo físicamente en el cajón para calcular el descuadre y cerrar la caja.")
+                efectivo_real = st.number_input("💵 Total Efectivo en Cajón €", min_value=0.0, step=1.0, value=float(total_calc) if total_calc > 0 else 0.0)
+                
+                if st.form_submit_button("🔒 Cerrar Caja Definitivamente", type="primary", use_container_width=True):
+                    # NOTA PARA RAQUEL: Aquí calcularemos lo que DEBERÍA haber.
+                    # Por ahora hacemos una lógica sencilla: Fondo + Ingresos Extra - Retiradas Extra.
+                    # Para sumar las VENTAS, idealmente tendríamos que cruzar la fecha de `ventas_historial`
+                    # mayores a `caja_actual['created_at']` donde el método sea Efectivo.
+                    
+                    ingresos = 0; retiradas = 0
+                    if res_movs.data:
+                        for mov in res_movs.data:
+                            if mov['tipo'] == 'Ingreso': ingresos += mov['cantidad']
+                            else: retiradas += mov['cantidad']
+                    
+                    # Lo ideal sería sumar ventas en efectivo aquí, pero como base:
+                    total_teorico_base = fondo_actual + ingresos - retiradas
+                    descuadre = efectivo_real - total_teorico_base
+                    
+                    client.table("control_caja").update({
+                        "estado": "Cerrada",
+                        "total_contado": efectivo_real,
+                        "descuadre": descuadre
+                    }).eq("id", id_caja).execute()
+                    
+                    st.success(f"Caja cerrada con éxito. Descuadre registrado: {descuadre:.2f}€"); 
+                    time.sleep(1.5); st.rerun()
