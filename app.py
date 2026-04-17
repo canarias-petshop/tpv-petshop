@@ -189,50 +189,73 @@ with tab2:
             
             st.success("✅ Venta realizada con éxito")
             
-            # Formato HTML del Ticket Profesional (VERSIÓN MINI Y COMPACTA)
+            # Formato HTML (Magia: visible en papel, oculto en pantalla)
             html_ticket = f"""
-            <div id="ticket" style="font-family: 'Courier New', Courier, monospace; padding: 10px; border: 1px solid #eee; width: 100%; max-width: 250px; margin: auto; background-color: #fff; color: #000; line-height: 1.2;">
-                <div style="text-align: center;">
-                    <b style="font-size: 14px;">ANIMALARIUM</b><br>
-                    <span style="font-size: 11px;">Raquel Trujillo Hernández<br>
-                    DNI: 78854854K<br>
-                    C/ José Hernández Alfonso, 26<br>
-                    38009 S/C de Tenerife</span>
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <style>
+                /* 1. ESTO ES LO QUE VES EN LA PANTALLA (Solo el botón) */
+                @media screen {{
+                    #ticket-impresion {{ display: none; }}
+                    #pantalla {{ font-family: sans-serif; text-align: center; }}
+                    .btn-print {{ padding: 10px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+                    .btn-print:hover {{ background-color: #003d57; }}
+                }}
+                /* 2. ESTO ES LO QUE VE LA IMPRESORA (El ticket completo) */
+                @media print {{
+                    #pantalla {{ display: none; }}
+                    #ticket-impresion {{ display: block; font-family: 'Courier New', Courier, monospace; width: 100%; max-width: 300px; color: #000; font-size: 12px; }}
+                }}
+            </style>
+            </head>
+            <body style="margin: 0; padding: 0;">
+                
+                <div id="pantalla">
+                    <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR TICKET</button>
+                    <p style="font-size: 11px; color: #666; margin-top: 5px;">Ticket oculto en pantalla. Saldrá completo al imprimir.</p>
                 </div>
-                <br>
-                <div style="font-size: 10px;">Fecha: {t['fecha']}</div>
-                <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
-                <table style="width: 100%; font-size: 11px;">
+
+                <div id="ticket-impresion">
+                    <div style="text-align: center;">
+                        <b style="font-size: 16px;">ANIMALARIUM</b><br>
+                        Raquel Trujillo Hernández<br>
+                        DNI: 78854854K<br>
+                        C/ José Hernández Alfonso, 26<br>
+                        38009 S/C de Tenerife
+                    </div>
+                    <br>
+                    <div>Fecha: {t['fecha']}</div>
+                    <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
+                    <table style="width: 100%; font-size: 12px; text-align: left;">
             """
             for p in t['productos']:
                 html_ticket += f"<tr><td>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right;'>{p['Subtotal']:.2f}€</td></tr>"
             
             html_ticket += f"""
-                </table>
-                <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
-                <div style="text-align: right; font-size: 14px;"><b>TOTAL: {t['total']:.2f}€</b></div>
-                <div style="font-size: 9px; color: #444; margin-top: 8px; text-align: center;">
-                    <b>POLÍTICA DE DEVOLUCIÓN</b><br>
-                    Plazo de 14 días con ticket y embalaje original.
+                    </table>
+                    <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
+                    <div style="text-align: right; font-size: 14px;"><b>TOTAL: {t['total']:.2f}€</b></div>
+                    <div style="font-size: 10px; color: #444; margin-top: 10px; text-align: center;">
+                        <b>POLÍTICA DE DEVOLUCIÓN</b><br>
+                        Plazo de 14 días con ticket y embalaje original.
+                    </div>
                 </div>
-            </div>
-            
-            <div style="text-align: center; margin-top: 10px;">
-                <button onclick="window.print()" style="padding: 6px 15px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 12px;">🖨️ IMPRIMIR TICKET</button>
-            </div>
+            </body>
+            </html>
             """
             
-            # 🚨 AQUÍ ESTÁ LA MAGIA: Pasamos de height=450 a height=280 y añadimos scrolling=True
+            # 🚨 El cuadro ahora solo mide 75 píxeles de alto, adiós al scroll 🚨
             import streamlit.components.v1 as components
-            components.html(html_ticket, height=280, scrolling=True)
+            components.html(html_ticket, height=75)
             
-            # Botones de Email y Nueva Venta pegaditos abajo
+            # Botones de Email y Nueva Venta
             c_em, c_nv = st.columns(2)
             with c_em:
                 import urllib.parse
                 texto_mail = f"Ticket Animalarium\nTotal: {t['total']:.2f}€\nFecha: {t['fecha']}"
                 url_mail = f"mailto:?subject=Ticket Animalarium&body={urllib.parse.quote(texto_mail)}"
-                st.markdown(f"<a href='{url_mail}' target='_blank' style='text-decoration:none;'><button style='width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; cursor:pointer;'>✉️ Email</button></a>", unsafe_allow_html=True)
+                st.markdown(f"<a href='{url_mail}' target='_blank' style='text-decoration:none;'><button style='width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; cursor:pointer; font-weight: bold;'>✉️ Email</button></a>", unsafe_allow_html=True)
             with c_nv:
                 if st.button("🛒 Nueva Venta", use_container_width=True, type="primary"):
                     st.session_state.ticket_actual = None
