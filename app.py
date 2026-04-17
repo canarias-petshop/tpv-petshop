@@ -475,16 +475,41 @@ with tab5:
         st.error("Error al conectar con las tablas de caja.")
 
     if not caja_actual:
-        # PANTALLA: ABRIR CAJA
+        # PANTALLA: CAJA CERRADA Y ARCHIVO HISTÓRICO
         st.info("😴 La caja está actualmente CERRADA.")
-        col_abrir, _ = st.columns([1, 2])
+        
+        # Dividimos la pantalla: Izquierda para abrir hoy, Derecha para ver el pasado
+        col_abrir, col_historial = st.columns([1, 2.5], gap="large")
+        
         with col_abrir:
-            with st.form("abrir_caja"):
-                st.markdown("#### 🔓 Apertura de Turno")
+            with st.form("abrir_caja", border=True):
+                st.markdown("<h4 style='margin: 0 0 10px 0;'>🔓 Apertura de Turno</h4>", unsafe_allow_html=True)
                 fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=1.0)
-                if st.form_submit_button("Abrir Caja", type="primary", use_container_width=True):
+                if st.form_submit_button("ABRIR CAJA AHORA", type="primary", use_container_width=True):
                     client.table("control_caja").insert({"fondo_inicial": float(fondo_ini), "estado": "Abierta"}).execute()
                     st.success("¡Caja abierta!"); time.sleep(1); st.rerun()
+                    
+        with col_historial:
+            st.markdown("<h4 style='margin: 0 0 10px 0;'>📚 Archivo de Cajas Cerradas</h4>", unsafe_allow_html=True)
+            
+            # Pedimos a Supabase todas las cajas que estén cerradas, ordenadas de la más nueva a la más vieja
+            res_cajas_cerradas = client.table("control_caja").select("*").eq("estado", "Cerrada").order("id", desc=True).execute()
+            
+            if res_cajas_cerradas.data and len(res_cajas_cerradas.data) > 0:
+                df_cajas = pd.DataFrame(res_cajas_cerradas.data)
+                
+                # Ponemos la fecha bonita
+                try: df_cajas['Fecha'] = pd.to_datetime(df_cajas['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+                except: df_cajas['Fecha'] = "---"
+                
+                # Preparamos las columnas que nos importan para la tabla
+                df_vista_cajas = df_cajas[['id', 'Fecha', 'fondo_inicial', 'total_contado', 'descuadre']].copy()
+                df_vista_cajas.columns = ['Turno Nº', 'Apertura', 'Fondo Inicial (€)', 'Recuento Final (€)', 'Descuadre (€)']
+                
+                # Mostramos la tabla interactiva
+                st.dataframe(df_vista_cajas, use_container_width=True, hide_index=True, height=200)
+            else:
+                st.info("📭 Aún no hay registros de cajas cerradas en el historial.")
     else:
         id_caja = caja_actual['id']
         fondo_actual = caja_actual['fondo_inicial']
