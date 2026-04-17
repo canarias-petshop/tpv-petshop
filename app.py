@@ -188,131 +188,185 @@ with tab2:
                     })
                     st.rerun()
 
-    # --- COLUMNA DERECHA: CARRITO (SÚPER COMPACTO) ---
+    # --- COLUMNA DERECHA: CARRITO Y TICKET ---
     with col_carrito:
-        # Espacio reducido a solo 10px
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         
-        if st.session_state.carrito:
-            df_car = pd.DataFrame(st.session_state.carrito)
-            if 'Desc. %' not in df_car.columns: df_car['Desc. %'] = 0.0
-
-            # TABLA (Altura reducida a 110 para salvar los botones de abajo)
-            edited_df = st.data_editor(
-                df_car,
-                column_order=("Cantidad", "Producto", "Precio", "Desc. %", "Subtotal"),
-                column_config={
-                    "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1, step=1, width="small"),
-                    "Producto": st.column_config.TextColumn("Producto", disabled=True),
-                    "Precio": st.column_config.NumberColumn("Precio €", format="%.2f"),
-                    "Desc. %": st.column_config.NumberColumn("Desc. %", min_value=0, max_value=100, format="%d%%"),
-                    "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True),
-                },
-                hide_index=True, use_container_width=True, num_rows="dynamic", height=110, key="ed_car_comp"
-            )
+        # 🧾 VISTA 1: SI ACABAMOS DE COBRAR, MOSTRAMOS EL TICKET
+        if st.session_state.get('ticket_actual'):
+            t = st.session_state.ticket_actual
             
-            if not edited_df.equals(df_car):
-                edited_df["Subtotal"] = (edited_df["Cantidad"] * edited_df["Precio"]) * (1 - edited_df["Desc. %"] / 100)
-                # TRUCO: Pasamos la tabla a texto y de nuevo a diccionario para limpiar los números "raros"
-                import json
-                st.session_state.carrito = json.loads(edited_df.to_json(orient='records'))
-                st.rerun()
-
-            # Separadores más finitos (margin 2px)
-            st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-
-            sub_antes = edited_df["Subtotal"].sum()
-            c_desc_g = st.columns([1])[0]
-            with c_desc_g:
-                desc_g = st.number_input("🎁 Descuento a toda la compra (%)", min_value=0, max_value=100, value=0, step=1)
+            st.success("✅ Venta realizada con éxito")
             
-            total_f = sub_antes * (1 - desc_g / 100)
+            # Formato HTML del Ticket Profesional
+            html_ticket = f"""
+            <div id="ticket" style="font-family: 'Courier New', Courier, monospace; padding: 20px; border: 1px solid #eee; width: 100%; max-width: 300px; margin: auto; background-color: #fff; color: #000;">
+                <div style="text-align: center;">
+                    <b style="font-size: 18px;">ANIMALARIUM</b><br>
+                    Raquel Trujillo Hernández<br>
+                    DNI: 78854854K<br>
+                    Calle José Hernández Alfonso, 26<br>
+                    38009 Santa Cruz de Tenerife
+                </div>
+                <br>
+                <div style="font-size: 12px;">Fecha: {t['fecha']}</div>
+                <hr style="border-top: 1px dashed #000;">
+                <table style="width: 100%; font-size: 13px;">
+            """
+            for p in t['productos']:
+                html_ticket += f"<tr><td>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right;'>{p['Subtotal']:.2f}€</td></tr>"
             
-            st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-
-            metodo = st.radio("p", ["Efectivo", "Tarjeta", "Bizum", "Mixto"], horizontal=True, label_visibility="collapsed")
-            pagado_hoy = 0.0; pendiente = 0.0; metodo_log = metodo
-
-            if metodo == "Efectivo":
-                c_tot, c_ent, c_cam = st.columns([0.8, 1, 1])
-                with c_tot:
-                    st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
-                with c_ent:
-                    entregado = st.number_input("Entregado €", min_value=0.0, value=float(total_f), format="%.2f")
-                with c_cam:
-                    cambio = entregado - total_f
-                    if cambio >= 0:
-                        st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>CAMBIO</p><h3 style='margin:0; color:green;'>{cambio:.2f}€</h3>", unsafe_allow_html=True)
-                        pagado_hoy = total_f
-                    else:
-                        st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>DEUDA</p><h3 style='margin:0; color:orange;'>{-cambio:.2f}€</h3>", unsafe_allow_html=True)
-                        pagado_hoy = entregado; pendiente = -cambio
-
-            elif metodo == "Mixto":
-                st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
-                cm1, cm2, cm3 = st.columns(3)
-                with cm1: p_e = st.number_input("Efe.", min_value=0.0, value=0.0)
-                with cm2: p_t = st.number_input("Tar.", min_value=0.0, value=0.0)
-                with cm3: p_b = st.number_input("Biz.", min_value=0.0, value=0.0)
-                pagado_hoy = p_e + p_t + p_b
-                pendiente = total_f - pagado_hoy if pagado_hoy < total_f else 0.0
-                metodo_log = f"Mixto (E:{p_e}|T:{p_t}|B:{p_b})"
-                if pendiente > 0: st.warning(f"Pendiente: {pendiente:.2f}€")
+            html_ticket += f"""
+                </table>
+                <hr style="border-top: 1px dashed #000;">
+                <div style="text-align: right; font-size: 16px;"><b>TOTAL: {t['total']:.2f}€</b></div>
+                <div style="font-size: 12px; color: #444; margin-top: 10px; text-align: center;">
+                    <b>POLÍTICA DE DEVOLUCIÓN</b><br>
+                    Plazo de 14 días con ticket y embalaje original.
+                </div>
+            </div>
             
-            else: # Tarjeta / Bizum
-                st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
-                pagado_hoy = total_f
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="window.print()" style="padding: 10px 20px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">🖨️ IMPRIMIR TICKET</button>
+            </div>
+            """
+            
+            # Renderizar el ticket
+            import streamlit.components.v1 as components
+            components.html(html_ticket, height=450)
+            
+            # Botones de Email y Nueva Venta
+            c_em, c_nv = st.columns(2)
+            with c_em:
+                import urllib.parse
+                texto_mail = f"Ticket Animalarium\nTotal: {t['total']:.2f}€\nFecha: {t['fecha']}"
+                url_mail = f"mailto:?subject=Ticket Animalarium&body={urllib.parse.quote(texto_mail)}"
+                st.markdown(f"<a href='{url_mail}' target='_blank' style='text-decoration:none;'><button style='width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; cursor:pointer;'>✉️ Email</button></a>", unsafe_allow_html=True)
+            with c_nv:
+                if st.button("🛒 Nueva Venta", use_container_width=True, type="primary"):
+                    st.session_state.ticket_actual = None
+                    st.rerun()
 
-            nombre_deudor = ""
-            if pendiente > 0:
-                nombre_deudor = st.text_input("👤 Nombre para la deuda:", placeholder="¿Quién debe?")
-
-            st.markdown("<div style='height: 2px;'></div>", unsafe_allow_html=True)
-            c_cob, c_vac = st.columns([2, 1])
-            with c_cob:
-                bloqueo = (pendiente > 0 and not nombre_deudor)
-                if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
-                    
-                    import json
-                    carrito_limpio = json.loads(edited_df.to_json(orient='records'))
-                    
-                    # 🕵️‍♂️ TRAMPA PARA VER EL ERROR REAL
-                    try:
-                        # 1. Guardar en el Historial
-                        client.table("ventas_historial").insert({
-                            "total": float(total_f), 
-                            "pagado": float(pagado_hoy), 
-                            "pendiente": float(pendiente),
-                            "metodo_pago": str(metodo_log), 
-                            "cliente_deuda": str(nombre_deudor),
-                            "descuento_global": float(desc_g), # <-- Añadimos el descuento por si acaso
-                            "productos": carrito_limpio, 
-                            "estado": "Completado" if pendiente == 0 else "Deuda"
-                        }).execute()
-                        
-                        # 2. Restar el Stock
-                        for i in carrito_limpio:
-                            if not i.get('Manual', False):
-                                res = client.table("productos_y_servicios").select("stock_actual").eq("nombre", i['Producto']).execute()
-                                if res.data:
-                                    n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
-                                    client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", i['Producto']).execute()
-                                    
-                        # 3. Vaciar y recargar
-                        st.success("¡Cobro realizado con éxito!")
-                        import time
-                        time.sleep(1)
-                        st.session_state.carrito = []
-                        st.rerun()
-                        
-                    except Exception as e:
-                        # 🚨 Si Supabase falla, esto mostrará el motivo exacto en la pantalla
-                        st.error(f"🚨 Error exacto de Supabase: {e}")
-            with c_vac:
-                if st.button("🗑️ Vaciar", use_container_width=True):
-                    st.session_state.carrito = []; st.rerun()
+        # 🛒 VISTA 2: SI NO HAY TICKET, MOSTRAMOS EL CARRITO (Tu código actual mejorado)
         else:
-            st.markdown("<div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; color: #666; border: 1px solid #ddd;'>🛒 Carrito vacío.</div>", unsafe_allow_html=True)
+            if st.session_state.carrito:
+                df_car = pd.DataFrame(st.session_state.carrito)
+                if 'Desc. %' not in df_car.columns: df_car['Desc. %'] = 0.0
+
+                edited_df = st.data_editor(
+                    df_car,
+                    column_order=("Cantidad", "Producto", "Precio", "Desc. %", "Subtotal"),
+                    column_config={
+                        "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1, step=1, width="small"),
+                        "Producto": st.column_config.TextColumn("Producto", disabled=True),
+                        "Precio": st.column_config.NumberColumn("Precio €", format="%.2f"),
+                        "Desc. %": st.column_config.NumberColumn("Desc. %", min_value=0, max_value=100, format="%d%%"),
+                        "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True),
+                    },
+                    hide_index=True, use_container_width=True, num_rows="dynamic", height=110, key="ed_car_ticket"
+                )
+                
+                if not edited_df.equals(df_car):
+                    import json
+                    edited_df["Subtotal"] = (edited_df["Cantidad"] * edited_df["Precio"]) * (1 - edited_df["Desc. %"] / 100)
+                    st.session_state.carrito = json.loads(edited_df.to_json(orient='records'))
+                    st.rerun()
+
+                st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+
+                sub_antes = edited_df["Subtotal"].sum()
+                desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=0, step=1)
+                total_f = sub_antes * (1 - desc_g / 100)
+                
+                st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+
+                metodo = st.radio("p", ["Efectivo", "Tarjeta", "Bizum", "Mixto"], horizontal=True, label_visibility="collapsed")
+                pagado_hoy = 0.0; pendiente = 0.0; metodo_log = metodo
+
+                if metodo == "Efectivo":
+                    c_tot, c_ent, c_cam = st.columns([0.8, 1, 1])
+                    with c_tot: st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
+                    with c_ent: entregado = st.number_input("Entregado €", min_value=0.0, value=float(total_f), format="%.2f")
+                    with c_cam:
+                        cambio = entregado - total_f
+                        if cambio >= 0:
+                            st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>CAMBIO</p><h3 style='margin:0; color:green;'>{cambio:.2f}€</h3>", unsafe_allow_html=True)
+                            pagado_hoy = total_f
+                        else:
+                            st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>DEUDA</p><h3 style='margin:0; color:orange;'>{-cambio:.2f}€</h3>", unsafe_allow_html=True)
+                            pagado_hoy = entregado; pendiente = -cambio
+
+                elif metodo == "Mixto":
+                    st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
+                    cm1, cm2, cm3 = st.columns(3)
+                    with cm1: p_e = st.number_input("Efe.", min_value=0.0, value=0.0)
+                    with cm2: p_t = st.number_input("Tar.", min_value=0.0, value=0.0)
+                    with cm3: p_b = st.number_input("Biz.", min_value=0.0, value=0.0)
+                    pagado_hoy = p_e + p_t + p_b
+                    pendiente = total_f - pagado_hoy if pagado_hoy < total_f else 0.0
+                    metodo_log = f"Mixto (E:{p_e}|T:{p_t}|B:{p_b})"
+                    if pendiente > 0: st.warning(f"Pendiente: {pendiente:.2f}€")
+                
+                else:
+                    st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
+                    pagado_hoy = total_f
+
+                nombre_deudor = ""
+                if pendiente > 0:
+                    nombre_deudor = st.text_input("👤 Nombre para la deuda:", placeholder="¿Quién debe?")
+
+                st.markdown("<div style='height: 2px;'></div>", unsafe_allow_html=True)
+                c_cob, c_vac = st.columns([2, 1])
+                with c_cob:
+                    bloqueo = (pendiente > 0 and not nombre_deudor)
+                    if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
+                        
+                        import json, datetime
+                        carrito_limpio = json.loads(edited_df.to_json(orient='records'))
+                        
+                        try:
+                            # 1. Guardar en Supabase
+                            client.table("ventas_historial").insert({
+                                "total": float(total_f), 
+                                "pagado": float(pagado_hoy), 
+                                "pendiente": float(pendiente),
+                                "metodo_pago": str(metodo_log), 
+                                "cliente_deuda": str(nombre_deudor),
+                                "descuento_global": float(desc_g),
+                                "productos": carrito_limpio, 
+                                "estado": "Completado" if pendiente == 0 else "Deuda"
+                            }).execute()
+                            
+                            # 2. Restar Stock
+                            for i in carrito_limpio:
+                                if not i.get('Manual', False):
+                                    res = client.table("productos_y_servicios").select("stock_actual").eq("nombre", i['Producto']).execute()
+                                    if res.data:
+                                        n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
+                                        client.table("productos_y_servicios").update({"stock_actual": n_stock}).eq("nombre", i['Producto']).execute()
+                                        
+                            # 3. GENERAR DATOS PARA EL TICKET
+                            st.session_state.ticket_actual = {
+                                "fecha": datetime.datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                "productos": carrito_limpio,
+                                "total": total_f,
+                                "metodo": metodo_log
+                            }
+                            
+                            # 4. Vaciar carrito y recargar
+                            st.session_state.carrito = []
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"🚨 Error de Supabase: {e}")
+                            
+                with c_vac:
+                    if st.button("🗑️ Vaciar", use_container_width=True):
+                        st.session_state.carrito = []; st.rerun()
+            else:
+                st.markdown("<div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; color: #666; border: 1px solid #ddd;'>🛒 Carrito vacío.</div>", unsafe_allow_html=True)
+
+        # Espacio para esquivar el botón de Streamlit
         st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)
 
 # --- TAB 4: HISTORIAL Y DEVOLUCIONES (VERSIÓN CORREGIDA) ---
