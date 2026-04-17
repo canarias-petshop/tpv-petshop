@@ -465,18 +465,19 @@ with tab5:
         # Barra de estado superior
         st.success(f"🔓 **CAJA ABIERTA** | Inicio: {fecha_ap} | Fondo: **{fondo_actual:.2f}€**")
 
-        # --- AJUSTE DE CABECERAS ALINEADAS ---
-        # Creamos una fila solo para los títulos para que queden siempre a la misma altura
+        # --- CABECERAS (Subidas un punto hacia arriba) ---
+        st.markdown("<div style='margin-top: -15px;'></div>", unsafe_allow_html=True) 
+        
         c_tit1, c_tit2 = st.columns([1, 1.2], gap="large")
-        with c_tit1: st.markdown("<h4 style='margin-bottom:0;'>💸 Entradas y Salidas</h4>", unsafe_allow_html=True)
-        with c_tit2: st.markdown("<h4 style='margin-bottom:0;'>⚖️ Arqueo y Cierre</h4>", unsafe_allow_html=True)
+        with c_tit1: st.markdown("<h4 style='margin: 0 0 5px 0;'>💸 Entradas y Salidas</h4>", unsafe_allow_html=True)
+        with c_tit2: st.markdown("<h4 style='margin: 0 0 5px 0;'>⚖️ Arqueo y Cierre</h4>", unsafe_allow_html=True)
 
-        # Cuerpo de la pestaña
+        # --- CUERPO (Alineación perfecta) ---
         col_izq, col_der = st.columns([1, 1.2], gap="large")
         
         with col_izq:
-            # Formulario de movimientos
-            with st.form("form_movimientos", clear_on_submit=True):
+            # Formulario izquierdo con borde nativo
+            with st.form("form_movimientos", clear_on_submit=True, border=True):
                 c_tipo, c_cant = st.columns([1, 1])
                 with c_tipo: tipo_mov = st.selectbox("Tipo", ["Retirada 🔻", "Ingreso 🔺"])
                 with c_cant: cant_mov = st.number_input("Euros €", min_value=0.01, step=1.0)
@@ -495,17 +496,8 @@ with tab5:
                 st.dataframe(df_m, use_container_width=True, hide_index=True, height=150)
 
         with col_der:
-            # CSS para compactar el arqueo y cierre
-            st.markdown("""
-                <style>
-                    /* Reduce el espacio entre el expander y el formulario */
-                    [data-testid="stExpander"] { border: 1px solid #ddd; margin-top: 5px !important; }
-                    .stForm { margin-top: -15px !important; padding: 15px !important; border: 1px solid #ddd !important; }
-                </style>
-            """, unsafe_allow_html=True)
-
-            # 1. LA CALCULADORA (ARRIBA)
-            with st.expander("🧮 Calculadora de Recuento", expanded=True):
+            # 1. CALCULADORA (Borde nativo para alinear a la misma altura que el izquierdo)
+            with st.container(border=True):
                 st.markdown("<p style='font-size: 11px; font-weight: bold; color: gray; margin:0;'>💵 BILLETES</p>", unsafe_allow_html=True)
                 cb1, cb2, cb3, cb4, cb5, cb6 = st.columns(6)
                 with cb1: b200 = st.number_input("200", 0, step=1, key="b200")
@@ -515,7 +507,7 @@ with tab5:
                 with cb5: b10 = st.number_input("10", 0, step=1, key="b10")
                 with cb6: b5 = st.number_input("5", 0, step=1, key="b5")
 
-                st.markdown("<p style='font-size: 11px; font-weight: bold; color: gray; margin:0;'>🪙 MONEDAS</p>", unsafe_allow_html=True)
+                st.markdown("<p style='font-size: 11px; font-weight: bold; color: gray; margin:0; padding-top: 5px;'>🪙 MONEDAS</p>", unsafe_allow_html=True)
                 cm1, cm2, cm3, cm4, cm5, cm6, cm7, cm8 = st.columns(8)
                 with cm1: m2 = st.number_input("2€", 0, step=1, key="m2")
                 with cm2: m1 = st.number_input("1€", 0, step=1, key="m1")
@@ -531,23 +523,24 @@ with tab5:
                              (m2c*0.02) + (m1c*0.01)
                 st.info(f"**Total Contado: {total_calc:.2f}€**")
 
-            # 2. EL CIERRE (ABAJO)
-            # Metemos todo en una fila dentro del form para que sea una línea limpia
-            with st.form("form_cierre_final"):
-                st.markdown("<p style='margin-bottom: 5px; font-weight: bold;'>💵 Confirmar Cierre</p>", unsafe_allow_html=True)
+            # 2. CIERRE (Formulario nativo sano para que el botón respire bien)
+            with st.form("form_cierre_final", border=True):
+                st.markdown("<p style='margin: 0 0 5px 0; font-weight: bold;'>🔒 Confirmar Cierre</p>", unsafe_allow_html=True)
+                
                 c_f1, c_f2 = st.columns([1, 1], vertical_alignment="bottom")
                 with c_f1:
                     efectivo_final = st.number_input("Efectivo Real €", min_value=0.0, value=float(total_calc))
                 with c_f2:
-                    if st.form_submit_button("🔒 CERRAR CAJA", type="primary", use_container_width=True):
-                        # Lógica de cálculo
-                        ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0
-                        retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0
-                        total_teorico = fondo_actual + ingresos - retiradas
-                        descuadre = efectivo_final - total_teorico
-                        
-                        client.table("control_caja").update({
-                            "estado": "Cerrada", "total_contado": float(efectivo_final), "descuadre": float(descuadre)
-                        }).eq("id", id_caja).execute()
-                        st.success(f"Cerrado. Descuadre: {descuadre:.2f}€")
-                        time.sleep(1.5); st.rerun()
+                    submit_cierre = st.form_submit_button("CERRAR CAJA DEFINITIVA", type="primary", use_container_width=True)
+                    
+                if submit_cierre:
+                    ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0
+                    retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0
+                    total_teorico = fondo_actual + ingresos - retiradas
+                    descuadre = efectivo_final - total_teorico
+                    
+                    client.table("control_caja").update({
+                        "estado": "Cerrada", "total_contado": float(efectivo_final), "descuadre": float(descuadre)
+                    }).eq("id", id_caja).execute()
+                    st.success(f"Cerrado. Descuadre: {descuadre:.2f}€")
+                    time.sleep(1.5); st.rerun()
