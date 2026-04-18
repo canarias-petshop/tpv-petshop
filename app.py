@@ -837,37 +837,30 @@ with tab8:
                 st.error(f"Error al emitir: {e}")
     else:
         st.warning("El borrador de la factura está vacío. Añade productos desde arriba.")
-        
-# ==========================================
-# --- TAB 9: PANEL ADMIN ---
-# ==========================================
+
+# --- TAB 9: ADMIN (EDICIÓN ACTIVA) ---
 with tab9:
-    st.markdown("<h3 style='margin-bottom: 5px; color: #d32f2f;'>⚙️ Modo Administrador BBDD</h3>", unsafe_allow_html=True)
-    st.warning("⚠️ Cuidado: Desde aquí tienes acceso directo y sin filtros a toda la base de datos.")
+    st.markdown("### ⚙️ Editor Maestro de Datos")
+    t_sel = st.selectbox("Tabla:", ["productos", "clientes", "proveedores", "facturas"])
     
-    tablas_disponibles = [
-        "productos", "productos_proveedores", "proveedores", "ventas_historial", 
-        "control_caja", "movimientos_caja", "facturas", "clientes", "mascotas", "citas"
-    ]
-    t_sel = st.selectbox("Selecciona la tabla a inspeccionar:", tablas_disponibles)
-    
-    try:
-        res_adm = client.table(t_sel).select("*").order("id", desc=False).limit(50).execute()
-        if res_adm.data:
-            df_adm = pd.DataFrame(res_adm.data)
-            st.dataframe(df_adm, use_container_width=True, hide_index=True)
-            
-            st.markdown("#### 🗑️ Borrado de Emergencia")
-            c_del1, c_del2 = st.columns([1, 3])
-            with c_del1:
-                id_borrar = st.text_input("ID a eliminar")
-            with c_del2:
-                st.write("") 
-                if st.button("Eliminar Registro", type="primary"):
-                    if id_borrar:
-                        client.table(t_sel).delete().eq("id", id_borrar).execute()
-                        st.success("Registro eliminado."); time.sleep(1); st.rerun()
-        else:
-            st.info(f"La tabla {t_sel} está vacía.")
-    except Exception as e:
-        st.error(f"Error al leer la tabla: {e}")
+    res = client.table(t_sel).select("*").execute()
+    if res.data:
+        df_admin = pd.DataFrame(res.data)
+        
+        # CONFIGURACIÓN ESPECIAL PARA PRODUCTOS
+        col_config = {}
+        if t_sel == "productos":
+            col_config = {
+                "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[0, 3, 7, 15], required=True),
+                "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
+                "precio_pvp": st.column_config.NumberColumn("PVP (€)", format="%.2f"),
+                "stock_actual": st.column_config.NumberColumn("Stock", step=1)
+            }
+
+        edited_db = st.data_editor(df_admin, use_container_width=True, hide_index=True, column_config=col_config, key="db_editor")
+
+        if st.button("💾 GUARDAR CAMBIOS EN LA BASE DE DATOS"):
+            # Aquí va la lógica que compara y actualiza en Supabase
+            for index, row in edited_db.iterrows():
+                client.table(t_sel).update(row.to_dict()).eq("id", row["id"]).execute()
+            st.success("Base de datos actualizada correctamente")
