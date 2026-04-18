@@ -73,29 +73,58 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 with tab1:
     col_f, col_t = st.columns([1.2, 2.5])
     
+    # 1. Obtenemos los proveedores
     res_proveedores = client.table("proveedores").select("id, nombre_empresa").execute()
     dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores.data} if res_proveedores.data else {}
     lista_nombres_prov = list(dict_proveedores.keys())
 
     with col_f:
         st.markdown("### 📝 Nuevo Producto")
-        with st.form("nuevo_p_calc"):
-           nombre = st.text_input("Nombre")
-           sku = st.text_input("SKU / Código")
-           p_base = st.number_input("Coste Neto (Base)", min_value=0.0, format="%.2f")
-           igic_sel = st.selectbox("IGIC %", [7, 0, 3, 15])
-        
-        # Cálculo visual para Raquel
-        coste_con_igic = p_base * (1 + igic_sel/100)
-        st.markdown(f"**💰 Coste Total (con IGIC): {coste_con_igic:.2f} €**")
-        
-        pvp = st.number_input("PVP Final (€)", min_value=0.0)
-        stck = st.number_input("Stock Inicial", min_value=0)
-        provs = st.multiselect("Proveedores", lista_nombres_prov)
-        
-        if st.form_submit_button("Guardar"):
-            # Lógica de inserción... (igual que la anterior pero asegurando estos campos)
-            pass
+        # El bloque WITH ST.FORM empieza aquí
+        with st.form("nuevo_p", clear_on_submit=True):
+            nombre = st.text_input("Nombre *")
+            c1, c2 = st.columns(2)
+            with c1: sku = st.text_input("SKU / Código *")
+            with c2: cat = st.selectbox("Categoría", ["Producto", "Servicio"])
+            
+            c3, c4 = st.columns(2)
+            with c3: p_base = st.number_input("Coste Neto Base (€)", min_value=0.0, format="%.2f")
+            with c4: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
+            
+            # Cálculo visual de coste (se actualiza al procesar)
+            coste_con_igic = p_base * (1 + (igic_tipo / 100))
+            st.markdown(f"<p style='margin:0; color:#005275; font-size: 13px;'><b>💰 Coste Total (Neto + IGIC): {coste_con_igic:.2f} €</b></p>", unsafe_allow_html=True)
+            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+            
+            c5, c6 = st.columns(2)
+            with c5: pvp = st.number_input("PVP Final (€)", min_value=0.0, format="%.2f")
+            with c6: stck = st.number_input("Stock Inicial", min_value=0)
+            
+            provs_seleccionados = st.multiselect("Proveedor/es", lista_nombres_prov, placeholder="Elige uno o varios...")
+            
+            # ESTE BOTÓN AHORA ESTÁ PERFECTAMENTE INDENTADO DENTRO DEL FORMULARIO
+            if st.form_submit_button("💾 Guardar Producto", use_container_width=True):
+                if nombre and sku:
+                    res_insert = client.table("productos").insert({
+                        "sku": sku, "nombre": nombre, "categoria": cat,
+                        "precio_base": p_base, "igic_tipo": igic_tipo, 
+                        "stock_actual": stck, "precio_pvp": pvp
+                    }).execute()
+                    
+                    if res_insert.data:
+                        nuevo_producto_id = res_insert.data[0]['id']
+                        if provs_seleccionados:
+                            relaciones = []
+                            for prov_nombre in provs_seleccionados:
+                                relaciones.append({
+                                    "producto_id": nuevo_producto_id,
+                                    "proveedor_id": dict_proveedores[prov_nombre],
+                                    "precio_coste": p_base
+                                })
+                            client.table("productos_proveedores").insert(relaciones).execute()
+                        st.success("Añadido correctamente"); time.sleep(0.5); st.rerun()
+                else:
+                    st.warning("Faltan datos obligatorios (Nombre o SKU)")
 
     with col_t:
         st.markdown("### 📦 Stock Actual")
@@ -108,6 +137,8 @@ with tab1:
                     return ", ".join(nombres)
                 return "Sin proveedor"
             df_p['Proveedores'] = df_p['productos_proveedores'].apply(extraer_proveedores)
+            
+            # Mostramos las columnas ordenadas
             st.dataframe(df_p[['sku', 'nombre', 'precio_base', 'precio_pvp', 'stock_actual', 'Proveedores']], 
                          use_container_width=True, height=450, hide_index=True)
         else:
