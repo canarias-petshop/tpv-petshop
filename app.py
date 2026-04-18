@@ -690,20 +690,12 @@ with tab6:
                 total_gastos = df_m_gastos['cantidad'].sum()
                 df_m['Fecha'] = pd.to_datetime(df_m['created_at']).dt.date
 
-        # Cargar facturas de compra para restarlas del neto
-        try:
-            res_facturas = client.table("facturas").select("tipo, total").eq("tipo", "Compra").execute()
-            if res_facturas.data:
-                df_f = pd.DataFrame(res_facturas.data)
-                total_gastos += df_f['total'].sum() 
-        except: pass
-
         balance_neto = total_ventas - total_gastos
 
         st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1: st.metric(label="Ingresos Totales (Ventas)", value=f"{total_ventas:.2f} €")
-        with col_m2: st.metric(label="Gastos Extra (Retiradas)", value=f"-{total_gastos:.2f} €")
+        with col_m2: st.metric(label="Gastos de Caja (Retiradas)", value=f"-{total_gastos:.2f} €")
         with col_m3: st.metric(label="Balance Neto", value=f"{balance_neto:.2f} €", delta=f"{balance_neto:.2f} €")
             
         st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
@@ -749,45 +741,96 @@ with tab7:
             st.info("No hay proveedores registrados aún.")
 
 # ==========================================
-# --- TAB 8: FACTURACIÓN ---
+# --- TAB 8: FACTURACIÓN LEGAL CON STOCK ---
 # ==========================================
 with tab8:
-    st.markdown("<div style='display: flex; justify-content: space-between;'><h3 style='margin:0;'>📑 Facturación</h3></div>", unsafe_allow_html=True)
-    st.caption("🚨 Las facturas de 'Compra' registradas aquí se restan automáticamente en la pestaña de Estadísticas.")
+    st.markdown("### 📑 Facturación Oficial (Veri*Factu)")
+    st.caption("Añade productos, emite la factura legal y el stock se descontará automáticamente.")
     
-    cf1, cf2 = st.columns([1, 2])
-    with cf1:
-        with st.form("n_factura", clear_on_submit=True):
-            f_tipo = st.selectbox("Tipo de Factura", ["Compra", "Venta"])
-            lista_entidades = ["Consumidor Final", "Otro..."]
-            try:
-                p_data = client.table("proveedores").select("nombre_empresa").execute()
-                if p_data.data: lista_entidades = [p['nombre_empresa'] for p in p_data.data] + lista_entidades
-            except: pass
-            
-            f_entidad = st.selectbox("Proveedor / Cliente", lista_entidades)
-            f_concepto = st.text_input("Concepto (Ej: Reposición pienso)")
-            f_fecha = st.date_input("Fecha de Emisión")
-            f_total = st.number_input("Total Factura (€) Impuestos Incluidos", min_value=0.0, format="%.2f")
-            
-            if st.form_submit_button("💾 Registrar Factura", use_container_width=True, type="primary"):
-                if f_total > 0:
-                    client.table("facturas").insert({
-                        "tipo": f_tipo, "entidad": f_entidad, "concepto": f_concepto, 
-                        "total": float(f_total), "fecha_emision": f_fecha.strftime("%Y-%m-%d")
-                    }).execute()
-                    st.success("Factura registrada"); time.sleep(0.5); st.rerun()
+    # Memoria temporal para la factura que estamos montando
+    if 'factura_temporal' not in st.session_state: st.session_state.factura_temporal = []
+
+    # --- 1. SECCIÓN DE BUSCADOR (Arriba) ---
+    st.markdown("#### 🔍 1. Añadir Productos")
+    res_inv = client.table("productos").select("*").execute()
+    df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
+    
+    if not df_inv.empty:
+        opciones = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | {x['precio_pvp']}€", axis=1).tolist()
+        
+        # Minicolumnas solo para alinear el buscador y el botón de añadir
+        c_busq, c_cant, c_btn = st.columns([2, 1, 1])
+        with c_busq: 
+            prod_f = st.selectbox("Buscar producto:", opciones, index=None, placeholder="Escribe o escanea...", label_visibility="collapsed", key="busq_fact")
+        with c_cant: 
+            c_f_cant = st.number_input("Cantidad", min_value=1, value=1, label_visibility="collapsed", key="cant_fact")
+        with c_btn:
+            if st.button("➕ Añadir", use_container_width=True):
+                if prod_f:
+                    nombre_f = prod_f.split(" | ")[0]
+                    sku_f = prod_f.split("SKU: ")[1].split(" | ")[0]
+                    datos_p = df_inv[df_inv['sku'] == sku_f].iloc[0]
                     
-    with cf2:
-        try:
-            res_fac = client.table("facturas").select("*").order("fecha_emision", desc=True).execute()
-            if res_fac.data:
-                df_fac = pd.DataFrame(res_fac.data)[['fecha_emision', 'tipo', 'entidad', 'concepto', 'total']]
-                df_fac['tipo'] = df_fac['tipo'].apply(lambda x: '🔴 Compra' if x == 'Compra' else '🟢 Venta')
-                st.dataframe(df_fac, use_container_width=True, hide_index=True, height=350)
-            else:
-                st.info("No hay facturas registradas.")
-        except: st.warning("Asegúrate de haber creado la tabla 'facturas' en Supabase.")
+                    st.session_state.factura_temporal.append({
+                        "id": datos_p['id'], "Producto": nombre_f, "SKU": sku_f,
+                        "Cantidad": c_f_cant, "Precio_PVP": float(datos_p['precio_pvp']),
+                        "IGIC_Tipo": float(datos_p['igic_tipo']),
+                        "Subtotal": c_f_cant * float(datos_p['precio_pvp'])
+                    })
+                    st.rerun()
+
+    st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
+
+    # --- 2. SECCIÓN DE CARRITO Y EMISIÓN (Abajo) ---
+    st.markdown("#### 📝 2. Detalle de la Factura en curso")
+    
+    if st.session_state.factura_temporal:
+        # Botón para limpiar si nos equivocamos
+        if st.button("🗑️ Vaciar Factura", size="small"):
+            st.session_state.factura_temporal = []; st.rerun()
+
+        df_temp = pd.DataFrame(st.session_state.factura_temporal)
+        
+        # Mostramos la tabla a lo ancho
+        st.dataframe(df_temp[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True)
+        
+        # Cálculos Legales Automáticos
+        total_factura = df_temp['Subtotal'].sum()
+        df_temp['Base'] = df_temp['Subtotal'] / (1 + (df_temp['IGIC_Tipo']/100))
+        base_total = df_temp['Base'].sum()
+        igic_total = total_factura - base_total
+        
+        st.info(f"**Base Imponible:** {base_total:.2f}€ | **IGIC Total:** {igic_total:.2f}€ | **TOTAL FINAL:** {total_factura:.2f}€")
+
+        # Selección de Cliente
+        res_clientes = client.table("clientes").select("id, nombre_dueno, telefono").execute()
+        dict_clientes = {f"{c['nombre_dueno']} ({c['telefono']})": c['id'] for c in res_clientes.data} if res_clientes.data else {}
+        f_cliente = st.selectbox("Facturar a nombre de:", list(dict_clientes.keys()), placeholder="Selecciona un cliente de tu CRM...")
+
+        # Botón Final
+        if st.button("🚀 EMITIR FACTURA Y ACTUALIZAR STOCK", type="primary", use_container_width=True):
+            try:
+                # 1. Guardar Factura en BBDD
+                client.table("facturas").insert({
+                    "cliente_id": dict_clientes[f_cliente], "total_neto": float(base_total),
+                    "total_igic": float(igic_total), "total_final": float(total_factura),
+                    "hash_actual": "FIRMA_PENDIENTE_ST_V1"
+                }).execute()
+                
+                # 2. Sincronizar Stock (Descontar del inventario real)
+                for _, item in df_temp.iterrows():
+                    res_st = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
+                    if res_st.data:
+                        nuevo_stock = int(res_st.data[0]['stock_actual']) - int(item['Cantidad'])
+                        client.table("productos").update({"stock_actual": nuevo_stock}).eq("id", item['id']).execute()
+                
+                st.success("✅ Factura legal emitida y Stock actualizado automáticamente.")
+                st.session_state.factura_temporal = []
+                time.sleep(1.5); st.rerun()
+            except Exception as e:
+                st.error(f"Error al emitir: {e}")
+    else:
+        st.warning("El borrador de la factura está vacío. Añade productos desde el buscador superior.")
 
 # ==========================================
 # --- TAB 9: PANEL ADMIN ---
