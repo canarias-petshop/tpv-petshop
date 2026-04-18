@@ -72,37 +72,83 @@ with c_titulo:
 # 🚨 AÑADIDA LA PESTAÑA 5: CONTROL CAJA 🚨
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", "💰 Control Caja", "📈 Estadísticas"])
 
-# --- TAB 1: PRODUCTOS ---
+# --- TAB 1: INVENTARIO (AHORA SOPORTA MÚLTIPLES PROVEEDORES) ---
 with tab1:
     col_f, col_t = st.columns([1.2, 2.5])
+    
+    # 1. Obtenemos los proveedores para el MULTI-desplegable
+    res_proveedores = client.table("proveedores").select("id, nombre_empresa").execute()
+    dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores.data} if res_proveedores.data else {}
+    lista_nombres_prov = list(dict_proveedores.keys())
+
     with col_f:
         st.markdown("### 📝 Nuevo Producto")
         with st.form("nuevo_p", clear_on_submit=True):
             nombre = st.text_input("Nombre")
             c1, c2 = st.columns(2)
-            with c1: cod = st.text_input("Código")
-            with c2: cat = st.selectbox("Cat.", ["Alimentación", "Higiene", "Accesorios", "Servicios"])
+            with c1: sku = st.text_input("SKU / Código")
+            with c2: cat = st.selectbox("Categoría", ["Producto", "Servicio"])
             
             c3, c4 = st.columns(2)
-            with c3: p_compra = st.number_input("Coste Neto", min_value=0.0)
-            with c4: igic_tipo = st.selectbox("IGIC %", [7, 0, 3, 15])
+            with c3: p_base = st.number_input("Coste Medio (€)", min_value=0.0, format="%.2f")
+            with c4: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
             
             c5, c6 = st.columns(2)
-            with c5: pvp = st.number_input("PVP Final", min_value=0.0)
+            with c5: pvp = st.number_input("PVP Final (€)", min_value=0.0, format="%.2f")
             with c6: stck = st.number_input("Stock", min_value=0)
             
-            if st.form_submit_button("Guardar", use_container_width=True):
-                client.table("productos_y_servicios").insert({
-                    "nombre": nombre, "codigo_barras": cod, "categoria": cat,
-                    "precio_compra": p_compra, "tipo_igic": igic_tipo, "precio_pvp": pvp, "stock_actual": stck
-                }).execute()
-                st.success("Añadido"); st.rerun()
+            # ¡La Magia! Multiselect para elegir varios proveedores
+            provs_seleccionados = st.multiselect("Proveedor/es", lista_nombres_prov, placeholder="Elige uno o varios...")
+            
+            if st.form_submit_button("Guardar Producto", use_container_width=True):
+                if nombre and sku:
+                    # 1. Insertamos el producto y recuperamos el ID generado
+                    res_insert = client.table("productos").insert({
+                        "sku": sku, "nombre": nombre, "categoria": cat,
+                        "precio_base": p_base, "igic_tipo": igic_tipo, 
+                        "stock_actual": stck, "precio_pvp": pvp
+                    }).execute()
+                    
+                    if res_insert.data:
+                        nuevo_producto_id = res_insert.data[0]['id']
+                        
+                        # 2. Insertamos las relaciones en la tabla intermedia
+                        if provs_seleccionados:
+                            relaciones = []
+                            for prov_nombre in provs_seleccionados:
+                                relaciones.append({
+                                    "producto_id": nuevo_producto_id,
+                                    "proveedor_id": dict_proveedores[prov_nombre],
+                                    "precio_coste": p_base # Como coste base inicial le pasamos el coste medio
+                                })
+                            client.table("productos_proveedores").insert(relaciones).execute()
+                            
+                        st.success("Añadido correctamente"); time.sleep(0.5); st.rerun()
+                else:
+                    st.warning("Faltan datos (Nombre o SKU)")
+
     with col_t:
-        st.markdown("### 📦 Stock")
-        res = client.table("productos_y_servicios").select("*").execute()
-        if res.data:
-            df = pd.DataFrame(res.data)
-            st.dataframe(df[['codigo_barras', 'nombre', 'precio_pvp', 'stock_actual']], use_container_width=True, height=380, hide_index=True)
+        st.markdown("### 📦 Stock Actual")
+        # Consulta avanzada de PostgREST para traer el producto y cruzarlo con sus múltiples proveedores
+        res_prod = client.table("productos").select("sku, nombre, precio_base, precio_pvp, stock_actual, productos_proveedores(proveedores(nombre_empresa))").execute()
+        
+        if res_prod.data:
+            df_p = pd.DataFrame(res_prod.data)
+            
+            # Función para extraer y limpiar la lista de proveedores del JSON anidado
+            def extraer_proveedores(relaciones):
+                if isinstance(relaciones, list) and len(relaciones) > 0:
+                    nombres = [r['proveedores']['nombre_empresa'] for r in relaciones if r.get('proveedores')]
+                    return ", ".join(nombres)
+                return "Sin proveedor"
+                
+            df_p['Proveedores'] = df_p['productos_proveedores'].apply(extraer_proveedores)
+            
+            # Mostramos la tabla limpia en pantalla
+            st.dataframe(df_p[['sku', 'nombre', 'precio_base', 'precio_pvp', 'stock_actual', 'Proveedores']], 
+                         use_container_width=True, height=450, hide_index=True)
+        else:
+            st.info("Inventario vacío. Añade el primer producto a la izquierda.")
 
 # --- TAB 2: CAJA Y VENTAS ---
 with tab2:
@@ -658,4 +704,33 @@ with tab6:
             st.info("Aún no hay suficientes ventas para generar el gráfico.")
 
     except Exception as e:
-        st.error(f"Error al cargar las estadísticas: {e}")                   
+        st.error(f"Error al cargar las estadísticas: {e}") 
+
+# --- TAB 7: PROVEEDORES ---
+with tab7:
+    st.markdown("<h3 style='margin-bottom: 5px;'>🚚 Gestión de Proveedores</h3>", unsafe_allow_html=True)
+    c_p1, c_p2 = st.columns([1, 2])
+    
+    with c_p1:
+        with st.form("n_prov", clear_on_submit=True):
+            st.markdown("**Nuevo Proveedor**")
+            nombre_emp = st.text_input("Nombre Empresa")
+            contacto = st.text_input("Datos de Contacto (Tel/Email)")
+            
+            if st.form_submit_button("➕ Añadir Proveedor", use_container_width=True, type="primary"):
+                if nombre_emp:
+                    client.table("proveedores").insert({
+                        "nombre_empresa": nombre_emp, 
+                        "contacto": contacto
+                    }).execute()
+                    st.success("Proveedor guardado"); time.sleep(0.5); st.rerun()
+                else:
+                    st.warning("El nombre de la empresa es obligatorio")
+                
+    with c_p2:
+        res_prov = client.table("proveedores").select("*").execute()
+        if res_prov.data:
+            df_prov = pd.DataFrame(res_prov.data)
+            st.dataframe(df_prov[['nombre_empresa', 'contacto']], use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay proveedores registrados aún.")
