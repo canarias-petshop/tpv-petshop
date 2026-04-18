@@ -229,47 +229,12 @@ with tab2:
                     <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
                     <table style="width: 100%; font-size: 12px; text-align: left;">
             """
-            # --- CIERRE DE TABLA DE PRODUCTOS ---
             for p in t['productos']:
                 html_ticket += f"<tr><td>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right;'>{p['Subtotal']:.2f}€</td></tr>"
             
-            html_ticket += """
+            html_ticket += f"""
                     </table>
                     <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
-            """
-
-            # --- 🪄 MAGIA FISCAL CANARIA: DESGLOSE DE IGIC INCLUIDO ---
-            base_7 = 0.0
-            cuota_7 = 0.0
-            total_0 = 0.0
-
-            for p in t['productos']:
-                igic_val = float(p.get('IGIC', 0))  # Asume 0% si es manual o no lo encuentra
-                subt = float(p['Subtotal'])
-                
-                if igic_val == 7.0:
-                    base = subt / 1.07
-                    base_7 += base
-                    cuota_7 += (subt - base)
-                else:
-                    total_0 += subt
-            
-            # Añadimos el desglose alineado a la izquierda para que quede limpio
-            html_ticket += "<div style='font-size: 10px; margin-bottom: 5px; color: #444; text-align: left;'>"
-            
-            # Solo mostramos el título si hay algún servicio al 7%
-            if base_7 > 0:
-                html_ticket += "<b>Desglose IGIC (Incluido en precio):</b><br>"
-                html_ticket += f"Sujeto 7% -> Base: {base_7:.2f}€ | Cuota: {cuota_7:.2f}€<br>"
-            
-            # Opcional: mostrar lo exento por comercio minorista
-            if total_0 > 0:
-                html_ticket += f"Exento 0% (R.E. Minorista) -> Base: {total_0:.2f}€<br>"
-            
-            html_ticket += "</div>"
-
-            # --- TOTAL DEL TICKET Y TU POLÍTICA DE DEVOLUCIÓN ---
-            html_ticket += f"""
                     <div style="text-align: right; font-size: 14px;"><b>TOTAL: {t['total']:.2f}€</b></div>
                     <div style="font-size: 10px; color: #444; margin-top: 10px; text-align: center;">
                         <b>POLÍTICA DE DEVOLUCIÓN</b><br>
