@@ -229,6 +229,7 @@ with tab2:
                     <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
                     <table style="width: 100%; font-size: 12px; text-align: left;">
             """
+            # --- CIERRE DE TABLA DE PRODUCTOS ---
             for p in t['productos']:
                 html_ticket += f"<tr><td>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right;'>{p['Subtotal']:.2f}€</td></tr>"
             
@@ -243,10 +244,10 @@ with tab2:
             total_0 = 0.0
 
             for p in t['productos']:
-                igic_val = p.get('IGIC', 0)  # Asume 0% si no lo encuentra (por ejemplo, en manuales)
+                igic_val = float(p.get('IGIC', 0))  # Asume 0% si es manual o no lo encuentra
                 subt = float(p['Subtotal'])
                 
-                if igic_val == 7:
+                if igic_val == 7.0:
                     base = subt / 1.07
                     base_7 += base
                     cuota_7 += (subt - base)
@@ -256,14 +257,14 @@ with tab2:
             # Añadimos el desglose alineado a la izquierda para que quede limpio
             html_ticket += "<div style='font-size: 10px; margin-bottom: 5px; color: #444; text-align: left;'>"
             
-            # Solo mostramos el título si hay algo que desglosar al 7%
+            # Solo mostramos el título si hay algún servicio al 7%
             if base_7 > 0:
-                html_ticket += "<b>Desglose IGIC (Incluido):</b><br>"
+                html_ticket += "<b>Desglose IGIC (Incluido en precio):</b><br>"
                 html_ticket += f"Sujeto 7% -> Base: {base_7:.2f}€ | Cuota: {cuota_7:.2f}€<br>"
             
-            # Si quieres que también salga lo exento, lo dejamos. Si prefieres ocultarlo, borra estas 2 líneas
+            # Opcional: mostrar lo exento por comercio minorista
             if total_0 > 0:
-                html_ticket += f"Exento 0% -> Base: {total_0:.2f}€<br>"
+                html_ticket += f"Exento 0% (R.E. Minorista) -> Base: {total_0:.2f}€<br>"
             
             html_ticket += "</div>"
 
