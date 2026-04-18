@@ -825,7 +825,7 @@ with tab8:
     st.markdown("#### 📝 2. Detalle de la Factura en curso")
     
     if st.session_state.factura_temporal:
-        if st.button("🗑️ Vaciar Factura", size="small"):
+        if st.button("🗑️ Vaciar Factura"):
             st.session_state.factura_temporal = []; st.rerun()
 
         df_temp = pd.DataFrame(st.session_state.factura_temporal)
