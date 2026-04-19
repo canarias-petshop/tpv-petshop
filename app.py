@@ -867,7 +867,6 @@ with tab8:
                         sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
                         datos_p = df_inv[df_inv['sku'] == sku_f].iloc[0]
                         
-                        # Cálculos matemáticos
                         pvp_con_igic = float(datos_p['precio_pvp'])
                         igic_porc = float(datos_p['igic_tipo'])
                         base_unitaria = pvp_con_igic / (1 + (igic_porc / 100))
@@ -891,13 +890,40 @@ with tab8:
         if st.session_state.factura_temporal:
             df_fv = pd.DataFrame(st.session_state.factura_temporal)
             
-            # Mostramos en Streamlit el desglose que pediste
-            st.dataframe(df_fv[['Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Coste Ud (c/IGIC)', 'Desc %', 'Total Línea']], use_container_width=True, hide_index=True)
+            # 💡 AQUÍ ESTÁ LA MAGIA INTERACTIVA
+            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Haz doble clic en <b>Cantidad</b>, <b>Base Ud</b> o <b>Desc %</b> para modificarlos al vuelo.</i></p>", unsafe_allow_html=True)
             
-            t_base_imponible = df_fv['Base Neta'].sum()
-            t_descuentos = df_fv['Desc €'].sum()
-            t_igic = df_fv['IGIC €'].sum()
-            t_factura = df_fv['Total Línea'].sum()
+            edited_df_v = st.data_editor(
+                df_fv,
+                column_config={
+                    "id": None, "Desc €": None, "Base Neta": None, "IGIC €": None, # Columnas ocultas
+                    "Código": st.column_config.TextColumn("Cód/SKU", disabled=True),
+                    "Descripción": st.column_config.TextColumn("Descripción", disabled=True),
+                    "Cantidad": st.column_config.NumberColumn("Cant.", min_value=0, step=1),
+                    "Base Ud": st.column_config.NumberColumn("Base Ud. (€)", min_value=0.0, format="%.2f"),
+                    "IGIC %": st.column_config.NumberColumn("IGIC %", disabled=True),
+                    "Coste Ud (c/IGIC)": st.column_config.NumberColumn("Ud(c/IGIC)", disabled=True, format="%.2f"),
+                    "Desc %": st.column_config.NumberColumn("Desc %", min_value=0.0, max_value=100.0, format="%.2f"),
+                    "Total Línea": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f")
+                },
+                column_order=["Código", "Descripción", "Cantidad", "Base Ud", "IGIC %", "Coste Ud (c/IGIC)", "Desc %", "Total Línea"],
+                hide_index=True, use_container_width=True, key="editor_ventas"
+            )
+
+            # Recálculo matemático automático si modificas algo en la tabla
+            edited_df_v['Coste Ud (c/IGIC)'] = edited_df_v['Base Ud'] * (1 + (edited_df_v['IGIC %'] / 100))
+            edited_df_v['Desc €'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) * (edited_df_v['Desc %'] / 100)
+            edited_df_v['Base Neta'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) - edited_df_v['Desc €']
+            edited_df_v['IGIC €'] = edited_df_v['Base Neta'] * (edited_df_v['IGIC %'] / 100)
+            edited_df_v['Total Línea'] = edited_df_v['Base Neta'] + edited_df_v['IGIC €']
+
+            # Guardamos los nuevos cálculos para que la factura final sea exacta
+            st.session_state.factura_temporal = edited_df_v.to_dict('records')
+            
+            t_base_imponible = edited_df_v['Base Neta'].sum()
+            t_descuentos = edited_df_v['Desc €'].sum()
+            t_igic = edited_df_v['IGIC €'].sum()
+            t_factura = edited_df_v['Total Línea'].sum()
             
             st.markdown("#### 3. Previsualización y Emisión")
             
@@ -1063,12 +1089,39 @@ with tab8:
         if st.session_state.entrada_temporal:
             df_ec = pd.DataFrame(st.session_state.entrada_temporal)
             
-            st.dataframe(df_ec[['Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Coste Ud (c/IGIC)', 'Desc %', 'Total Línea']], use_container_width=True, hide_index=True)
+            # 💡 MAGIA INTERACTIVA PARA COMPRAS
+            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Haz doble clic en <b>Cantidad</b>, <b>Base Ud</b> o <b>Desc %</b> para modificarlos al vuelo.</i></p>", unsafe_allow_html=True)
             
-            c_base_imponible = df_ec['Base Neta'].sum()
-            c_descuentos = df_ec['Desc €'].sum()
-            c_igic = df_ec['IGIC €'].sum()
-            c_factura = df_ec['Total Línea'].sum()
+            edited_df_c = st.data_editor(
+                df_ec,
+                column_config={
+                    "id": None, "Desc €": None, "Base Neta": None, "IGIC €": None,
+                    "Código": st.column_config.TextColumn("Cód/SKU", disabled=True),
+                    "Descripción": st.column_config.TextColumn("Descripción", disabled=True),
+                    "Cantidad": st.column_config.NumberColumn("Cant.", min_value=0, step=1),
+                    "Base Ud": st.column_config.NumberColumn("Base Ud. (€)", min_value=0.0, format="%.2f"),
+                    "IGIC %": st.column_config.NumberColumn("IGIC %", disabled=True),
+                    "Coste Ud (c/IGIC)": st.column_config.NumberColumn("Ud(c/IGIC)", disabled=True, format="%.2f"),
+                    "Desc %": st.column_config.NumberColumn("Desc %", min_value=0.0, max_value=100.0, format="%.2f"),
+                    "Total Línea": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f")
+                },
+                column_order=["Código", "Descripción", "Cantidad", "Base Ud", "IGIC %", "Coste Ud (c/IGIC)", "Desc %", "Total Línea"],
+                hide_index=True, use_container_width=True, key="editor_compras"
+            )
+
+            # Recálculo matemático automático para compras
+            edited_df_c['Coste Ud (c/IGIC)'] = edited_df_c['Base Ud'] * (1 + (edited_df_c['IGIC %'] / 100))
+            edited_df_c['Desc €'] = (edited_df_c['Base Ud'] * edited_df_c['Cantidad']) * (edited_df_c['Desc %'] / 100)
+            edited_df_c['Base Neta'] = (edited_df_c['Base Ud'] * edited_df_c['Cantidad']) - edited_df_c['Desc €']
+            edited_df_c['IGIC €'] = edited_df_c['Base Neta'] * (edited_df_c['IGIC %'] / 100)
+            edited_df_c['Total Línea'] = edited_df_c['Base Neta'] + edited_df_c['IGIC €']
+
+            st.session_state.entrada_temporal = edited_df_c.to_dict('records')
+            
+            c_base_imponible = edited_df_c['Base Neta'].sum()
+            c_descuentos = edited_df_c['Desc €'].sum()
+            c_igic = edited_df_c['IGIC €'].sum()
+            c_factura = edited_df_c['Total Línea'].sum()
             
             st.markdown("#### 3. Previsualización de Factura Recibida")
             
