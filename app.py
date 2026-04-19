@@ -75,7 +75,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
 with tab1:
     col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
-    # Obtener proveedores para el formulario de la izquierda
+    # Obtener proveedores para el formulario
     res_proveedores = client.table("proveedores").select("id, nombre_empresa").execute()
     dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores.data} if res_proveedores.data else {}
 
@@ -93,10 +93,10 @@ with tab1:
             with c5: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
             
             coste_total_calc = p_base * (1 + (igic_tipo / 100))
-            st.markdown(f"<p style='margin:0; color:#005275; font-size: 13px;'><b>💰 Coste Total: {coste_total_calc:.2f} €</b></p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='margin:0; color:#005275; font-size: 13px;'><b>💰 Coste Total (Base + IGIC): {coste_total_calc:.2f} €</b></p>", unsafe_allow_html=True)
             
             c6, c7 = st.columns(2)
-            with c6: pvp = st.number_input("PVP Venta (€)", min_value=0.0, format="%.2f")
+            with c6: pvp = st.number_input("PVP Final (€)", min_value=0.0, format="%.2f")
             with c7: stck = st.number_input("Stock Inicial", min_value=0)
             
             provs_sel = st.multiselect("Proveedor/es", list(dict_proveedores.keys()))
@@ -120,18 +120,17 @@ with tab1:
         if res_all.data:
             df_all = pd.DataFrame(res_all.data)
             
-            # 💡 REGLA DE ORO: Si la categoría está vacía, lo tratamos como "Producto" para que aparezca
+            # REGLA DE RESCATE: Si la categoría está vacía, lo tratamos como "Producto"
             df_all['categoria'] = df_all['categoria'].fillna('Producto').replace('', 'Producto')
             
             # --- SECCIÓN: PRODUCTOS ---
             st.markdown("#### 📦 Gestión de Productos")
             df_p = df_all[df_all['categoria'] == 'Producto'].copy()
             
-            # Editor de datos para productos
             edited_p = st.data_editor(
                 df_p,
                 column_config={
-                    "id": None, # El ID no se toca
+                    "id": None, 
                     "sku": st.column_config.TextColumn("SKU"),
                     "codigo_barras": st.column_config.TextColumn("Barras"),
                     "nombre": st.column_config.TextColumn("Nombre"),
@@ -142,12 +141,11 @@ with tab1:
                     "stock_actual": st.column_config.NumberColumn("Stock")
                 },
                 column_order=["sku", "codigo_barras", "nombre", "categoria", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
-                hide_index=True, use_container_width=True, key="editor_inv_p"
+                hide_index=True, use_container_width=True, key="editor_inv_p_resq"
             )
             
-            if st.button("💾 Guardar Cambios en Productos", type="primary", key="btn_p"):
+            if st.button("💾 Guardar Cambios en Productos", type="primary", key="btn_save_p_inv"):
                 for i, row in edited_p.iterrows():
-                    # Solo actualizamos si ha habido cambios (opcional, aquí lo hacemos simple)
                     d_row = row.to_dict()
                     client.table("productos").update(d_row).eq("id", d_row['id']).execute()
                 st.success("¡Inventario de productos actualizado!"); time.sleep(1); st.rerun()
@@ -158,29 +156,30 @@ with tab1:
             st.markdown("#### ✂️ Gestión de Servicios")
             df_s = df_all[df_all['categoria'] == 'Servicio'].copy()
             
-            edited_s = st.data_editor(
-                df_s,
-                column_config={
-                    "id": None, "stock_actual": None,
-                    "sku": st.column_config.TextColumn("SKU"),
-                    "codigo_barras": st.column_config.TextColumn("Cód."),
-                    "nombre": st.column_config.TextColumn("Nombre"),
-                    "categoria": st.column_config.SelectboxColumn("Tipo", options=["Producto", "Servicio"]),
-                    "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
-                    "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                    "precio_pvp": st.column_config.NumberColumn("PVP (€)", format="%.2f")
-                },
-                column_order=["sku", "nombre", "categoria", "precio_base", "igic_tipo", "precio_pvp"],
-                hide_index=True, use_container_width=True, key="editor_inv_s"
-            )
-            
-            if st.button("💾 Guardar Cambios en Servicios", type="primary", key="btn_s"):
-                for i, row in edited_s.iterrows():
-                    d_row = row.to_dict()
-                    client.table("productos").update(d_row).eq("id", d_row['id']).execute()
-                st.success("¡Lista de servicios actualizada!"); time.sleep(1); st.rerun()
+            if not df_s.empty:
+                edited_s = st.data_editor(
+                    df_s,
+                    column_config={
+                        "id": None, "stock_actual": None,
+                        "sku": st.column_config.TextColumn("SKU"),
+                        "nombre": st.column_config.TextColumn("Nombre"),
+                        "categoria": st.column_config.SelectboxColumn("Tipo", options=["Producto", "Servicio"]),
+                        "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
+                        "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
+                        "precio_pvp": st.column_config.NumberColumn("PVP (€)", format="%.2f")
+                    },
+                    column_order=["sku", "nombre", "categoria", "precio_base", "igic_tipo", "precio_pvp"],
+                    hide_index=True, use_container_width=True, key="editor_inv_s_resq"
+                )
+                
+                if st.button("💾 Guardar Cambios en Servicios", type="primary", key="btn_save_s_inv"):
+                    for i, row in edited_s.iterrows():
+                        client.table("productos").update(row.to_dict()).eq("id", row['id']).execute()
+                    st.success("¡Lista de servicios actualizada!"); time.sleep(1); st.rerun()
+            else:
+                st.info("No hay servicios registrados.")
         else:
-            st.info("La base de datos está vacía. Añade tu primer producto a la izquierda.")
+            st.info("La base de datos está vacía.")
 
 
 # ==========================================
@@ -883,456 +882,180 @@ with tab8:
         if 'factura_temporal' not in st.session_state: st.session_state.factura_temporal = []
         
         c_cab1, c_cab2, c_cab3 = st.columns(3)
-        with c_cab1: f_pago_v = st.selectbox("Forma de Pago", ["Efectivo", "Tarjeta", "Bizum", "Transferencia"], key="fp_v")
-        with c_cab2: fecha_emision_v = st.date_input("Fecha de Emisión", key="fe_v")
-        with c_cab3: fecha_vence_v = st.date_input("Fecha de Vencimiento", key="fv_v")
+        with c_cab1: f_pago_v = st.selectbox("Forma de Pago", ["Efectivo", "Tarjeta", "Bizum", "Transferencia"], key="fp_v_final")
+        with c_cab2: fecha_emision_v = st.date_input("Fecha de Emisión", key="fe_v_final")
+        with c_cab3: fecha_vence_v = st.date_input("Fecha de Vencimiento", key="fv_v_final")
 
         st.markdown("#### 1. Seleccionar o Crear Cliente")
         res_cli = client.table("clientes").select("*").execute()
         df_cli = pd.DataFrame(res_cli.data) if res_cli.data else pd.DataFrame()
         
-        opciones_cli = df_cli.apply(lambda x: f"{x['nombre_dueno']} - CIF/NIF: {x.get('cif', 'N/A')}", axis=1).tolist() if not df_cli.empty else []
+        opciones_cli = df_cli.apply(lambda x: f"{x['nombre_dueno']} - CIF: {x.get('cif', 'N/A')}", axis=1).tolist() if not df_cli.empty else []
         idx_cli = None
         if 'cli_recien_creado' in st.session_state:
             for i, op in enumerate(opciones_cli):
                 if op.startswith(st.session_state.cli_recien_creado + " -"):
-                    idx_cli = i
-                    break
+                    idx_cli = i; break
 
         c_cli1, c_cli2 = st.columns([2, 1], vertical_alignment="bottom")
         with c_cli1:
-            f_cliente = st.selectbox("Cliente:", opciones_cli, index=idx_cli, placeholder="Selecciona un cliente...", key="sel_cli_v")
+            f_cliente = st.selectbox("Cliente:", opciones_cli, index=idx_cli, placeholder="Selecciona un cliente...", key="sel_cli_v_final")
         
         with st.expander("✨ ¿Cliente nuevo? Crear ficha rápida"):
-            with st.form("nuevo_cli_express", clear_on_submit=True):
+            with st.form("nuevo_cli_f", clear_on_submit=True):
                 nc1, nc2 = st.columns(2)
-                with nc1: n_nom_c = st.text_input("Nombre / Razón Social *", key="n_nom_c")
-                with nc2: n_cif_c = st.text_input("CIF / NIF *", key="n_cif_c")
-                n_dir_c = st.text_input("Dirección Postal completa", key="n_dir_c")
+                with nc1: n_nom_c = st.text_input("Nombre / Razón Social *")
+                with nc2: n_cif_c = st.text_input("CIF / NIF *")
+                n_dir_c = st.text_input("Dirección Postal completa")
                 nc3, nc4 = st.columns(2)
-                with nc3: n_tel_c = st.text_input("Teléfono", key="n_tel_c")
-                with nc4: n_email_c = st.text_input("Email", key="n_email_c")
-                if st.form_submit_button("💾 Guardar Cliente Nuevo"):
+                with nc3: n_tel_c = st.text_input("Teléfono")
+                with nc4: n_email_c = st.text_input("Email")
+                if st.form_submit_button("💾 Guardar Cliente"):
                     if n_nom_c and n_cif_c:
                         client.table("clientes").insert({
                             "nombre_dueno": n_nom_c, "cif": n_cif_c, "direccion": n_dir_c,
                             "telefono": n_tel_c, "email": n_email_c
                         }).execute()
                         st.session_state.cli_recien_creado = n_nom_c 
-                        st.success("Cliente creado y autoseleccionado."); time.sleep(1); st.rerun()
+                        st.success("Cliente guardado."); time.sleep(1); st.rerun()
 
         st.markdown("#### 2. Añadir Artículos")
         if not df_inv.empty:
-            opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | EAN: {x.get('codigo_barras', '')} | PVP: {x['precio_pvp']}€", axis=1).tolist()
+            opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | EAN: {x.get('codigo_barras', '')} | {x['precio_pvp']}€", axis=1).tolist()
             c_v1, c_v2, c_v3, c_v4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
-            with c_v1: prod_v = st.selectbox("Buscar producto o Escanear:", opciones_v, index=None, key="busq_v_f")
-            with c_v2: cant_v = st.number_input("Cantidad", min_value=1, value=1, key="cant_v_f")
-            with c_v3: desc_v = st.number_input("Desc. %", min_value=0.0, max_value=100.0, value=0.0, key="desc_v_f")
+            with c_v1: prod_v = st.selectbox("Buscar o Escanear:", opciones_v, index=None, key="busq_v_f_final")
+            with c_v2: cant_v = st.number_input("Cant.", min_value=1, value=1, key="cant_v_f_final")
+            with c_v3: desc_v = st.number_input("Desc. %", min_value=0.0, value=0.0, key="desc_v_f_final")
             with c_v4:
-                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-                if st.button("➕ Añadir Línea", use_container_width=True, key="btn_v_f"):
+                if st.button("➕ Añadir", use_container_width=True, key="btn_v_f_final"):
                     if prod_v:
                         sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
                         datos_p = df_inv[df_inv['sku'] == sku_f].iloc[0]
-                        
-                        pvp_con_igic = float(datos_p['precio_pvp'])
-                        igic_porc = float(datos_p['igic_tipo'])
-                        base_unitaria = pvp_con_igic / (1 + (igic_porc / 100))
-                        coste_unitario_con_igic = base_unitaria * (1 + (igic_porc / 100))
-                        
-                        subtotal_antes_desc = base_unitaria * cant_v
-                        descuento_eur = subtotal_antes_desc * (desc_v / 100)
-                        base_neta_linea = subtotal_antes_desc - descuento_eur
-                        igic_linea = base_neta_linea * (igic_porc / 100)
-                        total_linea = base_neta_linea + igic_linea
-
+                        base_u = float(datos_p['precio_pvp']) / (1 + (float(datos_p['igic_tipo'])/100))
                         st.session_state.factura_temporal.append({
                             "id": datos_p['id'], "Código": sku_f, "Descripción": datos_p['nombre'], 
-                            "Cantidad": cant_v, "Base Ud": base_unitaria, "IGIC %": igic_porc, 
-                            "Coste Total Ud": coste_unitario_con_igic, "Desc %": desc_v,
-                            "Desc €": descuento_eur, "Base Neta": base_neta_linea, 
-                            "IGIC €": igic_linea, "Total Línea": total_linea
+                            "Cantidad": cant_v, "Base Ud": base_u, "IGIC %": float(datos_p['igic_tipo']), 
+                            "Coste Total Ud": float(datos_p['precio_pvp']), "Desc %": desc_v,
+                            "Desc €": (base_u * cant_v) * (desc_v/100), "Base Neta": (base_u * cant_v) * (1 - desc_v/100), 
+                            "IGIC €": ((base_u * cant_v) * (1 - desc_v/100)) * (float(datos_p['igic_tipo'])/100),
+                            "Total Línea": ((base_u * cant_v) * (1 - desc_v/100)) * (1 + float(datos_p['igic_tipo'])/100)
                         })
                         st.rerun()
 
-        # 💡 NUEVO: Creador Express para Ventas (Productos/Servicios que no tienes registrados)
-        with st.expander("✨ ¿Ítem nuevo no registrado? Créalo aquí"):
-            with st.form("nuevo_v_express", clear_on_submit=True):
-                ev_nom = st.text_input("Nombre del Ítem *", key="ev_nom")
-                
-                e_cv1, e_cv2, e_cv3 = st.columns(3)
-                with e_cv1: ev_sku = st.text_input("SKU (Interno) *", key="ev_sku")
-                with e_cv2: ev_ean = st.text_input("Cód. Barras", key="ev_ean")
-                with e_cv3: ev_cat = st.selectbox("Categoría", ["Producto", "Servicio"], key="ev_cat")
-                
-                ecv1, ecv2, ecv3 = st.columns(3)
-                with ecv1: ev_coste = st.number_input("Tu Precio Base de Compra (€)", min_value=0.0, key="ev_coste")
-                with ecv2: ev_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0], key="ev_igic")
-                with ecv3: ev_pvp = st.number_input("PVP Final a Cliente (€)", min_value=0.0, key="ev_pvp")
-                
-                if st.form_submit_button("💾 Crear y añadir a esta factura de venta"):
-                    if ev_nom and ev_sku:
-                        res_new_v = client.table("productos").insert({
-                            "nombre": ev_nom, "sku": ev_sku, "codigo_barras": ev_ean, "categoria": ev_cat,
-                            "precio_base": ev_coste, "igic_tipo": ev_igic, "precio_pvp": ev_pvp, "stock_actual": 0
-                        }).execute()
-                        if res_new_v.data:
-                            # Matemática adaptada a la venta (sacamos la base imponible desde el PVP)
-                            base_unitaria = ev_pvp / (1 + (ev_igic / 100))
-                            coste_unitario_con_igic = base_unitaria * (1 + (ev_igic / 100))
-                            igic_linea = base_unitaria * (ev_igic / 100)
-                            total_linea = base_unitaria + igic_linea
-                            
-                            st.session_state.factura_temporal.append({
-                                "id": res_new_v.data[0]['id'], "Código": ev_sku, "Descripción": ev_nom,
-                                "Cantidad": 1, "Base Ud": base_unitaria, "IGIC %": ev_igic, 
-                                "Coste Total Ud": coste_unitario_con_igic, "Desc %": 0.0, 
-                                "Desc €": 0.0, "Base Neta": base_unitaria, "IGIC €": igic_linea, "Total Línea": total_linea
-                            })
-                            st.success("Ítem creado en Inventario y añadido a la factura."); time.sleep(1); st.rerun()
-
         if st.session_state.factura_temporal:
             df_fv = pd.DataFrame(st.session_state.factura_temporal)
+            edited_df_v = st.data_editor(df_fv, column_config={"id": None, "Desc €": None, "Base Neta": None, "IGIC €": None}, hide_index=True, use_container_width=True, key="ed_v_final")
             
-            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Modifica Cantidad, Base, IGIC o Descuento. ¡Los totales se calcularán solos!</i></p>", unsafe_allow_html=True)
-            
-            edited_df_v = st.data_editor(
-                df_fv,
-                column_config={
-                    "id": None, "Desc €": None, "Base Neta": None, "IGIC €": None, 
-                    "Código": st.column_config.TextColumn("Cód/SKU", disabled=True),
-                    "Descripción": st.column_config.TextColumn("Descripción", disabled=True),
-                    "Cantidad": st.column_config.NumberColumn("Cant.", min_value=0, step=1),
-                    "Base Ud": st.column_config.NumberColumn("Base Ud. (€)", min_value=0.0, format="%.2f"),
-                    "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0], required=True),
-                    "Coste Total Ud": st.column_config.NumberColumn("Coste Total Ud (€)", disabled=True, format="%.2f"),
-                    "Desc %": st.column_config.NumberColumn("Desc %", min_value=0.0, max_value=100.0, format="%.2f"),
-                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
-                },
-                column_order=["Código", "Descripción", "Cantidad", "Base Ud", "IGIC %", "Coste Total Ud", "Desc %", "Total Línea"],
-                hide_index=True, use_container_width=True, key="editor_ventas"
-            )
-
+            # Recálculos reactivos
             edited_df_v['Coste Total Ud'] = edited_df_v['Base Ud'] * (1 + (edited_df_v['IGIC %'] / 100))
             edited_df_v['Desc €'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) * (edited_df_v['Desc %'] / 100)
             edited_df_v['Base Neta'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) - edited_df_v['Desc €']
             edited_df_v['IGIC €'] = edited_df_v['Base Neta'] * (edited_df_v['IGIC %'] / 100)
             edited_df_v['Total Línea'] = edited_df_v['Base Neta'] + edited_df_v['IGIC €']
+            st.session_state.factura_temporal = edited_df_v.to_dict('records')
 
-            cambio_detectado_v = False
-            for col in ['Cantidad', 'Base Ud', 'IGIC %', 'Desc %']:
-                if not edited_df_v[col].equals(df_fv[col]):
-                    cambio_detectado_v = True
-                    break
-                    
-            if cambio_detectado_v:
-                st.session_state.factura_temporal = edited_df_v.to_dict('records')
-                st.rerun()
-            else:
-                st.session_state.factura_temporal = edited_df_v.to_dict('records')
-
-            t_base_imponible = edited_df_v['Base Neta'].sum()
-            t_descuentos = edited_df_v['Desc €'].sum()
+            t_base = edited_df_v['Base Neta'].sum()
             t_igic = edited_df_v['IGIC €'].sum()
-            t_factura = edited_df_v['Total Línea'].sum()
+            t_total = edited_df_v['Total Línea'].sum()
             
-            st.markdown("#### 3. Previsualización y Emisión")
-            
+            # PREVISUALIZACIÓN HTML
             cli_datos = df_cli[df_cli['nombre_dueno'] == f_cliente.split(" -")[0]].iloc[0] if f_cliente else None
-            nombre_cli = cli_datos['nombre_dueno'] if f_cliente else "CLIENTE MOSTRADOR"
-            cif_cli = cli_datos.get('cif', '---') if f_cliente else "---"
-            dir_cli = cli_datos.get('direccion', '---') if f_cliente else "---"
-
             html_fac = f"""
-            <div style="border: 1px solid #ccc; padding: 20px; font-family: sans-serif; background: white; color: black; max-width: 800px; margin: auto;">
-                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #005275; padding-bottom: 10px;">
-                    <div>
-                        <h2 style="margin: 0; color: #005275;">ANIMALARIUM</h2>
-                        <small>C/ José Hernández Alfonso, 26<br>38009 S/C de Tenerife<br>CIF: 78854854K</small>
-                    </div>
-                    <div style="text-align: right;">
-                        <h2 style="margin: 0; color: #666;">FACTURA DE VENTA</h2>
-                        <b>Fecha:</b> {fecha_emision_v.strftime('%d/%m/%Y')}<br>
-                        <b>Vencimiento:</b> {fecha_vence_v.strftime('%d/%m/%Y')}<br>
-                        <b>Pago:</b> {f_pago_v}<br>
-                    </div>
+            <div style="border: 1px solid #ccc; padding: 20px; background: white; color: black; font-family: sans-serif;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #005275;">
+                    <div><h2>ANIMALARIUM</h2><p>CIF: 78854854K<br>S/C de Tenerife</p></div>
+                    <div style="text-align: right;"><h3>FACTURA DE VENTA</h3><p>Fecha: {fecha_emision_v}<br>Vence: {fecha_vence_v}<br>Pago: {f_pago_v}</p></div>
                 </div>
-                <div style="margin-top: 15px; padding: 10px; background: #f9f9f9;">
-                    <b>Datos del Cliente:</b><br>
-                    {nombre_cli}<br>CIF/NIF: {cif_cli}<br>Dirección: {dir_cli}
+                <div style="margin: 15px 0; padding: 10px; background: #f4f4f4;">
+                    <b>Cliente:</b> {cli_datos['nombre_dueno'] if cli_datos is not None else 'MOSTRADOR'}<br>
+                    <b>CIF:</b> {cli_datos['cif'] if cli_datos is not None else '---'}<br>
+                    <b>Dirección:</b> {cli_datos['direccion'] if cli_datos is not None else '---'}
                 </div>
-                <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 12px;">
-                    <tr style="background: #005275; color: white;">
-                        <th style="padding: 5px;">Cód/SKU</th><th style="padding: 5px;">Descripción</th><th style="padding: 5px;">Cant.</th>
-                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px;">Ud(c/IGIC)</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px; text-align:right;">Total Línea</th>
-                    </tr>
-            """
-            for item in st.session_state.factura_temporal:
-                html_fac += f"""
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 5px;">{item['Código']}</td><td style="padding: 5px;">{item['Descripción']}</td>
-                        <td style="padding: 5px; text-align:center;">{item['Cantidad']}</td><td style="padding: 5px; text-align:center;">{item['Base Ud']:.2f}€</td>
-                        <td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td><td style="padding: 5px; text-align:center;">{item['Coste Total Ud']:.2f}€</td>
-                        <td style="padding: 5px; text-align:center;">{item['Desc %']}%</td>
-                        <td style="padding: 5px; text-align:right;">{item['Total Línea']:.2f}€</td>
-                    </tr>"""
-            
-            html_fac += f"""
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <tr style="background: #005275; color: white;"><th>Descripción</th><th>Cant.</th><th>Base</th><th>IGIC</th><th>Desc</th><th>Total</th></tr>
+                    {''.join([f"<tr><td>{i['Descripción']}</td><td>{i['Cantidad']}</td><td>{i['Base Ud']:.2f}€</td><td>{i['IGIC %']}%</td><td>{i['Desc %']}%</td><td style='text-align:right;'>{i['Total Línea']:.2f}€</td></tr>" for i in st.session_state.factura_temporal])}
                 </table>
-                <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
-                    <table style="width: 320px; font-size: 14px; border: 1px solid #ccc; padding: 10px; background: #fafafa;">
-                        <tr><td><b>Total Base Imponible:</b></td><td style="text-align:right;">{t_base_imponible:.2f}€</td></tr>
-                        <tr><td><b>Total Descuentos:</b></td><td style="text-align:right; color:red;">-{t_descuentos:.2f}€</td></tr>
-                        <tr><td><b>Total Impuestos (IGIC):</b></td><td style="text-align:right;">{t_igic:.2f}€</td></tr>
-                        <tr style="font-size: 18px; color: #005275; border-top: 2px solid #005275;"><td><b>TOTAL FACTURA:</b></td><td style="text-align:right;"><b>{t_factura:.2f}€</b></td></tr>
-                    </table>
+                <div style="text-align: right; margin-top: 20px;">
+                    <p>Base Imponible: {t_base:.2f}€<br>IGIC Total: {t_igic:.2f}€<br><b style="font-size: 18px;">TOTAL: {t_total:.2f}€</b></p>
                 </div>
             </div>
             """
-            components.html(html_fac, height=450, scrolling=True)
+            components.html(html_fac, height=400, scrolling=True)
 
-            c_fin1, c_fin2 = st.columns([1, 2])
-            with c_fin1:
-                if st.button("🗑️ Cancelar / Vaciar", key="vaciar_v"): 
-                    st.session_state.factura_temporal = []
-                    if 'cli_recien_creado' in st.session_state: del st.session_state['cli_recien_creado']
-                    st.rerun()
-            with c_fin2:
-                if st.button("🚀 CONFIRMAR FACTURA, IMPRIMIR Y RESTAR STOCK", type="primary", use_container_width=True, key="conf_v"):
-                    if f_cliente:
-                        client.table("facturas").insert({
-                            "cliente_id": cli_datos['id'], "total_neto": float(t_base_imponible),
-                            "total_igic": float(t_igic), "total_final": float(t_factura)
-                        }).execute()
-                        for item in st.session_state.factura_temporal:
-                            res_st = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
-                            client.table("productos").update({"stock_actual": res_st.data[0]['stock_actual'] - item['Cantidad']}).eq("id", item['id']).execute()
-                        st.session_state.factura_temporal = []
-                        if 'cli_recien_creado' in st.session_state: del st.session_state['cli_recien_creado']
-                        st.success("¡Factura Emitida!"); time.sleep(1); st.rerun()
-                    else: st.error("Debes seleccionar un cliente para emitir la factura.")
+            if st.button("🚀 EMITIR FACTURA Y DESCONTAR STOCK", type="primary", use_container_width=True):
+                if f_cliente:
+                    client.table("facturas").insert({
+                        "cliente_id": cli_datos['id'], "total_neto": float(t_base), "total_igic": float(t_igic),
+                        "total_final": float(t_total), "forma_pago": f_pago_v, "fecha_vencimiento": str(fecha_vence_v)
+                    }).execute()
+                    for i in st.session_state.factura_temporal:
+                        curr = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                        client.table("productos").update({"stock_actual": curr.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
+                    st.session_state.factura_temporal = []; st.success("Factura emitida."); time.sleep(1); st.rerun()
 
-    # --- 2. FACTURAS DE COMPRA (DE PROVEEDORES) ---
+    # --- 2. FACTURAS DE COMPRA (PROVEEDORES) ---
     with sub_f_compras:
         if 'entrada_temporal' not in st.session_state: st.session_state.entrada_temporal = []
-        
-        c_cab_c1, c_cab_c2, c_cab_c3 = st.columns(3)
-        with c_cab_c1: n_factura_prov = st.text_input("Nº Factura del Proveedor *", key="n_fac_p")
-        with c_cab_c2: f_pago_c = st.selectbox("Forma de Pago", ["Transferencia", "Recibo Domiciliado", "Efectivo", "Tarjeta"], key="fpc")
-        with c_cab_c3: fecha_vence_c = st.date_input("Fecha Factura Proveedor", key="fvc")
+        c_c1, c_c2, c_c3 = st.columns(3)
+        with c_c1: n_fac_p = st.text_input("Nº Factura Proveedor", key="nf_p")
+        with c_c2: f_pago_c = st.selectbox("Forma Pago", ["Transferencia", "Efectivo", "Tarjeta"], key="fp_p")
+        with c_c3: f_vence_c = st.date_input("Vencimiento", key="fv_p")
 
-        st.markdown("#### 1. Proveedor")
         res_prov = client.table("proveedores").select("*").execute()
         df_prov = pd.DataFrame(res_prov.data) if res_prov.data else pd.DataFrame()
-        
-        opciones_prov = df_prov.apply(lambda x: f"{x['nombre_empresa']} - CIF: {x.get('contacto', 'N/A')[:15]}...", axis=1).tolist() if not df_prov.empty else []
-        idx_prov = None
-        if 'prov_recien_creado' in st.session_state:
-            for i, op in enumerate(opciones_prov):
-                if op.startswith(st.session_state.prov_recien_creado + " -"):
-                    idx_prov = i
-                    break
+        op_prov = df_prov.apply(lambda x: f"{x['nombre_empresa']} - CIF: {x.get('cif', 'N/A')}", axis=1).tolist() if not df_prov.empty else []
+        idx_p = None
+        if 'prov_rec' in st.session_state:
+            for i, op in enumerate(op_prov):
+                if op.startswith(st.session_state.prov_rec): idx_p = i; break
 
-        c_pr1, c_pr2 = st.columns([2, 1], vertical_alignment="bottom")
-        with c_pr1:
-            prov_sel = st.selectbox("Selecciona Proveedor:", opciones_prov, index=idx_prov, placeholder="Empresa proveedora...", key="sel_prov_c")
-            
-        with st.expander("✨ ¿Proveedor nuevo? Crear ficha rápida"):
-            with st.form("nuevo_prov_express", clear_on_submit=True):
-                np1, np2 = st.columns(2)
-                with np1: n_nom_p = st.text_input("Nombre Empresa *", key="n_nom_p")
-                with np2: n_cif_p = st.text_input("CIF / NIF *", key="n_cif_p")
-                n_datos_p = st.text_area("Contacto, Dirección, IBAN...", key="n_datos_p")
-                if st.form_submit_button("💾 Guardar Proveedor"):
-                    if n_nom_p and n_cif_p:
-                        client.table("proveedores").insert({"nombre_empresa": n_nom_p, "contacto": f"CIF: {n_cif_p} | {n_datos_p}"}).execute()
-                        st.session_state.prov_recien_creado = n_nom_p
-                        st.success("Proveedor creado y autoseleccionado."); time.sleep(1); st.rerun()
+        c_p1, c_p2 = st.columns([2, 1], vertical_alignment="bottom")
+        with c_p1: p_sel = st.selectbox("Proveedor:", op_prov, index=idx_p, key="sel_p_f")
+        with st.expander("✨ Nuevo Proveedor"):
+            with st.form("n_prov_f"):
+                np_nom = st.text_input("Empresa *")
+                np_cif = st.text_input("CIF *")
+                np_con = st.text_area("Contacto/Dirección")
+                if st.form_submit_button("Guardar"):
+                    client.table("proveedores").insert({"nombre_empresa": np_nom, "cif": np_cif, "contacto": np_con}).execute()
+                    st.session_state.prov_rec = np_nom; st.success("Proveedor guardado."); time.sleep(1); st.rerun()
 
-        st.markdown("#### 2. Entrar Mercancía (Scanner)")
-        c_c1, c_c2, c_c3, c_c4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
-        with c_c1:
-            op_prod_c = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | EAN: {x.get('codigo_barras', '')}", axis=1).tolist() if not df_inv.empty else []
-            prod_c = st.selectbox("Escanea producto:", op_prod_c, index=None, key="scan_c_f")
-        with c_c2: cant_c = st.number_input("Cant.", min_value=1, value=1, key="cant_c_f")
-        with c_c3: desc_c = st.number_input("Desc % Proveedor", min_value=0.0, value=0.0, key="desc_c_f")
-        with c_c4:
-            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-            if st.button("➕ Añadir Entrada", use_container_width=True, key="btn_c_f"):
+        st.markdown("#### Artículos Recibidos")
+        c_i1, c_i2, c_i3, c_i4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
+        with c_i1: prod_c = st.selectbox("Producto:", df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist(), index=None, key="p_c_f")
+        with c_i2: cant_c = st.number_input("Cant", min_value=1, key="cant_c_f")
+        with c_i3: desc_cp = st.number_input("Desc %", min_value=0.0, key="desc_c_f")
+        with c_i4:
+            if st.button("➕", key="btn_c_add"):
                 if prod_c:
-                    sku_c = prod_c.split("SKU: ")[1].split(" | ")[0]
+                    sku_c = prod_c.split("SKU: ")[1]
                     datos_p = df_inv[df_inv['sku'] == sku_c].iloc[0]
-                    
-                    p_base = float(datos_p['precio_base'])
-                    igic_porc = float(datos_p['igic_tipo'])
-                    coste_unitario_con_igic = p_base * (1 + (igic_porc / 100))
-                    
-                    subtotal_antes_desc = p_base * cant_c
-                    descuento_eur = subtotal_antes_desc * (desc_c / 100)
-                    base_neta_linea = subtotal_antes_desc - descuento_eur
-                    igic_linea = base_neta_linea * (igic_porc / 100)
-                    total_linea = base_neta_linea + igic_linea
-
+                    base_u = float(datos_p['precio_base'])
                     st.session_state.entrada_temporal.append({
-                        "id": datos_p['id'], "Código": sku_c, "Descripción": datos_p['nombre'],
-                        "Cantidad": cant_c, "Base Ud": p_base, "IGIC %": igic_porc, 
-                        "Coste Total Ud": coste_unitario_con_igic, "Desc %": desc_c,
-                        "Desc €": descuento_eur, "Base Neta": base_neta_linea, 
-                        "IGIC €": igic_linea, "Total Línea": total_linea
+                        "id": datos_p['id'], "Código": sku_c, "Descripción": datos_p['nombre'], "Cantidad": cant_c,
+                        "Base Ud": base_u, "IGIC %": float(datos_p['igic_tipo']), "Coste Total Ud": base_u * (1 + float(datos_p['igic_tipo'])/100),
+                        "Desc %": desc_cp, "Desc €": (base_u * cant_c) * (desc_cp/100), "Base Neta": (base_u * cant_c) * (1 - desc_cp/100),
+                        "IGIC €": ((base_u * cant_c) * (1 - desc_cp/100)) * (float(datos_p['igic_tipo'])/100),
+                        "Total Línea": ((base_u * cant_c) * (1 - desc_cp/100)) * (1 + float(datos_p['igic_tipo'])/100)
                     })
                     st.rerun()
 
-        with st.expander("✨ ¿Producto nuevo de proveedor? Créalo aquí"):
-            with st.form("nuevo_p_express", clear_on_submit=True):
-                en_nom = st.text_input("Nombre *", key="en_nom")
-                
-                e_c1, e_c2 = st.columns(2)
-                with e_c1: en_sku = st.text_input("SKU (Interno) *", key="en_sku")
-                with e_c2: en_ean = st.text_input("Cód. Barras (Pistola)", key="en_ean")
-                
-                ec1, ec2, ec3 = st.columns(3)
-                with ec1: en_coste = st.number_input("Precio Base de Compra (€)", min_value=0.0, key="en_coste")
-                with ec2: en_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0], key="en_igic")
-                with ec3: en_pvp = st.number_input("PVP Venta Público (€)", min_value=0.0, key="en_pvp")
-                if st.form_submit_button("💾 Crear producto en Inventario y Factura"):
-                    if en_nom and en_sku:
-                        res_new = client.table("productos").insert({
-                            "nombre": en_nom, "sku": en_sku, "codigo_barras": en_ean, "precio_base": en_coste, 
-                            "igic_tipo": en_igic, "precio_pvp": en_pvp, "stock_actual": 0
-                        }).execute()
-                        if res_new.data:
-                            coste_unitario_con_igic = en_coste * (1 + (en_igic / 100))
-                            igic_linea = en_coste * (en_igic / 100)
-                            total_linea = en_coste + igic_linea
-                            
-                            st.session_state.entrada_temporal.append({
-                                "id": res_new.data[0]['id'], "Código": en_sku, "Descripción": en_nom,
-                                "Cantidad": 1, "Base Ud": en_coste, "IGIC %": en_igic, 
-                                "Coste Total Ud": coste_unitario_con_igic, "Desc %": 0.0, 
-                                "Desc €": 0.0, "Base Neta": en_coste, "IGIC €": igic_linea, "Total Línea": total_linea
-                            })
-                            st.success("Producto creado y añadido a la tabla."); time.sleep(1); st.rerun()
-
         if st.session_state.entrada_temporal:
             df_ec = pd.DataFrame(st.session_state.entrada_temporal)
+            ed_df_c = st.data_editor(df_ec, column_config={"id": None}, hide_index=True, key="ed_c_f")
+            st.session_state.entrada_temporal = ed_df_c.to_dict('records')
             
-            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Modifica Cantidad, Base, IGIC o Descuento. ¡Los totales se calcularán solos!</i></p>", unsafe_allow_html=True)
-            
-            edited_df_c = st.data_editor(
-                df_ec,
-                column_config={
-                    "id": None, "Desc €": None, "Base Neta": None, "IGIC €": None,
-                    "Código": st.column_config.TextColumn("Cód/SKU", disabled=True),
-                    "Descripción": st.column_config.TextColumn("Descripción", disabled=True),
-                    "Cantidad": st.column_config.NumberColumn("Cant.", min_value=0, step=1),
-                    "Base Ud": st.column_config.NumberColumn("Base Ud. (€)", min_value=0.0, format="%.2f"),
-                    "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0], required=True),
-                    "Coste Total Ud": st.column_config.NumberColumn("Coste Total Ud (€)", disabled=True, format="%.2f"),
-                    "Desc %": st.column_config.NumberColumn("Desc %", min_value=0.0, max_value=100.0, format="%.2f"),
-                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
-                },
-                column_order=["Código", "Descripción", "Cantidad", "Base Ud", "IGIC %", "Coste Total Ud", "Desc %", "Total Línea"],
-                hide_index=True, use_container_width=True, key="editor_compras"
-            )
+            t_total_c = ed_df_c['Total Línea'].sum()
+            st.metric("Total Factura Proveedor", f"{t_total_c:.2f} €")
 
-            edited_df_c['Coste Total Ud'] = edited_df_c['Base Ud'] * (1 + (edited_df_c['IGIC %'] / 100))
-            edited_df_c['Desc €'] = (edited_df_c['Base Ud'] * edited_df_c['Cantidad']) * (edited_df_c['Desc %'] / 100)
-            edited_df_c['Base Neta'] = (edited_df_c['Base Ud'] * edited_df_c['Cantidad']) - edited_df_c['Desc €']
-            edited_df_c['IGIC €'] = edited_df_c['Base Neta'] * (edited_df_c['IGIC %'] / 100)
-            edited_df_c['Total Línea'] = edited_df_c['Base Neta'] + edited_df_c['IGIC €']
-
-            cambio_detectado_c = False
-            for col in ['Cantidad', 'Base Ud', 'IGIC %', 'Desc %']:
-                if not edited_df_c[col].equals(df_ec[col]):
-                    cambio_detectado_c = True; break
-                    
-            if cambio_detectado_c:
-                st.session_state.entrada_temporal = edited_df_c.to_dict('records')
-                st.rerun() 
-            else:
-                st.session_state.entrada_temporal = edited_df_c.to_dict('records')
-            
-            c_base_imponible = edited_df_c['Base Neta'].sum()
-            c_descuentos = edited_df_c['Desc €'].sum()
-            c_igic = edited_df_c['IGIC €'].sum()
-            c_factura = edited_df_c['Total Línea'].sum()
-            
-            st.markdown("#### 3. Previsualización de Factura Recibida")
-            
-            prov_datos = df_prov[df_prov['nombre_empresa'] == prov_sel.split(" -")[0]].iloc[0] if prov_sel else None
-            nombre_prov = prov_datos['nombre_empresa'] if prov_sel else "PROVEEDOR DESCONOCIDO"
-            datos_contacto_prov = prov_datos.get('contacto', '---') if prov_sel else "---"
-
-            html_fac_compra = f"""
-            <div style="border: 1px solid #ccc; padding: 20px; font-family: sans-serif; background: white; color: black; max-width: 800px; margin: auto;">
-                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #2e7d32; padding-bottom: 10px;">
-                    <div>
-                        <h2 style="margin: 0; color: #2e7d32;">{nombre_prov}</h2>
-                        <small>{datos_contacto_prov}</small>
-                    </div>
-                    <div style="text-align: right;">
-                        <h2 style="margin: 0; color: #666;">FACTURA RECIBIDA</h2>
-                        <b>Nº Factura:</b> {n_factura_prov if n_factura_prov else '---'}<br>
-                        <b>Fecha:</b> {fecha_vence_c.strftime('%d/%m/%Y')}<br>
-                        <b>Cliente:</b> ANIMALARIUM<br>
-                    </div>
-                </div>
-                <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 12px;">
-                    <tr style="background: #2e7d32; color: white;">
-                        <th style="padding: 5px;">Cód/SKU</th><th style="padding: 5px;">Descripción</th><th style="padding: 5px;">Cant.</th>
-                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px;">Coste Total Ud.</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px; text-align:right;">Total Línea</th>
-                    </tr>
-            """
-            for item in st.session_state.entrada_temporal:
-                html_fac_compra += f"""
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 5px;">{item['Código']}</td><td style="padding: 5px;">{item['Descripción']}</td>
-                        <td style="padding: 5px; text-align:center;">{item['Cantidad']}</td><td style="padding: 5px; text-align:center;">{item['Base Ud']:.2f}€</td>
-                        <td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td><td style="padding: 5px; text-align:center;">{item['Coste Total Ud']:.2f}€</td>
-                        <td style="padding: 5px; text-align:center;">{item['Desc %']}%</td>
-                        <td style="padding: 5px; text-align:right;">{item['Total Línea']:.2f}€</td>
-                    </tr>"""
-            
-            html_fac_compra += f"""
-                </table>
-                <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
-                    <table style="width: 320px; font-size: 14px; border: 1px solid #ccc; padding: 10px; background: #fafafa;">
-                        <tr><td><b>Total Base Imponible:</b></td><td style="text-align:right;">{c_base_imponible:.2f}€</td></tr>
-                        <tr><td><b>Total Descuentos:</b></td><td style="text-align:right; color:red;">-{c_descuentos:.2f}€</td></tr>
-                        <tr><td><b>Total Impuestos (IGIC):</b></td><td style="text-align:right;">{c_igic:.2f}€</td></tr>
-                        <tr style="font-size: 18px; color: #2e7d32; border-top: 2px solid #2e7d32;"><td><b>TOTAL A PAGAR:</b></td><td style="text-align:right;"><b>{c_factura:.2f}€</b></td></tr>
-                    </table>
-                </div>
-            </div>
-            """
-            components.html(html_fac_compra, height=450, scrolling=True)
-
-            c_fin_c1, c_fin_c2 = st.columns([1, 2])
-            with c_fin_c1:
-                if st.button("🗑️ Cancelar / Vaciar", key="vaciar_c"): 
-                    st.session_state.entrada_temporal = []
-                    if 'prov_recien_creado' in st.session_state: del st.session_state['prov_recien_creado']
-                    st.rerun()
-            with c_fin_c2:
-                if st.button("🚀 REGISTRAR COMPRA PROVEEDOR Y SUMAR STOCK", type="primary", use_container_width=True, key="conf_c"):
-                    if prov_sel and n_factura_prov:
-                        id_prov = prov_datos['id']
-                        
-                        client.table("compras").insert({
-                            "proveedor_id": id_prov, "tipo": "Mercadería",
-                            "total": float(c_factura), "estado": "Pendiente",
-                            "fecha_vencimiento": str(fecha_vence_c)
-                        }).execute()
-                        
-                        for item in st.session_state.entrada_temporal:
-                            res_curr = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
-                            client.table("productos").update({"stock_actual": res_curr.data[0]['stock_actual'] + item['Cantidad']}).eq("id", item['id']).execute()
-                        
-                        st.session_state.entrada_temporal = []
-                        if 'prov_recien_creado' in st.session_state: del st.session_state['prov_recien_creado']
-                        st.success("¡Stock aumentado y factura de proveedor registrada!"); time.sleep(1); st.rerun()
-                    else:
-                        st.error("Debes seleccionar un proveedor y escribir el Nº de Factura del proveedor.")
+            if st.button("🚀 REGISTRAR COMPRA Y SUMAR STOCK", type="primary", use_container_width=True):
+                if p_sel and n_fac_p:
+                    prov_id = df_prov[df_prov['nombre_empresa'] == p_sel.split(" -")[0]].iloc[0]['id']
+                    client.table("compras").insert({"proveedor_id": prov_id, "total": float(t_total_c), "estado": "Recibido", "fecha_vencimiento": str(f_vence_c), "tipo": n_fac_p}).execute()
+                    for i in st.session_state.entrada_temporal:
+                        curr = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                        client.table("productos").update({"stock_actual": curr.data[0]['stock_actual'] + i['Cantidad']}).eq("id", i['id']).execute()
+                    st.session_state.entrada_temporal = []; st.success("Compra registrada."); time.sleep(1); st.rerun()
 
 # ==========================================
 # --- TAB 9: ADMIN (EDICIÓN AVANZADA) ---
@@ -1340,12 +1063,10 @@ with tab8:
 with tab9:
     st.markdown("<h3 style='margin-top: -15px;'>⚙️ Editor Maestro de Datos</h3>", unsafe_allow_html=True)
     
-    # 💡 AQUÍ ESTÁ EL MENÚ COMPLETO Y ACTUALIZADO
     opcion_edicion = st.selectbox("Selecciona la tabla para editar:", 
         ["Productos Físicos", "Servicios", "Todos los Productos (Sin Filtro)", "Clientes", "Proveedores", "Facturas", "Compras"]
     )
     
-    # Lógica para saber qué pedirle a la base de datos según lo que elijas
     if opcion_edicion == "Productos Físicos":
         tabla_db = "productos"
         res = client.table(tabla_db).select("*").eq("categoria", "Producto").order("id", desc=True).execute()
@@ -1364,10 +1085,8 @@ with tab9:
         
         col_config = {}
         if tabla_db == "productos":
-            # Calculamos el coste total para verlo en la tabla
             df_admin['coste_total_calc'] = (df_admin['precio_base'] * (1 + df_admin['igic_tipo'] / 100)).round(2)
             
-            # Configuramos cómo se ven las columnas (incluyendo código de barras)
             col_config = {
                 "nombre": "Nombre Ítem",
                 "categoria": st.column_config.SelectboxColumn("Categoría", options=["Producto", "Servicio"]),
@@ -1380,23 +1099,18 @@ with tab9:
                 "stock_actual": st.column_config.NumberColumn("Stock", step=1)
             }
             
-            # Ordenamos las columnas para que sea fácil de leer
             cols_orden = ["id", "sku", "codigo_barras", "nombre", "categoria", "precio_base", "igic_tipo", "coste_total_calc", "precio_pvp", "stock_actual"]
             cols_orden = [c for c in cols_orden if c in df_admin.columns]
             df_admin = df_admin[cols_orden]
 
-        # La tabla editable
         edited_db = st.data_editor(df_admin, use_container_width=True, hide_index=True, column_config=col_config, key=f"admin_editor_{opcion_edicion}")
 
-        if st.button("💾 GUARDAR CAMBIOS EN LA NUBE", type="primary"):
+        if st.button("💾 GUARDAR CAMBIOS EN LA NUBE", type="primary", key=f"btn_save_admin_{opcion_edicion}"):
             for index, row in edited_db.iterrows():
                 datos_fila = row.to_dict()
-                
-                # Borramos la columna inventada antes de mandarlo a Supabase
                 if "coste_total_calc" in datos_fila:
                     del datos_fila["coste_total_calc"]
                 
-                # Limpiamos datos vacíos para que no dé errores
                 datos_fila_limpios = {k: v for k, v in datos_fila.items() if pd.notna(v)}
                 client.table(tabla_db).update(datos_fila_limpios).eq("id", row["id"]).execute()
                 
