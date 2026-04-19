@@ -818,7 +818,7 @@ with tab8:
     res_inv = client.table("productos").select("*").execute()
     df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
 
-    # --- 1. FACTURAS DE VENTA ---
+    # --- 1. FACTURAS DE VENTA (A CLIENTES) ---
     with sub_f_ventas:
         if 'factura_temporal' not in st.session_state: st.session_state.factura_temporal = []
         
@@ -867,30 +867,34 @@ with tab8:
                         sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
                         datos_p = df_inv[df_inv['sku'] == sku_f].iloc[0]
                         
-                        p_base = float(datos_p['precio_base'])
-                        pvp = float(datos_p['precio_pvp'])
-                        igic = float(datos_p['igic_tipo'])
-                        subtotal_antes_desc = cant_v * pvp
+                        # MATEMÁTICA DE VENTA: Extraemos la base imponible a partir del PVP
+                        pvp_con_igic = float(datos_p['precio_pvp'])
+                        igic_porc = float(datos_p['igic_tipo'])
+                        base_unitaria = pvp_con_igic / (1 + (igic_porc / 100))
+                        
+                        subtotal_antes_desc = base_unitaria * cant_v
                         descuento_eur = subtotal_antes_desc * (desc_v / 100)
-                        total_linea = subtotal_antes_desc - descuento_eur
+                        base_neta_linea = subtotal_antes_desc - descuento_eur
+                        igic_linea = base_neta_linea * (igic_porc / 100)
+                        total_linea = base_neta_linea + igic_linea
 
                         st.session_state.factura_temporal.append({
                             "id": datos_p['id'], "Código": sku_f, "Descripción": datos_p['nombre'], 
-                            "Cantidad": cant_v, "Precio Base": p_base, "IGIC %": igic, "PVP Ud": pvp,
-                            "Desc %": desc_v, "Desc €": descuento_eur, "Total Línea": total_linea
+                            "Cantidad": cant_v, "Base Ud": base_unitaria, "Desc %": desc_v,
+                            "Desc €": descuento_eur, "Base Neta": base_neta_linea, 
+                            "IGIC %": igic_porc, "IGIC €": igic_linea, "Total Línea": total_linea
                         })
                         st.rerun()
 
         if st.session_state.factura_temporal:
             df_fv = pd.DataFrame(st.session_state.factura_temporal)
             
-            # Cálculos de Totales
-            total_factura = df_fv['Total Línea'].sum()
-            descuento_total = df_fv['Desc €'].sum()
-            base_imponible = sum(item['Total Línea'] / (1 + (item['IGIC %']/100)) for item in st.session_state.factura_temporal)
-            igic_total = total_factura - base_imponible
+            # Sumatorios para el Desglose Final
+            t_base_imponible = df_fv['Base Neta'].sum()
+            t_descuentos = df_fv['Desc €'].sum()
+            t_igic = df_fv['IGIC €'].sum()
+            t_factura = df_fv['Total Línea'].sum()
             
-            # Previsualización de Factura HTML
             st.markdown("#### 3. Previsualización y Emisión")
             
             cli_datos = df_cli[df_cli['nombre_dueno'] == f_cliente.split(" -")[0]].iloc[0] if f_cliente else None
@@ -906,11 +910,10 @@ with tab8:
                         <small>C/ José Hernández Alfonso, 26<br>38009 S/C de Tenerife<br>CIF: 78854854K</small>
                     </div>
                     <div style="text-align: right;">
-                        <h2 style="margin: 0; color: #666;">FACTURA</h2>
+                        <h2 style="margin: 0; color: #666;">FACTURA DE VENTA</h2>
                         <b>Fecha:</b> {fecha_emision_v.strftime('%d/%m/%Y')}<br>
                         <b>Vencimiento:</b> {fecha_vence_v.strftime('%d/%m/%Y')}<br>
                         <b>Pago:</b> {f_pago_v}<br>
-                        <small>Página 1/1</small>
                     </div>
                 </div>
                 <div style="margin-top: 15px; padding: 10px; background: #f9f9f9;">
@@ -920,14 +923,14 @@ with tab8:
                 <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px;">
                     <tr style="background: #005275; color: white;">
                         <th style="padding: 5px;">Cód/SKU</th><th style="padding: 5px;">Descripción</th><th style="padding: 5px;">Cant.</th>
-                        <th style="padding: 5px;">Precio Ud.</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px; text-align:right;">Total</th>
+                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px; text-align:right;">Total</th>
                     </tr>
             """
             for item in st.session_state.factura_temporal:
                 html_fac += f"""
                     <tr style="border-bottom: 1px solid #eee;">
                         <td style="padding: 5px;">{item['Código']}</td><td style="padding: 5px;">{item['Descripción']}</td>
-                        <td style="padding: 5px; text-align:center;">{item['Cantidad']}</td><td style="padding: 5px; text-align:center;">{item['PVP Ud']:.2f}€</td>
+                        <td style="padding: 5px; text-align:center;">{item['Cantidad']}</td><td style="padding: 5px; text-align:center;">{item['Base Ud']:.2f}€</td>
                         <td style="padding: 5px; text-align:center;">{item['Desc %']}%</td><td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td>
                         <td style="padding: 5px; text-align:right;">{item['Total Línea']:.2f}€</td>
                     </tr>"""
@@ -935,11 +938,11 @@ with tab8:
             html_fac += f"""
                 </table>
                 <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
-                    <table style="width: 300px; font-size: 14px; border: 1px solid #ccc; padding: 10px;">
-                        <tr><td><b>Base Imponible:</b></td><td style="text-align:right;">{base_imponible:.2f}€</td></tr>
-                        <tr><td><b>Descuento Total:</b></td><td style="text-align:right; color:red;">-{descuento_total:.2f}€</td></tr>
-                        <tr><td><b>Total IGIC:</b></td><td style="text-align:right;">{igic_total:.2f}€</td></tr>
-                        <tr style="font-size: 18px; color: #005275; border-top: 2px solid #005275;"><td><b>TOTAL FACTURA:</b></td><td style="text-align:right;"><b>{total_factura:.2f}€</b></td></tr>
+                    <table style="width: 320px; font-size: 14px; border: 1px solid #ccc; padding: 10px; background: #fafafa;">
+                        <tr><td><b>Total Base Imponible:</b></td><td style="text-align:right;">{t_base_imponible:.2f}€</td></tr>
+                        <tr><td><b>Total Descuentos:</b></td><td style="text-align:right; color:red;">-{t_descuentos:.2f}€</td></tr>
+                        <tr><td><b>Total Impuestos (IGIC):</b></td><td style="text-align:right;">{t_igic:.2f}€</td></tr>
+                        <tr style="font-size: 18px; color: #005275; border-top: 2px solid #005275;"><td><b>TOTAL FACTURA:</b></td><td style="text-align:right;"><b>{t_factura:.2f}€</b></td></tr>
                     </table>
                 </div>
             </div>
@@ -953,8 +956,8 @@ with tab8:
                 if st.button("🚀 CONFIRMAR FACTURA, IMPRIMIR Y RESTAR STOCK", type="primary", use_container_width=True):
                     if f_cliente:
                         client.table("facturas").insert({
-                            "cliente_id": cli_datos['id'], "total_neto": float(base_imponible),
-                            "total_igic": float(igic_total), "total_final": float(total_factura)
+                            "cliente_id": cli_datos['id'], "total_neto": float(t_base_imponible),
+                            "total_igic": float(t_igic), "total_final": float(t_factura)
                         }).execute()
                         for item in st.session_state.factura_temporal:
                             res_st = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
@@ -962,6 +965,172 @@ with tab8:
                         st.session_state.factura_temporal = []
                         st.success("¡Factura Emitida!"); time.sleep(1); st.rerun()
                     else: st.error("Debes seleccionar un cliente para emitir la factura.")
+
+    # --- 2. FACTURAS DE COMPRA (DE PROVEEDORES) ---
+    with sub_f_compras:
+        if 'entrada_temporal' not in st.session_state: st.session_state.entrada_temporal = []
+        
+        c_cab_c1, c_cab_c2, c_cab_c3 = st.columns(3)
+        with c_cab_c1: n_factura_prov = st.text_input("Nº Factura del Proveedor *")
+        with c_cab_c2: f_pago_c = st.selectbox("Forma de Pago", ["Transferencia", "Recibo Domiciliado", "Efectivo", "Tarjeta"], key="fpc")
+        with c_cab_c3: fecha_vence_c = st.date_input("Fecha Factura Proveedor", key="fvc")
+
+        st.markdown("#### 1. Proveedor")
+        res_prov = client.table("proveedores").select("*").execute()
+        df_prov = pd.DataFrame(res_prov.data) if res_prov.data else pd.DataFrame()
+        
+        c_pr1, c_pr2 = st.columns([2, 1], vertical_alignment="bottom")
+        with c_pr1:
+            opciones_prov = df_prov.apply(lambda x: f"{x['nombre_empresa']} - CIF: {x.get('contacto', 'N/A')[:15]}...", axis=1).tolist() if not df_prov.empty else []
+            prov_sel = st.selectbox("Selecciona Proveedor:", opciones_prov, index=None, placeholder="Empresa proveedora...")
+            
+        with st.expander("✨ ¿Proveedor nuevo? Crear ficha rápida"):
+            with st.form("nuevo_prov_express", clear_on_submit=True):
+                np1, np2 = st.columns(2)
+                with np1: n_nom_p = st.text_input("Nombre Empresa *")
+                with np2: n_cif_p = st.text_input("CIF / NIF *")
+                n_datos_p = st.text_area("Contacto, Dirección, IBAN...")
+                if st.form_submit_button("💾 Guardar Proveedor"):
+                    if n_nom_p and n_cif_p:
+                        client.table("proveedores").insert({"nombre_empresa": n_nom_p, "contacto": f"CIF: {n_cif_p} | {n_datos_p}"}).execute()
+                        st.success("Proveedor creado."); time.sleep(1); st.rerun()
+
+        st.markdown("#### 2. Entrar Mercancía (Scanner)")
+        c_c1, c_c2, c_c3, c_c4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
+        with c_c1:
+            op_prod_c = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist() if not df_inv.empty else []
+            prod_c = st.selectbox("Escanea producto:", op_prod_c, index=None, key="scan_c_f")
+        with c_c2: cant_c = st.number_input("Cant.", min_value=1, value=1, key="cant_c_f")
+        with c_c3: desc_c = st.number_input("Desc % Proveedor", min_value=0.0, value=0.0)
+        with c_c4:
+            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+            if st.button("➕ Añadir Entrada", use_container_width=True, key="btn_c_f"):
+                if prod_c:
+                    sku_c = prod_c.split("SKU: ")[1]
+                    datos_p = df_inv[df_inv['sku'] == sku_c].iloc[0]
+                    
+                    # MATEMÁTICA DE COMPRA: Usamos directamente el precio base (coste)
+                    p_base = float(datos_p['precio_base'])
+                    igic_porc = float(datos_p['igic_tipo'])
+                    
+                    subtotal_antes_desc = p_base * cant_c
+                    descuento_eur = subtotal_antes_desc * (desc_c / 100)
+                    base_neta_linea = subtotal_antes_desc - descuento_eur
+                    igic_linea = base_neta_linea * (igic_porc / 100)
+                    total_linea = base_neta_linea + igic_linea
+
+                    st.session_state.entrada_temporal.append({
+                        "id": datos_p['id'], "Código": sku_c, "Descripción": datos_p['nombre'],
+                        "Cantidad": cant_c, "Precio Base Ud": p_base, "Desc %": desc_c,
+                        "Desc €": descuento_eur, "Base Neta": base_neta_linea, 
+                        "IGIC %": igic_porc, "IGIC €": igic_linea, "Total Línea": total_linea
+                    })
+                    st.rerun()
+
+        with st.expander("✨ ¿Producto nuevo de proveedor? Créalo aquí"):
+            with st.form("nuevo_p_express", clear_on_submit=True):
+                en_nom = st.text_input("Nombre *")
+                en_sku = st.text_input("SKU / Código de Barras *")
+                ec1, ec2, ec3 = st.columns(3)
+                with ec1: en_coste = st.number_input("Precio Base de Compra (€)", min_value=0.0)
+                with ec2: en_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
+                with ec3: en_pvp = st.number_input("PVP Venta Público (€)", min_value=0.0)
+                if st.form_submit_button("💾 Crear producto en Inventario y Factura"):
+                    if en_nom and en_sku:
+                        res_new = client.table("productos").insert({
+                            "nombre": en_nom, "sku": en_sku, "precio_base": en_coste, 
+                            "igic_tipo": en_igic, "precio_pvp": en_pvp, "stock_actual": 0
+                        }).execute()
+                        if res_new.data:
+                            igic_linea = en_coste * (en_igic / 100)
+                            total_linea = en_coste + igic_linea
+                            st.session_state.entrada_temporal.append({
+                                "id": res_new.data[0]['id'], "Código": en_sku, "Descripción": en_nom,
+                                "Cantidad": 1, "Precio Base Ud": en_coste, "Desc %": 0.0, "Desc €": 0.0,
+                                "Base Neta": en_coste, "IGIC %": en_igic, "IGIC €": igic_linea, "Total Línea": total_linea
+                            })
+                            st.success("Producto creado."); time.sleep(1); st.rerun()
+
+        if st.session_state.entrada_temporal:
+            df_ec = pd.DataFrame(st.session_state.entrada_temporal)
+            
+            # Sumatorios para el Desglose Final de Compra
+            c_base_imponible = df_ec['Base Neta'].sum()
+            c_descuentos = df_ec['Desc €'].sum()
+            c_igic = df_ec['IGIC €'].sum()
+            c_factura = df_ec['Total Línea'].sum()
+            
+            st.markdown("#### 3. Previsualización de Factura Recibida")
+            
+            prov_datos = df_prov[df_prov['nombre_empresa'] == prov_sel.split(" -")[0]].iloc[0] if prov_sel else None
+            nombre_prov = prov_datos['nombre_empresa'] if prov_sel else "PROVEEDOR DESCONOCIDO"
+            datos_contacto_prov = prov_datos.get('contacto', '---') if prov_sel else "---"
+
+            html_fac_compra = f"""
+            <div style="border: 1px solid #ccc; padding: 20px; font-family: sans-serif; background: white; color: black; max-width: 800px; margin: auto;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #2e7d32; padding-bottom: 10px;">
+                    <div>
+                        <h2 style="margin: 0; color: #2e7d32;">{nombre_prov}</h2>
+                        <small>{datos_contacto_prov}</small>
+                    </div>
+                    <div style="text-align: right;">
+                        <h2 style="margin: 0; color: #666;">FACTURA RECIBIDA</h2>
+                        <b>Nº Factura:</b> {n_factura_prov if n_factura_prov else '---'}<br>
+                        <b>Fecha:</b> {fecha_vence_c.strftime('%d/%m/%Y')}<br>
+                        <b>Cliente:</b> ANIMALARIUM<br>
+                    </div>
+                </div>
+                <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px;">
+                    <tr style="background: #2e7d32; color: white;">
+                        <th style="padding: 5px;">Cód/SKU</th><th style="padding: 5px;">Descripción</th><th style="padding: 5px;">Cant.</th>
+                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px; text-align:right;">Total</th>
+                    </tr>
+            """
+            for item in st.session_state.entrada_temporal:
+                html_fac_compra += f"""
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 5px;">{item['Código']}</td><td style="padding: 5px;">{item['Descripción']}</td>
+                        <td style="padding: 5px; text-align:center;">{item['Cantidad']}</td><td style="padding: 5px; text-align:center;">{item['Precio Base Ud']:.2f}€</td>
+                        <td style="padding: 5px; text-align:center;">{item['Desc %']}%</td><td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td>
+                        <td style="padding: 5px; text-align:right;">{item['Total Línea']:.2f}€</td>
+                    </tr>"""
+            
+            html_fac_compra += f"""
+                </table>
+                <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
+                    <table style="width: 320px; font-size: 14px; border: 1px solid #ccc; padding: 10px; background: #fafafa;">
+                        <tr><td><b>Total Base Imponible:</b></td><td style="text-align:right;">{c_base_imponible:.2f}€</td></tr>
+                        <tr><td><b>Total Descuentos:</b></td><td style="text-align:right; color:red;">-{c_descuentos:.2f}€</td></tr>
+                        <tr><td><b>Total Impuestos (IGIC):</b></td><td style="text-align:right;">{c_igic:.2f}€</td></tr>
+                        <tr style="font-size: 18px; color: #2e7d32; border-top: 2px solid #2e7d32;"><td><b>TOTAL A PAGAR:</b></td><td style="text-align:right;"><b>{c_factura:.2f}€</b></td></tr>
+                    </table>
+                </div>
+            </div>
+            """
+            components.html(html_fac_compra, height=450, scrolling=True)
+
+            c_fin_c1, c_fin_c2 = st.columns([1, 2])
+            with c_fin_c1:
+                if st.button("🗑️ Cancelar / Vaciar", key="vaciar_c"): st.session_state.entrada_temporal = []; st.rerun()
+            with c_fin_c2:
+                if st.button("🚀 REGISTRAR COMPRA PROVEEDOR Y SUMAR STOCK", type="primary", use_container_width=True):
+                    if prov_sel and n_factura_prov:
+                        id_prov = prov_datos['id']
+                        
+                        client.table("compras").insert({
+                            "proveedor_id": id_prov, "tipo": "Mercadería",
+                            "total": float(c_factura), "estado": "Pendiente",
+                            "fecha_vencimiento": str(fecha_vence_c)
+                        }).execute()
+                        
+                        for item in st.session_state.entrada_temporal:
+                            res_curr = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
+                            client.table("productos").update({"stock_actual": res_curr.data[0]['stock_actual'] + item['Cantidad']}).eq("id", item['id']).execute()
+                        
+                        st.session_state.entrada_temporal = []
+                        st.success("¡Stock aumentado y factura de proveedor registrada!"); time.sleep(1); st.rerun()
+                    else:
+                        st.error("Debes seleccionar un proveedor y escribir el Nº de Factura del proveedor.")
 
     # --- 2. FACTURAS DE COMPRA (Proveedores) ---
     with sub_f_compras:
