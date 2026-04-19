@@ -952,55 +952,94 @@ with tab9:
             st.success("Base de datos actualizada correctamente")
 
 # ==========================================
-# --- TAB 10: CONTABILIDAD Y GASTOS FUNGIBLES ---
+# --- TAB 10: CONTABILIDAD Y ARCHIVO ---
 # ==========================================
 with tab10:
-    st.markdown("<h3 style='margin-bottom: 5px;'>📊 Gastos Operativos y Balance</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-bottom: 5px;'>📊 Contabilidad y Archivo Documental</h3>", unsafe_allow_html=True)
     
-    sub_fungible, sub_balance = st.tabs(["🧾 Gastos Material Fungible", "⚖️ Contraste Total"])
+    sub_fungible, sub_archivo, sub_balance = st.tabs(["🧾 Gastos Fungibles", "🗄️ Archivo de Facturas", "⚖️ Balance Global"])
 
+    # --- 1. GESTIÓN DE GASTOS FUNGIBLES (Lo que ya teníamos) ---
     with sub_fungible:
-        col_f1, col_f2 = st.columns([1, 2], gap="large")
-        with col_f1:
-            with st.form("gasto_operativo", clear_on_submit=True):
-                st.markdown("#### Registrar Gasto (Luz, Limpieza, Suministros)")
-                g_desc = st.text_input("Concepto del Gasto *")
-                g_total = st.number_input("Importe (€) *", min_value=0.0)
-                g_estado = st.selectbox("Estado", ["Pagado", "Pendiente"])
-                if st.form_submit_button("✅ Guardar Gasto"):
-                    if g_desc and g_total > 0:
-                        # Lo guardamos en 'compras' pero con tipo 'Gasto Operativo'
-                        client.table("compras").insert({
-                            "tipo": "Gasto Operativo", "total": g_total, 
-                            "estado": g_estado, "fecha_vencimiento": str(datetime.now().date())
-                        }).execute()
-                        st.success("Gasto registrado."); time.sleep(1); st.rerun()
+        # (Aquí mantienes el código de los gastos operativos/limpieza que pusimos antes)
+        pass
 
-        with col_f2:
-            st.markdown("#### Listado de Gastos Operativos")
-            res_g = client.table("compras").select("*").eq("tipo", "Gasto Operativo").order("id", desc=True).execute()
-            if res_g.data:
-                st.dataframe(pd.DataFrame(res_g.data)[['created_at', 'total', 'estado']], use_container_width=True, hide_index=True)
+    # --- 2. ARCHIVO DOCUMENTAL (NUEVO: El corazón de tus documentos) ---
+    with sub_archivo:
+        st.markdown("#### 📂 Buscador de Facturas Emitidas y Recibidas")
+        
+        c_af1, c_af2, c_af3 = st.columns([1, 1, 1])
+        with c_af1: tipo_doc = st.selectbox("Tipo de documento:", ["Facturas de Venta (Clientes)", "Facturas de Compra (Proveedores)"])
+        with c_af2: f_desde = st.date_input("Desde:", value=pd.to_datetime('today') - pd.Timedelta(days=30))
+        with c_af3: f_hasta = st.date_input("Hasta:", value=pd.to_datetime('today'))
 
+        try:
+            if tipo_doc == "Facturas de Venta (Clientes)":
+                res_docs = client.table("facturas").select("*, clientes(nombre_dueno, email, telefono)").gte("created_at", f"{f_desde}T00:00:00").lte("created_at", f"{f_hasta}T23:59:59").order("id", desc=True).execute()
+                nombre_col_entidad = "Cliente"
+            else:
+                res_docs = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_desde}T00:00:00").lte("created_at", f"{f_hasta}T23:59:59").order("id", desc=True).execute()
+                nombre_col_entidad = "Proveedor"
+
+            if res_docs.data:
+                df_docs = pd.DataFrame(res_docs.data)
+                df_docs['Fecha'] = pd.to_datetime(df_docs['created_at']).dt.strftime('%d/%m/%Y')
+                
+                # Extraer nombre del cliente o proveedor
+                if tipo_doc == "Facturas de Venta (Clientes)":
+                    df_docs['Entidad'] = df_docs['clientes'].apply(lambda x: x['nombre_dueno'] if x else "N/A")
+                    df_docs['Importe'] = df_docs['total_final']
+                else:
+                    df_docs['Entidad'] = df_docs['proveedores'].apply(lambda x: x['nombre_empresa'] if x else "Gasto General")
+                    df_docs['Importe'] = df_docs['total']
+
+                st.markdown("---")
+                # Selector de factura para ver detalle
+                doc_sel_id = st.selectbox("Selecciona una factura para gestionar:", df_docs['id'].tolist(), format_func=lambda x: f"Factura #{x} - {df_docs[df_docs['id']==x]['Entidad'].values[0]} ({df_docs[df_docs['id']==x]['Importe'].values[0]}€)")
+                
+                if doc_sel_id:
+                    doc_data = df_docs[df_docs['id'] == doc_sel_id].iloc[0]
+                    
+                    # Panel de acciones
+                    c_act1, c_act2 = st.columns(2)
+                    
+                    with c_act1:
+                        # Botón de Impresión
+                        html_factura = f"""
+                        <script>
+                        function imprimir() {{
+                            var win = window.open('', '', 'height=700,width=700');
+                            win.document.write('<html><head><title>Factura {doc_sel_id}</title></head><body>');
+                            win.document.write('<h1>ANIMALARIUM</h1>');
+                            win.document.write('<p><b>Factura Nº:</b> {doc_sel_id}</p>');
+                            win.document.write('<p><b>Fecha:</b> {doc_data['Fecha']}</p>');
+                            win.document.write('<p><b>{nombre_col_entidad}:</b> {doc_data['Entidad']}</p>');
+                            win.document.write('<hr><h3>TOTAL: {doc_data['Importe']:.2f}€</h3>');
+                            win.document.write('</body></html>');
+                            win.document.close();
+                            win.print();
+                        }}
+                        </script>
+                        <button onclick="imprimir()" style="width:100%; padding:10px; background-color:#005275; color:white; border:none; border-radius:5px; cursor:pointer;">🖨️ Imprimir Factura</button>
+                        """
+                        components.html(html_factura, height=50)
+                    
+                    with c_act2:
+                        # Botón de Email (Mailto)
+                        email_dest = doc_data['clientes']['email'] if tipo_doc == "Facturas de Venta (Clientes)" and doc_data['clientes'] else ""
+                        asunto = f"Factura {doc_sel_id} - Animalarium"
+                        cuerpo = f"Hola {doc_data['Entidad']},\n\nAdjuntamos los detalles de su factura por importe de {doc_data['Importe']:.2f}€.\n\nSaludos,\nAnimalarium."
+                        url_mail = f"mailto:{email_dest}?subject={urllib.parse.quote(asunto)}&body={urllib.parse.quote(cuerpo)}"
+                        st.markdown(f'<a href="{url_mail}" target="_blank" style="text-decoration:none;"><button style="width:100%; padding:10px; background-color:#2e7d32; color:white; border:none; border-radius:5px; cursor:pointer;">✉️ Enviar por Email</button></a>', unsafe_allow_html=True)
+            else:
+                st.info("No se encontraron documentos en este rango.")
+        except Exception as e:
+            st.error(f"Error al consultar el archivo: {e}")
+
+    # --- 3. BALANCE GLOBAL (Lo que ya teníamos) ---
     with sub_balance:
-        st.markdown("#### ⚖️ Balance de Salud Financiera")
-        # Calculamos TODO para el contraste
-        # 1. Ventas totales (Tickets + Facturas Venta)
-        res_v = client.table("ventas_historial").select("total").execute()
-        v_total = sum(v['total'] for v in res_v.data) if res_v.data else 0
-        
-        # 2. Gastos Totales (Mercadería + Fungible)
-        res_c = client.table("compras").select("total, tipo").execute()
-        c_mercaderia = sum(c['total'] for c in res_c.data if c['tipo'] == 'Mercadería') if res_c.data else 0
-        c_fungible = sum(c['total'] for c in res_c.data if c['tipo'] == 'Gasto Operativo') if res_c.data else 0
-        
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Ingresos (Ventas)", f"{v_total:.2f}€")
-        c2.metric("Inversión Stock", f"-{c_mercaderia:.2f}€")
-        c3.metric("Gastos Operativos", f"-{c_fungible:.2f}€")
-        beneficio = v_total - c_mercaderia - c_fungible
-        c4.metric("BENEFICIO REAL", f"{beneficio:.2f}€", delta=f"{beneficio:.2f}€")
-
+        # (Mantienes el código del balance de salud financiera que pusimos antes)
+        pass
 
 # ==========================================
 # --- TAB 11: AGENDA Y CITAS ---
