@@ -73,17 +73,16 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
 # --- TAB 1: INVENTARIO MULTI-PROVEEDOR ---
 # ==========================================
 with tab1:
-    col_f, col_t = st.columns([1.2, 2.5])
+    col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
-    # 1. Obtenemos los proveedores
+    # 1. Obtenemos los proveedores para el desplegable
     res_proveedores = client.table("proveedores").select("id, nombre_empresa").execute()
     dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores.data} if res_proveedores.data else {}
     lista_nombres_prov = list(dict_proveedores.keys())
 
     with col_f:
         st.markdown("### 📝 Nuevo Producto")
-        # El bloque WITH ST.FORM empieza aquí
-        with st.form("nuevo_p", clear_on_submit=True):
+        with st.form("nuevo_p", clear_on_submit=True, border=True):
             nombre = st.text_input("Nombre *")
             c1, c2 = st.columns(2)
             with c1: sku = st.text_input("SKU / Código *")
@@ -104,8 +103,7 @@ with tab1:
             
             provs_seleccionados = st.multiselect("Proveedor/es", lista_nombres_prov, placeholder="Elige uno o varios...")
             
-            # ESTE BOTÓN AHORA ESTÁ PERFECTAMENTE INDENTADO DENTRO DEL FORMULARIO
-            if st.form_submit_button("💾 Guardar Producto", use_container_width=True):
+            if st.form_submit_button("💾 Guardar Producto", use_container_width=True, type="primary"):
                 if nombre and sku:
                     res_insert = client.table("productos").insert({
                         "sku": sku, "nombre": nombre, "categoria": cat,
@@ -130,19 +128,40 @@ with tab1:
 
     with col_t:
         st.markdown("### 📦 Stock Actual")
-        res_prod = client.table("productos").select("sku, nombre, precio_base, precio_pvp, stock_actual, productos_proveedores(proveedores(nombre_empresa))").execute()
+        # 💡 Pedimos también el igic_tipo a la base de datos para poder calcular el total
+        res_prod = client.table("productos").select("sku, nombre, precio_base, igic_tipo, precio_pvp, stock_actual, productos_proveedores(proveedores(nombre_empresa))").execute()
+        
         if res_prod.data:
             df_p = pd.DataFrame(res_prod.data)
+            
+            # Formatear proveedores
             def extraer_proveedores(relaciones):
                 if isinstance(relaciones, list) and len(relaciones) > 0:
                     nombres = [r['proveedores']['nombre_empresa'] for r in relaciones if r.get('proveedores')]
                     return ", ".join(nombres)
                 return "Sin proveedor"
+            
             df_p['Proveedores'] = df_p['productos_proveedores'].apply(extraer_proveedores)
             
-            # Mostramos las columnas ordenadas
-            st.dataframe(df_p[['sku', 'nombre', 'precio_base', 'precio_pvp', 'stock_actual', 'Proveedores']], 
-                         use_container_width=True, height=450, hide_index=True)
+            # 💡 NUEVO: CÁLCULO DEL COSTE TOTAL PARA LA TABLA
+            df_p['Coste_Total'] = df_p['precio_base'] * (1 + df_p['igic_tipo'] / 100)
+            
+            # Ordenamos y renombramos las columnas para que quede bonito y claro
+            df_vista_inv = df_p[['sku', 'nombre', 'precio_base', 'Coste_Total', 'precio_pvp', 'stock_actual', 'Proveedores']].copy()
+            df_vista_inv.columns = ['SKU', 'Producto', 'Coste Neto (€)', 'Coste Total (€)', 'PVP Venta (€)', 'Stock', 'Proveedores']
+            
+            # Mostramos la tabla configurando los decimales
+            st.dataframe(
+                df_vista_inv, 
+                use_container_width=True, 
+                height=450, 
+                hide_index=True,
+                column_config={
+                    "Coste Neto (€)": st.column_config.NumberColumn(format="%.2f"),
+                    "Coste Total (€)": st.column_config.NumberColumn(format="%.2f"),
+                    "PVP Venta (€)": st.column_config.NumberColumn(format="%.2f")
+                }
+            )
         else:
             st.info("Inventario vacío. Añade el primer producto a la izquierda.")
 
