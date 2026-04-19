@@ -890,18 +890,18 @@ with tab8:
         if st.session_state.factura_temporal:
             df_fv = pd.DataFrame(st.session_state.factura_temporal)
             
-            # 💡 AQUÍ ESTÁ LA MAGIA INTERACTIVA
-            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Haz doble clic en <b>Cantidad</b>, <b>Base Ud</b> o <b>Desc %</b> para modificarlos al vuelo.</i></p>", unsafe_allow_html=True)
+            # 💡 ACTUALIZACIÓN: IGIC % AHORA ES EDITABLE CON DESPLEGABLE
+            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Haz doble clic en <b>Cantidad</b>, <b>Base Ud</b>, <b>IGIC %</b> o <b>Desc %</b> para modificarlos al vuelo.</i></p>", unsafe_allow_html=True)
             
             edited_df_v = st.data_editor(
                 df_fv,
                 column_config={
-                    "id": None, "Desc €": None, "Base Neta": None, "IGIC €": None, # Columnas ocultas
+                    "id": None, "Desc €": None, "Base Neta": None, "IGIC €": None, 
                     "Código": st.column_config.TextColumn("Cód/SKU", disabled=True),
                     "Descripción": st.column_config.TextColumn("Descripción", disabled=True),
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=0, step=1),
                     "Base Ud": st.column_config.NumberColumn("Base Ud. (€)", min_value=0.0, format="%.2f"),
-                    "IGIC %": st.column_config.NumberColumn("IGIC %", disabled=True),
+                    "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0], required=True),
                     "Coste Ud (c/IGIC)": st.column_config.NumberColumn("Ud(c/IGIC)", disabled=True, format="%.2f"),
                     "Desc %": st.column_config.NumberColumn("Desc %", min_value=0.0, max_value=100.0, format="%.2f"),
                     "Total Línea": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f")
@@ -910,14 +910,13 @@ with tab8:
                 hide_index=True, use_container_width=True, key="editor_ventas"
             )
 
-            # Recálculo matemático automático si modificas algo en la tabla
+            # Recálculo matemático automático con el nuevo IGIC seleccionado
             edited_df_v['Coste Ud (c/IGIC)'] = edited_df_v['Base Ud'] * (1 + (edited_df_v['IGIC %'] / 100))
             edited_df_v['Desc €'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) * (edited_df_v['Desc %'] / 100)
             edited_df_v['Base Neta'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) - edited_df_v['Desc €']
             edited_df_v['IGIC €'] = edited_df_v['Base Neta'] * (edited_df_v['IGIC %'] / 100)
             edited_df_v['Total Línea'] = edited_df_v['Base Neta'] + edited_df_v['IGIC €']
 
-            # Guardamos los nuevos cálculos para que la factura final sea exacta
             st.session_state.factura_temporal = edited_df_v.to_dict('records')
             
             t_base_imponible = edited_df_v['Base Neta'].sum()
@@ -1089,8 +1088,8 @@ with tab8:
         if st.session_state.entrada_temporal:
             df_ec = pd.DataFrame(st.session_state.entrada_temporal)
             
-            # 💡 MAGIA INTERACTIVA PARA COMPRAS
-            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Haz doble clic en <b>Cantidad</b>, <b>Base Ud</b> o <b>Desc %</b> para modificarlos al vuelo.</i></p>", unsafe_allow_html=True)
+            # 💡 ACTUALIZACIÓN: IGIC % AHORA ES EDITABLE EN COMPRAS TAMBIÉN
+            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Haz doble clic en <b>Cantidad</b>, <b>Base Ud</b>, <b>IGIC %</b> o <b>Desc %</b> para modificarlos al vuelo.</i></p>", unsafe_allow_html=True)
             
             edited_df_c = st.data_editor(
                 df_ec,
@@ -1100,7 +1099,7 @@ with tab8:
                     "Descripción": st.column_config.TextColumn("Descripción", disabled=True),
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=0, step=1),
                     "Base Ud": st.column_config.NumberColumn("Base Ud. (€)", min_value=0.0, format="%.2f"),
-                    "IGIC %": st.column_config.NumberColumn("IGIC %", disabled=True),
+                    "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0], required=True),
                     "Coste Ud (c/IGIC)": st.column_config.NumberColumn("Ud(c/IGIC)", disabled=True, format="%.2f"),
                     "Desc %": st.column_config.NumberColumn("Desc %", min_value=0.0, max_value=100.0, format="%.2f"),
                     "Total Línea": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f")
@@ -1109,7 +1108,7 @@ with tab8:
                 hide_index=True, use_container_width=True, key="editor_compras"
             )
 
-            # Recálculo matemático automático para compras
+            # Recálculo matemático automático para compras con el nuevo IGIC seleccionado
             edited_df_c['Coste Ud (c/IGIC)'] = edited_df_c['Base Ud'] * (1 + (edited_df_c['IGIC %'] / 100))
             edited_df_c['Desc €'] = (edited_df_c['Base Ud'] * edited_df_c['Cantidad']) * (edited_df_c['Desc %'] / 100)
             edited_df_c['Base Neta'] = (edited_df_c['Base Ud'] * edited_df_c['Cantidad']) - edited_df_c['Desc €']
