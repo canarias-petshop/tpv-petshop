@@ -70,11 +70,12 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
 ])
 
 # ==========================================
-# --- TAB 1: INVENTARIO SEPARADO ---
+# --- TAB 1: INVENTARIO EDITABLE Y SEPARADO ---
 # ==========================================
 with tab1:
     col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
+    # 1. Obtener proveedores para el formulario
     res_proveedores = client.table("proveedores").select("id, nombre_empresa").execute()
     dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores.data} if res_proveedores.data else {}
     lista_nombres_prov = list(dict_proveedores.keys())
@@ -83,22 +84,20 @@ with tab1:
         st.markdown("### 📝 Alta de Ítems")
         with st.form("nuevo_p", clear_on_submit=True, border=True):
             nombre = st.text_input("Nombre del Producto/Servicio *")
-            
-            # 💡 AQUÍ ESTÁ LA DIVISIÓN DE CÓDIGOS
             c1, c2, c3 = st.columns(3)
             with c1: sku = st.text_input("SKU (Interno) *")
             with c2: cod_barras = st.text_input("Cód. Barras (Pistola)")
             with c3: cat = st.selectbox("Categoría *", ["Producto", "Servicio"])
             
             c4, c5 = st.columns(2)
-            with c4: p_base = st.number_input("Precio Base (€)", min_value=0.0, format="%.2f", help="Precio de compra sin impuestos")
+            with c4: p_base = st.number_input("Precio Base (€)", min_value=0.0, format="%.2f")
             with c5: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
             
             coste_total_calc = p_base * (1 + (igic_tipo / 100))
-            st.markdown(f"<p style='margin:0; color:#005275; font-size: 13px;'><b>💰 Coste Total (Base + IGIC): {coste_total_calc:.2f} €</b></p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='margin:0; color:#005275; font-size: 13px;'><b>💰 Coste Total: {coste_total_calc:.2f} €</b></p>", unsafe_allow_html=True)
             
             c6, c7 = st.columns(2)
-            with c6: pvp = st.number_input("PVP Final de Venta (€)", min_value=0.0, format="%.2f")
+            with c6: pvp = st.number_input("PVP Venta (€)", min_value=0.0, format="%.2f")
             with c7: stck = st.number_input("Stock Inicial", min_value=0)
             
             provs_sel = st.multiselect("Proveedor/es", lista_nombres_prov)
@@ -108,40 +107,78 @@ with tab1:
                     res_insert = client.table("productos").insert({
                         "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": cat,
                         "precio_base": p_base, "igic_tipo": igic_tipo, 
-                        "stock_actual": stck if cat == "Producto" else 0,
-                        "precio_pvp": pvp
+                        "stock_actual": stck if cat == "Producto" else 0, "precio_pvp": pvp
                     }).execute()
-                    
                     if res_insert.data and provs_sel:
-                        nuevo_id = res_insert.data[0]['id']
-                        relaciones = [{"producto_id": nuevo_id, "proveedor_id": dict_proveedores[p], "precio_coste": p_base} for p in provs_sel]
+                        relaciones = [{"producto_id": res_insert.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base} for p in provs_sel]
                         client.table("productos_proveedores").insert(relaciones).execute()
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
-        res_prod = client.table("productos").select("*").execute()
-        if res_prod.data:
-            df_full = pd.DataFrame(res_prod.data)
-            df_full['Coste Total (€)'] = (df_full['precio_base'] * (1 + df_full['igic_tipo'] / 100)).round(2)
+        # Obtenemos todos los productos
+        res_all = client.table("productos").select("*").order("id", desc=True).execute()
+        if res_all.data:
+            df_all = pd.DataFrame(res_all.data)
+            df_all['Coste Total (€)'] = (df_all['precio_base'] * (1 + df_all['igic_tipo'] / 100)).round(2)
             
-            st.markdown("#### 📦 Productos en Stock")
-            df_p = df_full[df_full['categoria'] == 'Producto'].copy()
+            # --- SECCIÓN 1: PRODUCTOS FÍSICOS (Incluye los que no tienen categoría asignada aún) ---
+            st.markdown("#### 📦 Productos en Stock (Editables)")
+            df_p = df_all[(df_all['categoria'] == 'Producto') | (df_all['categoria'].isna()) | (df_all['categoria'] == '')].copy()
+            
             if not df_p.empty:
-                st.dataframe(
-                    df_p[['sku', 'codigo_barras', 'nombre', 'precio_base', 'Coste Total (€)', 'precio_pvp', 'stock_actual']], 
-                    column_config={"sku": "SKU", "codigo_barras": "EAN (Barras)", "precio_base": "Precio Base", "precio_pvp": "PVP", "stock_actual": "Stock"},
-                    use_container_width=True, hide_index=True, height=250
+                # 💡 USAMOS data_editor PARA QUE PUEDAS MODIFICARLOS AQUÍ MISMO
+                edit_p = st.data_editor(
+                    df_p,
+                    column_config={
+                        "id": None, "categoria": None, "Coste Total (€)": None, # Ocultas
+                        "sku": "SKU", "codigo_barras": "Barras", "nombre": "Producto",
+                        "precio_base": st.column_config.NumberColumn("P. Base", format="%.2f"),
+                        "igic_tipo": "IGIC %",
+                        "precio_pvp": st.column_config.NumberColumn("PVP", format="%.2f"),
+                        "stock_actual": "Stock"
+                    },
+                    column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
+                    hide_index=True, use_container_width=True, key="edit_prod_inv"
                 )
+                
+                if st.button("💾 Guardar cambios en Productos", key="btn_save_p"):
+                    for i, row in edit_p.iterrows():
+                        row_dict = row.to_dict()
+                        if "Coste Total (€)" in row_dict: del row_dict["Coste Total (€)"]
+                        client.table("productos").update(row_dict).eq("id", row["id"]).execute()
+                    st.success("Cambios guardados"); time.sleep(0.5); st.rerun()
+            else:
+                st.info("No hay productos físicos.")
 
             st.markdown("---")
-            st.markdown("#### ✂️ Servicios")
-            df_s = df_full[df_full['categoria'] == 'Servicio'].copy()
+
+            # --- SECCIÓN 2: SERVICIOS ---
+            st.markdown("#### ✂️ Servicios (Peluquería / Veterinaria)")
+            df_s = df_all[df_all['categoria'] == 'Service'].copy() # Corregido para filtrar servicios
+            # Nota: Si antes no tenías categoría, todos tus datos antiguos aparecerán arriba en productos.
+            
+            df_s = df_all[df_all['categoria'] == 'Servicio'].copy()
             if not df_s.empty:
-                st.dataframe(
-                    df_s[['sku', 'nombre', 'precio_base', 'Coste Total (€)', 'precio_pvp']], 
-                    column_config={"sku": "SKU", "precio_base": "Precio Base", "precio_pvp": "PVP"},
-                    use_container_width=True, hide_index=True, height=200
+                edit_s = st.data_editor(
+                    df_s,
+                    column_config={
+                        "id": None, "categoria": None, "Coste Total (€)": None, "stock_actual": None,
+                        "sku": "SKU", "nombre": "Servicio",
+                        "precio_base": st.column_config.NumberColumn("P. Base", format="%.2f"),
+                        "igic_tipo": "IGIC %",
+                        "precio_pvp": st.column_config.NumberColumn("PVP", format="%.2f")
+                    },
+                    column_order=["sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
+                    hide_index=True, use_container_width=True, key="edit_serv_inv"
                 )
+                if st.button("💾 Guardar cambios en Servicios", key="btn_save_s"):
+                    for i, row in edit_s.iterrows():
+                        row_dict = row.to_dict()
+                        if "Coste Total (€)" in row_dict: del row_dict["Coste Total (€)"]
+                        client.table("productos").update(row_dict).eq("id", row["id"]).execute()
+                    st.success("Cambios guardados"); time.sleep(0.5); st.rerun()
+            else:
+                st.info("No hay servicios registrados.")
 
 
 # ==========================================
