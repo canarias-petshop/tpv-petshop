@@ -6,6 +6,7 @@ import time
 import json
 import urllib.parse
 import streamlit.components.v1 as components
+import re
 
 # --- 1. CONFIGURACIÓN Y ESTILO ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
@@ -478,7 +479,6 @@ with tab3:
 with tab4:
     st.markdown("<h3 style='margin-top: -15px; margin-bottom: 5px;'>📜 Historial de Operaciones</h3>", unsafe_allow_html=True)
     
-    # Sub-pestañas para organizar la vista
     sub_h_ventas, sub_h_cajas = st.tabs(["🛒 Tickets y Ventas", "🔒 Cierres de Caja"])
     
     # --- 1. HISTORIAL DE VENTAS Y TICKETS ---
@@ -500,7 +500,7 @@ with tab4:
 
                 df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda']].copy()
                 
-                st.markdown("💡 *Puedes editar Método, Estado o Cliente haciendo doble clic en la tabla.*")
+                st.markdown("💡 *Puedes editar Método, Estado o Cliente haciendo doble clic.*")
                 edited_df = st.data_editor(
                     df_vista,
                     column_config={
@@ -527,7 +527,6 @@ with tab4:
 
                 st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
                 
-                # Buscador y Devoluciones
                 t_buscar = st.number_input("Nº Ticket para ver detalle o devolver:", min_value=1, step=1, value=int(df_v['id'].max()))
                 t_info = df_v[df_v['id'] == t_buscar]
                 if not t_info.empty:
@@ -546,7 +545,7 @@ with tab4:
             else: st.info("No hay ventas en este rango de fechas.")
         except Exception as e: st.error(f"Error cargando ventas: {e}")
 
-    # --- 2. HISTORIAL DE CAJAS ---
+    # --- 2. HISTORIAL DE CAJAS Y CIERRES Z ---
     with sub_h_cajas:
         c_fc1, c_fc2 = st.columns(2)
         with c_fc1: f_inicio_c = st.date_input("Cajas desde:", value=pd.to_datetime('today') - pd.Timedelta(days=7), key="fc1")
@@ -559,20 +558,76 @@ with tab4:
                 df_c = pd.DataFrame(res_cajas.data)
                 df_c['Fecha Apertura'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y %H:%M')
                 df_c_vista = df_c[['id', 'Fecha Apertura', 'fondo_inicial', 'total_contado', 'descuadre']]
-                df_c_vista.columns = ['Turno Nº', 'Fecha y Hora', 'Fondo Inicial (€)', 'Efectivo Final (€)', 'Descuadre (€)']
-                st.dataframe(df_c_vista, use_container_width=True, hide_index=True)
+                df_c_vista.columns = ['Turno Nº', 'Apertura', 'Fondo Inicial (€)', 'Efectivo Final (€)', 'Descuadre (€)']
+                st.dataframe(df_c_vista, use_container_width=True, hide_index=True, height=200)
                 
-                turno_sel = st.selectbox("Selecciona Nº de Turno para ver sus movimientos (entradas/salidas):", [None] + df_c['id'].tolist())
+                st.markdown("#### 🖨️ Desglose e Impresión de Cierre")
+                turno_sel = st.selectbox("Selecciona un Turno para ver su desglose e imprimir el Ticket Z:", [None] + df_c['id'].tolist())
+                
                 if turno_sel:
+                    caja_seleccionada = df_c[df_c['id'] == turno_sel].iloc[0]
+                    resumen = caja_seleccionada.get('resumen_pagos', {})
+                    if not resumen or pd.isna(resumen): resumen = {"Efectivo": 0, "Tarjeta": 0, "Bizum": 0, "Ingresos": 0, "Retiradas": 0}
+                    
+                    # Generar Ticket HTML para imprimir
+                    html_cierre = f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                    <style>
+                        @media screen {{
+                            #ticket-z {{ display: none; }}
+                            .btn-print-z {{ background-color: #d32f2f; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; font-weight: bold; cursor: pointer; }}
+                        }}
+                        @media print {{
+                            #btn-area {{ display: none; }}
+                            #ticket-z {{ display: block; font-family: monospace; font-size: 12px; width: 300px; color: black; }}
+                        }}
+                    </style>
+                    </head>
+                    <body>
+                        <div id="btn-area">
+                            <button class="btn-print-z" onclick="window.print()">🖨️ IMPRIMIR CIERRE Z (TURNO #{turno_sel})</button>
+                        </div>
+                        <div id="ticket-z">
+                            <div style="text-align: center; font-weight: bold; font-size: 16px;">CIERRE DE CAJA Z</div>
+                            <div style="text-align: center;">ANIMALARIUM</div>
+                            <hr style="border-top: 1px dashed black;">
+                            Turno Nº: {turno_sel}<br>
+                            Apertura: {caja_seleccionada['Fecha Apertura']}<br>
+                            Fondo Inicial: {caja_seleccionada['fondo_inicial']:.2f} €<br>
+                            <hr style="border-top: 1px dashed black;">
+                            <b>VENTAS POR MÉTODO:</b><br>
+                            Efectivo: {resumen.get('Efectivo', 0):.2f} €<br>
+                            Tarjeta: {resumen.get('Tarjeta', 0):.2f} €<br>
+                            Bizum: {resumen.get('Bizum', 0):.2f} €<br>
+                            <hr style="border-top: 1px dashed black;">
+                            <b>MOVIMIENTOS DE CAJA:</b><br>
+                            Ingresos Extra: +{resumen.get('Ingresos', 0):.2f} €<br>
+                            Retiradas/Pagos: -{resumen.get('Retiradas', 0):.2f} €<br>
+                            <hr style="border-top: 1px dashed black;">
+                            <b>RESULTADO DEL ARQUEO:</b><br>
+                            Efectivo Contado: {caja_seleccionada['total_contado']:.2f} €<br>
+                            <b>DESCUADRE: {caja_seleccionada['descuadre']:.2f} €</b><br>
+                            <hr style="border-top: 1px dashed black;">
+                            <div style="text-align: center;">Firma Responsable</div>
+                            <br><br><br>
+                        </div>
+                    </body>
+                    </html>
+                    """
+                    components.html(html_cierre, height=50)
+
+                    # Mostrar tabla de movimientos abajo para ver los motivos
                     res_movs = client.table("movimientos_caja").select("*").eq("id_caja", turno_sel).execute()
                     if res_movs.data:
+                        st.markdown("<p style='font-size:12px; color:gray;'>Detalle de Entradas/Salidas de este turno:</p>", unsafe_allow_html=True)
                         df_m = pd.DataFrame(res_movs.data)
                         df_m['Hora'] = pd.to_datetime(df_m['created_at']).dt.strftime('%H:%M')
                         st.dataframe(df_m[['Hora', 'tipo', 'cantidad', 'motivo']], use_container_width=True, hide_index=True)
-                    else: st.info("No hubo movimientos manuales en este turno.")
+                    else: st.info("No hubo Entradas o Salidas manuales en este turno.")
             else: st.warning("No hay registros de cajas cerradas en este rango.")
         except Exception as e: st.error(f"Error cargando cajas: {e}")
-
 
 # ==========================================
 # --- TAB 5: CONTROL DE CAJA FUERTE ---
@@ -583,39 +638,22 @@ with tab5:
         caja_actual = res_caja.data[0] if res_caja.data else None
     except:
         caja_actual = None
-        st.error("Error al conectar con las tablas de caja.")
 
     if not caja_actual:
         st.info("😴 La caja está actualmente CERRADA.")
-        col_abrir, col_historial = st.columns([1, 2.5], gap="large")
-        
-        with col_abrir:
-            with st.form("abrir_caja", border=True):
-                st.markdown("<h4 style='margin: 0 0 10px 0;'>🔓 Apertura de Turno</h4>", unsafe_allow_html=True)
-                fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=1.0)
-                if st.form_submit_button("ABRIR CAJA AHORA", type="primary", use_container_width=True):
-                    client.table("control_caja").insert({"fondo_inicial": float(fondo_ini), "estado": "Abierta"}).execute()
-                    st.success("¡Caja abierta!"); time.sleep(1); st.rerun()
-                    
-        with col_historial:
-            st.markdown("<h4 style='margin: 0 0 10px 0;'>📚 Archivo de Cajas Cerradas</h4>", unsafe_allow_html=True)
-            res_cajas_cerradas = client.table("control_caja").select("*").eq("estado", "Cerrada").order("id", desc=True).execute()
-            
-            if res_cajas_cerradas.data and len(res_cajas_cerradas.data) > 0:
-                df_cajas = pd.DataFrame(res_cajas_cerradas.data)
-                try: df_cajas['Fecha'] = pd.to_datetime(df_cajas['created_at']).dt.strftime('%d/%m/%Y %H:%M')
-                except: df_cajas['Fecha'] = "---"
-                df_vista_cajas = df_cajas[['id', 'Fecha', 'fondo_inicial', 'total_contado', 'descuadre']].copy()
-                df_vista_cajas.columns = ['Turno Nº', 'Apertura', 'Fondo Inicial (€)', 'Recuento Final (€)', 'Descuadre (€)']
-                st.dataframe(df_vista_cajas, use_container_width=True, hide_index=True, height=200)
-            else:
-                st.info("📭 Aún no hay registros de cajas cerradas en el historial.")
+        with st.form("abrir_caja", border=True):
+            st.markdown("<h4 style='margin: 0 0 10px 0;'>🔓 Apertura de Turno</h4>", unsafe_allow_html=True)
+            fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=1.0)
+            if st.form_submit_button("ABRIR CAJA AHORA", type="primary", use_container_width=True):
+                client.table("control_caja").insert({"fondo_inicial": float(fondo_ini), "estado": "Abierta"}).execute()
+                st.success("¡Caja abierta!"); time.sleep(1); st.rerun()
     else:
         id_caja = caja_actual['id']
         fondo_actual = caja_actual['fondo_inicial']
-        fecha_ap = pd.to_datetime(caja_actual['created_at']).strftime('%d/%m/%Y %H:%M')
+        fecha_ap_str = caja_actual['created_at']
+        fecha_ap_visual = pd.to_datetime(fecha_ap_str).strftime('%d/%m/%Y %H:%M')
         
-        st.success(f"🔓 **CAJA ABIERTA** | Inicio: {fecha_ap} | Fondo: **{fondo_actual:.2f}€**")
+        st.success(f"🔓 **CAJA ABIERTA** | Inicio: {fecha_ap_visual} | Fondo: **{fondo_actual:.2f}€**")
         st.markdown("<div style='margin-top: -30px;'></div>", unsafe_allow_html=True) 
         
         c_tit1, c_tit2 = st.columns([1, 1.2], gap="large")
@@ -671,24 +709,53 @@ with tab5:
 
             with st.form("form_cierre_final", border=True):
                 st.markdown("<p style='margin: 0 0 5px 0; font-weight: bold;'>🔒 Confirmar Cierre</p>", unsafe_allow_html=True)
-                st.markdown("<p style='font-size: 14px; margin-bottom: 2px;'>💵 Introduce el Efectivo Real Total:</p>", unsafe_allow_html=True)
                 
                 c_f1, c_f2 = st.columns([1, 1])
-                with c_f1:
-                    efectivo_final = st.number_input("Efectivo", min_value=0.0, value=float(total_calc), label_visibility="collapsed")
-                with c_f2:
-                    submit_cierre = st.form_submit_button("CERRAR CAJA DEFINITIVA", type="primary", use_container_width=True)
+                with c_f1: efectivo_final = st.number_input("Efectivo Final Real", min_value=0.0, value=float(total_calc), label_visibility="collapsed")
+                with c_f2: submit_cierre = st.form_submit_button("CERRAR CAJA DEFINITIVA", type="primary", use_container_width=True)
                     
                 if submit_cierre:
-                    ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0
-                    retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0
-                    total_teorico = fondo_actual + ingresos - retiradas
-                    descuadre = efectivo_final - total_teorico
+                    # 1. Calcular Ingresos y Salidas manuales
+                    ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0.0
+                    retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
                     
+                    # 2. Calcular Ventas por Método desde la apertura de esta caja
+                    res_ventas = client.table("ventas_historial").select("total, metodo_pago, estado").gte("created_at", fecha_ap_str).execute()
+                    
+                    t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
+                    if res_ventas.data:
+                        for v in res_ventas.data:
+                            if v['estado'] != 'DEVUELTO':
+                                mp = str(v.get('metodo_pago', ''))
+                                if mp == 'Efectivo': t_efe += float(v['total'])
+                                elif mp == 'Tarjeta': t_tar += float(v['total'])
+                                elif mp == 'Bizum': t_biz += float(v['total'])
+                                elif 'Mixto' in mp:
+                                    try:
+                                        t_efe += float(re.search(r'E:([0-9.]+)', mp).group(1))
+                                        t_tar += float(re.search(r'T:([0-9.]+)', mp).group(1))
+                                        t_biz += float(re.search(r'B:([0-9.]+)', mp).group(1))
+                                    except: pass # Evita cuelgues si el texto mixto es raro
+                    
+                    # 3. Calcular el Descuadre (Lo que debería haber vs Lo que contaste)
+                    efectivo_teorico_en_caja = fondo_actual + t_efe + ingresos - retiradas
+                    descuadre = efectivo_final - efectivo_teorico_en_caja
+                    
+                    # 4. Preparar el JSON con el desglose para guardarlo
+                    resumen_json = {
+                        "Efectivo": round(t_efe, 2), "Tarjeta": round(t_tar, 2), "Bizum": round(t_biz, 2),
+                        "Ingresos": round(ingresos, 2), "Retiradas": round(retiradas, 2)
+                    }
+                    
+                    # 5. Guardar en Supabase
                     client.table("control_caja").update({
-                        "estado": "Cerrada", "total_contado": float(efectivo_final), "descuadre": float(descuadre)
+                        "estado": "Cerrada", 
+                        "total_contado": float(efectivo_final), 
+                        "descuadre": float(descuadre),
+                        "resumen_pagos": resumen_json
                     }).eq("id", id_caja).execute()
-                    st.success(f"Cerrado. Descuadre: {descuadre:.2f}€")
+                    
+                    st.success(f"Caja Cerrada. Descuadre: {descuadre:.2f}€")
                     time.sleep(1.5); st.rerun()
 
 # ==========================================
