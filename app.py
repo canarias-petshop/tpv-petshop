@@ -70,100 +70,57 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
 ])
 
 # ==========================================
-# --- TAB 1: INVENTARIO MULTI-PROVEEDOR ---
+# --- TAB 1: INVENTARIO (UNIFICADO) ---
 # ==========================================
 with tab1:
     col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
-    # 1. Obtenemos los proveedores para el desplegable
-    res_proveedores = client.table("proveedores").select("id, nombre_empresa").execute()
-    dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores.data} if res_proveedores.data else {}
-    lista_nombres_prov = list(dict_proveedores.keys())
-
     with col_f:
-        st.markdown("### 📝 Nuevo Producto")
+        st.markdown("### 📝 Alta de Ítems")
         with st.form("nuevo_p", clear_on_submit=True, border=True):
-            nombre = st.text_input("Nombre *")
+            nombre = st.text_input("Nombre del Producto/Servicio *")
             c1, c2 = st.columns(2)
             with c1: sku = st.text_input("SKU / Código *")
-            with c2: cat = st.selectbox("Categoría", ["Producto", "Servicio"])
+            with c2: cat = st.selectbox("Categoría *", ["Producto", "Servicio"])
             
             c3, c4 = st.columns(2)
-            with c3: p_base = st.number_input("Coste Neto Base (€)", min_value=0.0, format="%.2f")
+            with c3: p_base = st.number_input("Precio Base (€)", min_value=0.0, format="%.2f", help="Precio de compra sin impuestos")
             with c4: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
             
-            # Cálculo visual de coste (se actualiza al procesar)
-            coste_con_igic = p_base * (1 + (igic_tipo / 100))
-            st.markdown(f"<p style='margin:0; color:#005275; font-size: 13px;'><b>💰 Coste Total (Neto + IGIC): {coste_con_igic:.2f} €</b></p>", unsafe_allow_html=True)
-            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+            coste_total_calc = p_base * (1 + (igic_tipo / 100))
+            st.markdown(f"<p style='margin:0; color:#005275; font-size: 13px;'><b>💰 Coste Total (Base + IGIC): {coste_total_calc:.2f} €</b></p>", unsafe_allow_html=True)
             
             c5, c6 = st.columns(2)
-            with c5: pvp = st.number_input("PVP Final (€)", min_value=0.0, format="%.2f")
+            with c5: pvp = st.number_input("PVP Final de Venta (€)", min_value=0.0, format="%.2f")
             with c6: stck = st.number_input("Stock Inicial", min_value=0)
             
-            provs_seleccionados = st.multiselect("Proveedor/es", lista_nombres_prov, placeholder="Elige uno o varios...")
-            
-            if st.form_submit_button("💾 Guardar Producto", use_container_width=True, type="primary"):
+            if st.form_submit_button("💾 Guardar en Sistema", use_container_width=True, type="primary"):
                 if nombre and sku:
-                    res_insert = client.table("productos").insert({
+                    client.table("productos").insert({
                         "sku": sku, "nombre": nombre, "categoria": cat,
                         "precio_base": p_base, "igic_tipo": igic_tipo, 
-                        "stock_actual": stck, "precio_pvp": pvp
+                        "stock_actual": stck if cat == "Producto" else 0,
+                        "precio_pvp": pvp
                     }).execute()
-                    
-                    if res_insert.data:
-                        nuevo_producto_id = res_insert.data[0]['id']
-                        if provs_seleccionados:
-                            relaciones = []
-                            for prov_nombre in provs_seleccionados:
-                                relaciones.append({
-                                    "producto_id": nuevo_producto_id,
-                                    "proveedor_id": dict_proveedores[prov_nombre],
-                                    "precio_coste": p_base
-                                })
-                            client.table("productos_proveedores").insert(relaciones).execute()
-                        st.success("Añadido correctamente"); time.sleep(0.5); st.rerun()
-                else:
-                    st.warning("Faltan datos obligatorios (Nombre o SKU)")
+                    st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
-        st.markdown("### 📦 Stock Actual")
-        # 💡 Pedimos también el igic_tipo a la base de datos para poder calcular el total
-        res_prod = client.table("productos").select("sku, nombre, precio_base, igic_tipo, precio_pvp, stock_actual, productos_proveedores(proveedores(nombre_empresa))").execute()
-        
+        res_prod = client.table("productos").select("*").execute()
         if res_prod.data:
-            df_p = pd.DataFrame(res_prod.data)
+            df_full = pd.DataFrame(res_prod.data)
+            df_full['Coste Total (€)'] = (df_full['precio_base'] * (1 + df_full['igic_tipo'] / 100)).round(2)
             
-            # Formatear proveedores
-            def extraer_proveedores(relaciones):
-                if isinstance(relaciones, list) and len(relaciones) > 0:
-                    nombres = [r['proveedores']['nombre_empresa'] for r in relaciones if r.get('proveedores')]
-                    return ", ".join(nombres)
-                return "Sin proveedor"
-            
-            df_p['Proveedores'] = df_p['productos_proveedores'].apply(extraer_proveedores)
-            
-            # 💡 NUEVO: CÁLCULO DEL COSTE TOTAL PARA LA TABLA
-            df_p['Coste_Total'] = df_p['precio_base'] * (1 + df_p['igic_tipo'] / 100)
-            
-            # Ordenamos y renombramos las columnas para que quede bonito y claro
-            df_vista_inv = df_p[['sku', 'nombre', 'precio_base', 'Coste_Total', 'precio_pvp', 'stock_actual', 'Proveedores']].copy()
-            df_vista_inv.columns = ['SKU', 'Producto', 'Coste Neto (€)', 'Coste Total (€)', 'PVP Venta (€)', 'Stock', 'Proveedores']
-            
-            # Mostramos la tabla configurando los decimales
-            st.dataframe(
-                df_vista_inv, 
-                use_container_width=True, 
-                height=450, 
-                hide_index=True,
-                column_config={
-                    "Coste Neto (€)": st.column_config.NumberColumn(format="%.2f"),
-                    "Coste Total (€)": st.column_config.NumberColumn(format="%.2f"),
-                    "PVP Venta (€)": st.column_config.NumberColumn(format="%.2f")
-                }
-            )
-        else:
-            st.info("Inventario vacío. Añade el primer producto a la izquierda.")
+            st.markdown("#### 📦 Productos en Stock")
+            df_p = df_full[df_full['categoria'] == 'Producto'].copy()
+            st.dataframe(df_p[['sku', 'nombre', 'precio_base', 'Coste Total (€)', 'precio_pvp', 'stock_actual']], 
+                         column_config={"precio_base": "Precio Base", "precio_pvp": "PVP", "stock_actual": "Stock"},
+                         use_container_width=True, hide_index=True)
+
+            st.markdown("#### ✂️ Servicios")
+            df_s = df_full[df_full['categoria'] == 'Servicio'].copy()
+            st.dataframe(df_s[['sku', 'nombre', 'precio_base', 'Coste Total (€)', 'precio_pvp']], 
+                         column_config={"precio_base": "Precio Base", "precio_pvp": "PVP"},
+                         use_container_width=True, hide_index=True)
 
 
 # ==========================================
@@ -856,10 +813,8 @@ with tab7:
 with tab8:
     st.markdown("<h3 style='margin-top: -15px;'>📑 Gestión de Facturas y Stock</h3>", unsafe_allow_html=True)
     
-    # Creamos las dos sub-pestañas internas
     sub_f_ventas, sub_f_compras = st.tabs(["🛒 Emitir Venta (Cliente)", "🚚 Registrar Compra (Proveedor)"])
 
-    # Obtenemos los productos una sola vez para ambas secciones
     res_inv = client.table("productos").select("*").execute()
     df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
 
@@ -870,7 +825,7 @@ with tab8:
         if 'factura_temporal' not in st.session_state: st.session_state.factura_temporal = []
 
         if not df_inv.empty:
-            opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | {x['precio_pvp']}€", axis=1).tolist()
+            opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | PVP: {x['precio_pvp']}€", axis=1).tolist()
             
             c_v1, c_v2, c_v3 = st.columns([2, 1, 1])
             with c_v1: 
@@ -882,24 +837,30 @@ with tab8:
                     if prod_v:
                         sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
                         datos_p = df_inv[df_inv['sku'] == sku_f].iloc[0]
+                        
                         st.session_state.factura_temporal.append({
-                            "id": datos_p['id'], "Producto": datos_p['nombre'], "SKU": sku_f,
-                            "Cantidad": cant_v, "Precio_PVP": float(datos_p['precio_pvp']),
-                            "IGIC_Tipo": float(datos_p['igic_tipo']), "Subtotal": cant_v * float(datos_p['precio_pvp'])
+                            "id": datos_p['id'], 
+                            "Producto": datos_p['nombre'], 
+                            "SKU": sku_f,
+                            "Cantidad": cant_v, 
+                            "PVP": float(datos_p['precio_pvp']),
+                            "IGIC_Tipo": float(datos_p['igic_tipo']), 
+                            "Total Venta": cant_v * float(datos_p['precio_pvp'])
                         })
                         st.rerun()
 
-        # Detalle de la factura de venta
         if st.session_state.factura_temporal:
             st.markdown("---")
             df_fv = pd.DataFrame(st.session_state.factura_temporal)
-            st.dataframe(df_fv[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True)
             
-            total_v = df_fv['Subtotal'].sum()
-            base_v = sum(item['Subtotal'] / (1 + (item['IGIC_Tipo']/100)) for item in st.session_state.factura_temporal)
+            # Tabla visual para la venta
+            st.dataframe(df_fv[['Producto', 'Cantidad', 'PVP', 'Total Venta']], use_container_width=True, hide_index=True)
+            
+            total_v = df_fv['Total Venta'].sum()
+            base_v = sum(item['Total Venta'] / (1 + (item['IGIC_Tipo']/100)) for item in st.session_state.factura_temporal)
             igic_v = total_v - base_v
             
-            st.info(f"**Base:** {base_v:.2f}€ | **IGIC:** {igic_v:.2f}€ | **TOTAL VENTA:** {total_v:.2f}€")
+            st.info(f"**Base Imponible:** {base_v:.2f}€ | **IGIC:** {igic_v:.2f}€ | **TOTAL VENTA:** {total_v:.2f}€")
 
             res_cli = client.table("clientes").select("id, nombre_dueno, telefono").execute()
             dict_cli = {f"{c['nombre_dueno']} ({c['telefono']})": c['id'] for c in res_cli.data} if res_cli.data else {}
@@ -907,12 +868,11 @@ with tab8:
 
             if st.button("🚀 EMITIR FACTURA Y RESTAR STOCK", type="primary", use_container_width=True):
                 if f_cliente:
-                    # 1. Guardar factura
                     client.table("facturas").insert({
                         "cliente_id": dict_cli[f_cliente], "total_neto": float(base_v),
                         "total_igic": float(igic_v), "total_final": float(total_v)
                     }).execute()
-                    # 2. Restar Stock
+                    
                     for item in st.session_state.factura_temporal:
                         res_st = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
                         n_st = res_st.data[0]['stock_actual'] - item['Cantidad']
@@ -929,12 +889,10 @@ with tab8:
         
         if 'entrada_temporal' not in st.session_state: st.session_state.entrada_temporal = []
 
-        # Escáner/Buscador para compras
         col_c1, col_c2, col_c3 = st.columns([2, 1, 1])
         with col_c1:
-            prod_c = st.selectbox("Escribe o Escanea para COMPRA:", 
-                                 df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist() if not df_inv.empty else [],
-                                 index=None, placeholder="Pistola lista...", key="scan_c_f")
+            opciones_c = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist() if not df_inv.empty else []
+            prod_c = st.selectbox("Escribe o Escanea para COMPRA:", opciones_c, index=None, placeholder="Pistola lista...", key="scan_c_f")
         with col_c2:
             cant_c = st.number_input("Cantidad Recibida", min_value=1, value=1, key="cant_c_f")
         with col_c3:
@@ -942,21 +900,29 @@ with tab8:
                 if prod_c:
                     sku_c = prod_c.split("SKU: ")[1]
                     datos_p = df_inv[df_inv['sku'] == sku_c].iloc[0]
+                    
+                    # Cálculo del coste total con IGIC incluido para esa cantidad
+                    p_base = float(datos_p['precio_base'])
+                    igic = float(datos_p['igic_tipo'])
+                    coste_total_calc = round((p_base * (1 + igic/100)) * cant_c, 2)
+
                     st.session_state.entrada_temporal.append({
-                        "id": datos_p['id'], "Producto": datos_p['nombre'], "SKU": sku_c,
-                        "Cantidad": cant_c, "Coste_Base": float(datos_p['precio_base']),
-                        "Subtotal": cant_c * float(datos_p['precio_base'])
+                        "id": datos_p['id'], 
+                        "Producto": datos_p['nombre'], 
+                        "SKU": sku_c,
+                        "Cantidad": cant_c, 
+                        "Precio Base": p_base,
+                        "Coste Total": coste_total_calc
                     })
                     st.rerun()
 
-        # Crear producto "Al Vuelo"
         with st.expander("✨ ¿Producto nuevo que no tienes en inventario? Créalo aquí"):
             with st.form("nuevo_p_express", clear_on_submit=True):
                 st.write("Rellena para añadirlo a la factura y al inventario a la vez:")
                 en_nom = st.text_input("Nombre *")
                 en_sku = st.text_input("SKU / Código *")
                 ec1, ec2, ec3 = st.columns(3)
-                with ec1: en_coste = st.number_input("Coste Neto (€)", min_value=0.0)
+                with ec1: en_coste = st.number_input("Precio Base (€)", min_value=0.0)
                 with ec2: en_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
                 with ec3: en_pvp = st.number_input("PVP Venta (€)", min_value=0.0)
                 
@@ -966,18 +932,25 @@ with tab8:
                             "nombre": en_nom, "sku": en_sku, "precio_base": en_coste, 
                             "igic_tipo": en_igic, "precio_pvp": en_pvp, "stock_actual": 0
                         }).execute()
+                        
                         if res_new.data:
+                            coste_total_nuevo = round((en_coste * (1 + en_igic/100)) * 1, 2)
                             st.session_state.entrada_temporal.append({
-                                "id": res_new.data[0]['id'], "Producto": en_nom, "SKU": en_sku,
-                                "Cantidad": 1, "Coste_Base": en_coste, "Subtotal": en_coste
+                                "id": res_new.data[0]['id'], 
+                                "Producto": en_nom, 
+                                "SKU": en_sku,
+                                "Cantidad": 1, 
+                                "Precio Base": en_coste, 
+                                "Coste Total": coste_total_nuevo
                             })
                             st.success("Producto creado."); time.sleep(1); st.rerun()
 
-        # Detalle de la entrada de stock
         if st.session_state.entrada_temporal:
             st.markdown("---")
             df_ec = pd.DataFrame(st.session_state.entrada_temporal)
-            st.dataframe(df_ec[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True)
+            
+            # Tabla visual para la compra
+            st.dataframe(df_ec[['Producto', 'Cantidad', 'Precio Base', 'Coste Total']], use_container_width=True, hide_index=True)
             
             res_p = client.table("proveedores").select("id, nombre_empresa").execute()
             dict_p = {p['nombre_empresa']: p['id'] for p in res_p.data} if res_p.data else {}
@@ -985,13 +958,12 @@ with tab8:
 
             if st.button("🚀 REGISTRAR COMPRA Y SUMAR STOCK", type="primary", use_container_width=True, key="btn_final_c"):
                 if prov_sel:
-                    # 1. Guardar en compras (Contabilidad)
-                    total_c = df_ec['Subtotal'].sum()
+                    total_c = df_ec['Coste Total'].sum()
                     client.table("compras").insert({
                         "proveedor_id": dict_p[prov_sel], "tipo": "Mercadería",
                         "total": float(total_c), "estado": "Pagado"
                     }).execute()
-                    # 2. Sumar Stock
+                    
                     for item in st.session_state.entrada_temporal:
                         res_curr = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
                         n_st = res_curr.data[0]['stock_actual'] + item['Cantidad']
@@ -1028,26 +1000,65 @@ with tab9:
             st.success("Base de datos actualizada correctamente")
 
 # ==========================================
-# --- TAB 10: CONTABILIDAD Y ARCHIVO ---
+# --- TAB 10: CONTABILIDAD Y ARCHIVO DOCUMENTAL ---
 # ==========================================
 with tab10:
-    st.markdown("<h3 style='margin-bottom: 5px;'>📊 Contabilidad y Archivo Documental</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-bottom: 5px;'>📊 Contabilidad y Archivo</h3>", unsafe_allow_html=True)
     
     sub_fungible, sub_archivo, sub_balance = st.tabs(["🧾 Gastos Fungibles", "🗄️ Archivo de Facturas", "⚖️ Balance Global"])
 
-    # --- 1. GESTIÓN DE GASTOS FUNGIBLES (Lo que ya teníamos) ---
+    # --- 1. GESTIÓN DE GASTOS FUNGIBLES ---
     with sub_fungible:
-        # (Aquí mantienes el código de los gastos operativos/limpieza que pusimos antes)
-        pass
+        col_f1, col_f2 = st.columns([1, 2], gap="large")
+        with col_f1:
+            with st.form("gasto_operativo", clear_on_submit=True, border=True):
+                st.markdown("#### Registrar Gasto (Luz, Limpieza...)")
+                
+                # Lista de proveedores para el desplegable (Opcional para un gasto general)
+                res_prov = client.table("proveedores").select("id, nombre_empresa").execute()
+                dict_prov = {p['nombre_empresa']: p['id'] for p in res_prov.data} if res_prov.data else {}
+                
+                prov_gasto = st.selectbox("Proveedor / Empresa (Opcional)", ["Sin especificar"] + list(dict_prov.keys()))
+                g_total = st.number_input("Coste Total (€) *", min_value=0.0, format="%.2f")
+                g_estado = st.selectbox("Estado", ["Pagado", "Pendiente"])
+                
+                if st.form_submit_button("✅ Guardar Gasto", type="primary", use_container_width=True):
+                    if g_total > 0:
+                        data_insert = {
+                            "tipo": "Gasto Operativo", 
+                            "total": g_total, 
+                            "estado": g_estado, 
+                            "fecha_vencimiento": str(datetime.now().date())
+                        }
+                        if prov_gasto != "Sin especificar":
+                            data_insert["proveedor_id"] = dict_prov[prov_gasto]
+                            
+                        client.table("compras").insert(data_insert).execute()
+                        st.success("Gasto registrado correctamente."); time.sleep(1); st.rerun()
+                    else:
+                        st.error("El importe debe ser mayor a 0€.")
 
-    # --- 2. ARCHIVO DOCUMENTAL (NUEVO: El corazón de tus documentos) ---
+        with col_f2:
+            st.markdown("#### Listado de Gastos Operativos")
+            res_g = client.table("compras").select("*, proveedores(nombre_empresa)").eq("tipo", "Gasto Operativo").order("id", desc=True).execute()
+            if res_g.data:
+                df_g = pd.DataFrame(res_g.data)
+                df_g['Fecha'] = pd.to_datetime(df_g['created_at']).dt.strftime('%d/%m/%Y')
+                df_g['Entidad'] = df_g['proveedores'].apply(lambda x: x['nombre_empresa'] if isinstance(x, dict) else "Gasto General")
+                st.dataframe(df_g[['Fecha', 'Entidad', 'total', 'estado']], 
+                             column_config={"total": st.column_config.NumberColumn("Coste Total (€)", format="%.2f")},
+                             use_container_width=True, hide_index=True, height=250)
+            else:
+                st.info("No hay gastos operativos registrados.")
+
+    # --- 2. ARCHIVO DOCUMENTAL (Buscador, PDF e Email) ---
     with sub_archivo:
         st.markdown("#### 📂 Buscador de Facturas Emitidas y Recibidas")
         
         c_af1, c_af2, c_af3 = st.columns([1, 1, 1])
         with c_af1: tipo_doc = st.selectbox("Tipo de documento:", ["Facturas de Venta (Clientes)", "Facturas de Compra (Proveedores)"])
-        with c_af2: f_desde = st.date_input("Desde:", value=pd.to_datetime('today') - pd.Timedelta(days=30))
-        with c_af3: f_hasta = st.date_input("Hasta:", value=pd.to_datetime('today'))
+        with c_af2: f_desde = st.date_input("Desde la fecha:", value=pd.to_datetime('today') - pd.Timedelta(days=30))
+        with c_af3: f_hasta = st.date_input("Hasta la fecha:", value=pd.to_datetime('today'))
 
         try:
             if tipo_doc == "Facturas de Venta (Clientes)":
@@ -1061,61 +1072,82 @@ with tab10:
                 df_docs = pd.DataFrame(res_docs.data)
                 df_docs['Fecha'] = pd.to_datetime(df_docs['created_at']).dt.strftime('%d/%m/%Y')
                 
-                # Extraer nombre del cliente o proveedor
                 if tipo_doc == "Facturas de Venta (Clientes)":
-                    df_docs['Entidad'] = df_docs['clientes'].apply(lambda x: x['nombre_dueno'] if x else "N/A")
+                    df_docs['Entidad'] = df_docs['clientes'].apply(lambda x: x['nombre_dueno'] if isinstance(x, dict) else "N/A")
                     df_docs['Importe'] = df_docs['total_final']
                 else:
-                    df_docs['Entidad'] = df_docs['proveedores'].apply(lambda x: x['nombre_empresa'] if x else "Gasto General")
+                    df_docs['Entidad'] = df_docs['proveedores'].apply(lambda x: x['nombre_empresa'] if isinstance(x, dict) else "Gasto General")
                     df_docs['Importe'] = df_docs['total']
 
                 st.markdown("---")
-                # Selector de factura para ver detalle
-                doc_sel_id = st.selectbox("Selecciona una factura para gestionar:", df_docs['id'].tolist(), format_func=lambda x: f"Factura #{x} - {df_docs[df_docs['id']==x]['Entidad'].values[0]} ({df_docs[df_docs['id']==x]['Importe'].values[0]}€)")
+                doc_sel_id = st.selectbox("Selecciona una factura para imprimir o enviar:", df_docs['id'].tolist(), format_func=lambda x: f"Factura #{x} - {df_docs[df_docs['id']==x]['Entidad'].values[0]} ({df_docs[df_docs['id']==x]['Importe'].values[0]:.2f}€)")
                 
                 if doc_sel_id:
                     doc_data = df_docs[df_docs['id'] == doc_sel_id].iloc[0]
                     
-                    # Panel de acciones
                     c_act1, c_act2 = st.columns(2)
-                    
                     with c_act1:
-                        # Botón de Impresión
+                        # 🖨️ Generador de impresión
                         html_factura = f"""
                         <script>
                         function imprimir() {{
                             var win = window.open('', '', 'height=700,width=700');
-                            win.document.write('<html><head><title>Factura {doc_sel_id}</title></head><body>');
-                            win.document.write('<h1>ANIMALARIUM</h1>');
+                            win.document.write('<html><head><title>Factura {doc_sel_id}</title></head><body style="font-family:sans-serif; padding:20px;">');
+                            win.document.write('<h1 style="color:#005275;">ANIMALARIUM</h1>');
                             win.document.write('<p><b>Factura Nº:</b> {doc_sel_id}</p>');
                             win.document.write('<p><b>Fecha:</b> {doc_data['Fecha']}</p>');
                             win.document.write('<p><b>{nombre_col_entidad}:</b> {doc_data['Entidad']}</p>');
                             win.document.write('<hr><h3>TOTAL: {doc_data['Importe']:.2f}€</h3>');
                             win.document.write('</body></html>');
                             win.document.close();
-                            win.print();
+                            setTimeout(function(){{ win.print(); }}, 500);
                         }}
                         </script>
-                        <button onclick="imprimir()" style="width:100%; padding:10px; background-color:#005275; color:white; border:none; border-radius:5px; cursor:pointer;">🖨️ Imprimir Factura</button>
+                        <button onclick="imprimir()" style="width:100%; padding:10px; background-color:#005275; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🖨️ Imprimir Factura</button>
                         """
                         components.html(html_factura, height=50)
                     
                     with c_act2:
-                        # Botón de Email (Mailto)
-                        email_dest = doc_data['clientes']['email'] if tipo_doc == "Facturas de Venta (Clientes)" and doc_data['clientes'] else ""
+                        # ✉️ Generador de Email
+                        email_dest = doc_data['clientes']['email'] if tipo_doc == "Facturas de Venta (Clientes)" and isinstance(doc_data.get('clientes'), dict) else ""
                         asunto = f"Factura {doc_sel_id} - Animalarium"
                         cuerpo = f"Hola {doc_data['Entidad']},\n\nAdjuntamos los detalles de su factura por importe de {doc_data['Importe']:.2f}€.\n\nSaludos,\nAnimalarium."
                         url_mail = f"mailto:{email_dest}?subject={urllib.parse.quote(asunto)}&body={urllib.parse.quote(cuerpo)}"
-                        st.markdown(f'<a href="{url_mail}" target="_blank" style="text-decoration:none;"><button style="width:100%; padding:10px; background-color:#2e7d32; color:white; border:none; border-radius:5px; cursor:pointer;">✉️ Enviar por Email</button></a>', unsafe_allow_html=True)
+                        st.markdown(f'<a href="{url_mail}" target="_blank" style="text-decoration:none;"><button style="width:100%; padding:10px; background-color:#2e7d32; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">✉️ Enviar por Email</button></a>', unsafe_allow_html=True)
             else:
-                st.info("No se encontraron documentos en este rango.")
+                st.info("📭 No se encontraron documentos en este rango de fechas.")
         except Exception as e:
             st.error(f"Error al consultar el archivo: {e}")
 
-    # --- 3. BALANCE GLOBAL (Lo que ya teníamos) ---
+    # --- 3. BALANCE GLOBAL (Salud de la Empresa) ---
     with sub_balance:
-        # (Mantienes el código del balance de salud financiera que pusimos antes)
-        pass
+        st.markdown("#### ⚖️ Salud Financiera (Contraste Total)")
+        
+        try:
+            # 1. Sumar Ingresos (Facturas Oficiales + Tickets de Caja)
+            res_v_fac = client.table("facturas").select("total_final").execute()
+            v_total_facturas = sum(v['total_final'] for v in res_v_fac.data) if res_v_fac.data else 0
+            
+            res_v_tk = client.table("ventas_historial").select("total, estado").execute()
+            v_total_tickets = sum(t['total'] for t in res_v_tk.data if t['estado'] != 'DEVUELTO') if res_v_tk.data else 0
+            
+            v_total_ingresos = v_total_facturas + v_total_tickets
+            
+            # 2. Sumar Gastos (Mercadería y Fungibles)
+            res_c = client.table("compras").select("total, tipo").execute()
+            c_mercaderia = sum(c['total'] for c in res_c.data if c['tipo'] == 'Mercadería') if res_c.data else 0
+            c_fungible = sum(c['total'] for c in res_c.data if c['tipo'] == 'Gasto Operativo') if res_c.data else 0
+            
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Ingresos (PVP Tickets/Fac)", f"{v_total_ingresos:.2f}€")
+            c2.metric("Inversión Stock (Coste Total)", f"-{c_mercaderia:.2f}€")
+            c3.metric("Gastos (Luz, Fungibles)", f"-{c_fungible:.2f}€")
+            
+            beneficio = v_total_ingresos - c_mercaderia - c_fungible
+            c4.metric("BENEFICIO NETO", f"{beneficio:.2f}€", delta=f"{beneficio:.2f}€")
+            
+        except Exception as e:
+            st.error(f"Error calculando el balance: {e}")
 
 # ==========================================
 # --- TAB 11: AGENDA Y CITAS ---
