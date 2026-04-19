@@ -839,7 +839,7 @@ with tab8:
     res_inv = client.table("productos").select("*").execute()
     df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
 
-    # --- 1. FACTURAS DE VENTA ---
+    # --- 1. FACTURAS DE VENTA (A CLIENTES) ---
     with sub_f_ventas:
         if 'factura_temporal' not in st.session_state: st.session_state.factura_temporal = []
         
@@ -884,7 +884,6 @@ with tab8:
 
         st.markdown("#### 2. Añadir Artículos")
         if not df_inv.empty:
-            # 💡 AHORA EL BUSCADOR TAMBIÉN INCLUYE EL CÓDIGO DE BARRAS PARA LA PISTOLA
             opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | EAN: {x.get('codigo_barras', '')} | PVP: {x['precio_pvp']}€", axis=1).tolist()
             c_v1, c_v2, c_v3, c_v4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
             with c_v1: prod_v = st.selectbox("Buscar producto o Escanear:", opciones_v, index=None, key="busq_v_f")
@@ -917,6 +916,42 @@ with tab8:
                         })
                         st.rerun()
 
+        # 💡 NUEVO: Creador Express para Ventas (Productos/Servicios que no tienes registrados)
+        with st.expander("✨ ¿Ítem nuevo no registrado? Créalo aquí"):
+            with st.form("nuevo_v_express", clear_on_submit=True):
+                ev_nom = st.text_input("Nombre del Ítem *", key="ev_nom")
+                
+                e_cv1, e_cv2, e_cv3 = st.columns(3)
+                with e_cv1: ev_sku = st.text_input("SKU (Interno) *", key="ev_sku")
+                with e_cv2: ev_ean = st.text_input("Cód. Barras", key="ev_ean")
+                with e_cv3: ev_cat = st.selectbox("Categoría", ["Producto", "Servicio"], key="ev_cat")
+                
+                ecv1, ecv2, ecv3 = st.columns(3)
+                with ecv1: ev_coste = st.number_input("Tu Precio Base de Compra (€)", min_value=0.0, key="ev_coste")
+                with ecv2: ev_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0], key="ev_igic")
+                with ecv3: ev_pvp = st.number_input("PVP Final a Cliente (€)", min_value=0.0, key="ev_pvp")
+                
+                if st.form_submit_button("💾 Crear y añadir a esta factura de venta"):
+                    if ev_nom and ev_sku:
+                        res_new_v = client.table("productos").insert({
+                            "nombre": ev_nom, "sku": ev_sku, "codigo_barras": ev_ean, "categoria": ev_cat,
+                            "precio_base": ev_coste, "igic_tipo": ev_igic, "precio_pvp": ev_pvp, "stock_actual": 0
+                        }).execute()
+                        if res_new_v.data:
+                            # Matemática adaptada a la venta (sacamos la base imponible desde el PVP)
+                            base_unitaria = ev_pvp / (1 + (ev_igic / 100))
+                            coste_unitario_con_igic = base_unitaria * (1 + (ev_igic / 100))
+                            igic_linea = base_unitaria * (ev_igic / 100)
+                            total_linea = base_unitaria + igic_linea
+                            
+                            st.session_state.factura_temporal.append({
+                                "id": res_new_v.data[0]['id'], "Código": ev_sku, "Descripción": ev_nom,
+                                "Cantidad": 1, "Base Ud": base_unitaria, "IGIC %": ev_igic, 
+                                "Coste Total Ud": coste_unitario_con_igic, "Desc %": 0.0, 
+                                "Desc €": 0.0, "Base Neta": base_unitaria, "IGIC €": igic_linea, "Total Línea": total_linea
+                            })
+                            st.success("Ítem creado en Inventario y añadido a la factura."); time.sleep(1); st.rerun()
+
         if st.session_state.factura_temporal:
             df_fv = pd.DataFrame(st.session_state.factura_temporal)
             
@@ -948,7 +983,8 @@ with tab8:
             cambio_detectado_v = False
             for col in ['Cantidad', 'Base Ud', 'IGIC %', 'Desc %']:
                 if not edited_df_v[col].equals(df_fv[col]):
-                    cambio_detectado_v = True; break
+                    cambio_detectado_v = True
+                    break
                     
             if cambio_detectado_v:
                 st.session_state.factura_temporal = edited_df_v.to_dict('records')
@@ -1111,7 +1147,6 @@ with tab8:
             with st.form("nuevo_p_express", clear_on_submit=True):
                 en_nom = st.text_input("Nombre *", key="en_nom")
                 
-                # 💡 AHORA HAY DOS CASILLAS AL CREARLO EXPRESS
                 e_c1, e_c2 = st.columns(2)
                 with e_c1: en_sku = st.text_input("SKU (Interno) *", key="en_sku")
                 with e_c2: en_ean = st.text_input("Cód. Barras (Pistola)", key="en_ean")
