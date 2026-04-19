@@ -896,3 +896,145 @@ with tab9:
             for index, row in edited_db.iterrows():
                 client.table(t_sel).update(row.to_dict()).eq("id", row["id"]).execute()
             st.success("Base de datos actualizada correctamente")
+
+# ==========================================
+# --- TAB 10: CONTABILIDAD TOTAL ---
+# ==========================================
+with tab10:
+    st.markdown("<h3 style='margin-bottom: 5px;'>📊 Contabilidad y Gastos</h3>", unsafe_allow_html=True)
+    col_inf, col_list = st.columns([1, 2], gap="large")
+
+    with col_inf:
+        with st.form("nueva_compra", clear_on_submit=True, border=True):
+            st.markdown("#### 🧾 Registrar Gasto/Factura")
+            
+            # Traemos los proveedores para el desplegable
+            res_prov_cont = client.table("proveedores").select("id, nombre_empresa").execute()
+            dict_prov_cont = {p['nombre_empresa']: p['id'] for p in res_prov_cont.data} if res_prov_cont.data else {}
+            
+            tipo_c = st.radio("Tipo de Gasto *", ["Gasto Operativo (Limpieza, luz...)", "Mercadería (Productos para vender)"])
+            prov_c = st.selectbox("Proveedor", list(dict_prov_cont.keys()), index=None, placeholder="Selecciona un proveedor...")
+            
+            c_g1, c_g2 = st.columns(2)
+            with c_g1: total_c = st.number_input("Total Factura (€) *", min_value=0.0, format="%.2f")
+            with c_g2: fecha_v = st.date_input("Fecha Vencimiento")
+            
+            estado_p = st.selectbox("Estado de Pago", ["Pagado", "No Pagado"])
+            
+            # Solo mostramos esto si es mercadería
+            st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size: 12px; color: gray;'>Si es Mercadería, escribe el SKU y la cantidad para sumar al inventario automáticamente:</p>", unsafe_allow_html=True)
+            c_s1, c_s2 = st.columns(2)
+            with c_s1: sku_c = st.text_input("SKU del producto")
+            with c_s2: cant_c = st.number_input("Unidades recibidas", min_value=0, value=0)
+
+            if st.form_submit_button("✅ Registrar en Contabilidad", use_container_width=True, type="primary"):
+                if total_c > 0 and prov_c:
+                    tipo_guardar = "Mercadería" if "Mercadería" in tipo_c else "Gasto Operativo"
+                    
+                    # 1. Guardar en la tabla compras
+                    client.table("compras").insert({
+                        "proveedor_id": dict_prov_cont[prov_c],
+                        "tipo": tipo_guardar,
+                        "total": total_c,
+                        "estado": estado_p,
+                        "fecha_vencimiento": str(fecha_v)
+                    }).execute()
+                    
+                    # 2. Sumar stock si es mercadería
+                    if tipo_guardar == "Mercadería" and sku_c and cant_c > 0:
+                        res_prod = client.table("productos").select("id, stock_actual").eq("sku", sku_c).execute()
+                        if res_prod.data:
+                            nuevo_stock = res_prod.data[0]['stock_actual'] + cant_c
+                            client.table("productos").update({"stock_actual": nuevo_stock}).eq("id", res_prod.data[0]['id']).execute()
+                            st.success(f"Stock actualizado. Nuevo stock: {nuevo_stock}")
+                        else:
+                            st.warning("Gasto registrado, pero el SKU no existe en inventario.")
+                    
+                    st.success("Factura registrada correctamente.")
+                    time.sleep(1.5)
+                    st.rerun()
+                else:
+                    st.error("Falta el Total o seleccionar Proveedor.")
+
+    with col_list:
+        st.markdown("#### 📑 Historial de Obligaciones")
+        res_compras = client.table("compras").select("id, created_at, tipo, total, estado, fecha_vencimiento, proveedores(nombre_empresa)").order("created_at", desc=True).execute()
+        
+        if res_compras.data:
+            df_compras = pd.DataFrame(res_compras.data)
+            df_compras['Proveedor'] = df_compras['proveedores'].apply(lambda x: x['nombre_empresa'] if isinstance(x, dict) else "N/A")
+            df_compras['Fecha'] = pd.to_datetime(df_compras['created_at']).dt.strftime('%d/%m/%Y')
+            
+            df_vista_c = df_compras[['Fecha', 'Proveedor', 'tipo', 'total', 'estado', 'fecha_vencimiento']]
+            df_vista_c.columns = ['Fecha Reg.', 'Proveedor', 'Tipo', 'Total (€)', 'Estado', 'Vence el']
+            
+            st.dataframe(df_vista_c, use_container_width=True, hide_index=True, height=400)
+        else:
+            st.info("No hay facturas de compras registradas aún.")
+
+
+# ==========================================
+# --- TAB 11: AGENDA Y CITAS ---
+# ==========================================
+with tab11:
+    st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
+    
+    # Traemos las mascotas y sus dueños
+    res_m = client.table("mascotas").select("id, nombre, clientes(nombre_dueno)").execute()
+    dict_mascotas = {}
+    if res_m.data:
+        for m in res_m.data:
+            dueno = m['clientes']['nombre_dueno'] if m.get('clientes') else "Desconocido"
+            dict_mascotas[f"🐾 {m['nombre']} (De: {dueno})"] = m['id']
+
+    c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
+    
+    with c_agenda1:
+        with st.form("nueva_cita", border=True):
+            st.markdown("#### ➕ Nueva Cita")
+            mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None)
+            fecha_c = st.date_input("Fecha *")
+            hora_c = st.time_input("Hora *")
+            servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
+            
+            if st.form_submit_button("Guardar Cita", type="primary", use_container_width=True):
+                if mascota_sel:
+                    # Combinamos fecha y hora para Supabase
+                    fecha_hora_str = f"{fecha_c} {hora_c}"
+                    client.table("citas").insert({
+                        "mascota_id": dict_mascotas[mascota_sel],
+                        "fecha_hora": fecha_hora_str,
+                        "servicio": servicio_sel
+                    }).execute()
+                    st.success("Cita agendada correctamente.")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Debes seleccionar una mascota.")
+
+    with c_agenda2:
+        st.markdown("#### 🗓️ Próximas Citas")
+        # Traemos las citas futuras ordenadas por fecha
+        res_citas = client.table("citas").select("id, fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
+        
+        if res_citas.data:
+            citas_formateadas = []
+            for c in res_citas.data:
+                dt_obj = pd.to_datetime(c['fecha_hora'])
+                mascota_info = c.get('mascotas', {})
+                cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
+                
+                citas_formateadas.append({
+                    "Día": dt_obj.strftime('%d/%m/%Y'),
+                    "Hora": dt_obj.strftime('%H:%M'),
+                    "Mascota": mascota_info.get('nombre', 'N/A'),
+                    "Servicio": c['servicio'],
+                    "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
+                    "Teléfono": cliente_info.get('telefono', 'N/A')
+                })
+                
+            df_citas = pd.DataFrame(citas_formateadas)
+            st.dataframe(df_citas, use_container_width=True, hide_index=True, height=400)
+        else:
+            st.info("No hay citas agendadas en el sistema.")            
