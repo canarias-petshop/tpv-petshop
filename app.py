@@ -61,10 +61,11 @@ with c_logo:
 with c_titulo:
     st.markdown("<h1 style='margin: 0; padding: 0; font-size: 1.8rem; line-height: 1;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
 
-# 🚨 DEFINICIÓN CORRECTA DE LAS 9 PESTAÑAS 🚨
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+# 🚨 DEFINICIÓN CORRECTA DE LAS 11 PESTAÑAS 🚨
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
     "📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", 
-    "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores", "📑 Facturación", "⚙️ Admin"
+    "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores", "📑 Facturación", "⚙️ Admin",
+    "📊 Contabilidad", "📅 Agenda"
 ])
 
 # ==========================================
