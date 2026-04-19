@@ -70,38 +70,52 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
 ])
 
 # ==========================================
-# --- TAB 1: INVENTARIO (UNIFICADO) ---
+# --- TAB 1: INVENTARIO SEPARADO ---
 # ==========================================
 with tab1:
     col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
+    res_proveedores = client.table("proveedores").select("id, nombre_empresa").execute()
+    dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores.data} if res_proveedores.data else {}
+    lista_nombres_prov = list(dict_proveedores.keys())
+
     with col_f:
         st.markdown("### 📝 Alta de Ítems")
         with st.form("nuevo_p", clear_on_submit=True, border=True):
             nombre = st.text_input("Nombre del Producto/Servicio *")
-            c1, c2 = st.columns(2)
-            with c1: sku = st.text_input("SKU / Código *")
-            with c2: cat = st.selectbox("Categoría *", ["Producto", "Servicio"])
             
-            c3, c4 = st.columns(2)
-            with c3: p_base = st.number_input("Precio Base (€)", min_value=0.0, format="%.2f", help="Precio de compra sin impuestos")
-            with c4: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
+            # 💡 AQUÍ ESTÁ LA DIVISIÓN DE CÓDIGOS
+            c1, c2, c3 = st.columns(3)
+            with c1: sku = st.text_input("SKU (Interno) *")
+            with c2: cod_barras = st.text_input("Cód. Barras (Pistola)")
+            with c3: cat = st.selectbox("Categoría *", ["Producto", "Servicio"])
+            
+            c4, c5 = st.columns(2)
+            with c4: p_base = st.number_input("Precio Base (€)", min_value=0.0, format="%.2f", help="Precio de compra sin impuestos")
+            with c5: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
             
             coste_total_calc = p_base * (1 + (igic_tipo / 100))
             st.markdown(f"<p style='margin:0; color:#005275; font-size: 13px;'><b>💰 Coste Total (Base + IGIC): {coste_total_calc:.2f} €</b></p>", unsafe_allow_html=True)
             
-            c5, c6 = st.columns(2)
-            with c5: pvp = st.number_input("PVP Final de Venta (€)", min_value=0.0, format="%.2f")
-            with c6: stck = st.number_input("Stock Inicial", min_value=0)
+            c6, c7 = st.columns(2)
+            with c6: pvp = st.number_input("PVP Final de Venta (€)", min_value=0.0, format="%.2f")
+            with c7: stck = st.number_input("Stock Inicial", min_value=0)
+            
+            provs_sel = st.multiselect("Proveedor/es", lista_nombres_prov)
             
             if st.form_submit_button("💾 Guardar en Sistema", use_container_width=True, type="primary"):
                 if nombre and sku:
-                    client.table("productos").insert({
-                        "sku": sku, "nombre": nombre, "categoria": cat,
+                    res_insert = client.table("productos").insert({
+                        "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": cat,
                         "precio_base": p_base, "igic_tipo": igic_tipo, 
                         "stock_actual": stck if cat == "Producto" else 0,
                         "precio_pvp": pvp
                     }).execute()
+                    
+                    if res_insert.data and provs_sel:
+                        nuevo_id = res_insert.data[0]['id']
+                        relaciones = [{"producto_id": nuevo_id, "proveedor_id": dict_proveedores[p], "precio_coste": p_base} for p in provs_sel]
+                        client.table("productos_proveedores").insert(relaciones).execute()
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
@@ -112,15 +126,22 @@ with tab1:
             
             st.markdown("#### 📦 Productos en Stock")
             df_p = df_full[df_full['categoria'] == 'Producto'].copy()
-            st.dataframe(df_p[['sku', 'nombre', 'precio_base', 'Coste Total (€)', 'precio_pvp', 'stock_actual']], 
-                         column_config={"precio_base": "Precio Base", "precio_pvp": "PVP", "stock_actual": "Stock"},
-                         use_container_width=True, hide_index=True)
+            if not df_p.empty:
+                st.dataframe(
+                    df_p[['sku', 'codigo_barras', 'nombre', 'precio_base', 'Coste Total (€)', 'precio_pvp', 'stock_actual']], 
+                    column_config={"sku": "SKU", "codigo_barras": "EAN (Barras)", "precio_base": "Precio Base", "precio_pvp": "PVP", "stock_actual": "Stock"},
+                    use_container_width=True, hide_index=True, height=250
+                )
 
+            st.markdown("---")
             st.markdown("#### ✂️ Servicios")
             df_s = df_full[df_full['categoria'] == 'Servicio'].copy()
-            st.dataframe(df_s[['sku', 'nombre', 'precio_base', 'Coste Total (€)', 'precio_pvp']], 
-                         column_config={"precio_base": "Precio Base", "precio_pvp": "PVP"},
-                         use_container_width=True, hide_index=True)
+            if not df_s.empty:
+                st.dataframe(
+                    df_s[['sku', 'nombre', 'precio_base', 'Coste Total (€)', 'precio_pvp']], 
+                    column_config={"sku": "SKU", "precio_base": "Precio Base", "precio_pvp": "PVP"},
+                    use_container_width=True, hide_index=True, height=200
+                )
 
 
 # ==========================================
@@ -818,7 +839,7 @@ with tab8:
     res_inv = client.table("productos").select("*").execute()
     df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
 
-    # --- 1. FACTURAS DE VENTA (A CLIENTES) ---
+    # --- 1. FACTURAS DE VENTA ---
     with sub_f_ventas:
         if 'factura_temporal' not in st.session_state: st.session_state.factura_temporal = []
         
@@ -831,10 +852,17 @@ with tab8:
         res_cli = client.table("clientes").select("*").execute()
         df_cli = pd.DataFrame(res_cli.data) if res_cli.data else pd.DataFrame()
         
+        opciones_cli = df_cli.apply(lambda x: f"{x['nombre_dueno']} - CIF/NIF: {x.get('cif', 'N/A')}", axis=1).tolist() if not df_cli.empty else []
+        idx_cli = None
+        if 'cli_recien_creado' in st.session_state:
+            for i, op in enumerate(opciones_cli):
+                if op.startswith(st.session_state.cli_recien_creado + " -"):
+                    idx_cli = i
+                    break
+
         c_cli1, c_cli2 = st.columns([2, 1], vertical_alignment="bottom")
         with c_cli1:
-            opciones_cli = df_cli.apply(lambda x: f"{x['nombre_dueno']} - CIF/NIF: {x.get('cif', 'N/A')}", axis=1).tolist() if not df_cli.empty else []
-            f_cliente = st.selectbox("Cliente:", opciones_cli, index=None, placeholder="Selecciona un cliente...", key="sel_cli_v")
+            f_cliente = st.selectbox("Cliente:", opciones_cli, index=idx_cli, placeholder="Selecciona un cliente...", key="sel_cli_v")
         
         with st.expander("✨ ¿Cliente nuevo? Crear ficha rápida"):
             with st.form("nuevo_cli_express", clear_on_submit=True):
@@ -851,13 +879,15 @@ with tab8:
                             "nombre_dueno": n_nom_c, "cif": n_cif_c, "direccion": n_dir_c,
                             "telefono": n_tel_c, "email": n_email_c
                         }).execute()
-                        st.success("Cliente creado. Seleccionalo arriba."); time.sleep(1); st.rerun()
+                        st.session_state.cli_recien_creado = n_nom_c 
+                        st.success("Cliente creado y autoseleccionado."); time.sleep(1); st.rerun()
 
         st.markdown("#### 2. Añadir Artículos")
         if not df_inv.empty:
-            opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | PVP: {x['precio_pvp']}€", axis=1).tolist()
+            # 💡 AHORA EL BUSCADOR TAMBIÉN INCLUYE EL CÓDIGO DE BARRAS PARA LA PISTOLA
+            opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | EAN: {x.get('codigo_barras', '')} | PVP: {x['precio_pvp']}€", axis=1).tolist()
             c_v1, c_v2, c_v3, c_v4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
-            with c_v1: prod_v = st.selectbox("Buscar producto:", opciones_v, index=None, key="busq_v_f")
+            with c_v1: prod_v = st.selectbox("Buscar producto o Escanear:", opciones_v, index=None, key="busq_v_f")
             with c_v2: cant_v = st.number_input("Cantidad", min_value=1, value=1, key="cant_v_f")
             with c_v3: desc_v = st.number_input("Desc. %", min_value=0.0, max_value=100.0, value=0.0, key="desc_v_f")
             with c_v4:
@@ -909,7 +939,6 @@ with tab8:
                 hide_index=True, use_container_width=True, key="editor_ventas"
             )
 
-            # --- MAGIA DEL RECÁLCULO AUTOMÁTICO EN PANTALLA ---
             edited_df_v['Coste Total Ud'] = edited_df_v['Base Ud'] * (1 + (edited_df_v['IGIC %'] / 100))
             edited_df_v['Desc €'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) * (edited_df_v['Desc %'] / 100)
             edited_df_v['Base Neta'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) - edited_df_v['Desc €']
@@ -919,16 +948,13 @@ with tab8:
             cambio_detectado_v = False
             for col in ['Cantidad', 'Base Ud', 'IGIC %', 'Desc %']:
                 if not edited_df_v[col].equals(df_fv[col]):
-                    cambio_detectado_v = True
-                    break
+                    cambio_detectado_v = True; break
                     
             if cambio_detectado_v:
                 st.session_state.factura_temporal = edited_df_v.to_dict('records')
-                st.rerun() # Fuerza la actualización visual al instante
+                st.rerun()
             else:
                 st.session_state.factura_temporal = edited_df_v.to_dict('records')
-            
-            # --- FIN MAGIA ---
 
             t_base_imponible = edited_df_v['Base Neta'].sum()
             t_descuentos = edited_df_v['Desc €'].sum()
@@ -963,7 +989,7 @@ with tab8:
                 <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 12px;">
                     <tr style="background: #005275; color: white;">
                         <th style="padding: 5px;">Cód/SKU</th><th style="padding: 5px;">Descripción</th><th style="padding: 5px;">Cant.</th>
-                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px;">Coste Total Ud.</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px; text-align:right;">Total Línea</th>
+                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px;">Ud(c/IGIC)</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px; text-align:right;">Total Línea</th>
                     </tr>
             """
             for item in st.session_state.factura_temporal:
@@ -992,7 +1018,10 @@ with tab8:
 
             c_fin1, c_fin2 = st.columns([1, 2])
             with c_fin1:
-                if st.button("🗑️ Cancelar / Vaciar", key="vaciar_v"): st.session_state.factura_temporal = []; st.rerun()
+                if st.button("🗑️ Cancelar / Vaciar", key="vaciar_v"): 
+                    st.session_state.factura_temporal = []
+                    if 'cli_recien_creado' in st.session_state: del st.session_state['cli_recien_creado']
+                    st.rerun()
             with c_fin2:
                 if st.button("🚀 CONFIRMAR FACTURA, IMPRIMIR Y RESTAR STOCK", type="primary", use_container_width=True, key="conf_v"):
                     if f_cliente:
@@ -1004,6 +1033,7 @@ with tab8:
                             res_st = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
                             client.table("productos").update({"stock_actual": res_st.data[0]['stock_actual'] - item['Cantidad']}).eq("id", item['id']).execute()
                         st.session_state.factura_temporal = []
+                        if 'cli_recien_creado' in st.session_state: del st.session_state['cli_recien_creado']
                         st.success("¡Factura Emitida!"); time.sleep(1); st.rerun()
                     else: st.error("Debes seleccionar un cliente para emitir la factura.")
 
@@ -1020,10 +1050,17 @@ with tab8:
         res_prov = client.table("proveedores").select("*").execute()
         df_prov = pd.DataFrame(res_prov.data) if res_prov.data else pd.DataFrame()
         
+        opciones_prov = df_prov.apply(lambda x: f"{x['nombre_empresa']} - CIF: {x.get('contacto', 'N/A')[:15]}...", axis=1).tolist() if not df_prov.empty else []
+        idx_prov = None
+        if 'prov_recien_creado' in st.session_state:
+            for i, op in enumerate(opciones_prov):
+                if op.startswith(st.session_state.prov_recien_creado + " -"):
+                    idx_prov = i
+                    break
+
         c_pr1, c_pr2 = st.columns([2, 1], vertical_alignment="bottom")
         with c_pr1:
-            opciones_prov = df_prov.apply(lambda x: f"{x['nombre_empresa']} - CIF: {x.get('contacto', 'N/A')[:15]}...", axis=1).tolist() if not df_prov.empty else []
-            prov_sel = st.selectbox("Selecciona Proveedor:", opciones_prov, index=None, placeholder="Empresa proveedora...", key="sel_prov_c")
+            prov_sel = st.selectbox("Selecciona Proveedor:", opciones_prov, index=idx_prov, placeholder="Empresa proveedora...", key="sel_prov_c")
             
         with st.expander("✨ ¿Proveedor nuevo? Crear ficha rápida"):
             with st.form("nuevo_prov_express", clear_on_submit=True):
@@ -1034,12 +1071,13 @@ with tab8:
                 if st.form_submit_button("💾 Guardar Proveedor"):
                     if n_nom_p and n_cif_p:
                         client.table("proveedores").insert({"nombre_empresa": n_nom_p, "contacto": f"CIF: {n_cif_p} | {n_datos_p}"}).execute()
-                        st.success("Proveedor creado."); time.sleep(1); st.rerun()
+                        st.session_state.prov_recien_creado = n_nom_p
+                        st.success("Proveedor creado y autoseleccionado."); time.sleep(1); st.rerun()
 
         st.markdown("#### 2. Entrar Mercancía (Scanner)")
         c_c1, c_c2, c_c3, c_c4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
         with c_c1:
-            op_prod_c = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist() if not df_inv.empty else []
+            op_prod_c = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | EAN: {x.get('codigo_barras', '')}", axis=1).tolist() if not df_inv.empty else []
             prod_c = st.selectbox("Escanea producto:", op_prod_c, index=None, key="scan_c_f")
         with c_c2: cant_c = st.number_input("Cant.", min_value=1, value=1, key="cant_c_f")
         with c_c3: desc_c = st.number_input("Desc % Proveedor", min_value=0.0, value=0.0, key="desc_c_f")
@@ -1047,7 +1085,7 @@ with tab8:
             st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
             if st.button("➕ Añadir Entrada", use_container_width=True, key="btn_c_f"):
                 if prod_c:
-                    sku_c = prod_c.split("SKU: ")[1]
+                    sku_c = prod_c.split("SKU: ")[1].split(" | ")[0]
                     datos_p = df_inv[df_inv['sku'] == sku_c].iloc[0]
                     
                     p_base = float(datos_p['precio_base'])
@@ -1072,7 +1110,12 @@ with tab8:
         with st.expander("✨ ¿Producto nuevo de proveedor? Créalo aquí"):
             with st.form("nuevo_p_express", clear_on_submit=True):
                 en_nom = st.text_input("Nombre *", key="en_nom")
-                en_sku = st.text_input("SKU / Código de Barras *", key="en_sku")
+                
+                # 💡 AHORA HAY DOS CASILLAS AL CREARLO EXPRESS
+                e_c1, e_c2 = st.columns(2)
+                with e_c1: en_sku = st.text_input("SKU (Interno) *", key="en_sku")
+                with e_c2: en_ean = st.text_input("Cód. Barras (Pistola)", key="en_ean")
+                
                 ec1, ec2, ec3 = st.columns(3)
                 with ec1: en_coste = st.number_input("Precio Base de Compra (€)", min_value=0.0, key="en_coste")
                 with ec2: en_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0], key="en_igic")
@@ -1080,7 +1123,7 @@ with tab8:
                 if st.form_submit_button("💾 Crear producto en Inventario y Factura"):
                     if en_nom and en_sku:
                         res_new = client.table("productos").insert({
-                            "nombre": en_nom, "sku": en_sku, "precio_base": en_coste, 
+                            "nombre": en_nom, "sku": en_sku, "codigo_barras": en_ean, "precio_base": en_coste, 
                             "igic_tipo": en_igic, "precio_pvp": en_pvp, "stock_actual": 0
                         }).execute()
                         if res_new.data:
@@ -1094,7 +1137,7 @@ with tab8:
                                 "Coste Total Ud": coste_unitario_con_igic, "Desc %": 0.0, 
                                 "Desc €": 0.0, "Base Neta": en_coste, "IGIC €": igic_linea, "Total Línea": total_linea
                             })
-                            st.success("Producto creado."); time.sleep(1); st.rerun()
+                            st.success("Producto creado y añadido a la tabla."); time.sleep(1); st.rerun()
 
         if st.session_state.entrada_temporal:
             df_ec = pd.DataFrame(st.session_state.entrada_temporal)
@@ -1118,7 +1161,6 @@ with tab8:
                 hide_index=True, use_container_width=True, key="editor_compras"
             )
 
-            # --- MAGIA DEL RECÁLCULO AUTOMÁTICO PARA COMPRAS ---
             edited_df_c['Coste Total Ud'] = edited_df_c['Base Ud'] * (1 + (edited_df_c['IGIC %'] / 100))
             edited_df_c['Desc €'] = (edited_df_c['Base Ud'] * edited_df_c['Cantidad']) * (edited_df_c['Desc %'] / 100)
             edited_df_c['Base Neta'] = (edited_df_c['Base Ud'] * edited_df_c['Cantidad']) - edited_df_c['Desc €']
@@ -1128,16 +1170,13 @@ with tab8:
             cambio_detectado_c = False
             for col in ['Cantidad', 'Base Ud', 'IGIC %', 'Desc %']:
                 if not edited_df_c[col].equals(df_ec[col]):
-                    cambio_detectado_c = True
-                    break
+                    cambio_detectado_c = True; break
                     
             if cambio_detectado_c:
                 st.session_state.entrada_temporal = edited_df_c.to_dict('records')
-                st.rerun() # Fuerza la actualización visual al instante
+                st.rerun() 
             else:
                 st.session_state.entrada_temporal = edited_df_c.to_dict('records')
-
-            # --- FIN MAGIA ---
             
             c_base_imponible = edited_df_c['Base Neta'].sum()
             c_descuentos = edited_df_c['Desc €'].sum()
@@ -1196,7 +1235,10 @@ with tab8:
 
             c_fin_c1, c_fin_c2 = st.columns([1, 2])
             with c_fin_c1:
-                if st.button("🗑️ Cancelar / Vaciar", key="vaciar_c"): st.session_state.entrada_temporal = []; st.rerun()
+                if st.button("🗑️ Cancelar / Vaciar", key="vaciar_c"): 
+                    st.session_state.entrada_temporal = []
+                    if 'prov_recien_creado' in st.session_state: del st.session_state['prov_recien_creado']
+                    st.rerun()
             with c_fin_c2:
                 if st.button("🚀 REGISTRAR COMPRA PROVEEDOR Y SUMAR STOCK", type="primary", use_container_width=True, key="conf_c"):
                     if prov_sel and n_factura_prov:
@@ -1213,36 +1255,53 @@ with tab8:
                             client.table("productos").update({"stock_actual": res_curr.data[0]['stock_actual'] + item['Cantidad']}).eq("id", item['id']).execute()
                         
                         st.session_state.entrada_temporal = []
+                        if 'prov_recien_creado' in st.session_state: del st.session_state['prov_recien_creado']
                         st.success("¡Stock aumentado y factura de proveedor registrada!"); time.sleep(1); st.rerun()
                     else:
                         st.error("Debes seleccionar un proveedor y escribir el Nº de Factura del proveedor.")
 
-# --- TAB 9: ADMIN (EDICIÓN ACTIVA) ---
+# ==========================================
+# --- TAB 9: ADMIN (EDICIÓN AVANZADA) ---
+# ==========================================
 with tab9:
-    st.markdown("### ⚙️ Editor Maestro de Datos")
-    t_sel = st.selectbox("Tabla:", ["productos", "clientes", "proveedores", "facturas"])
+    st.markdown("<h3 style='margin-top: -15px;'>⚙️ Editor Maestro de Datos</h3>", unsafe_allow_html=True)
+    t_sel = st.selectbox("Selecciona la tabla para editar:", ["productos", "clientes", "proveedores", "facturas"])
     
-    res = client.table(t_sel).select("*").execute()
+    res = client.table(t_sel).select("*").order("id", desc=True).execute()
     if res.data:
         df_admin = pd.DataFrame(res.data)
         
-        # CONFIGURACIÓN ESPECIAL PARA PRODUCTOS
         col_config = {}
         if t_sel == "productos":
+            df_admin['coste_total_calc'] = (df_admin['precio_base'] * (1 + df_admin['igic_tipo'] / 100)).round(2)
+            
+            # 💡 AQUÍ SE AÑADE LA COLUMNA DE CÓDIGO DE BARRAS AL EDITOR
             col_config = {
-                "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[0, 3, 7, 15], required=True),
-                "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
-                "precio_pvp": st.column_config.NumberColumn("PVP (€)", format="%.2f"),
+                "nombre": "Nombre Ítem",
+                "categoria": st.column_config.SelectboxColumn("Categoría", options=["Producto", "Servicio"]),
+                "sku": "SKU",
+                "codigo_barras": "Cód. Barras",
+                "igic_tipo": st.column_config.NumberColumn("IGIC %", step=1),
+                "precio_base": st.column_config.NumberColumn("Precio Base (€)", format="%.2f"),
+                "coste_total_calc": st.column_config.NumberColumn("Coste Total (€)", format="%.2f", disabled=True),
+                "precio_pvp": st.column_config.NumberColumn("PVP Final (€)", format="%.2f"),
                 "stock_actual": st.column_config.NumberColumn("Stock", step=1)
             }
+            # Reordenamos columnas
+            cols_orden = ["id", "sku", "codigo_barras", "nombre", "categoria", "precio_base", "igic_tipo", "coste_total_calc", "precio_pvp", "stock_actual"]
+            df_admin = df_admin[cols_orden]
 
-        edited_db = st.data_editor(df_admin, use_container_width=True, hide_index=True, column_config=col_config, key="db_editor")
+        edited_db = st.data_editor(df_admin, use_container_width=True, hide_index=True, column_config=col_config, key="admin_editor")
 
-        if st.button("💾 GUARDAR CAMBIOS EN LA BASE DE DATOS"):
-            # Aquí va la lógica que compara y actualiza en Supabase
+        if st.button("💾 GUARDAR CAMBIOS EN LA NUBE"):
             for index, row in edited_db.iterrows():
-                client.table(t_sel).update(row.to_dict()).eq("id", row["id"]).execute()
-            st.success("Base de datos actualizada correctamente")
+                datos_fila = row.to_dict()
+                if "coste_total_calc" in datos_fila:
+                    del datos_fila["coste_total_calc"]
+                # Limpiamos NaN para evitar errores
+                datos_fila_limpios = {k: v for k, v in datos_fila.items() if pd.notna(v)}
+                client.table(t_sel).update(datos_fila_limpios).eq("id", row["id"]).execute()
+            st.success("Base de datos sincronizada con éxito."); time.sleep(1); st.rerun()
 
 # ==========================================
 # --- TAB 10: CONTABILIDAD Y ARCHIVO DOCUMENTAL ---
