@@ -1300,17 +1300,35 @@ with tab8:
 # ==========================================
 with tab9:
     st.markdown("<h3 style='margin-top: -15px;'>⚙️ Editor Maestro de Datos</h3>", unsafe_allow_html=True)
-    t_sel = st.selectbox("Selecciona la tabla para editar:", ["productos", "clientes", "proveedores", "facturas"])
     
-    res = client.table(t_sel).select("*").order("id", desc=True).execute()
+    # 💡 AQUÍ ESTÁ EL MENÚ COMPLETO Y ACTUALIZADO
+    opcion_edicion = st.selectbox("Selecciona la tabla para editar:", 
+        ["Productos Físicos", "Servicios", "Todos los Productos (Sin Filtro)", "Clientes", "Proveedores", "Facturas", "Compras"]
+    )
+    
+    # Lógica para saber qué pedirle a la base de datos según lo que elijas
+    if opcion_edicion == "Productos Físicos":
+        tabla_db = "productos"
+        res = client.table(tabla_db).select("*").eq("categoria", "Producto").order("id", desc=True).execute()
+    elif opcion_edicion == "Servicios":
+        tabla_db = "productos"
+        res = client.table(tabla_db).select("*").eq("categoria", "Servicio").order("id", desc=True).execute()
+    elif opcion_edicion == "Todos los Productos (Sin Filtro)":
+        tabla_db = "productos"
+        res = client.table(tabla_db).select("*").order("id", desc=True).execute()
+    else:
+        tabla_db = opcion_edicion.lower()
+        res = client.table(tabla_db).select("*").order("id", desc=True).execute()
+    
     if res.data:
         df_admin = pd.DataFrame(res.data)
         
         col_config = {}
-        if t_sel == "productos":
+        if tabla_db == "productos":
+            # Calculamos el coste total para verlo en la tabla
             df_admin['coste_total_calc'] = (df_admin['precio_base'] * (1 + df_admin['igic_tipo'] / 100)).round(2)
             
-            # 💡 AQUÍ SE AÑADE LA COLUMNA DE CÓDIGO DE BARRAS AL EDITOR
+            # Configuramos cómo se ven las columnas (incluyendo código de barras)
             col_config = {
                 "nombre": "Nombre Ítem",
                 "categoria": st.column_config.SelectboxColumn("Categoría", options=["Producto", "Servicio"]),
@@ -1322,21 +1340,30 @@ with tab9:
                 "precio_pvp": st.column_config.NumberColumn("PVP Final (€)", format="%.2f"),
                 "stock_actual": st.column_config.NumberColumn("Stock", step=1)
             }
-            # Reordenamos columnas
+            
+            # Ordenamos las columnas para que sea fácil de leer
             cols_orden = ["id", "sku", "codigo_barras", "nombre", "categoria", "precio_base", "igic_tipo", "coste_total_calc", "precio_pvp", "stock_actual"]
+            cols_orden = [c for c in cols_orden if c in df_admin.columns]
             df_admin = df_admin[cols_orden]
 
-        edited_db = st.data_editor(df_admin, use_container_width=True, hide_index=True, column_config=col_config, key="admin_editor")
+        # La tabla editable
+        edited_db = st.data_editor(df_admin, use_container_width=True, hide_index=True, column_config=col_config, key=f"admin_editor_{opcion_edicion}")
 
-        if st.button("💾 GUARDAR CAMBIOS EN LA NUBE"):
+        if st.button("💾 GUARDAR CAMBIOS EN LA NUBE", type="primary"):
             for index, row in edited_db.iterrows():
                 datos_fila = row.to_dict()
+                
+                # Borramos la columna inventada antes de mandarlo a Supabase
                 if "coste_total_calc" in datos_fila:
                     del datos_fila["coste_total_calc"]
-                # Limpiamos NaN para evitar errores
+                
+                # Limpiamos datos vacíos para que no dé errores
                 datos_fila_limpios = {k: v for k, v in datos_fila.items() if pd.notna(v)}
-                client.table(t_sel).update(datos_fila_limpios).eq("id", row["id"]).execute()
-            st.success("Base de datos sincronizada con éxito."); time.sleep(1); st.rerun()
+                client.table(tabla_db).update(datos_fila_limpios).eq("id", row["id"]).execute()
+                
+            st.success("✅ Base de datos sincronizada con éxito."); time.sleep(1); st.rerun()
+    else:
+        st.info(f"Todavía no hay datos registrados en {opcion_edicion}.")
 
 # ==========================================
 # --- TAB 10: CONTABILIDAD Y ARCHIVO DOCUMENTAL ---
