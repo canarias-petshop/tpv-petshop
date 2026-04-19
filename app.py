@@ -867,9 +867,11 @@ with tab8:
                         sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
                         datos_p = df_inv[df_inv['sku'] == sku_f].iloc[0]
                         
+                        # Cálculos matemáticos
                         pvp_con_igic = float(datos_p['precio_pvp'])
                         igic_porc = float(datos_p['igic_tipo'])
                         base_unitaria = pvp_con_igic / (1 + (igic_porc / 100))
+                        coste_unitario_con_igic = base_unitaria * (1 + (igic_porc / 100))
                         
                         subtotal_antes_desc = base_unitaria * cant_v
                         descuento_eur = subtotal_antes_desc * (desc_v / 100)
@@ -879,14 +881,18 @@ with tab8:
 
                         st.session_state.factura_temporal.append({
                             "id": datos_p['id'], "Código": sku_f, "Descripción": datos_p['nombre'], 
-                            "Cantidad": cant_v, "Base Ud": base_unitaria, "Desc %": desc_v,
+                            "Cantidad": cant_v, "Base Ud": base_unitaria, "IGIC %": igic_porc, 
+                            "Coste Ud (c/IGIC)": coste_unitario_con_igic, "Desc %": desc_v,
                             "Desc €": descuento_eur, "Base Neta": base_neta_linea, 
-                            "IGIC %": igic_porc, "IGIC €": igic_linea, "Total Línea": total_linea
+                            "IGIC €": igic_linea, "Total Línea": total_linea
                         })
                         st.rerun()
 
         if st.session_state.factura_temporal:
             df_fv = pd.DataFrame(st.session_state.factura_temporal)
+            
+            # Mostramos en Streamlit el desglose que pediste
+            st.dataframe(df_fv[['Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Coste Ud (c/IGIC)', 'Desc %', 'Total Línea']], use_container_width=True, hide_index=True)
             
             t_base_imponible = df_fv['Base Neta'].sum()
             t_descuentos = df_fv['Desc €'].sum()
@@ -918,10 +924,10 @@ with tab8:
                     <b>Datos del Cliente:</b><br>
                     {nombre_cli}<br>CIF/NIF: {cif_cli}<br>Dirección: {dir_cli}
                 </div>
-                <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px;">
+                <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 12px;">
                     <tr style="background: #005275; color: white;">
                         <th style="padding: 5px;">Cód/SKU</th><th style="padding: 5px;">Descripción</th><th style="padding: 5px;">Cant.</th>
-                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px; text-align:right;">Total</th>
+                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px;">Ud(c/IGIC)</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px; text-align:right;">Total Línea</th>
                     </tr>
             """
             for item in st.session_state.factura_temporal:
@@ -929,7 +935,8 @@ with tab8:
                     <tr style="border-bottom: 1px solid #eee;">
                         <td style="padding: 5px;">{item['Código']}</td><td style="padding: 5px;">{item['Descripción']}</td>
                         <td style="padding: 5px; text-align:center;">{item['Cantidad']}</td><td style="padding: 5px; text-align:center;">{item['Base Ud']:.2f}€</td>
-                        <td style="padding: 5px; text-align:center;">{item['Desc %']}%</td><td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td>
+                        <td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td><td style="padding: 5px; text-align:center;">{item['Coste Ud (c/IGIC)']:.2f}€</td>
+                        <td style="padding: 5px; text-align:center;">{item['Desc %']}%</td>
                         <td style="padding: 5px; text-align:right;">{item['Total Línea']:.2f}€</td>
                     </tr>"""
             
@@ -1009,6 +1016,7 @@ with tab8:
                     
                     p_base = float(datos_p['precio_base'])
                     igic_porc = float(datos_p['igic_tipo'])
+                    coste_unitario_con_igic = p_base * (1 + (igic_porc / 100))
                     
                     subtotal_antes_desc = p_base * cant_c
                     descuento_eur = subtotal_antes_desc * (desc_c / 100)
@@ -1018,9 +1026,10 @@ with tab8:
 
                     st.session_state.entrada_temporal.append({
                         "id": datos_p['id'], "Código": sku_c, "Descripción": datos_p['nombre'],
-                        "Cantidad": cant_c, "Precio Base Ud": p_base, "Desc %": desc_c,
+                        "Cantidad": cant_c, "Base Ud": p_base, "IGIC %": igic_porc, 
+                        "Coste Ud (c/IGIC)": coste_unitario_con_igic, "Desc %": desc_c,
                         "Desc €": descuento_eur, "Base Neta": base_neta_linea, 
-                        "IGIC %": igic_porc, "IGIC €": igic_linea, "Total Línea": total_linea
+                        "IGIC €": igic_linea, "Total Línea": total_linea
                     })
                     st.rerun()
 
@@ -1039,17 +1048,22 @@ with tab8:
                             "igic_tipo": en_igic, "precio_pvp": en_pvp, "stock_actual": 0
                         }).execute()
                         if res_new.data:
+                            coste_unitario_con_igic = en_coste * (1 + (en_igic / 100))
                             igic_linea = en_coste * (en_igic / 100)
                             total_linea = en_coste + igic_linea
+                            
                             st.session_state.entrada_temporal.append({
                                 "id": res_new.data[0]['id'], "Código": en_sku, "Descripción": en_nom,
-                                "Cantidad": 1, "Precio Base Ud": en_coste, "Desc %": 0.0, "Desc €": 0.0,
-                                "Base Neta": en_coste, "IGIC %": en_igic, "IGIC €": igic_linea, "Total Línea": total_linea
+                                "Cantidad": 1, "Base Ud": en_coste, "IGIC %": en_igic, 
+                                "Coste Ud (c/IGIC)": coste_unitario_con_igic, "Desc %": 0.0, 
+                                "Desc €": 0.0, "Base Neta": en_coste, "IGIC €": igic_linea, "Total Línea": total_linea
                             })
                             st.success("Producto creado."); time.sleep(1); st.rerun()
 
         if st.session_state.entrada_temporal:
             df_ec = pd.DataFrame(st.session_state.entrada_temporal)
+            
+            st.dataframe(df_ec[['Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Coste Ud (c/IGIC)', 'Desc %', 'Total Línea']], use_container_width=True, hide_index=True)
             
             c_base_imponible = df_ec['Base Neta'].sum()
             c_descuentos = df_ec['Desc €'].sum()
@@ -1076,18 +1090,19 @@ with tab8:
                         <b>Cliente:</b> ANIMALARIUM<br>
                     </div>
                 </div>
-                <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px;">
+                <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 12px;">
                     <tr style="background: #2e7d32; color: white;">
                         <th style="padding: 5px;">Cód/SKU</th><th style="padding: 5px;">Descripción</th><th style="padding: 5px;">Cant.</th>
-                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px; text-align:right;">Total</th>
+                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px;">Ud(c/IGIC)</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px; text-align:right;">Total Línea</th>
                     </tr>
             """
             for item in st.session_state.entrada_temporal:
                 html_fac_compra += f"""
                     <tr style="border-bottom: 1px solid #eee;">
                         <td style="padding: 5px;">{item['Código']}</td><td style="padding: 5px;">{item['Descripción']}</td>
-                        <td style="padding: 5px; text-align:center;">{item['Cantidad']}</td><td style="padding: 5px; text-align:center;">{item['Precio Base Ud']:.2f}€</td>
-                        <td style="padding: 5px; text-align:center;">{item['Desc %']}%</td><td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td>
+                        <td style="padding: 5px; text-align:center;">{item['Cantidad']}</td><td style="padding: 5px; text-align:center;">{item['Base Ud']:.2f}€</td>
+                        <td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td><td style="padding: 5px; text-align:center;">{item['Coste Ud (c/IGIC)']:.2f}€</td>
+                        <td style="padding: 5px; text-align:center;">{item['Desc %']}%</td>
                         <td style="padding: 5px; text-align:right;">{item['Total Línea']:.2f}€</td>
                     </tr>"""
             
@@ -1127,7 +1142,7 @@ with tab8:
                         st.success("¡Stock aumentado y factura de proveedor registrada!"); time.sleep(1); st.rerun()
                     else:
                         st.error("Debes seleccionar un proveedor y escribir el Nº de Factura del proveedor.")
-                        
+
 # --- TAB 9: ADMIN (EDICIÓN ACTIVA) ---
 with tab9:
     st.markdown("### ⚙️ Editor Maestro de Datos")
