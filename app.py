@@ -837,92 +837,149 @@ with tab7:
 with tab8:
     st.markdown("<h3 style='margin-top: -15px;'>📑 Gestión de Facturas y Stock</h3>", unsafe_allow_html=True)
     
+    # Creamos las dos sub-pestañas internas
     sub_f_ventas, sub_f_compras = st.tabs(["🛒 Emitir Venta (Cliente)", "🚚 Registrar Compra (Proveedor)"])
 
-    # --- SUB-TAB: VENTAS (Lo que ya tenías mejorado) ---
-    with sub_f_ventas:
-        st.caption("Emite facturas legales a clientes y descuenta stock.")
-        # ... (Aquí va tu código actual de facturación a clientes que ya funcionaba) ...
-        # (Lo mantenemos igual para no romper lo que ya usas)
+    # Obtenemos los productos una sola vez para ambas secciones
+    res_inv = client.table("productos").select("*").execute()
+    df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
 
-    # --- SUB-TAB: COMPRAS (NUEVO: Escáner y Suma de Stock) ---
+    # --- 1. SUB-PESTAÑA: VENTAS (Para Clientes) ---
+    with sub_f_ventas:
+        st.markdown("#### 🔍 1. Crear Factura para Cliente")
+        
+        if 'factura_temporal' not in st.session_state: st.session_state.factura_temporal = []
+
+        if not df_inv.empty:
+            opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | {x['precio_pvp']}€", axis=1).tolist()
+            
+            c_v1, c_v2, c_v3 = st.columns([2, 1, 1])
+            with c_v1: 
+                prod_v = st.selectbox("Buscar producto:", opciones_v, index=None, placeholder="Escribe o escanea...", key="busq_v_f")
+            with c_v2: 
+                cant_v = st.number_input("Cantidad", min_value=1, value=1, key="cant_v_f")
+            with c_v3:
+                if st.button("➕ Añadir a Factura", use_container_width=True, key="btn_v_f"):
+                    if prod_v:
+                        sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
+                        datos_p = df_inv[df_inv['sku'] == sku_f].iloc[0]
+                        st.session_state.factura_temporal.append({
+                            "id": datos_p['id'], "Producto": datos_p['nombre'], "SKU": sku_f,
+                            "Cantidad": cant_v, "Precio_PVP": float(datos_p['precio_pvp']),
+                            "IGIC_Tipo": float(datos_p['igic_tipo']), "Subtotal": cant_v * float(datos_p['precio_pvp'])
+                        })
+                        st.rerun()
+
+        # Detalle de la factura de venta
+        if st.session_state.factura_temporal:
+            st.markdown("---")
+            df_fv = pd.DataFrame(st.session_state.factura_temporal)
+            st.dataframe(df_fv[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True)
+            
+            total_v = df_fv['Subtotal'].sum()
+            base_v = sum(item['Subtotal'] / (1 + (item['IGIC_Tipo']/100)) for item in st.session_state.factura_temporal)
+            igic_v = total_v - base_v
+            
+            st.info(f"**Base:** {base_v:.2f}€ | **IGIC:** {igic_v:.2f}€ | **TOTAL VENTA:** {total_v:.2f}€")
+
+            res_cli = client.table("clientes").select("id, nombre_dueno, telefono").execute()
+            dict_cli = {f"{c['nombre_dueno']} ({c['telefono']})": c['id'] for c in res_cli.data} if res_cli.data else {}
+            f_cliente = st.selectbox("Facturar a:", list(dict_cli.keys()), placeholder="Selecciona cliente...")
+
+            if st.button("🚀 EMITIR FACTURA Y RESTAR STOCK", type="primary", use_container_width=True):
+                if f_cliente:
+                    # 1. Guardar factura
+                    client.table("facturas").insert({
+                        "cliente_id": dict_cli[f_cliente], "total_neto": float(base_v),
+                        "total_igic": float(igic_v), "total_final": float(total_v)
+                    }).execute()
+                    # 2. Restar Stock
+                    for item in st.session_state.factura_temporal:
+                        res_st = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
+                        n_st = res_st.data[0]['stock_actual'] - item['Cantidad']
+                        client.table("productos").update({"stock_actual": n_st}).eq("id", item['id']).execute()
+                    
+                    st.session_state.factura_temporal = []
+                    st.success("Factura emitida y stock descontado."); time.sleep(1); st.rerun()
+        else:
+            st.write("El borrador de venta está vacío.")
+
+    # --- 2. SUB-PESTAÑA: COMPRAS (Para Proveedores y Entradas) ---
     with sub_f_compras:
-        st.markdown("#### 📥 Entrada de Mercadería")
-        st.info("Escanea productos para sumarlos al inventario. Si no existen, créalos aquí mismo.")
+        st.markdown("#### 📥 2. Entrada de Mercadería (Suma Stock)")
         
         if 'entrada_temporal' not in st.session_state: st.session_state.entrada_temporal = []
 
-        # 1. Buscador / Escáner
-        res_inv = client.table("productos").select("*").execute()
-        df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
-        
-        col_scan, col_q, col_add = st.columns([2, 1, 1])
-        with col_scan:
-            prod_scan = st.selectbox("Escribe o Escanea el producto:", 
-                                    df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist() if not df_inv.empty else [],
-                                    index=None, placeholder="Pistola de escáner lista...", key="scan_compra")
-        with col_q:
-            cant_compra = st.number_input("Cantidad Entrada", min_value=1, value=1)
-        with col_add:
-            if st.button("➕ Añadir a Lista", use_container_width=True):
-                if prod_scan:
-                    sku_f = prod_scan.split("SKU: ")[1]
-                    datos_p = df_inv[df_inv['sku'] == sku_f].iloc[0]
+        # Escáner/Buscador para compras
+        col_c1, col_c2, col_c3 = st.columns([2, 1, 1])
+        with col_c1:
+            prod_c = st.selectbox("Escribe o Escanea para COMPRA:", 
+                                 df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist() if not df_inv.empty else [],
+                                 index=None, placeholder="Pistola lista...", key="scan_c_f")
+        with col_c2:
+            cant_c = st.number_input("Cantidad Recibida", min_value=1, value=1, key="cant_c_f")
+        with col_c3:
+            if st.button("➕ Añadir a Entrada", use_container_width=True, key="btn_c_f"):
+                if prod_c:
+                    sku_c = prod_c.split("SKU: ")[1]
+                    datos_p = df_inv[df_inv['sku'] == sku_c].iloc[0]
                     st.session_state.entrada_temporal.append({
-                        "id": datos_p['id'], "Producto": datos_p['nombre'], "SKU": sku_f,
-                        "Cantidad": cant_compra, "Coste_Base": float(datos_p['precio_base']),
-                        "IGIC": float(datos_p['igic_tipo']), "Subtotal": cant_compra * float(datos_p['precio_base'])
+                        "id": datos_p['id'], "Producto": datos_p['nombre'], "SKU": sku_c,
+                        "Cantidad": cant_c, "Coste_Base": float(datos_p['precio_base']),
+                        "Subtotal": cant_c * float(datos_p['precio_base'])
                     })
                     st.rerun()
 
-        # 2. Crear producto "Al Vuelo" si no existe
-        with st.expander("✨ ¿Producto nuevo? Créalo aquí antes de seguir"):
-            with st.form("nuevo_prod_compra", clear_on_submit=True):
-                n_nom = st.text_input("Nombre del Nuevo Producto *")
-                n_sku = st.text_input("SKU / Código de Barras *")
-                c1, c2, c3 = st.columns(3)
-                with c1: n_base = st.number_input("Coste Neto (€)", min_value=0.0)
-                with c2: n_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
-                with c3: n_pvp = st.number_input("PVP Venta (€)", min_value=0.0)
+        # Crear producto "Al Vuelo"
+        with st.expander("✨ ¿Producto nuevo que no tienes en inventario? Créalo aquí"):
+            with st.form("nuevo_p_express", clear_on_submit=True):
+                st.write("Rellena para añadirlo a la factura y al inventario a la vez:")
+                en_nom = st.text_input("Nombre *")
+                en_sku = st.text_input("SKU / Código *")
+                ec1, ec2, ec3 = st.columns(3)
+                with ec1: en_coste = st.number_input("Coste Neto (€)", min_value=0.0)
+                with ec2: en_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
+                with ec3: en_pvp = st.number_input("PVP Venta (€)", min_value=0.0)
                 
-                if st.form_submit_button("💾 Crear y Añadir a la entrada"):
-                    if n_nom and n_sku:
-                        res_n = client.table("productos").insert({
-                            "nombre": n_nom, "sku": n_sku, "precio_base": n_base, 
-                            "igic_tipo": n_igic, "precio_pvp": n_pvp, "stock_actual": 0
+                if st.form_submit_button("💾 Crear y añadir a esta factura"):
+                    if en_nom and en_sku:
+                        res_new = client.table("productos").insert({
+                            "nombre": en_nom, "sku": en_sku, "precio_base": en_coste, 
+                            "igic_tipo": en_igic, "precio_pvp": en_pvp, "stock_actual": 0
                         }).execute()
-                        if res_n.data:
+                        if res_new.data:
                             st.session_state.entrada_temporal.append({
-                                "id": res_n.data[0]['id'], "Producto": n_nom, "SKU": n_sku,
-                                "Cantidad": 1, "Coste_Base": n_base, "IGIC": n_igic, "Subtotal": n_base
+                                "id": res_new.data[0]['id'], "Producto": en_nom, "SKU": en_sku,
+                                "Cantidad": 1, "Coste_Base": en_coste, "Subtotal": en_coste
                             })
-                            st.success("Producto creado y añadido."); time.sleep(1); st.rerun()
+                            st.success("Producto creado."); time.sleep(1); st.rerun()
 
-        # 3. Listado y Finalización
+        # Detalle de la entrada de stock
         if st.session_state.entrada_temporal:
-            df_ent = pd.DataFrame(st.session_state.entrada_temporal)
-            st.dataframe(df_ent[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True)
+            st.markdown("---")
+            df_ec = pd.DataFrame(st.session_state.entrada_temporal)
+            st.dataframe(df_ec[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True)
             
             res_p = client.table("proveedores").select("id, nombre_empresa").execute()
             dict_p = {p['nombre_empresa']: p['id'] for p in res_p.data} if res_p.data else {}
-            prov_sel = st.selectbox("Proveedor de esta factura:", list(dict_p.keys()))
+            prov_sel = st.selectbox("Proveedor de esta compra:", list(dict_p.keys()), key="prov_c_f")
 
-            if st.button("🚀 REGISTRAR FACTURA Y SUMAR STOCK", type="primary", use_container_width=True):
-                # 1. Guardar en tabla COMPRAS (para contabilidad)
-                total_factura = df_ent['Subtotal'].sum()
-                client.table("compras").insert({
-                    "proveedor_id": dict_p[prov_sel], "tipo": "Mercadería",
-                    "total": total_factura, "estado": "Pagado"
-                }).execute()
-                
-                # 2. SUMAR STOCK a cada producto
-                for _, item in df_ent.iterrows():
-                    res_curr = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
-                    n_stock = res_curr.data[0]['stock_actual'] + item['Cantidad']
-                    client.table("productos").update({"stock_actual": n_stock}).eq("id", item['id']).execute()
-                
-                st.session_state.entrada_temporal = []
-                st.success("¡Stock actualizado y factura de compra registrada!"); time.sleep(1); st.rerun()
+            if st.button("🚀 REGISTRAR COMPRA Y SUMAR STOCK", type="primary", use_container_width=True, key="btn_final_c"):
+                if prov_sel:
+                    # 1. Guardar en compras (Contabilidad)
+                    total_c = df_ec['Subtotal'].sum()
+                    client.table("compras").insert({
+                        "proveedor_id": dict_p[prov_sel], "tipo": "Mercadería",
+                        "total": float(total_c), "estado": "Pagado"
+                    }).execute()
+                    # 2. Sumar Stock
+                    for item in st.session_state.entrada_temporal:
+                        res_curr = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
+                        n_st = res_curr.data[0]['stock_actual'] + item['Cantidad']
+                        client.table("productos").update({"stock_actual": n_st}).eq("id", item['id']).execute()
+                    
+                    st.session_state.entrada_temporal = []
+                    st.success("¡Stock aumentado y factura registrada!"); time.sleep(1); st.rerun()
 
 # --- TAB 9: ADMIN (EDICIÓN ACTIVA) ---
 with tab9:
