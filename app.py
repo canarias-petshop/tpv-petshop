@@ -827,13 +827,14 @@ with tab8:
         if not df_inv.empty:
             opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | PVP: {x['precio_pvp']}€", axis=1).tolist()
             
-            # 💡 AQUÍ ESTÁ LA MAGIA: vertical_alignment="bottom" alinea el botón con los cuadros
-            c_v1, c_v2, c_v3 = st.columns([2, 1, 1], vertical_alignment="bottom")
+            c_v1, c_v2, c_v3 = st.columns([2, 1, 1])
             with c_v1: 
                 prod_v = st.selectbox("Buscar producto:", opciones_v, index=None, placeholder="Escribe o escanea...", key="busq_v_f")
             with c_v2: 
                 cant_v = st.number_input("Cantidad", min_value=1, value=1, key="cant_v_f")
             with c_v3:
+                # 💡 EL TRUCO: Un empujón invisible de 28px hacia abajo
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
                 if st.button("➕ Añadir a Factura", use_container_width=True, key="btn_v_f"):
                     if prod_v:
                         sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
@@ -865,11 +866,12 @@ with tab8:
             res_cli = client.table("clientes").select("id, nombre_dueno, telefono").execute()
             dict_cli = {f"{c['nombre_dueno']} ({c['telefono']})": c['id'] for c in res_cli.data} if res_cli.data else {}
             
-            # También alineamos por debajo la selección de cliente y el botón de emitir
-            c_emit1, c_emit2 = st.columns([2, 1], vertical_alignment="bottom")
+            c_emit1, c_emit2 = st.columns([2, 1])
             with c_emit1:
                 f_cliente = st.selectbox("Facturar a:", list(dict_cli.keys()), placeholder="Selecciona cliente...")
             with c_emit2:
+                # 💡 EL TRUCO APLICADO AL BOTÓN DE EMITIR
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
                 if st.button("🚀 EMITIR FACTURA Y RESTAR STOCK", type="primary", use_container_width=True):
                     if f_cliente:
                         client.table("facturas").insert({
@@ -893,14 +895,15 @@ with tab8:
         
         if 'entrada_temporal' not in st.session_state: st.session_state.entrada_temporal = []
 
-        # 💡 Aplicamos también el ajuste visual aquí
-        col_c1, col_c2, col_c3 = st.columns([2, 1, 1], vertical_alignment="bottom")
+        col_c1, col_c2, col_c3 = st.columns([2, 1, 1])
         with col_c1:
             opciones_c = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist() if not df_inv.empty else []
             prod_c = st.selectbox("Escribe o Escanea para COMPRA:", opciones_c, index=None, placeholder="Pistola lista...", key="scan_c_f")
         with col_c2:
             cant_c = st.number_input("Cantidad Recibida", min_value=1, value=1, key="cant_c_f")
         with col_c3:
+            # 💡 EL TRUCO APLICADO AQUÍ TAMBIÉN
+            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
             if st.button("➕ Añadir a Entrada", use_container_width=True, key="btn_c_f"):
                 if prod_c:
                     sku_c = prod_c.split("SKU: ")[1]
@@ -958,11 +961,12 @@ with tab8:
             res_p = client.table("proveedores").select("id, nombre_empresa").execute()
             dict_p = {p['nombre_empresa']: p['id'] for p in res_p.data} if res_p.data else {}
             
-            # Alineamos también la zona de finalizar compra
-            c_reg1, c_reg2 = st.columns([2, 1], vertical_alignment="bottom")
+            c_reg1, c_reg2 = st.columns([2, 1])
             with c_reg1:
                 prov_sel = st.selectbox("Proveedor de esta compra:", list(dict_p.keys()), key="prov_c_f")
             with c_reg2:
+                # 💡 EL TRUCO PARA EL BOTÓN FINAL
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
                 if st.button("🚀 REGISTRAR COMPRA Y SUMAR STOCK", type="primary", use_container_width=True, key="btn_final_c"):
                     if prov_sel:
                         total_c = df_ec['Coste Total'].sum()
