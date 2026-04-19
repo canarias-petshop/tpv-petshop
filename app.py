@@ -1063,6 +1063,34 @@ with tab8:
 with tab9:
     st.markdown("<h3 style='margin-top: -15px;'>⚙️ Editor Maestro de Datos</h3>", unsafe_allow_html=True)
     
+    # 🚨 HERRAMIENTA DE MIGRACIÓN AUTOMÁTICA
+    with st.expander("🚨 HERRAMIENTA DE RESCATE: Migrar productos antiguos", expanded=True):
+        st.info("Tus productos reales están en la tabla 'productos_y_servicios_antiguo'. Pulsa este botón para copiarlos a la estructura nueva de forma automática.")
+        if st.button("🚀 MIGRAR MIS PRODUCTOS A LA TABLA NUEVA", type="primary"):
+            res_viejos = client.table("productos_y_servicios_antiguo").select("*").execute()
+            if res_viejos.data:
+                creados = 0
+                for p in res_viejos.data:
+                    # Comprobamos que el SKU no exista ya para no duplicarlo
+                    res_check = client.table("productos").select("id").eq("sku", p.get("sku", "")).execute()
+                    if not res_check.data and p.get("sku"):
+                        client.table("productos").insert({
+                            "sku": p.get("sku"),
+                            "nombre": p.get("nombre", "Sin Nombre"),
+                            "categoria": p.get("categoria") if p.get("categoria") else "Producto",
+                            "precio_base": p.get("precio_compra") or 0.0,
+                            "igic_tipo": p.get("tipo_igic") or 7.0,
+                            "stock_actual": p.get("stock_actual") or 0,
+                            "precio_pvp": p.get("precio_pvp") or 0.0,
+                            "codigo_barras": p.get("codigo_barras") or ""
+                        }).execute()
+                        creados += 1
+                st.success(f"¡Magia completada! Se han copiado {creados} productos a la nueva tabla. ¡Ve a la Pestaña 1 de Inventario y los verás todos!")
+            else:
+                st.warning("No se encontraron datos en la tabla antigua.")
+
+    st.markdown("---")
+    
     opcion_edicion = st.selectbox("Selecciona la tabla para editar:", 
         ["Productos Físicos", "Servicios", "Todos los Productos (Sin Filtro)", "Clientes", "Proveedores", "Facturas", "Compras"]
     )
