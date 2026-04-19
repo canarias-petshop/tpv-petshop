@@ -823,7 +823,7 @@ with tab8:
         if 'factura_temporal' not in st.session_state: st.session_state.factura_temporal = []
         
         c_cab1, c_cab2, c_cab3 = st.columns(3)
-        with c_cab1: f_pago_v = st.selectbox("Forma de Pago", ["Efectivo", "Tarjeta", "Bizum", "Transferencia"])
+        with c_cab1: f_pago_v = st.selectbox("Forma de Pago", ["Efectivo", "Tarjeta", "Bizum", "Transferencia"], key="fp_v")
         with c_cab2: fecha_emision_v = st.date_input("Fecha de Emisión", key="fe_v")
         with c_cab3: fecha_vence_v = st.date_input("Fecha de Vencimiento", key="fv_v")
 
@@ -834,17 +834,17 @@ with tab8:
         c_cli1, c_cli2 = st.columns([2, 1], vertical_alignment="bottom")
         with c_cli1:
             opciones_cli = df_cli.apply(lambda x: f"{x['nombre_dueno']} - CIF/NIF: {x.get('cif', 'N/A')}", axis=1).tolist() if not df_cli.empty else []
-            f_cliente = st.selectbox("Cliente:", opciones_cli, index=None, placeholder="Selecciona un cliente...")
+            f_cliente = st.selectbox("Cliente:", opciones_cli, index=None, placeholder="Selecciona un cliente...", key="sel_cli_v")
         
         with st.expander("✨ ¿Cliente nuevo? Crear ficha rápida"):
             with st.form("nuevo_cli_express", clear_on_submit=True):
                 nc1, nc2 = st.columns(2)
-                with nc1: n_nom_c = st.text_input("Nombre / Razón Social *")
-                with nc2: n_cif_c = st.text_input("CIF / NIF *")
-                n_dir_c = st.text_input("Dirección Postal completa")
+                with nc1: n_nom_c = st.text_input("Nombre / Razón Social *", key="n_nom_c")
+                with nc2: n_cif_c = st.text_input("CIF / NIF *", key="n_cif_c")
+                n_dir_c = st.text_input("Dirección Postal completa", key="n_dir_c")
                 nc3, nc4 = st.columns(2)
-                with nc3: n_tel_c = st.text_input("Teléfono")
-                with nc4: n_email_c = st.text_input("Email")
+                with nc3: n_tel_c = st.text_input("Teléfono", key="n_tel_c")
+                with nc4: n_email_c = st.text_input("Email", key="n_email_c")
                 if st.form_submit_button("💾 Guardar Cliente Nuevo"):
                     if n_nom_c and n_cif_c:
                         client.table("clientes").insert({
@@ -867,7 +867,6 @@ with tab8:
                         sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
                         datos_p = df_inv[df_inv['sku'] == sku_f].iloc[0]
                         
-                        # MATEMÁTICA DE VENTA: Extraemos la base imponible a partir del PVP
                         pvp_con_igic = float(datos_p['precio_pvp'])
                         igic_porc = float(datos_p['igic_tipo'])
                         base_unitaria = pvp_con_igic / (1 + (igic_porc / 100))
@@ -889,7 +888,6 @@ with tab8:
         if st.session_state.factura_temporal:
             df_fv = pd.DataFrame(st.session_state.factura_temporal)
             
-            # Sumatorios para el Desglose Final
             t_base_imponible = df_fv['Base Neta'].sum()
             t_descuentos = df_fv['Desc €'].sum()
             t_igic = df_fv['IGIC €'].sum()
@@ -951,9 +949,9 @@ with tab8:
 
             c_fin1, c_fin2 = st.columns([1, 2])
             with c_fin1:
-                if st.button("🗑️ Cancelar / Vaciar"): st.session_state.factura_temporal = []; st.rerun()
+                if st.button("🗑️ Cancelar / Vaciar", key="vaciar_v"): st.session_state.factura_temporal = []; st.rerun()
             with c_fin2:
-                if st.button("🚀 CONFIRMAR FACTURA, IMPRIMIR Y RESTAR STOCK", type="primary", use_container_width=True):
+                if st.button("🚀 CONFIRMAR FACTURA, IMPRIMIR Y RESTAR STOCK", type="primary", use_container_width=True, key="conf_v"):
                     if f_cliente:
                         client.table("facturas").insert({
                             "cliente_id": cli_datos['id'], "total_neto": float(t_base_imponible),
@@ -971,7 +969,7 @@ with tab8:
         if 'entrada_temporal' not in st.session_state: st.session_state.entrada_temporal = []
         
         c_cab_c1, c_cab_c2, c_cab_c3 = st.columns(3)
-        with c_cab_c1: n_factura_prov = st.text_input("Nº Factura del Proveedor *")
+        with c_cab_c1: n_factura_prov = st.text_input("Nº Factura del Proveedor *", key="n_fac_p")
         with c_cab_c2: f_pago_c = st.selectbox("Forma de Pago", ["Transferencia", "Recibo Domiciliado", "Efectivo", "Tarjeta"], key="fpc")
         with c_cab_c3: fecha_vence_c = st.date_input("Fecha Factura Proveedor", key="fvc")
 
@@ -982,14 +980,14 @@ with tab8:
         c_pr1, c_pr2 = st.columns([2, 1], vertical_alignment="bottom")
         with c_pr1:
             opciones_prov = df_prov.apply(lambda x: f"{x['nombre_empresa']} - CIF: {x.get('contacto', 'N/A')[:15]}...", axis=1).tolist() if not df_prov.empty else []
-            prov_sel = st.selectbox("Selecciona Proveedor:", opciones_prov, index=None, placeholder="Empresa proveedora...")
+            prov_sel = st.selectbox("Selecciona Proveedor:", opciones_prov, index=None, placeholder="Empresa proveedora...", key="sel_prov_c")
             
         with st.expander("✨ ¿Proveedor nuevo? Crear ficha rápida"):
             with st.form("nuevo_prov_express", clear_on_submit=True):
                 np1, np2 = st.columns(2)
-                with np1: n_nom_p = st.text_input("Nombre Empresa *")
-                with np2: n_cif_p = st.text_input("CIF / NIF *")
-                n_datos_p = st.text_area("Contacto, Dirección, IBAN...")
+                with np1: n_nom_p = st.text_input("Nombre Empresa *", key="n_nom_p")
+                with np2: n_cif_p = st.text_input("CIF / NIF *", key="n_cif_p")
+                n_datos_p = st.text_area("Contacto, Dirección, IBAN...", key="n_datos_p")
                 if st.form_submit_button("💾 Guardar Proveedor"):
                     if n_nom_p and n_cif_p:
                         client.table("proveedores").insert({"nombre_empresa": n_nom_p, "contacto": f"CIF: {n_cif_p} | {n_datos_p}"}).execute()
@@ -1001,7 +999,7 @@ with tab8:
             op_prod_c = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist() if not df_inv.empty else []
             prod_c = st.selectbox("Escanea producto:", op_prod_c, index=None, key="scan_c_f")
         with c_c2: cant_c = st.number_input("Cant.", min_value=1, value=1, key="cant_c_f")
-        with c_c3: desc_c = st.number_input("Desc % Proveedor", min_value=0.0, value=0.0)
+        with c_c3: desc_c = st.number_input("Desc % Proveedor", min_value=0.0, value=0.0, key="desc_c_f")
         with c_c4:
             st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
             if st.button("➕ Añadir Entrada", use_container_width=True, key="btn_c_f"):
@@ -1009,7 +1007,6 @@ with tab8:
                     sku_c = prod_c.split("SKU: ")[1]
                     datos_p = df_inv[df_inv['sku'] == sku_c].iloc[0]
                     
-                    # MATEMÁTICA DE COMPRA: Usamos directamente el precio base (coste)
                     p_base = float(datos_p['precio_base'])
                     igic_porc = float(datos_p['igic_tipo'])
                     
@@ -1029,12 +1026,12 @@ with tab8:
 
         with st.expander("✨ ¿Producto nuevo de proveedor? Créalo aquí"):
             with st.form("nuevo_p_express", clear_on_submit=True):
-                en_nom = st.text_input("Nombre *")
-                en_sku = st.text_input("SKU / Código de Barras *")
+                en_nom = st.text_input("Nombre *", key="en_nom")
+                en_sku = st.text_input("SKU / Código de Barras *", key="en_sku")
                 ec1, ec2, ec3 = st.columns(3)
-                with ec1: en_coste = st.number_input("Precio Base de Compra (€)", min_value=0.0)
-                with ec2: en_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
-                with ec3: en_pvp = st.number_input("PVP Venta Público (€)", min_value=0.0)
+                with ec1: en_coste = st.number_input("Precio Base de Compra (€)", min_value=0.0, key="en_coste")
+                with ec2: en_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0], key="en_igic")
+                with ec3: en_pvp = st.number_input("PVP Venta Público (€)", min_value=0.0, key="en_pvp")
                 if st.form_submit_button("💾 Crear producto en Inventario y Factura"):
                     if en_nom and en_sku:
                         res_new = client.table("productos").insert({
@@ -1054,7 +1051,6 @@ with tab8:
         if st.session_state.entrada_temporal:
             df_ec = pd.DataFrame(st.session_state.entrada_temporal)
             
-            # Sumatorios para el Desglose Final de Compra
             c_base_imponible = df_ec['Base Neta'].sum()
             c_descuentos = df_ec['Desc €'].sum()
             c_igic = df_ec['IGIC €'].sum()
@@ -1113,7 +1109,7 @@ with tab8:
             with c_fin_c1:
                 if st.button("🗑️ Cancelar / Vaciar", key="vaciar_c"): st.session_state.entrada_temporal = []; st.rerun()
             with c_fin_c2:
-                if st.button("🚀 REGISTRAR COMPRA PROVEEDOR Y SUMAR STOCK", type="primary", use_container_width=True):
+                if st.button("🚀 REGISTRAR COMPRA PROVEEDOR Y SUMAR STOCK", type="primary", use_container_width=True, key="conf_c"):
                     if prov_sel and n_factura_prov:
                         id_prov = prov_datos['id']
                         
@@ -1131,114 +1127,7 @@ with tab8:
                         st.success("¡Stock aumentado y factura de proveedor registrada!"); time.sleep(1); st.rerun()
                     else:
                         st.error("Debes seleccionar un proveedor y escribir el Nº de Factura del proveedor.")
-
-    # --- 2. FACTURAS DE COMPRA (Proveedores) ---
-    with sub_f_compras:
-        if 'entrada_temporal' not in st.session_state: st.session_state.entrada_temporal = []
-        
-        c_cab_c1, c_cab_c2, c_cab_c3 = st.columns(3)
-        with c_cab_c1: n_factura_prov = st.text_input("Nº Factura del Proveedor *")
-        with c_cab_c2: f_pago_c = st.selectbox("Forma de Pago", ["Transferencia", "Recibo Domiciliado", "Efectivo", "Tarjeta"], key="fpc")
-        with c_cab_c3: fecha_vence_c = st.date_input("Fecha Vencimiento Factura", key="fvc")
-
-        st.markdown("#### 1. Proveedor")
-        res_prov = client.table("proveedores").select("*").execute()
-        df_prov = pd.DataFrame(res_prov.data) if res_prov.data else pd.DataFrame()
-        
-        c_pr1, c_pr2 = st.columns([2, 1], vertical_alignment="bottom")
-        with c_pr1:
-            opciones_prov = df_prov.apply(lambda x: f"{x['nombre_empresa']} - CIF: {x.get('contacto', 'N/A')[:15]}...", axis=1).tolist() if not df_prov.empty else []
-            prov_sel = st.selectbox("Selecciona Proveedor:", opciones_prov, index=None, placeholder="Empresa proveedora...")
-            
-        with st.expander("✨ ¿Proveedor nuevo? Crear ficha rápida"):
-            with st.form("nuevo_prov_express", clear_on_submit=True):
-                np1, np2 = st.columns(2)
-                with np1: n_nom_p = st.text_input("Nombre Empresa *")
-                with np2: n_cif_p = st.text_input("CIF / NIF *")
-                n_datos_p = st.text_area("Contacto, Dirección, IBAN...")
-                if st.form_submit_button("💾 Guardar Proveedor"):
-                    if n_nom_p and n_cif_p:
-                        client.table("proveedores").insert({"nombre_empresa": n_nom_p, "contacto": f"CIF: {n_cif_p} | {n_datos_p}"}).execute()
-                        st.success("Proveedor creado."); time.sleep(1); st.rerun()
-
-        st.markdown("#### 2. Entrar Mercancía (Scanner)")
-        c_c1, c_c2, c_c3, c_c4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
-        with c_c1:
-            op_prod_c = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist() if not df_inv.empty else []
-            prod_c = st.selectbox("Escanea producto:", op_prod_c, index=None, key="scan_c_f")
-        with c_c2: cant_c = st.number_input("Cant.", min_value=1, value=1, key="cant_c_f")
-        with c_c3: desc_c = st.number_input("Desc % Proveedor", min_value=0.0, value=0.0)
-        with c_c4:
-            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-            if st.button("➕ Añadir Entrada", use_container_width=True, key="btn_c_f"):
-                if prod_c:
-                    sku_c = prod_c.split("SKU: ")[1]
-                    datos_p = df_inv[df_inv['sku'] == sku_c].iloc[0]
-                    p_base = float(datos_p['precio_base'])
-                    igic = float(datos_p['igic_tipo'])
-                    
-                    subtotal_base = p_base * cant_c
-                    descuento_eur = subtotal_base * (desc_c / 100)
-                    base_final = subtotal_base - descuento_eur
-                    total_con_igic = base_final * (1 + igic/100)
-
-                    st.session_state.entrada_temporal.append({
-                        "id": datos_p['id'], "Código": sku_c, "Descripción": datos_p['nombre'],
-                        "Cantidad": cant_c, "Precio Base": p_base, "Desc %": desc_c,
-                        "Base Neta": base_final, "IGIC %": igic, "Coste Total": total_con_igic
-                    })
-                    st.rerun()
-
-        with st.expander("✨ ¿Producto nuevo de proveedor? Créalo aquí"):
-            with st.form("nuevo_p_express", clear_on_submit=True):
-                en_nom = st.text_input("Nombre *")
-                en_sku = st.text_input("SKU / Código de Barras *")
-                ec1, ec2, ec3 = st.columns(3)
-                with ec1: en_coste = st.number_input("Precio Base (€)", min_value=0.0)
-                with ec2: en_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
-                with ec3: en_pvp = st.number_input("PVP Venta Público (€)", min_value=0.0)
-                if st.form_submit_button("💾 Crear producto en Inventario y Factura"):
-                    if en_nom and en_sku:
-                        res_new = client.table("productos").insert({
-                            "nombre": en_nom, "sku": en_sku, "precio_base": en_coste, 
-                            "igic_tipo": en_igic, "precio_pvp": en_pvp, "stock_actual": 0
-                        }).execute()
-                        if res_new.data:
-                            coste_total_nuevo = en_coste * (1 + en_igic/100)
-                            st.session_state.entrada_temporal.append({
-                                "id": res_new.data[0]['id'], "Código": en_sku, "Descripción": en_nom,
-                                "Cantidad": 1, "Precio Base": en_coste, "Desc %": 0.0,
-                                "Base Neta": en_coste, "IGIC %": en_igic, "Coste Total": coste_total_nuevo
-                            })
-                            st.success("Producto creado."); time.sleep(1); st.rerun()
-
-        if st.session_state.entrada_temporal:
-            st.markdown("---")
-            df_ec = pd.DataFrame(st.session_state.entrada_temporal)
-            st.dataframe(df_ec[['Código', 'Descripción', 'Cantidad', 'Precio Base', 'Desc %', 'IGIC %', 'Coste Total']], use_container_width=True, hide_index=True)
-            
-            c_tot_compra = df_ec['Coste Total'].sum()
-            st.info(f"**IMPORTE TOTAL FACTURA PROVEEDOR:** {c_tot_compra:.2f}€")
-
-            if st.button("🚀 REGISTRAR COMPRA Y SUMAR STOCK", type="primary", use_container_width=True):
-                if prov_sel and n_factura_prov:
-                    id_prov = df_prov[df_prov['nombre_empresa'] == prov_sel.split(" -")[0]].iloc[0]['id']
-                    
-                    client.table("compras").insert({
-                        "proveedor_id": id_prov, "tipo": "Mercadería",
-                        "total": float(c_tot_compra), "estado": "Pendiente",
-                        "fecha_vencimiento": str(fecha_vence_c)
-                    }).execute()
-                    
-                    for item in st.session_state.entrada_temporal:
-                        res_curr = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
-                        client.table("productos").update({"stock_actual": res_curr.data[0]['stock_actual'] + item['Cantidad']}).eq("id", item['id']).execute()
-                    
-                    st.session_state.entrada_temporal = []
-                    st.success("¡Stock aumentado y factura de proveedor registrada!"); time.sleep(1); st.rerun()
-                else:
-                    st.error("Debes seleccionar un proveedor y escribir el Nº de Factura del proveedor.")
-
+                        
 # --- TAB 9: ADMIN (EDICIÓN ACTIVA) ---
 with tab9:
     st.markdown("### ⚙️ Editor Maestro de Datos")
