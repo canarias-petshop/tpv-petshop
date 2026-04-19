@@ -881,7 +881,7 @@ with tab8:
                         st.session_state.factura_temporal.append({
                             "id": datos_p['id'], "Código": sku_f, "Descripción": datos_p['nombre'], 
                             "Cantidad": cant_v, "Base Ud": base_unitaria, "IGIC %": igic_porc, 
-                            "Coste Ud (c/IGIC)": coste_unitario_con_igic, "Desc %": desc_v,
+                            "Coste Total Ud": coste_unitario_con_igic, "Desc %": desc_v,
                             "Desc €": descuento_eur, "Base Neta": base_neta_linea, 
                             "IGIC €": igic_linea, "Total Línea": total_linea
                         })
@@ -890,8 +890,7 @@ with tab8:
         if st.session_state.factura_temporal:
             df_fv = pd.DataFrame(st.session_state.factura_temporal)
             
-            # 💡 ACTUALIZACIÓN: IGIC % AHORA ES EDITABLE CON DESPLEGABLE
-            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Haz doble clic en <b>Cantidad</b>, <b>Base Ud</b>, <b>IGIC %</b> o <b>Desc %</b> para modificarlos al vuelo.</i></p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Modifica Cantidad, Base, IGIC o Descuento. ¡Los totales se calcularán solos!</i></p>", unsafe_allow_html=True)
             
             edited_df_v = st.data_editor(
                 df_fv,
@@ -902,23 +901,35 @@ with tab8:
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=0, step=1),
                     "Base Ud": st.column_config.NumberColumn("Base Ud. (€)", min_value=0.0, format="%.2f"),
                     "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0], required=True),
-                    "Coste Ud (c/IGIC)": st.column_config.NumberColumn("Ud(c/IGIC)", disabled=True, format="%.2f"),
+                    "Coste Total Ud": st.column_config.NumberColumn("Coste Total Ud (€)", disabled=True, format="%.2f"),
                     "Desc %": st.column_config.NumberColumn("Desc %", min_value=0.0, max_value=100.0, format="%.2f"),
-                    "Total Línea": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f")
+                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
                 },
-                column_order=["Código", "Descripción", "Cantidad", "Base Ud", "IGIC %", "Coste Ud (c/IGIC)", "Desc %", "Total Línea"],
+                column_order=["Código", "Descripción", "Cantidad", "Base Ud", "IGIC %", "Coste Total Ud", "Desc %", "Total Línea"],
                 hide_index=True, use_container_width=True, key="editor_ventas"
             )
 
-            # Recálculo matemático automático con el nuevo IGIC seleccionado
-            edited_df_v['Coste Ud (c/IGIC)'] = edited_df_v['Base Ud'] * (1 + (edited_df_v['IGIC %'] / 100))
+            # --- MAGIA DEL RECÁLCULO AUTOMÁTICO EN PANTALLA ---
+            edited_df_v['Coste Total Ud'] = edited_df_v['Base Ud'] * (1 + (edited_df_v['IGIC %'] / 100))
             edited_df_v['Desc €'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) * (edited_df_v['Desc %'] / 100)
             edited_df_v['Base Neta'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) - edited_df_v['Desc €']
             edited_df_v['IGIC €'] = edited_df_v['Base Neta'] * (edited_df_v['IGIC %'] / 100)
             edited_df_v['Total Línea'] = edited_df_v['Base Neta'] + edited_df_v['IGIC €']
 
-            st.session_state.factura_temporal = edited_df_v.to_dict('records')
+            cambio_detectado_v = False
+            for col in ['Cantidad', 'Base Ud', 'IGIC %', 'Desc %']:
+                if not edited_df_v[col].equals(df_fv[col]):
+                    cambio_detectado_v = True
+                    break
+                    
+            if cambio_detectado_v:
+                st.session_state.factura_temporal = edited_df_v.to_dict('records')
+                st.rerun() # Fuerza la actualización visual al instante
+            else:
+                st.session_state.factura_temporal = edited_df_v.to_dict('records')
             
+            # --- FIN MAGIA ---
+
             t_base_imponible = edited_df_v['Base Neta'].sum()
             t_descuentos = edited_df_v['Desc €'].sum()
             t_igic = edited_df_v['IGIC €'].sum()
@@ -952,7 +963,7 @@ with tab8:
                 <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 12px;">
                     <tr style="background: #005275; color: white;">
                         <th style="padding: 5px;">Cód/SKU</th><th style="padding: 5px;">Descripción</th><th style="padding: 5px;">Cant.</th>
-                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px;">Ud(c/IGIC)</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px; text-align:right;">Total Línea</th>
+                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px;">Coste Total Ud.</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px; text-align:right;">Total Línea</th>
                     </tr>
             """
             for item in st.session_state.factura_temporal:
@@ -960,7 +971,7 @@ with tab8:
                     <tr style="border-bottom: 1px solid #eee;">
                         <td style="padding: 5px;">{item['Código']}</td><td style="padding: 5px;">{item['Descripción']}</td>
                         <td style="padding: 5px; text-align:center;">{item['Cantidad']}</td><td style="padding: 5px; text-align:center;">{item['Base Ud']:.2f}€</td>
-                        <td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td><td style="padding: 5px; text-align:center;">{item['Coste Ud (c/IGIC)']:.2f}€</td>
+                        <td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td><td style="padding: 5px; text-align:center;">{item['Coste Total Ud']:.2f}€</td>
                         <td style="padding: 5px; text-align:center;">{item['Desc %']}%</td>
                         <td style="padding: 5px; text-align:right;">{item['Total Línea']:.2f}€</td>
                     </tr>"""
@@ -1052,7 +1063,7 @@ with tab8:
                     st.session_state.entrada_temporal.append({
                         "id": datos_p['id'], "Código": sku_c, "Descripción": datos_p['nombre'],
                         "Cantidad": cant_c, "Base Ud": p_base, "IGIC %": igic_porc, 
-                        "Coste Ud (c/IGIC)": coste_unitario_con_igic, "Desc %": desc_c,
+                        "Coste Total Ud": coste_unitario_con_igic, "Desc %": desc_c,
                         "Desc €": descuento_eur, "Base Neta": base_neta_linea, 
                         "IGIC €": igic_linea, "Total Línea": total_linea
                     })
@@ -1080,7 +1091,7 @@ with tab8:
                             st.session_state.entrada_temporal.append({
                                 "id": res_new.data[0]['id'], "Código": en_sku, "Descripción": en_nom,
                                 "Cantidad": 1, "Base Ud": en_coste, "IGIC %": en_igic, 
-                                "Coste Ud (c/IGIC)": coste_unitario_con_igic, "Desc %": 0.0, 
+                                "Coste Total Ud": coste_unitario_con_igic, "Desc %": 0.0, 
                                 "Desc €": 0.0, "Base Neta": en_coste, "IGIC €": igic_linea, "Total Línea": total_linea
                             })
                             st.success("Producto creado."); time.sleep(1); st.rerun()
@@ -1088,8 +1099,7 @@ with tab8:
         if st.session_state.entrada_temporal:
             df_ec = pd.DataFrame(st.session_state.entrada_temporal)
             
-            # 💡 ACTUALIZACIÓN: IGIC % AHORA ES EDITABLE EN COMPRAS TAMBIÉN
-            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Haz doble clic en <b>Cantidad</b>, <b>Base Ud</b>, <b>IGIC %</b> o <b>Desc %</b> para modificarlos al vuelo.</i></p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size:13px; color:gray;'>✏️ <i>Modifica Cantidad, Base, IGIC o Descuento. ¡Los totales se calcularán solos!</i></p>", unsafe_allow_html=True)
             
             edited_df_c = st.data_editor(
                 df_ec,
@@ -1100,22 +1110,34 @@ with tab8:
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=0, step=1),
                     "Base Ud": st.column_config.NumberColumn("Base Ud. (€)", min_value=0.0, format="%.2f"),
                     "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0], required=True),
-                    "Coste Ud (c/IGIC)": st.column_config.NumberColumn("Ud(c/IGIC)", disabled=True, format="%.2f"),
+                    "Coste Total Ud": st.column_config.NumberColumn("Coste Total Ud (€)", disabled=True, format="%.2f"),
                     "Desc %": st.column_config.NumberColumn("Desc %", min_value=0.0, max_value=100.0, format="%.2f"),
-                    "Total Línea": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f")
+                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
                 },
-                column_order=["Código", "Descripción", "Cantidad", "Base Ud", "IGIC %", "Coste Ud (c/IGIC)", "Desc %", "Total Línea"],
+                column_order=["Código", "Descripción", "Cantidad", "Base Ud", "IGIC %", "Coste Total Ud", "Desc %", "Total Línea"],
                 hide_index=True, use_container_width=True, key="editor_compras"
             )
 
-            # Recálculo matemático automático para compras con el nuevo IGIC seleccionado
-            edited_df_c['Coste Ud (c/IGIC)'] = edited_df_c['Base Ud'] * (1 + (edited_df_c['IGIC %'] / 100))
+            # --- MAGIA DEL RECÁLCULO AUTOMÁTICO PARA COMPRAS ---
+            edited_df_c['Coste Total Ud'] = edited_df_c['Base Ud'] * (1 + (edited_df_c['IGIC %'] / 100))
             edited_df_c['Desc €'] = (edited_df_c['Base Ud'] * edited_df_c['Cantidad']) * (edited_df_c['Desc %'] / 100)
             edited_df_c['Base Neta'] = (edited_df_c['Base Ud'] * edited_df_c['Cantidad']) - edited_df_c['Desc €']
             edited_df_c['IGIC €'] = edited_df_c['Base Neta'] * (edited_df_c['IGIC %'] / 100)
             edited_df_c['Total Línea'] = edited_df_c['Base Neta'] + edited_df_c['IGIC €']
 
-            st.session_state.entrada_temporal = edited_df_c.to_dict('records')
+            cambio_detectado_c = False
+            for col in ['Cantidad', 'Base Ud', 'IGIC %', 'Desc %']:
+                if not edited_df_c[col].equals(df_ec[col]):
+                    cambio_detectado_c = True
+                    break
+                    
+            if cambio_detectado_c:
+                st.session_state.entrada_temporal = edited_df_c.to_dict('records')
+                st.rerun() # Fuerza la actualización visual al instante
+            else:
+                st.session_state.entrada_temporal = edited_df_c.to_dict('records')
+
+            # --- FIN MAGIA ---
             
             c_base_imponible = edited_df_c['Base Neta'].sum()
             c_descuentos = edited_df_c['Desc €'].sum()
@@ -1145,7 +1167,7 @@ with tab8:
                 <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 12px;">
                     <tr style="background: #2e7d32; color: white;">
                         <th style="padding: 5px;">Cód/SKU</th><th style="padding: 5px;">Descripción</th><th style="padding: 5px;">Cant.</th>
-                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px;">Ud(c/IGIC)</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px; text-align:right;">Total Línea</th>
+                        <th style="padding: 5px;">Base Ud.</th><th style="padding: 5px;">IGIC %</th><th style="padding: 5px;">Coste Total Ud.</th><th style="padding: 5px;">Desc %</th><th style="padding: 5px; text-align:right;">Total Línea</th>
                     </tr>
             """
             for item in st.session_state.entrada_temporal:
@@ -1153,7 +1175,7 @@ with tab8:
                     <tr style="border-bottom: 1px solid #eee;">
                         <td style="padding: 5px;">{item['Código']}</td><td style="padding: 5px;">{item['Descripción']}</td>
                         <td style="padding: 5px; text-align:center;">{item['Cantidad']}</td><td style="padding: 5px; text-align:center;">{item['Base Ud']:.2f}€</td>
-                        <td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td><td style="padding: 5px; text-align:center;">{item['Coste Ud (c/IGIC)']:.2f}€</td>
+                        <td style="padding: 5px; text-align:center;">{item['IGIC %']}%</td><td style="padding: 5px; text-align:center;">{item['Coste Total Ud']:.2f}€</td>
                         <td style="padding: 5px; text-align:center;">{item['Desc %']}%</td>
                         <td style="padding: 5px; text-align:right;">{item['Total Línea']:.2f}€</td>
                     </tr>"""
