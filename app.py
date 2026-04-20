@@ -902,7 +902,6 @@ with tab8:
 
         st.markdown("#### 2. Añadir Artículos")
         
-        # --- MEJORA: Crear artículo directamente desde la factura ---
         with st.expander("✨ ¿Artículo nuevo? Crear rápido en inventario"):
             with st.form("nuevo_art_v_final"):
                 na1, na2 = st.columns(2)
@@ -1029,7 +1028,6 @@ with tab8:
 
         st.markdown("#### Artículos Recibidos")
         
-        # --- MEJORA: Crear artículo directamente desde la compra ---
         with st.expander("✨ ¿Artículo nuevo del proveedor? Crear rápido en inventario"):
             with st.form("nuevo_art_c_final"):
                 nac1, nac2 = st.columns(2)
@@ -1224,7 +1222,6 @@ with tab10:
     with sec_informes:
         st.markdown("#### 📥 Selector de Fechas Personalizado")
         
-        # --- MEJORA: Fechas totalmente libres ---
         c_inf1, c_inf2 = st.columns(2)
         with c_inf1: f_desde_inf = st.date_input("📅 Desde la fecha:", value=date.today().replace(day=1))
         with c_inf2: f_hasta_inf = st.date_input("📅 Hasta la fecha:", value=date.today())
@@ -1232,53 +1229,81 @@ with tab10:
         st.markdown(f"<p style='color: gray; font-size: 13px;'>Filtrando datos entre el <b>{f_desde_inf.strftime('%d/%m/%Y')}</b> y el <b>{f_hasta_inf.strftime('%d/%m/%Y')}</b>.</p>", unsafe_allow_html=True)
         st.markdown("---")
         
-        # Formatear fechas para la base de datos
         fecha_inicio_q = f"{f_desde_inf}T00:00:00"
         fecha_fin_q = f"{f_hasta_inf}T23:59:59"
+
+        # Recuperar datos de Tickets
+        res_v_inf = client.table("ventas_historial").select("id, created_at, total, metodo_pago, cliente_deuda").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+        # Recuperar datos de Facturas Emitidas
+        res_f_inf = client.table("facturas").select("numero_factura, created_at, total_final, forma_pago, clientes(nombre_dueno)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+        # Recuperar datos de Compras/Gastos
+        res_c_inf = client.table("compras").select("id, created_at, tipo, total, estado, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+
+        # Construir el SUPER INFORME UNIFICADO DE VENTAS
+        ventas_unificadas = []
+        
+        if res_v_inf.data:
+            for t in res_v_inf.data:
+                ventas_unificadas.append({
+                    "Fecha": pd.to_datetime(t['created_at']).strftime('%d/%m/%Y'),
+                    "Tipo_Documento": "Ticket de Mostrador",
+                    "Nº Documento": f"T-{t['id']}",
+                    "Cliente": t.get('cliente_deuda') if t.get('cliente_deuda') else "Mostrador",
+                    "Método de Pago": t['metodo_pago'],
+                    "Importe Total (€)": t['total']
+                })
+                
+        if res_f_inf.data:
+            for f in res_f_inf.data:
+                cliente_nom = f['clientes']['nombre_dueno'] if f.get('clientes') else "N/A"
+                ventas_unificadas.append({
+                    "Fecha": pd.to_datetime(f['created_at']).strftime('%d/%m/%Y'),
+                    "Tipo_Documento": "Factura Oficial",
+                    "Nº Documento": f"F-{f['numero_factura']}",
+                    "Cliente": cliente_nom,
+                    "Método de Pago": f['forma_pago'],
+                    "Importe Total (€)": f['total_final']
+                })
+
+        df_ventas_unificadas = pd.DataFrame(ventas_unificadas)
+        if not df_ventas_unificadas.empty:
+            df_ventas_unificadas['Fecha_dt'] = pd.to_datetime(df_ventas_unificadas['Fecha'], format='%d/%m/%Y')
+            df_ventas_unificadas = df_ventas_unificadas.sort_values(by="Fecha_dt").drop(columns=['Fecha_dt'])
 
         c_down1, c_down2, c_down3 = st.columns(3)
         
         with c_down1:
-            st.info("🛒 TICKETS DE MOSTRADOR")
-            res_v_inf = client.table("ventas_historial").select("id, created_at, total, pago_efectivo, pago_tarjeta, pago_bizum, metodo_pago, estado").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
-            if res_v_inf.data:
-                df_v = pd.DataFrame(res_v_inf.data)
-                df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
-                df_asesor_v = df_v[['id', 'Fecha', 'total', 'pago_efectivo', 'pago_tarjeta', 'pago_bizum', 'estado']]
-                
-                csv_v = df_asesor_v.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Descargar CSV de Tickets", csv_v, f"Tickets_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+            st.info("💶 INFORME GLOBAL DE VENTAS (TICKETS + FACTURAS)")
+            if not df_ventas_unificadas.empty:
+                csv_unificado = df_ventas_unificadas.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Descargar Ventas Totales", csv_unificado, f"Ventas_Totales_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+                st.markdown(f"*Total Ventas: {df_ventas_unificadas['Importe Total (€)'].sum():.2f}€*")
             else:
-                st.write("Sin datos en estas fechas.")
+                st.write("Sin ventas en este periodo.")
 
         with c_down2:
-            st.success("📑 FACTURAS EMITIDAS")
-            res_f_inf = client.table("facturas").select("*, clientes(nombre_dueno, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+            st.success("📑 SOLO FACTURAS (Para IGIC)")
             if res_f_inf.data:
                 df_f = pd.DataFrame(res_f_inf.data)
                 df_f['Fecha'] = pd.to_datetime(df_f['created_at']).dt.strftime('%d/%m/%Y')
-                df_f['Cliente'] = df_f['clientes'].apply(lambda x: f"{x['nombre_dueno']} ({x['cif']})" if isinstance(x, dict) else "N/A")
-                df_asesor_f = df_f[['numero_factura', 'Fecha', 'Cliente', 'total_neto', 'total_igic', 'total_final', 'forma_pago']]
-                
+                df_f['Cliente'] = df_f['clientes'].apply(lambda x: x['nombre_dueno'] if isinstance(x, dict) else "N/A")
+                df_asesor_f = df_f[['numero_factura', 'Fecha', 'Cliente', 'total_final', 'forma_pago']]
                 csv_f = df_asesor_f.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Descargar CSV de Facturas", csv_f, f"Facturas_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+                st.download_button("📥 Descargar Solo Facturas", csv_f, f"Solo_Facturas_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
             else:
-                st.write("Sin datos en estas fechas.")
+                st.write("Sin facturas emitidas.")
 
         with c_down3:
-            st.warning("🚚 COMPRAS Y GASTOS")
-            res_c_inf = client.table("compras").select("id, created_at, tipo, total, estado, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+            st.warning("🚚 COMPRAS Y GASTOS (Tickets y Proveedores)")
             if res_c_inf.data:
                 df_c = pd.DataFrame(res_c_inf.data)
                 df_c['Fecha'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y')
                 df_c['Proveedor_Gasto'] = df_c['proveedores'].apply(lambda x: f"{x['nombre_empresa']} ({x['cif']})" if isinstance(x, dict) else "Gasto General")
                 df_asesor_c = df_c[['id', 'Fecha', 'tipo', 'Proveedor_Gasto', 'total', 'estado']]
-                
                 csv_c = df_asesor_c.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Descargar CSV Compras/Gastos", csv_c, f"Gastos_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+                st.download_button("📥 Descargar Compras/Gastos", csv_c, f"Gastos_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
             else:
-                st.write("Sin datos en estas fechas.")
-
+                st.write("Sin compras o gastos en estas fechas.")
 
 # ==========================================
 # --- TAB 11: AGENDA Y CITAS ---
