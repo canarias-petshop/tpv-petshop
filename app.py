@@ -1052,11 +1052,123 @@ with tab8:
                 st.session_state.compra_temp = []; st.success("Compra archivada."); st.rerun()
 
     # ==========================================
-    # SUB-TAB 3: ARCHIVO / CONSULTA
+    # SUB-TAB 3: ARCHIVO Y GESTIÓN DE DOCUMENTOS
     # ==========================================
     with sub_archivo:
-        st.info("Ve a la Pestaña 4 (Historial Global) para consultar, editar y descargar las facturas guardadas.")
+        st.markdown("#### 🔍 Archivo Histórico de Facturación")
+        tipo_doc = st.radio("Selecciona el tipo de documento:", ["Facturas Emitidas (Ventas)", "Facturas Recibidas (Compras)"], horizontal=True)
+        
+        c_f1, c_f2 = st.columns(2)
+        with c_f1: f_ini = st.date_input("Desde:", value=pd.to_datetime('today') - pd.Timedelta(days=30), key="arch_ini")
+        with c_f2: f_fin = st.date_input("Hasta:", value=pd.to_datetime('today'), key="arch_fin")
 
+        st.markdown("---")
+
+        if "Ventas" in tipo_doc:
+            res_fac = client.table("facturas").select("*, clientes(nombre_dueno)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("numero_factura", desc=True).execute()
+            
+            if res_fac.data:
+                df_fac = pd.DataFrame(res_fac.data)
+                df_fac['Fecha'] = pd.to_datetime(df_fac['created_at']).dt.strftime('%d/%m/%Y')
+                df_fac['Cliente'] = df_fac['clientes'].apply(lambda x: x['nombre_dueno'] if x else '---')
+                
+                df_vista_fac = df_fac[['id', 'numero_factura', 'Fecha', 'Cliente', 'forma_pago', 'total_final']].copy()
+                st.markdown("💡 *Tabla Editable: Haz doble clic para modificar la forma de pago si te equivocaste.*")
+                edit_fac = st.data_editor(
+                    df_vista_fac,
+                    column_config={
+                        "id": None, 
+                        "numero_factura": "Nº Factura", 
+                        "Fecha": st.column_config.TextColumn(disabled=True),
+                        "Cliente": st.column_config.TextColumn(disabled=True),
+                        "total_final": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True)
+                    },
+                    hide_index=True, use_container_width=True, key="ed_arch_fac"
+                )
+                
+                if st.button("💾 Guardar Cambios en Facturas", type="primary"):
+                    diferencias = edit_fac.compare(df_vista_fac)
+                    if not diferencias.empty:
+                        for idx in diferencias.index.tolist():
+                            client.table("facturas").update({"forma_pago": str(edit_fac.loc[idx, 'forma_pago'])}).eq("id", edit_fac.loc[idx, 'id']).execute()
+                        st.success("Facturas actualizadas."); time.sleep(1); st.rerun()
+
+                st.markdown("#### 🖨️ Ver Detalles y Reimprimir")
+                fac_sel = st.selectbox("🔍 Selecciona una Factura para verla:", df_fac['numero_factura'].tolist())
+                if fac_sel:
+                    fac_data = df_fac[df_fac['numero_factura'] == fac_sel].iloc[0]
+                    prods_hist = fac_data.get('productos', [])
+                    if prods_hist:
+                        st.dataframe(pd.DataFrame(prods_hist), hide_index=True, use_container_width=True)
+                        html_print = f"""
+                        <div style="border: 1px solid #ccc; padding: 20px; background: white; color: black; font-family: sans-serif;">
+                            <div style="text-align: right;"><button onclick="window.print()" style="padding: 10px; background: #005275; color: white; border: none; cursor: pointer;">🖨️ REIMPRIMIR FACTURA</button></div>
+                            <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #005275; margin-top: 10px;">
+                                <div><h2>ANIMALARIUM</h2><p>Raquel Trujillo Hernández<br>DNI: 78854854K<br>S/C de Tenerife</p></div>
+                                <div style="text-align: right;"><h3>FACTURA DE VENTA</h3><p>Nº {fac_data['numero_factura']}<br>Fecha: {fac_data['Fecha']}</p></div>
+                            </div>
+                            <div style="margin: 15px 0; padding: 10px; background: #f4f4f4;">
+                                <b>Cliente:</b> {fac_data['Cliente']}<br><b>Formato de Pago:</b> {fac_data['forma_pago']}
+                            </div>
+                            <table style="width: 100%; text-align: left; border-collapse: collapse;">
+                                <tr style="background: #005275; color: white;"><th>Producto</th><th>Cant.</th><th style='text-align:right;'>Total</th></tr>
+                                {''.join([f"<tr><td style='padding: 5px; border-bottom: 1px solid #eee;'>{p.get('Descripción', '---')}</td><td style='padding: 5px; border-bottom: 1px solid #eee;'>{p.get('Cantidad', 1)}</td><td style='text-align:right; padding: 5px; border-bottom: 1px solid #eee;'>{p.get('Total Línea', 0):.2f}€</td></tr>" for p in prods_hist])}
+                            </table>
+                            <h3 style="text-align: right; margin-top: 20px;">TOTAL: {fac_data['total_final']:.2f}€</h3>
+                        </div>
+                        """
+                        components.html(html_print, height=450, scrolling=True)
+            else:
+                st.info("No hay facturas de clientes en estas fechas.")
+
+        else:
+            # Facturas de Compras (Proveedores)
+            res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
+            
+            if res_comp.data:
+                df_comp = pd.DataFrame(res_comp.data)
+                df_comp['Fecha'] = pd.to_datetime(df_comp['created_at']).dt.strftime('%d/%m/%Y')
+                df_comp['Proveedor'] = df_comp['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
+                
+                df_vista_comp = df_comp[['id', 'Fecha', 'Proveedor', 'tipo', 'estado', 'total']].copy()
+                
+                st.markdown("💡 *Tabla Editable: Corrige los estados (p. ej. de 'Pendiente' a 'Pagado') o la referencia de la factura haciendo doble clic.*")
+                edit_comp = st.data_editor(
+                    df_vista_comp,
+                    column_config={
+                        "id": None, 
+                        "Fecha": st.column_config.TextColumn(disabled=True),
+                        "Proveedor": st.column_config.TextColumn(disabled=True),
+                        "tipo": "Referencia / Nº Factura",
+                        "total": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True), 
+                        "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Pendiente", "Pagado"])
+                    },
+                    hide_index=True, use_container_width=True, key="ed_arch_comp"
+                )
+                
+                if st.button("💾 Guardar Cambios en Compras", type="primary"):
+                    diferencias = edit_comp.compare(df_vista_comp)
+                    if not diferencias.empty:
+                        for idx in diferencias.index.tolist():
+                            client.table("compras").update({
+                                "estado": str(edit_comp.loc[idx, 'estado']), "tipo": str(edit_comp.loc[idx, 'tipo'])
+                            }).eq("id", edit_comp.loc[idx, 'id']).execute()
+                        st.success("Compras actualizadas"); time.sleep(1); st.rerun()
+                    
+                st.markdown("#### 📦 Ver Desglose de la Compra")
+                compra_sel = st.selectbox("🔍 Selecciona una Compra para ver los artículos que ingresaron:", df_comp['id'].astype(str).tolist())
+                if compra_sel:
+                    compra_data = df_comp[df_comp['id'].astype(str) == compra_sel].iloc[0]
+                    prods_c = compra_data.get('productos', [])
+                    if prods_c:
+                        df_pc = pd.DataFrame(prods_c)
+                        st.dataframe(df_pc, hide_index=True, use_container_width=True)
+                        csv = df_pc.to_csv(index=False).encode('utf-8')
+                        st.download_button("📥 Descargar CSV de esta Factura", data=csv, file_name=f"Compra_{compra_sel}.csv", mime="text/csv")
+                    else:
+                        st.warning("No se guardaron artículos detallados en esta compra antigua.")
+            else:
+                st.info("No hay facturas de proveedores registradas en estas fechas.")
 # ==========================================
 # --- TAB 9: CONTABILIDAD E INFORMES PARA ASESORÍA ---
 # ==========================================
