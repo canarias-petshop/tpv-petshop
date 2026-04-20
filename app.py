@@ -1042,14 +1042,38 @@ with tab8:
 
             if st.button("📥 ARCHIVAR COMPRA", type="primary", use_container_width=True):
                 p_id = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
+                
+                # 1. Guardar la factura completa en "compras"
                 client.table("compras").insert({
                     "proveedor_id": p_id, "total": float(t_final_c), "estado": "Recibido", "tipo": f"Factura: {n_fac}",
                     "fecha_vencimiento": str(f_ven), "productos": st.session_state.compra_temp
                 }).execute()
+                
+                # Bucle para recorrer cada producto que has añadido a la factura
                 for i in st.session_state.compra_temp:
+                    # 2. Sumar el stock en la tabla "productos"
                     res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
-                    if res.data: client.table("productos").update({"stock_actual": (res.data[0]['stock_actual'] or 0) + i['Cantidad']}).eq("id", i['id']).execute()
-                st.session_state.compra_temp = []; st.success("Compra archivada."); st.rerun()
+                    if res.data: 
+                        client.table("productos").update({"stock_actual": (res.data[0]['stock_actual'] or 0) + i['Cantidad']}).eq("id", i['id']).execute()
+                    
+                    # 3. MÁGIA: Guardar/Actualizar el precio de coste de ESTE proveedor
+                    res_pp = client.table("productos_proveedores").select("id").eq("producto_id", i['id']).eq("proveedor_id", p_id).execute()
+                    if res_pp.data:
+                        # Si ya existía la relación, le actualizamos el precio al de esta factura
+                        client.table("productos_proveedores").update({"precio_coste": float(i['Base Ud'])}).eq("id", res_pp.data[0]['id']).execute()
+                    else:
+                        # Si nunca le habíamos comprado esto a este proveedor, creamos la relación
+                        client.table("productos_proveedores").insert({
+                            "producto_id": i['id'], 
+                            "proveedor_id": p_id, 
+                            "precio_coste": float(i['Base Ud'])
+                        }).execute()
+                        
+                # Limpiar el carrito y avisar
+                st.session_state.compra_temp = []
+                st.success("✅ Compra archivada, stock sumado y precios de coste actualizados.")
+                time.sleep(1.5)
+                st.rerun()
 
     # ==========================================
     # SUB-TAB 3: ARCHIVO Y GESTIÓN DE DOCUMENTOS
