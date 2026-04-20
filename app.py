@@ -879,12 +879,10 @@ with tab8:
                 if op.startswith(st.session_state.cli_recien_creado + " -"):
                     idx_cli = i; break
 
-        c_cli1, c_cli2 = st.columns([2, 1], vertical_alignment="bottom")
+        c_cli1, c_cli2 = st.columns([2, 1])
         with c_cli1:
             f_cliente = st.selectbox("Cliente:", opciones_cli, index=idx_cli, placeholder="Selecciona un cliente...", key="sel_cli_v_final")
         
-        # Tiramos del creador de clientes hacia arriba para pegarlo al selector
-        st.markdown("<div style='margin-top: -15px;'></div>", unsafe_allow_html=True)
         with st.expander("✨ ¿Cliente nuevo? Crear ficha rápida"):
             with st.form("nuevo_cli_f", clear_on_submit=True):
                 nc1, nc2 = st.columns(2)
@@ -907,12 +905,12 @@ with tab8:
         
         if not df_inv.empty:
             opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | EAN: {x.get('codigo_barras', '')} | {x['precio_pvp']}€", axis=1).tolist()
-            c_v1, c_v2, c_v3, c_v4 = st.columns([2, 1, 1, 1])
+            # Alineación nativa perfecta
+            c_v1, c_v2, c_v3, c_v4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
             with c_v1: prod_v = st.selectbox("Buscar o Escanear:", opciones_v, index=None, key="busq_v_f_final")
             with c_v2: cant_v = st.number_input("Cant.", min_value=1, value=1, key="cant_v_f_final")
             with c_v3: desc_v = st.number_input("Desc. %", min_value=0.0, value=0.0, key="desc_v_f_final")
             with c_v4:
-                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
                 if st.button("➕ Añadir", use_container_width=True, key="btn_v_f_final"):
                     if prod_v:
                         sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
@@ -928,8 +926,6 @@ with tab8:
                         })
                         st.rerun()
 
-        # AQUÍ ESTÁ EL IMÁN: Tiramos del desplegable hacia arriba para que se pegue a la línea de selección
-        st.markdown("<div style='margin-top: -20px;'></div>", unsafe_allow_html=True)
         with st.expander("✨ ¿Artículo nuevo? Crear rápido en inventario"):
             with st.form("nuevo_art_v_final"):
                 na1, na2 = st.columns(2)
@@ -1022,11 +1018,9 @@ with tab8:
             for i, op in enumerate(op_prov):
                 if op.startswith(st.session_state.prov_rec): idx_p = i; break
 
-        c_p1, c_p2 = st.columns([2, 1], vertical_alignment="bottom")
+        c_p1, c_p2 = st.columns([2, 1])
         with c_p1: p_sel = st.selectbox("Proveedor:", op_prov, index=idx_p, key="sel_p_f")
         
-        # Tiramos del creador de proveedores hacia arriba
-        st.markdown("<div style='margin-top: -15px;'></div>", unsafe_allow_html=True)
         with st.expander("✨ Nuevo Proveedor"):
             with st.form("n_prov_f"):
                 np_nom = st.text_input("Empresa *")
@@ -1039,12 +1033,11 @@ with tab8:
         st.markdown("#### Artículos Recibidos")
         
         if not df_inv.empty:
-            c_i1, c_i2, c_i3, c_i4 = st.columns([2, 1, 1, 1])
+            c_i1, c_i2, c_i3, c_i4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
             with c_i1: prod_c = st.selectbox("Producto:", df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist(), index=None, key="p_c_f")
             with c_i2: cant_c = st.number_input("Cant", min_value=1, key="cant_c_f")
             with c_i3: desc_cp = st.number_input("Desc %", min_value=0.0, key="desc_c_f")
             with c_i4:
-                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
                 if st.button("➕ Añadir", key="btn_c_add", use_container_width=True):
                     if prod_c:
                         sku_c = prod_c.split("SKU: ")[1]
@@ -1059,8 +1052,6 @@ with tab8:
                         })
                         st.rerun()
 
-        # AQUÍ ESTÁ EL IMÁN TAMBIÉN
-        st.markdown("<div style='margin-top: -20px;'></div>", unsafe_allow_html=True)
         with st.expander("✨ ¿Artículo nuevo del proveedor? Crear rápido en inventario"):
             with st.form("nuevo_art_c_final"):
                 nac1, nac2 = st.columns(2)
