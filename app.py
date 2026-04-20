@@ -905,12 +905,12 @@ with tab8:
         
         if not df_inv.empty:
             opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | EAN: {x.get('codigo_barras', '')} | {x['precio_pvp']}€", axis=1).tolist()
-            # Corrección de alineación nativa sin trucos HTML
-            c_v1, c_v2, c_v3, c_v4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
+            c_v1, c_v2, c_v3, c_v4 = st.columns([2, 1, 1, 1])
             with c_v1: prod_v = st.selectbox("Buscar o Escanear:", opciones_v, index=None, key="busq_v_f_final")
             with c_v2: cant_v = st.number_input("Cant.", min_value=1, value=1, key="cant_v_f_final")
             with c_v3: desc_v = st.number_input("Desc. %", min_value=0.0, value=0.0, key="desc_v_f_final")
             with c_v4:
+                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True) # Bloque invisible para alinear
                 if st.button("➕ Añadir", use_container_width=True, key="btn_v_f_final"):
                     if prod_v:
                         sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
