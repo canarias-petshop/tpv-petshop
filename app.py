@@ -859,6 +859,7 @@ with tab8:
     res_inv = client.table("productos").select("*").execute()
     df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
 
+    # --- 1. FACTURAS DE VENTA (A CLIENTES) ---
     with sub_f_ventas:
         if 'factura_temporal' not in st.session_state: st.session_state.factura_temporal = []
         
@@ -902,6 +903,31 @@ with tab8:
 
         st.markdown("#### 2. Añadir Artículos")
         
+        if not df_inv.empty:
+            opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | EAN: {x.get('codigo_barras', '')} | {x['precio_pvp']}€", axis=1).tolist()
+            c_v1, c_v2, c_v3, c_v4 = st.columns([2, 1, 1, 1])
+            with c_v1: prod_v = st.selectbox("Buscar o Escanear:", opciones_v, index=None, key="busq_v_f_final")
+            with c_v2: cant_v = st.number_input("Cant.", min_value=1, value=1, key="cant_v_f_final")
+            with c_v3: desc_v = st.number_input("Desc. %", min_value=0.0, value=0.0, key="desc_v_f_final")
+            with c_v4:
+                # TRUCO DE ALINEACIÓN: Añadimos un margen superior invisible para igualar la altura con los otros recuadros
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                if st.button("➕ Añadir", use_container_width=True, key="btn_v_f_final"):
+                    if prod_v:
+                        sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
+                        datos_p = df_inv[df_inv['sku'] == sku_f].iloc[0]
+                        base_u = float(datos_p['precio_pvp']) / (1 + (float(datos_p['igic_tipo'])/100))
+                        st.session_state.factura_temporal.append({
+                            "id": datos_p['id'], "Código": sku_f, "Descripción": datos_p['nombre'], 
+                            "Cantidad": cant_v, "Base Ud": base_u, "IGIC %": float(datos_p['igic_tipo']), 
+                            "Coste Total Ud": float(datos_p['precio_pvp']), "Desc %": desc_v,
+                            "Desc €": (base_u * cant_v) * (desc_v/100), "Base Neta": (base_u * cant_v) * (1 - desc_v/100), 
+                            "IGIC €": ((base_u * cant_v) * (1 - desc_v/100)) * (float(datos_p['igic_tipo'])/100),
+                            "Total Línea": ((base_u * cant_v) * (1 - desc_v/100)) * (1 + float(datos_p['igic_tipo'])/100)
+                        })
+                        st.rerun()
+
+        # EL DESPLEGABLE AHORA ESTÁ DEBAJO DE LA BÚSQUEDA
         with st.expander("✨ ¿Artículo nuevo? Crear rápido en inventario"):
             with st.form("nuevo_art_v_final"):
                 na1, na2 = st.columns(2)
@@ -925,30 +951,8 @@ with tab8:
                             "stock_actual": na_stock if na_cat == "Producto" else 0, 
                             "precio_pvp": na_pvp
                         }).execute()
-                        st.success("Artículo creado. Ya puedes añadirlo a la factura justo debajo.")
+                        st.success("Artículo creado. Ya puedes añadirlo a la factura justo encima.")
                         time.sleep(1.5)
-                        st.rerun()
-
-        if not df_inv.empty:
-            opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | EAN: {x.get('codigo_barras', '')} | {x['precio_pvp']}€", axis=1).tolist()
-            c_v1, c_v2, c_v3, c_v4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
-            with c_v1: prod_v = st.selectbox("Buscar o Escanear:", opciones_v, index=None, key="busq_v_f_final")
-            with c_v2: cant_v = st.number_input("Cant.", min_value=1, value=1, key="cant_v_f_final")
-            with c_v3: desc_v = st.number_input("Desc. %", min_value=0.0, value=0.0, key="desc_v_f_final")
-            with c_v4:
-                if st.button("➕ Añadir", use_container_width=True, key="btn_v_f_final"):
-                    if prod_v:
-                        sku_f = prod_v.split("SKU: ")[1].split(" | ")[0]
-                        datos_p = df_inv[df_inv['sku'] == sku_f].iloc[0]
-                        base_u = float(datos_p['precio_pvp']) / (1 + (float(datos_p['igic_tipo'])/100))
-                        st.session_state.factura_temporal.append({
-                            "id": datos_p['id'], "Código": sku_f, "Descripción": datos_p['nombre'], 
-                            "Cantidad": cant_v, "Base Ud": base_u, "IGIC %": float(datos_p['igic_tipo']), 
-                            "Coste Total Ud": float(datos_p['precio_pvp']), "Desc %": desc_v,
-                            "Desc €": (base_u * cant_v) * (desc_v/100), "Base Neta": (base_u * cant_v) * (1 - desc_v/100), 
-                            "IGIC €": ((base_u * cant_v) * (1 - desc_v/100)) * (float(datos_p['igic_tipo'])/100),
-                            "Total Línea": ((base_u * cant_v) * (1 - desc_v/100)) * (1 + float(datos_p['igic_tipo'])/100)
-                        })
                         st.rerun()
 
         if st.session_state.factura_temporal:
@@ -1000,6 +1004,7 @@ with tab8:
                         client.table("productos").update({"stock_actual": curr.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
                     st.session_state.factura_temporal = []; st.success("Factura emitida."); time.sleep(1); st.rerun()
 
+    # --- 2. FACTURAS DE COMPRA (A PROVEEDORES) ---
     with sub_f_compras:
         if 'entrada_temporal' not in st.session_state: st.session_state.entrada_temporal = []
         c_c1, c_c2, c_c3 = st.columns(3)
@@ -1028,6 +1033,29 @@ with tab8:
 
         st.markdown("#### Artículos Recibidos")
         
+        if not df_inv.empty:
+            c_i1, c_i2, c_i3, c_i4 = st.columns([2, 1, 1, 1])
+            with c_i1: prod_c = st.selectbox("Producto:", df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist(), index=None, key="p_c_f")
+            with c_i2: cant_c = st.number_input("Cant", min_value=1, key="cant_c_f")
+            with c_i3: desc_cp = st.number_input("Desc %", min_value=0.0, key="desc_c_f")
+            with c_i4:
+                # TRUCO DE ALINEACIÓN TAMBIÉN AQUÍ
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                if st.button("➕ Añadir", key="btn_c_add", use_container_width=True):
+                    if prod_c:
+                        sku_c = prod_c.split("SKU: ")[1]
+                        datos_p = df_inv[df_inv['sku'] == sku_c].iloc[0]
+                        base_u = float(datos_p['precio_base'])
+                        st.session_state.entrada_temporal.append({
+                            "id": datos_p['id'], "Código": sku_c, "Descripción": datos_p['nombre'], "Cantidad": cant_c,
+                            "Base Ud": base_u, "IGIC %": float(datos_p['igic_tipo']), "Coste Total Ud": base_u * (1 + float(datos_p['igic_tipo'])/100),
+                            "Desc %": desc_cp, "Desc €": (base_u * cant_c) * (desc_cp/100), "Base Neta": (base_u * cant_c) * (1 - desc_cp/100),
+                            "IGIC €": ((base_u * cant_c) * (1 - desc_cp/100)) * (float(datos_p['igic_tipo'])/100),
+                            "Total Línea": ((base_u * cant_c) * (1 - desc_cp/100)) * (1 + float(datos_p['igic_tipo'])/100)
+                        })
+                        st.rerun()
+
+        # EL DESPLEGABLE AHORA ESTÁ DEBAJO DE LA BÚSQUEDA
         with st.expander("✨ ¿Artículo nuevo del proveedor? Crear rápido en inventario"):
             with st.form("nuevo_art_c_final"):
                 nac1, nac2 = st.columns(2)
@@ -1051,28 +1079,9 @@ with tab8:
                             "stock_actual": nac_stock if nac_cat == "Producto" else 0, 
                             "precio_pvp": nac_pvp
                         }).execute()
-                        st.success("Artículo guardado en inventario. Ya puedes añadirlo.")
+                        st.success("Artículo guardado en inventario. Ya puedes añadirlo justo encima.")
                         time.sleep(1.5)
                         st.rerun()
-
-        c_i1, c_i2, c_i3, c_i4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
-        with c_i1: prod_c = st.selectbox("Producto:", df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist(), index=None, key="p_c_f")
-        with c_i2: cant_c = st.number_input("Cant", min_value=1, key="cant_c_f")
-        with c_i3: desc_cp = st.number_input("Desc %", min_value=0.0, key="desc_c_f")
-        with c_i4:
-            if st.button("➕", key="btn_c_add"):
-                if prod_c:
-                    sku_c = prod_c.split("SKU: ")[1]
-                    datos_p = df_inv[df_inv['sku'] == sku_c].iloc[0]
-                    base_u = float(datos_p['precio_base'])
-                    st.session_state.entrada_temporal.append({
-                        "id": datos_p['id'], "Código": sku_c, "Descripción": datos_p['nombre'], "Cantidad": cant_c,
-                        "Base Ud": base_u, "IGIC %": float(datos_p['igic_tipo']), "Coste Total Ud": base_u * (1 + float(datos_p['igic_tipo'])/100),
-                        "Desc %": desc_cp, "Desc €": (base_u * cant_c) * (desc_cp/100), "Base Neta": (base_u * cant_c) * (1 - desc_cp/100),
-                        "IGIC €": ((base_u * cant_c) * (1 - desc_cp/100)) * (float(datos_p['igic_tipo'])/100),
-                        "Total Línea": ((base_u * cant_c) * (1 - desc_cp/100)) * (1 + float(datos_p['igic_tipo'])/100)
-                    })
-                    st.rerun()
 
         if st.session_state.entrada_temporal:
             df_ec = pd.DataFrame(st.session_state.entrada_temporal)
