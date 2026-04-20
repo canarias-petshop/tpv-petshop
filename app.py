@@ -960,75 +960,135 @@ with tab8:
         if 'compra_temp' not in st.session_state: st.session_state.compra_temp = []
         
         col_c1, col_c2, col_c3 = st.columns(3)
-        with col_c1: n_fac_prov = st.text_input("Nº Factura Proveedor", key="c_num")
-        with col_c2: f_compra = st.date_input("Fecha Factura", key="c_fecha")
-        with col_c3: f_v_compra = st.date_input("Vencimiento", key="c_vence")
+        with col_c1: n_fac_prov = st.text_input("Nº Factura Proveedor", key="c_num_f")
+        with col_c2: f_compra = st.date_input("Fecha Factura", key="c_fecha_f")
+        with col_c3: f_v_compra = st.date_input("Vencimiento", key="c_vence_f")
 
-        # Proveedor
+        # --- 1. SELECCIONAR / CREAR PROVEEDOR ---
         with st.expander("🚚 Seleccionar / Crear Proveedor"):
             p_opc = df_prov['nombre_empresa'].tolist() if not df_prov.empty else []
-            sel_p = st.selectbox("Proveedor:", p_opc, index=None)
+            sel_p = st.selectbox("Proveedor:", p_opc, index=None, key="sel_p_compra")
             
-            with st.form("n_prov_v", clear_on_submit=True):
+            with st.form("n_prov_compra", clear_on_submit=True):
                 st.markdown("¿Proveedor nuevo?")
                 np1, np2 = st.columns(2); np_n = np1.text_input("Empresa*"); np_c = np2.text_input("CIF*")
                 if st.form_submit_button("Crear Proveedor"):
-                    if np_n: client.table("proveedores").insert({"nombre_empresa": np_n, "cif": np_c}).execute(); st.rerun()
+                    if np_n: 
+                        client.table("proveedores").insert({"nombre_empresa": np_n, "cif": np_c}).execute()
+                        st.success("Proveedor creado"); time.sleep(1); st.rerun()
 
-        # Artículos
-        st.markdown("#### 🛒 Detalle de la Compra")
+        st.markdown("---")
+
+        # --- 2. SELECCIONAR / CREAR ARTÍCULO EN CALIENTE ---
+        st.markdown("#### 🛒 Detalle de los Artículos")
+        
+        with st.expander("✨ ¿Artículo nuevo del proveedor? Créalo aquí"):
+            with st.form("nuevo_prod_compra_rapido"):
+                cp1, cp2 = st.columns(2)
+                with cp1: cp_nom = st.text_input("Nombre Artículo *")
+                with cp2: cp_sku = st.text_input("Código de Barras / SKU *")
+                cp3, cp4, cp5 = st.columns(3)
+                with cp3: cp_base = st.number_input("Precio Base Compra (€) *", min_value=0.0, format="%.2f")
+                with cp4: cp_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0], index=0)
+                with cp5: cp_pvp = st.number_input("PVP Venta sugerido (€)", min_value=0.0, format="%.2f")
+                
+                if st.form_submit_button("💾 Guardar en Inventario y Usar"):
+                    if cp_nom and cp_sku:
+                        client.table("productos").insert({
+                            "nombre": cp_nom, 
+                            "sku": cp_sku, 
+                            "codigo_barras": cp_sku,
+                            "precio_base": cp_base, 
+                            "igic_tipo": cp_igic,
+                            "precio_pvp": cp_pvp if cp_pvp > 0 else cp_base * (1 + cp_igic/100), 
+                            "categoria": "Producto",
+                            "stock_actual": 0
+                        }).execute()
+                        st.success(f"Artículo '{cp_nom}' añadido al inventario."); time.sleep(1); st.rerun()
+
+        # --- 3. AÑADIR ARTÍCULOS A LA LISTA DE LA COMPRA ---
         if not df_inv.empty:
             ci1, ci2, ci3, ci4 = st.columns([2, 1, 1, 1])
-            with ci1: p_c = st.selectbox("Producto:", df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist(), index=None, key="c_busq")
-            with ci2: c_c = st.number_input("Cantidad", min_value=1, value=1, key="c_cant")
-            with ci3: d_c = st.number_input("Desc. %", min_value=0.0, value=0.0, key="c_desc")
+            with ci1: p_c = st.selectbox("Buscar Producto:", df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist(), index=None, key="c_busq_f")
+            with ci2: c_c = st.number_input("Cantidad", min_value=1, value=1, key="c_cant_f")
+            with ci3: d_c = st.number_input("Desc. %", min_value=0.0, value=0.0, key="c_desc_f")
             with ci4:
                 st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
-                if st.button("➕ Añadir Item", key="c_add"):
+                if st.button("➕ Añadir a Factura", key="c_add_f", use_container_width=True):
                     if p_c and sel_p:
                         item = df_inv[df_inv['sku'] == p_c.split("SKU: ")[1]].iloc[0]
-                        # CÁLCULOS COMPRA
+                        
+                        # CÁLCULOS CONTABLES DETALLADOS
                         base_u = float(item['precio_base'])
                         igic_t = float(item['igic_tipo'])
-                        base_t = base_u * c_c
-                        desc_val = base_t * (d_c/100)
-                        base_neta = base_t - desc_val
-                        impuesto = base_neta * (igic_t/100)
-                        total_l = base_neta + impuesto
+                        base_total_bruta = base_u * c_c
+                        descuento_val = base_total_bruta * (d_c / 100)
+                        base_neta_linea = base_total_bruta - descuento_val
+                        igic_total_linea = base_neta_linea * (igic_t / 100)
+                        total_linea_final = base_neta_linea + igic_total_linea
                         
                         st.session_state.compra_temp.append({
-                            "Código": item['sku'], "Descripción": item['nombre'], "Cant": c_c,
-                            "Base Ud": round(base_u, 2), "IGIC %": igic_t, "IGIC €": round(impuesto, 2),
-                            "Desc %": d_c, "Total Línea": round(total_l, 2), "id": str(item['id'])
+                            "Código": item['sku'], 
+                            "Descripción": item['nombre'], 
+                            "Cant": c_c,
+                            "Base Ud": round(base_u, 2), 
+                            "IGIC %": igic_t, 
+                            "IGIC €": round(igic_total_linea, 2),
+                            "Desc %": d_c, 
+                            "Total Línea": round(total_linea_final, 2), 
+                            "id": str(item['id'])
                         })
                         st.rerun()
 
+        # --- 4. VISUALIZACIÓN Y REGISTRO ---
         if st.session_state.compra_temp:
-            df_c_edit = st.data_editor(pd.DataFrame(st.session_state.compra_temp), hide_index=True, use_container_width=True, key="ed_c_f")
+            st.markdown("---")
+            # Tabla EDITABLE como pediste
+            df_c_edit = st.data_editor(
+                pd.DataFrame(st.session_state.compra_temp), 
+                hide_index=True, 
+                use_container_width=True, 
+                key="ed_compra_final",
+                column_config={"id": None} # Ocultamos el ID para que no estorbe
+            )
             st.session_state.compra_temp = df_c_edit.to_dict('records')
             
+            # TOTALES DESGLOSADOS
             t_base_c = sum(i['Base Ud'] * i['Cant'] * (1 - i['Desc %']/100) for i in st.session_state.compra_temp)
             t_igic_c = sum(i['IGIC €'] for i in st.session_state.compra_temp)
             t_final_c = sum(i['Total Línea'] for i in st.session_state.compra_temp)
             
             st.markdown(f"""
-            <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f;">
-                <p style="margin:0;"><b>Base Imponible:</b> {t_base_c:.2f}€</p>
-                <p style="margin:0;"><b>Impuestos (IGIC):</b> {t_igic_c:.2f}€</p>
-                <h3 style="margin:0; color: #d32f2f;">TOTAL COMPRA: {t_final_c:.2f}€</h3>
+            <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f; margin-top: 10px;">
+                <p style="margin:0; font-size: 14px;"><b>Suma Bases Imponibles:</b> {t_base_c:.2f}€</p>
+                <p style="margin:0; font-size: 14px;"><b>Suma Cuotas IGIC:</b> {t_igic_c:.2f}€</p>
+                <h3 style="margin:0; color: #d32f2f;">TOTAL FACTURA COMPRA: {t_final_c:.2f}€</h3>
             </div>
             """, unsafe_allow_html=True)
 
-            if st.button("📥 REGISTRAR Y SUMAR STOCK", type="primary", use_container_width=True):
-                p_id = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
-                client.table("compras").insert({
-                    "proveedor_id": p_id, "total": t_final_c, "estado": "Recibido", "tipo": f"Factura: {n_fac_prov}",
-                    "fecha_vencimiento": str(f_v_compra), "productos": st.session_state.compra_temp
-                }).execute()
-                for i in st.session_state.compra_temp:
-                    res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
-                    if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] + i['Cant']}).eq("id", i['id']).execute()
-                st.session_state.compra_temp = []; st.success("Compra registrada y stock actualizado."); st.rerun()
+            if st.button("📥 FINALIZAR Y ARCHIVAR COMPRA", type="primary", use_container_width=True):
+                if sel_p and n_fac_prov:
+                    p_id = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
+                    client.table("compras").insert({
+                        "proveedor_id": p_id, 
+                        "total": t_final_c, 
+                        "estado": "Recibido", 
+                        "tipo": f"Factura: {n_fac_prov}",
+                        "fecha_vencimiento": str(f_v_compra), 
+                        "productos": st.session_state.compra_temp
+                    }).execute()
+                    
+                    # Sumar stock al inventario
+                    for i in st.session_state.compra_temp:
+                        res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                        if res.data:
+                            stock_actual = res.data[0]['stock_actual'] if res.data[0]['stock_actual'] else 0
+                            client.table("productos").update({"stock_actual": stock_actual + i['Cant']}).eq("id", i['id']).execute()
+                    
+                    st.session_state.compra_temp = []
+                    st.success("Factura de compra archivada y stock actualizado."); time.sleep(1); st.rerun()
+                else:
+                    st.error("Por favor, selecciona un proveedor e indica el número de factura.")
 
     # ==========================================
     # SUB-TAB 3: ARCHIVO / CONSULTA DE FACTURAS
