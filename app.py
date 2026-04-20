@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from postgrest import SyncPostgrestClient
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import time
 import json
 import urllib.parse
@@ -23,6 +23,10 @@ st.markdown("""
         [data-testid="stAppDeployButton"], .stDeployButton, 
         [data-testid="stToolbar"], #st-viewer-badge, [data-testid="viewerBadge"] 
         {display: none !important;}
+
+        /* Estilo para alertas de vencimiento */
+        .vencido { color: #d32f2f; font-weight: bold; background-color: #ffebee; padding: 2px 5px; border-radius: 3px; }
+        .proximo { color: #f9a825; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -62,7 +66,7 @@ with c_logo:
 with c_titulo:
     st.markdown("<h1 style='margin: 0; padding: 0; font-size: 1.8rem; line-height: 1;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
 
-# 🚨 DEFINICIÓN CORRECTA DE LAS 11 PESTAÑAS 🚨
+# DEFINICIÓN CORRECTA DE LAS 11 PESTAÑAS
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
     "📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", 
     "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores", "📑 Facturación", "⚙️ Admin",
@@ -70,14 +74,13 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
 ])
 
 # ==========================================
-# --- TAB 1: INVENTARIO Y SERVICIOS (SEPARADOS) ---
+# --- TAB 1: INVENTARIO Y SERVICIOS ---
 # ==========================================
 with tab1:
     st.markdown("<h3 style='margin-top: -15px;'>📦 Gestión de Inventario y Servicios</h3>", unsafe_allow_html=True)
     
     col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
-    # 1. Obtener proveedores para el formulario
     res_proveedores = client.table("proveedores").select("id, nombre_empresa").execute()
     dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores.data} if res_proveedores.data else {}
 
@@ -113,15 +116,12 @@ with tab1:
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
-        # Consultamos todos los productos de la tabla
         res_prod = client.table("productos").select("*").order("nombre").execute()
         
         if res_prod.data:
             df_inv = pd.DataFrame(res_prod.data)
             
-            # --- MESA 1: PRODUCTOS FÍSICOS ---
             st.markdown("#### 📦 Inventario de Productos")
-            # Filtramos: Categoría es 'Producto' o está vacío (por si acaso hay antiguos)
             df_solo_productos = df_inv[df_inv['categoria'].isin(['Producto', None, ''])].copy()
             
             edit_p = st.data_editor(
@@ -142,7 +142,6 @@ with tab1:
 
             st.markdown("---")
 
-            # --- MESA 2: SERVICIOS ---
             st.markdown("#### ✂️ Catálogo de Servicios")
             df_solo_servicios = df_inv[df_inv['categoria'] == 'Servicio'].copy()
             
@@ -163,7 +162,7 @@ with tab1:
                         client.table("productos").update(row.to_dict()).eq("id", row['id']).execute()
                     st.success("Servicios actualizados"); time.sleep(0.5); st.rerun()
             else:
-                st.info("No hay servicios registrados. Usa el formulario de la izquierda para crear uno (Peluquería, etc).")
+                st.info("No hay servicios registrados.")
         else:
             st.info("Inventario vacío.")
 
@@ -254,8 +253,7 @@ with tab2:
                 @media screen {{
                     #ticket-impresion {{ display: none; }}
                     #pantalla {{ font-family: sans-serif; text-align: center; }}
-                    .btn-print {{ padding: 10px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-                    .btn-print:hover {{ background-color: #003d57; }}
+                    .btn-print {{ padding: 10px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; }}
                 }}
                 @media print {{
                     #pantalla {{ display: none; }}
@@ -266,7 +264,6 @@ with tab2:
             <body style="margin: 0; padding: 0;">
                 <div id="pantalla">
                     <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR TICKET</button>
-                    <p style="font-size: 11px; color: #666; margin-top: 5px;">Ticket oculto en pantalla. Saldrá completo al imprimir.</p>
                 </div>
                 <div id="ticket-impresion">
                     <div style="text-align: center;">
@@ -288,21 +285,13 @@ with tab2:
                     </table>
                     <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
                     <div style="text-align: right; font-size: 14px;"><b>TOTAL: {t['total']:.2f}€</b></div>
-                    <div style="font-size: 10px; color: #444; margin-top: 10px; text-align: center;">
-                        <b>POLÍTICA DE DEVOLUCIÓN</b><br>
-                        Plazo de 14 días con ticket y embalaje original.
-                    </div>
                 </div>
             </body>
             </html>
             """
-            components.html(html_ticket, height=75)
+            components.html(html_ticket, height=50)
             
-            c_em, c_nv = st.columns(2)
-            with c_em:
-                texto_mail = f"Ticket Animalarium\nTotal: {t['total']:.2f}€\nFecha: {t['fecha']}"
-                url_mail = f"mailto:?subject=Ticket Animalarium&body={urllib.parse.quote(texto_mail)}"
-                st.markdown(f"<a href='{url_mail}' target='_blank' style='text-decoration:none;'><button style='width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; cursor:pointer; font-weight: bold;'>✉️ Email</button></a>", unsafe_allow_html=True)
+            c_nv = st.columns(1)[0]
             with c_nv:
                 if st.button("🛒 Nueva Venta", use_container_width=True, type="primary"):
                     st.session_state.ticket_actual = None
@@ -341,6 +330,7 @@ with tab2:
 
                 metodo = st.radio("p", ["Efectivo", "Tarjeta", "Bizum", "Mixto"], horizontal=True, label_visibility="collapsed")
                 pagado_hoy = 0.0; pendiente = 0.0; metodo_log = metodo
+                p_efectivo = 0.0; p_tarjeta = 0.0; p_bizum = 0.0
 
                 if metodo == "Efectivo":
                     c_tot, c_ent, c_cam = st.columns([0.8, 1, 1])
@@ -351,9 +341,11 @@ with tab2:
                         if cambio >= 0:
                             st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>CAMBIO</p><h3 style='margin:0; color:green;'>{cambio:.2f}€</h3>", unsafe_allow_html=True)
                             pagado_hoy = total_f
+                            p_efectivo = total_f
                         else:
                             st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>DEUDA</p><h3 style='margin:0; color:orange;'>{-cambio:.2f}€</h3>", unsafe_allow_html=True)
                             pagado_hoy = entregado; pendiente = -cambio
+                            p_efectivo = entregado
 
                 elif metodo == "Mixto":
                     st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
@@ -362,6 +354,7 @@ with tab2:
                     with cm2: p_t = st.number_input("Tar.", min_value=0.0, value=0.0)
                     with cm3: p_b = st.number_input("Biz.", min_value=0.0, value=0.0)
                     pagado_hoy = p_e + p_t + p_b
+                    p_efectivo = p_e; p_tarjeta = p_t; p_bizum = p_b
                     pendiente = total_f - pagado_hoy if pagado_hoy < total_f else 0.0
                     metodo_log = f"Mixto (E:{p_e}|T:{p_t}|B:{p_b})"
                     if pendiente > 0: st.warning(f"Pendiente: {pendiente:.2f}€")
@@ -369,6 +362,8 @@ with tab2:
                 else:
                     st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
                     pagado_hoy = total_f
+                    if metodo == "Tarjeta": p_tarjeta = total_f
+                    if metodo == "Bizum": p_bizum = total_f
 
                 nombre_deudor = ""
                 if pendiente > 0:
@@ -382,11 +377,15 @@ with tab2:
                         carrito_limpio = json.loads(edited_df.to_json(orient='records'))
                         
                         try:
+                            # INSERCIÓN CON COLUMNAS EXACTAS CONTABLES
                             client.table("ventas_historial").insert({
                                 "total": float(total_f), "pagado": float(pagado_hoy), "pendiente": float(pendiente),
                                 "metodo_pago": str(metodo_log), "cliente_deuda": str(nombre_deudor),
                                 "descuento_global": float(desc_g), "productos": carrito_limpio, 
-                                "estado": "Completado" if pendiente == 0 else "Deuda"
+                                "estado": "Completado" if pendiente == 0 else "Deuda",
+                                "pago_efectivo": float(p_efectivo),
+                                "pago_tarjeta": float(p_tarjeta),
+                                "pago_bizum": float(p_bizum)
                             }).execute()
                             
                             for i in carrito_limpio:
@@ -492,80 +491,82 @@ with tab3:
         else:
             st.info("📭 Aún no tienes clientes registrados. ¡Empieza a añadir fichas a la izquierda!")        
 
-
 # ==========================================
-# --- TAB 4: HISTORIAL OPERATIVO (VENTAS Y CAJAS) ---
+# --- TAB 4: HISTORIAL (MEJORADO CON FECHAS Y EDICIÓN) ---
 # ==========================================
 with tab4:
-    st.markdown("<h3 style='margin-top: -15px; margin-bottom: 5px;'>📜 Historial de Operaciones</h3>", unsafe_allow_html=True)
-    
+    st.markdown("<h3 style='margin-top: -15px;'>📜 Historial de Ventas y Cajas</h3>", unsafe_allow_html=True)
     sub_h_ventas, sub_h_cajas = st.tabs(["🛒 Tickets y Ventas", "🔒 Cierres de Caja"])
     
-    # --- 1. HISTORIAL DE VENTAS Y TICKETS ---
     with sub_h_ventas:
-        c_fv1, c_fv2 = st.columns(2)
-        with c_fv1: f_inicio_v = st.date_input("Ventas desde:", value=pd.to_datetime('today') - pd.Timedelta(days=7), key="fv1")
-        with c_fv2: f_fin_v = st.date_input("Ventas hasta:", value=pd.to_datetime('today'), key="fv2")
+        c_f1, c_f2, c_f3 = st.columns([1,1,1])
+        with c_f1: preset = st.selectbox("Filtro rápido:", ["Esta semana", "Este mes", "Trimestre Actual", "Todo el año"])
+        
+        hoy = date.today()
+        if preset == "Esta semana": f_ini = hoy - timedelta(days=hoy.weekday())
+        elif preset == "Este mes": f_ini = hoy.replace(day=1)
+        elif preset == "Trimestre Actual": f_ini = hoy.replace(month=((hoy.month-1)//3)*3+1, day=1)
+        else: f_ini = hoy.replace(month=1, day=1)
 
-        try:
-            res_v = client.table("ventas_historial").select("*").gte("created_at", f"{f_inicio_v}T00:00:00").lte("created_at", f"{f_fin_v}T23:59:59").order("id", desc=True).execute()
+        with c_f2: f_inicio_v = st.date_input("Desde:", value=f_ini)
+        with c_f3: f_fin_v = st.date_input("Hasta:", value=hoy)
+
+        res_v = client.table("ventas_historial").select("*").gte("created_at", f"{f_inicio_v}T00:00:00").lte("created_at", f"{f_fin_v}T23:59:59").order("id", desc=True).execute()
+        
+        if res_v.data:
+            df_v = pd.DataFrame(res_v.data)
+            try: df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+            except: df_v['Fecha'] = "---"
             
-            if res_v.data:
-                df_v = pd.DataFrame(res_v.data)
-                try: df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
-                except: df_v['Fecha'] = "---"
-                
-                for col in ['metodo_pago', 'estado', 'cliente_deuda']:
-                    if col not in df_v.columns: df_v[col] = "N/A"
+            for col in ['metodo_pago', 'estado', 'cliente_deuda']:
+                if col not in df_v.columns: df_v[col] = "N/A"
 
-                df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda']].copy()
-                
-                st.markdown("💡 *Puedes editar Método, Estado o Cliente haciendo doble clic.*")
-                edited_df = st.data_editor(
-                    df_vista,
-                    column_config={
-                        "id": st.column_config.NumberColumn("Nº Ticket", disabled=True, width="small"),
-                        "Fecha": st.column_config.TextColumn("Fecha", disabled=True),
-                        "total": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f"),
-                        "metodo_pago": st.column_config.SelectboxColumn("Método", options=["Efectivo", "Tarjeta", "Bizum", "Mixto"]),
-                        "estado": st.column_config.SelectboxColumn("Estado", options=["Completado", "Deuda", "DEVUELTO"]),
-                        "cliente_deuda": st.column_config.TextColumn("Cliente (Si debe)")
-                    },
-                    hide_index=True, use_container_width=True, height=200, key="editor_tickets"
-                )
-                
-                if st.button("💾 Guardar Cambios en Tickets", type="primary"):
-                    diferencias = edited_df.compare(df_vista)
-                    if not diferencias.empty:
-                        for idx in diferencias.index.tolist():
-                            client.table("ventas_historial").update({
-                                "metodo_pago": str(edited_df.loc[idx, 'metodo_pago']),
-                                "estado": str(edited_df.loc[idx, 'estado']),
-                                "cliente_deuda": str(edited_df.loc[idx, 'cliente_deuda']) if str(edited_df.loc[idx, 'cliente_deuda']) != 'nan' else ""
-                            }).eq("id", int(edited_df.loc[idx, 'id'])).execute()
-                        st.success("Tickets actualizados."); time.sleep(1); st.rerun()
+            df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda']].copy()
+            
+            st.markdown("💡 *Haz doble clic en cualquier celda para corregir Método de Pago, Estado o Deuda.*")
+            edited_df = st.data_editor(
+                df_vista,
+                column_config={
+                    "id": st.column_config.NumberColumn("Nº Ticket", disabled=True, width="small"),
+                    "Fecha": st.column_config.TextColumn("Fecha", disabled=True),
+                    "total": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f"),
+                    "metodo_pago": st.column_config.SelectboxColumn("Método", options=["Efectivo", "Tarjeta", "Bizum", "Mixto"]),
+                    "estado": st.column_config.SelectboxColumn("Estado", options=["Completado", "Deuda", "DEVUELTO"]),
+                    "cliente_deuda": st.column_config.TextColumn("Cliente (Si debe)")
+                },
+                hide_index=True, use_container_width=True, height=200, key="editor_tickets"
+            )
+            
+            if st.button("💾 Guardar Correcciones", type="primary"):
+                diferencias = edited_df.compare(df_vista)
+                if not diferencias.empty:
+                    for idx in diferencias.index.tolist():
+                        client.table("ventas_historial").update({
+                            "metodo_pago": str(edited_df.loc[idx, 'metodo_pago']),
+                            "estado": str(edited_df.loc[idx, 'estado']),
+                            "cliente_deuda": str(edited_df.loc[idx, 'cliente_deuda']) if str(edited_df.loc[idx, 'cliente_deuda']) != 'nan' else ""
+                        }).eq("id", int(edited_df.loc[idx, 'id'])).execute()
+                    st.success("Tickets actualizados."); time.sleep(1); st.rerun()
 
-                st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
-                
-                t_buscar = st.number_input("Nº Ticket para ver detalle o devolver:", min_value=1, step=1, value=int(df_v['id'].max()))
-                t_info = df_v[df_v['id'] == t_buscar]
-                if not t_info.empty:
-                    prods = t_info.iloc[0].get('productos', [])
-                    if prods:
-                        st.dataframe(pd.DataFrame(prods)[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True)
-                        if "DEVUELTO" not in str(t_info.iloc[0].get('estado', '')).upper():
-                            if st.button(f"🔄 DEVOLVER TICKET #{t_buscar} Y RESTAURAR STOCK"):
-                                for p in prods:
-                                    if not p.get('Manual', False):
-                                        res_p = client.table("productos").select("stock_actual").eq("nombre", p['Producto']).execute()
-                                        if res_p.data:
-                                            client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("nombre", p['Producto']).execute()
-                                client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_buscar)).execute()
-                                st.success("Devolución completada."); time.sleep(1); st.rerun()
-            else: st.info("No hay ventas en este rango de fechas.")
-        except Exception as e: st.error(f"Error cargando ventas: {e}")
+            st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
+            
+            t_buscar = st.number_input("Nº Ticket para ver detalle o devolver:", min_value=1, step=1, value=int(df_v['id'].max()))
+            t_info = df_v[df_v['id'] == t_buscar]
+            if not t_info.empty:
+                prods = t_info.iloc[0].get('productos', [])
+                if prods:
+                    st.dataframe(pd.DataFrame(prods)[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True)
+                    if "DEVUELTO" not in str(t_info.iloc[0].get('estado', '')).upper():
+                        if st.button(f"🔄 DEVOLVER TICKET #{t_buscar} Y RESTAURAR STOCK"):
+                            for p in prods:
+                                if not p.get('Manual', False):
+                                    res_p = client.table("productos").select("stock_actual").eq("nombre", p['Producto']).execute()
+                                    if res_p.data:
+                                        client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("nombre", p['Producto']).execute()
+                            client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_buscar)).execute()
+                            st.success("Devolución completada."); time.sleep(1); st.rerun()
+        else: st.info("No hay ventas en este rango de fechas.")
 
-    # --- 2. HISTORIAL DE CAJAS Y CIERRES Z ---
     with sub_h_cajas:
         c_fc1, c_fc2 = st.columns(2)
         with c_fc1: f_inicio_c = st.date_input("Cajas desde:", value=pd.to_datetime('today') - pd.Timedelta(days=7), key="fc1")
@@ -589,7 +590,6 @@ with tab4:
                     resumen = caja_seleccionada.get('resumen_pagos', {})
                     if not resumen or pd.isna(resumen): resumen = {"Efectivo": 0, "Tarjeta": 0, "Bizum": 0, "Ingresos": 0, "Retiradas": 0}
                     
-                    # Generar Ticket HTML para imprimir
                     html_cierre = f"""
                     <!DOCTYPE html>
                     <html>
@@ -638,7 +638,6 @@ with tab4:
                     """
                     components.html(html_cierre, height=50)
 
-                    # Mostrar tabla de movimientos abajo para ver los motivos
                     res_movs = client.table("movimientos_caja").select("*").eq("id_caja", turno_sel).execute()
                     if res_movs.data:
                         st.markdown("<p style='font-size:12px; color:gray;'>Detalle de Entradas/Salidas de este turno:</p>", unsafe_allow_html=True)
@@ -648,6 +647,7 @@ with tab4:
                     else: st.info("No hubo Entradas o Salidas manuales en este turno.")
             else: st.warning("No hay registros de cajas cerradas en este rango.")
         except Exception as e: st.error(f"Error cargando cajas: {e}")
+
 
 # ==========================================
 # --- TAB 5: CONTROL DE CAJA FUERTE ---
@@ -735,11 +735,9 @@ with tab5:
                 with c_f2: submit_cierre = st.form_submit_button("CERRAR CAJA DEFINITIVA", type="primary", use_container_width=True)
                     
                 if submit_cierre:
-                    # 1. Calcular Ingresos y Salidas manuales
                     ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0.0
                     retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
                     
-                    # 2. Calcular Ventas por Método desde la apertura de esta caja
                     res_ventas = client.table("ventas_historial").select("total, metodo_pago, estado").gte("created_at", fecha_ap_str).execute()
                     
                     t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
@@ -755,19 +753,16 @@ with tab5:
                                         t_efe += float(re.search(r'E:([0-9.]+)', mp).group(1))
                                         t_tar += float(re.search(r'T:([0-9.]+)', mp).group(1))
                                         t_biz += float(re.search(r'B:([0-9.]+)', mp).group(1))
-                                    except: pass # Evita cuelgues si el texto mixto es raro
+                                    except: pass
                     
-                    # 3. Calcular el Descuadre (Lo que debería haber vs Lo que contaste)
                     efectivo_teorico_en_caja = fondo_actual + t_efe + ingresos - retiradas
                     descuadre = efectivo_final - efectivo_teorico_en_caja
                     
-                    # 4. Preparar el JSON con el desglose para guardarlo
                     resumen_json = {
                         "Efectivo": round(t_efe, 2), "Tarjeta": round(t_tar, 2), "Bizum": round(t_biz, 2),
                         "Ingresos": round(ingresos, 2), "Retiradas": round(retiradas, 2)
                     }
                     
-                    # 5. Guardar en Supabase
                     client.table("control_caja").update({
                         "estado": "Cerrada", 
                         "total_contado": float(efectivo_final), 
@@ -779,7 +774,7 @@ with tab5:
                     time.sleep(1.5); st.rerun()
 
 # ==========================================
-# --- TAB 6: ESTADÍSTICAS Y CONTABILIDAD ---
+# --- TAB 6: ESTADÍSTICAS ---
 # ==========================================
 with tab6:
     st.markdown("<h3 style='margin-bottom: 5px;'>📈 Contabilidad y Estadísticas</h3>", unsafe_allow_html=True)
@@ -828,7 +823,9 @@ with tab6:
     except Exception as e:
         st.error(f"Error al cargar las estadísticas: {e}") 
 
-# --- TAB 7: PROVEEDORES (AMPLIADO) ---
+# ==========================================
+# --- TAB 7: PROVEEDORES ---
+# ==========================================
 with tab7:
     st.markdown("### 🚚 Gestión de Proveedores y Pagos")
     cp1, cp2 = st.columns([1, 2])
@@ -862,7 +859,6 @@ with tab8:
     res_inv = client.table("productos").select("*").execute()
     df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
 
-    # --- 1. FACTURAS DE VENTA (A CLIENTES) ---
     with sub_f_ventas:
         if 'factura_temporal' not in st.session_state: st.session_state.factura_temporal = []
         
@@ -931,7 +927,6 @@ with tab8:
             df_fv = pd.DataFrame(st.session_state.factura_temporal)
             edited_df_v = st.data_editor(df_fv, column_config={"id": None, "Desc €": None, "Base Neta": None, "IGIC €": None}, hide_index=True, use_container_width=True, key="ed_v_final")
             
-            # Recálculos reactivos
             edited_df_v['Coste Total Ud'] = edited_df_v['Base Ud'] * (1 + (edited_df_v['IGIC %'] / 100))
             edited_df_v['Desc €'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) * (edited_df_v['Desc %'] / 100)
             edited_df_v['Base Neta'] = (edited_df_v['Base Ud'] * edited_df_v['Cantidad']) - edited_df_v['Desc €']
@@ -943,7 +938,6 @@ with tab8:
             t_igic = edited_df_v['IGIC €'].sum()
             t_total = edited_df_v['Total Línea'].sum()
             
-            # PREVISUALIZACIÓN HTML
             cli_datos = df_cli[df_cli['nombre_dueno'] == f_cliente.split(" -")[0]].iloc[0] if f_cliente else None
             html_fac = f"""
             <div style="border: 1px solid #ccc; padding: 20px; background: white; color: black; font-family: sans-serif;">
@@ -978,7 +972,6 @@ with tab8:
                         client.table("productos").update({"stock_actual": curr.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
                     st.session_state.factura_temporal = []; st.success("Factura emitida."); time.sleep(1); st.rerun()
 
-    # --- 2. FACTURAS DE COMPRA (PROVEEDORES) ---
     with sub_f_compras:
         if 'entrada_temporal' not in st.session_state: st.session_state.entrada_temporal = []
         c_c1, c_c2, c_c3 = st.columns(3)
@@ -1036,19 +1029,18 @@ with tab8:
             if st.button("🚀 REGISTRAR COMPRA Y SUMAR STOCK", type="primary", use_container_width=True):
                 if p_sel and n_fac_p:
                     prov_id = df_prov[df_prov['nombre_empresa'] == p_sel.split(" -")[0]].iloc[0]['id']
-                    client.table("compras").insert({"proveedor_id": prov_id, "total": float(t_total_c), "estado": "Recibido", "fecha_vencimiento": str(f_vence_c), "tipo": n_fac_p}).execute()
+                    client.table("compras").insert({"proveedor_id": prov_id, "total": float(t_total_c), "estado": "Recibido", "fecha_vencimiento": str(f_vence_c), "tipo": "Mercadería"}).execute()
                     for i in st.session_state.entrada_temporal:
                         curr = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
                         client.table("productos").update({"stock_actual": curr.data[0]['stock_actual'] + i['Cantidad']}).eq("id", i['id']).execute()
                     st.session_state.entrada_temporal = []; st.success("Compra registrada."); time.sleep(1); st.rerun()
 
 # ==========================================
-# --- TAB 9: ADMIN (EDICIÓN AVANZADA) ---
+# --- TAB 9: ADMIN ---
 # ==========================================
 with tab9:
     st.markdown("<h3 style='margin-top: -15px;'>⚙️ Editor Maestro de Datos</h3>", unsafe_allow_html=True)
     
-    # 🚨 HERRAMIENTA DE MIGRACIÓN AUTOMÁTICA
     with st.expander("🚨 HERRAMIENTA DE RESCATE: Migrar productos antiguos", expanded=True):
         st.info("Tus productos reales están en la tabla 'productos_y_servicios_antiguo'. Pulsa este botón para copiarlos a la estructura nueva de forma automática.")
         if st.button("🚀 MIGRAR MIS PRODUCTOS A LA TABLA NUEVA", type="primary"):
@@ -1056,7 +1048,6 @@ with tab9:
             if res_viejos.data:
                 creados = 0
                 for p in res_viejos.data:
-                    # Comprobamos que el SKU no exista ya para no duplicarlo
                     res_check = client.table("productos").select("id").eq("sku", p.get("sku", "")).execute()
                     if not res_check.data and p.get("sku"):
                         client.table("productos").insert({
@@ -1131,155 +1122,96 @@ with tab9:
     else:
         st.info(f"Todavía no hay datos registrados en {opcion_edicion}.")
 
+
 # ==========================================
-# --- TAB 10: CONTABILIDAD Y ARCHIVO DOCUMENTAL ---
+# --- TAB 10: CONTABILIDAD E INFORMES PARA ASESORÍA ---
 # ==========================================
 with tab10:
-    st.markdown("<h3 style='margin-bottom: 5px;'>📊 Contabilidad y Archivo</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top: -15px;'>📊 Contabilidad e Informes para Asesoría</h3>", unsafe_allow_html=True)
     
-    sub_fungible, sub_archivo, sub_balance = st.tabs(["🧾 Gastos Fungibles", "🗄️ Archivo de Facturas", "⚖️ Balance Global"])
+    sec_gastos, sec_informes = st.tabs(["💸 Registro de Gastos", "📂 Descargar Informes (Asesor)"])
 
-    # --- 1. GESTIÓN DE GASTOS FUNGIBLES ---
-    with sub_fungible:
-        col_f1, col_f2 = st.columns([1, 2], gap="large")
-        with col_f1:
-            with st.form("gasto_operativo", clear_on_submit=True, border=True):
-                st.markdown("#### Registrar Gasto (Luz, Limpieza...)")
-                
-                # Lista de proveedores para el desplegable (Opcional para un gasto general)
-                res_prov = client.table("proveedores").select("id, nombre_empresa").execute()
-                dict_prov = {p['nombre_empresa']: p['id'] for p in res_prov.data} if res_prov.data else {}
-                
-                prov_gasto = st.selectbox("Proveedor / Empresa (Opcional)", ["Sin especificar"] + list(dict_prov.keys()))
-                g_total = st.number_input("Coste Total (€) *", min_value=0.0, format="%.2f")
-                g_estado = st.selectbox("Estado", ["Pagado", "Pendiente"])
-                
-                if st.form_submit_button("✅ Guardar Gasto", type="primary", use_container_width=True):
-                    if g_total > 0:
-                        data_insert = {
-                            "tipo": "Gasto Operativo", 
-                            "total": g_total, 
-                            "estado": g_estado, 
-                            "fecha_vencimiento": str(datetime.now().date())
-                        }
-                        if prov_gasto != "Sin especificar":
-                            data_insert["proveedor_id"] = dict_prov[prov_gasto]
-                            
-                        client.table("compras").insert(data_insert).execute()
-                        st.success("Gasto registrado correctamente."); time.sleep(1); st.rerun()
+    with sec_gastos:
+        col_g1, col_g2 = st.columns([1, 2])
+        with col_g1:
+            with st.form("nuevo_gasto"):
+                st.markdown("#### Registrar Gasto Operativo")
+                concepto = st.text_input("Concepto (Luz, Alquiler, Material...)")
+                importe = st.number_input("Importe Total (€)", min_value=0.0)
+                f_vence = st.date_input("Fecha de Vencimiento")
+                estado_g = st.selectbox("Estado", ["Pagado", "Pendiente"])
+                if st.form_submit_button("Guardar Gasto"):
+                    if importe > 0:
+                        client.table("compras").insert({
+                            "tipo": "Gasto Operativo", "total": importe, 
+                            "estado": estado_g, "fecha_vencimiento": str(f_vence)
+                        }).execute()
+                        st.success("Gasto registrado exitosamente."); st.rerun()
                     else:
-                        st.error("El importe debe ser mayor a 0€.")
-
-        with col_f2:
-            st.markdown("#### Listado de Gastos Operativos")
-            res_g = client.table("compras").select("*, proveedores(nombre_empresa)").eq("tipo", "Gasto Operativo").order("id", desc=True).execute()
-            if res_g.data:
-                df_g = pd.DataFrame(res_g.data)
-                df_g['Fecha'] = pd.to_datetime(df_g['created_at']).dt.strftime('%d/%m/%Y')
-                df_g['Entidad'] = df_g['proveedores'].apply(lambda x: x['nombre_empresa'] if isinstance(x, dict) else "Gasto General")
-                st.dataframe(df_g[['Fecha', 'Entidad', 'total', 'estado']], 
-                             column_config={"total": st.column_config.NumberColumn("Coste Total (€)", format="%.2f")},
-                             use_container_width=True, hide_index=True, height=250)
-            else:
-                st.info("No hay gastos operativos registrados.")
-
-    # --- 2. ARCHIVO DOCUMENTAL (Buscador, PDF e Email) ---
-    with sub_archivo:
-        st.markdown("#### 📂 Buscador de Facturas Emitidas y Recibidas")
+                        st.error("El importe debe ser mayor que 0.")
         
-        c_af1, c_af2, c_af3 = st.columns([1, 1, 1])
-        with c_af1: tipo_doc = st.selectbox("Tipo de documento:", ["Facturas de Venta (Clientes)", "Facturas de Compra (Proveedores)"])
-        with c_af2: f_desde = st.date_input("Desde la fecha:", value=pd.to_datetime('today') - pd.Timedelta(days=30))
-        with c_af3: f_hasta = st.date_input("Hasta la fecha:", value=pd.to_datetime('today'))
-
-        try:
-            if tipo_doc == "Facturas de Venta (Clientes)":
-                res_docs = client.table("facturas").select("*, clientes(nombre_dueno, email, telefono)").gte("created_at", f"{f_desde}T00:00:00").lte("created_at", f"{f_hasta}T23:59:59").order("id", desc=True).execute()
-                nombre_col_entidad = "Cliente"
+        with col_g2:
+            st.markdown("#### Alertas de Vencimientos Pendientes")
+            res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").eq("estado", "Pendiente").execute()
+            if res_comp.data:
+                hoy_date = date.today()
+                for c in res_comp.data:
+                    dias = (pd.to_datetime(c['fecha_vencimiento']).date() - hoy_date).days
+                    clase = "vencido" if dias < 0 else "proximo"
+                    nombre = c['proveedores']['nombre_empresa'] if c['proveedores'] else c['tipo']
+                    st.markdown(f"<p class='{clase}'>⚠️ {nombre} - {c['total']}€ (Vence en {dias} días: {c['fecha_vencimiento']})</p>", unsafe_allow_html=True)
             else:
-                res_docs = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_desde}T00:00:00").lte("created_at", f"{f_hasta}T23:59:59").order("id", desc=True).execute()
-                nombre_col_entidad = "Proveedor"
+                st.info("No hay facturas ni gastos pendientes. ¡Todo al día!")
 
-            if res_docs.data:
-                df_docs = pd.DataFrame(res_docs.data)
-                df_docs['Fecha'] = pd.to_datetime(df_docs['created_at']).dt.strftime('%d/%m/%Y')
-                
-                if tipo_doc == "Facturas de Venta (Clientes)":
-                    df_docs['Entidad'] = df_docs['clientes'].apply(lambda x: x['nombre_dueno'] if isinstance(x, dict) else "N/A")
-                    df_docs['Importe'] = df_docs['total_final']
-                else:
-                    df_docs['Entidad'] = df_docs['proveedores'].apply(lambda x: x['nombre_empresa'] if isinstance(x, dict) else "Gasto General")
-                    df_docs['Importe'] = df_docs['total']
-
-                st.markdown("---")
-                doc_sel_id = st.selectbox("Selecciona una factura para imprimir o enviar:", df_docs['id'].tolist(), format_func=lambda x: f"Factura #{x} - {df_docs[df_docs['id']==x]['Entidad'].values[0]} ({df_docs[df_docs['id']==x]['Importe'].values[0]:.2f}€)")
-                
-                if doc_sel_id:
-                    doc_data = df_docs[df_docs['id'] == doc_sel_id].iloc[0]
-                    
-                    c_act1, c_act2 = st.columns(2)
-                    with c_act1:
-                        # 🖨️ Generador de impresión
-                        html_factura = f"""
-                        <script>
-                        function imprimir() {{
-                            var win = window.open('', '', 'height=700,width=700');
-                            win.document.write('<html><head><title>Factura {doc_sel_id}</title></head><body style="font-family:sans-serif; padding:20px;">');
-                            win.document.write('<h1 style="color:#005275;">ANIMALARIUM</h1>');
-                            win.document.write('<p><b>Factura Nº:</b> {doc_sel_id}</p>');
-                            win.document.write('<p><b>Fecha:</b> {doc_data['Fecha']}</p>');
-                            win.document.write('<p><b>{nombre_col_entidad}:</b> {doc_data['Entidad']}</p>');
-                            win.document.write('<hr><h3>TOTAL: {doc_data['Importe']:.2f}€</h3>');
-                            win.document.write('</body></html>');
-                            win.document.close();
-                            setTimeout(function(){{ win.print(); }}, 500);
-                        }}
-                        </script>
-                        <button onclick="imprimir()" style="width:100%; padding:10px; background-color:#005275; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🖨️ Imprimir Factura</button>
-                        """
-                        components.html(html_factura, height=50)
-                    
-                    with c_act2:
-                        # ✉️ Generador de Email
-                        email_dest = doc_data['clientes']['email'] if tipo_doc == "Facturas de Venta (Clientes)" and isinstance(doc_data.get('clientes'), dict) else ""
-                        asunto = f"Factura {doc_sel_id} - Animalarium"
-                        cuerpo = f"Hola {doc_data['Entidad']},\n\nAdjuntamos los detalles de su factura por importe de {doc_data['Importe']:.2f}€.\n\nSaludos,\nAnimalarium."
-                        url_mail = f"mailto:{email_dest}?subject={urllib.parse.quote(asunto)}&body={urllib.parse.quote(cuerpo)}"
-                        st.markdown(f'<a href="{url_mail}" target="_blank" style="text-decoration:none;"><button style="width:100%; padding:10px; background-color:#2e7d32; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">✉️ Enviar por Email</button></a>', unsafe_allow_html=True)
-            else:
-                st.info("📭 No se encontraron documentos en este rango de fechas.")
-        except Exception as e:
-            st.error(f"Error al consultar el archivo: {e}")
-
-    # --- 3. BALANCE GLOBAL (Salud de la Empresa) ---
-    with sub_balance:
-        st.markdown("#### ⚖️ Salud Financiera (Contraste Total)")
+    with sec_informes:
+        st.markdown("#### 📥 Generador de Libros de Ventas y Compras")
+        col_i1, col_i2, col_i3 = st.columns(3)
+        with col_i1:
+            periodo = st.selectbox("Seleccionar Periodo:", ["Este Mes", "1º Trimestre", "2º Trimestre", "3º Trimestre", "4º Trimestre", "Año Completo"])
         
-        try:
-            # 1. Sumar Ingresos (Facturas Oficiales + Tickets de Caja)
-            res_v_fac = client.table("facturas").select("total_final").execute()
-            v_total_facturas = sum(v['total_final'] for v in res_v_fac.data) if res_v_fac.data else 0
-            
-            res_v_tk = client.table("ventas_historial").select("total, estado").execute()
-            v_total_tickets = sum(t['total'] for t in res_v_tk.data if t['estado'] != 'DEVUELTO') if res_v_tk.data else 0
-            
-            v_total_ingresos = v_total_facturas + v_total_tickets
-            
-            # 2. Sumar Gastos (Mercadería y Fungibles)
-            res_c = client.table("compras").select("total, tipo").execute()
-            c_mercaderia = sum(c['total'] for c in res_c.data if c['tipo'] == 'Mercadería') if res_c.data else 0
-            c_fungible = sum(c['total'] for c in res_c.data if c['tipo'] == 'Gasto Operativo') if res_c.data else 0
-            
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Ingresos (PVP Tickets/Fac)", f"{v_total_ingresos:.2f}€")
-            c2.metric("Inversión Stock (Coste Total)", f"-{c_mercaderia:.2f}€")
-            c3.metric("Gastos (Luz, Fungibles)", f"-{c_fungible:.2f}€")
-            
-            beneficio = v_total_ingresos - c_mercaderia - c_fungible
-            c4.metric("BENEFICIO NETO", f"{beneficio:.2f}€", delta=f"{beneficio:.2f}€")
-            
-        except Exception as e:
-            st.error(f"Error calculando el balance: {e}")
+        anio_actual = date.today().year
+        hoy_dt = date.today()
+        
+        if periodo == "Este Mes": 
+            f_i = hoy_dt.replace(day=1).strftime("%Y-%m-%d")
+            f_f = hoy_dt.strftime("%Y-%m-%d")
+        elif "1º" in periodo: f_i, f_f = f"{anio_actual}-01-01", f"{anio_actual}-03-31"
+        elif "2º" in periodo: f_i, f_f = f"{anio_actual}-04-01", f"{anio_actual}-06-30"
+        elif "3º" in periodo: f_i, f_f = f"{anio_actual}-07-01", f"{anio_actual}-09-30"
+        elif "4º" in periodo: f_i, f_f = f"{anio_actual}-10-01", f"{anio_actual}-12-31"
+        else: f_i, f_f = f"{anio_actual}-01-01", f"{anio_actual}-12-31"
+
+        c_v, c_c = st.columns(2)
+        
+        with c_v:
+            st.info(f"Ventas en el periodo: {periodo}")
+            res_v = client.table("ventas_historial").select("id, created_at, total, pago_efectivo, pago_tarjeta, pago_bizum, metodo_pago, estado").gte("created_at", f"{f_i}T00:00:00").lte("created_at", f"{f_f}T23:59:59").execute()
+            if res_v.data:
+                df_v = pd.DataFrame(res_v.data)
+                df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y')
+                
+                # Columnas útiles para el asesor
+                df_asesor_v = df_v[['id', 'Fecha', 'total', 'pago_efectivo', 'pago_tarjeta', 'pago_bizum', 'estado']]
+                st.dataframe(df_asesor_v, use_container_width=True, hide_index=True)
+                csv_v = df_asesor_v.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Descargar CSV Ventas", csv_v, f"Ventas_{periodo.replace(' ', '_')}.csv", "text/csv")
+            else:
+                st.write("No hay ventas en este periodo.")
+        
+        with c_c:
+            st.warning(f"Compras/Gastos en el periodo: {periodo}")
+            res_c = client.table("compras").select("id, created_at, tipo, total, estado").gte("created_at", f"{f_i}T00:00:00").lte("created_at", f"{f_f}T23:59:59").execute()
+            if res_c.data:
+                df_c = pd.DataFrame(res_c.data)
+                df_c['Fecha'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y')
+                
+                df_asesor_c = df_c[['id', 'Fecha', 'tipo', 'total', 'estado']]
+                st.dataframe(df_asesor_c, use_container_width=True, hide_index=True)
+                csv_c = df_asesor_c.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Descargar CSV Compras", csv_c, f"Compras_y_Gastos_{periodo.replace(' ', '_')}.csv", "text/csv")
+            else:
+                st.write("No hay compras/gastos en este periodo.")
+
 
 # ==========================================
 # --- TAB 11: AGENDA Y CITAS ---
@@ -1287,7 +1219,6 @@ with tab10:
 with tab11:
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
     
-    # Traemos las mascotas y sus dueños
     res_m = client.table("mascotas").select("id, nombre, clientes(nombre_dueno)").execute()
     dict_mascotas = {}
     if res_m.data:
@@ -1307,10 +1238,10 @@ with tab11:
             
             if st.form_submit_button("Guardar Cita", type="primary", use_container_width=True):
                 if mascota_sel:
-                    # Combinamos fecha y hora para Supabase
                     fecha_hora_str = f"{fecha_c} {hora_c}"
+                    # 🚨 AQUÍ ESTÁ LA CORRECCIÓN CLAVE PARA SUPABASE: 'mascotas_id' en plural 🚨
                     client.table("citas").insert({
-                        "mascota_id": dict_mascotas[mascota_sel],
+                        "mascotas_id": dict_mascotas[mascota_sel],
                         "fecha_hora": fecha_hora_str,
                         "servicio": servicio_sel
                     }).execute()
@@ -1322,7 +1253,6 @@ with tab11:
 
     with c_agenda2:
         st.markdown("#### 🗓️ Próximas Citas")
-        # Traemos las citas futuras ordenadas por fecha
         res_citas = client.table("citas").select("id, fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
         
         if res_citas.data:
@@ -1344,4 +1274,4 @@ with tab11:
             df_citas = pd.DataFrame(citas_formateadas)
             st.dataframe(df_citas, use_container_width=True, hide_index=True, height=400)
         else:
-            st.info("No hay citas agendadas en el sistema.")            
+            st.info("No hay citas agendadas en el sistema.")
