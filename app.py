@@ -66,10 +66,10 @@ with c_logo:
 with c_titulo:
     st.markdown("<h1 style='margin: 0; padding: 0; font-size: 1.8rem; line-height: 1;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
 
-# DEFINICIÓN CORRECTA DE LAS 11 PESTAÑAS
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
+# DEFINICIÓN CORRECTA DE LAS 10 PESTAÑAS
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
     "📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", 
-    "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores", "📑 Facturación", "⚙️ Admin",
+    "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores", "📑 Facturación",
     "📊 Contabilidad", "📅 Agenda"
 ])
 
@@ -840,7 +840,9 @@ with tab7:
             if st.form_submit_button("➕ Guardar Proveedor", use_container_width=True, type="primary"):
                 if n_emp:
                     client.table("proveedores").insert({
-                        "nombre_empresa": n_emp, "contacto": f"Tel: {n_tel} | Email: {n_ema} | Dir: {n_dir} | CIF: {n_cif} | IBAN: {n_iban}"
+                        "nombre_empresa": n_emp,
+                        "cif": n_cif,
+                        "contacto": f"Tel: {n_tel} | Email: {n_ema} | Dir: {n_dir} | IBAN: {n_iban}"
                     }).execute()
                     st.success("Guardado"); time.sleep(0.5); st.rerun()
     with cp2:
@@ -1100,97 +1102,9 @@ with tab8:
                     st.session_state.entrada_temporal = []; st.success("Compra registrada."); time.sleep(1); st.rerun()
 
 # ==========================================
-# --- TAB 9: ADMIN ---
+# --- TAB 9: CONTABILIDAD E INFORMES PARA ASESORÍA ---
 # ==========================================
 with tab9:
-    st.markdown("<h3 style='margin-top: -15px;'>⚙️ Editor Maestro de Datos</h3>", unsafe_allow_html=True)
-    
-    with st.expander("🚨 HERRAMIENTA DE RESCATE: Migrar productos antiguos", expanded=True):
-        st.info("Tus productos reales están en la tabla 'productos_y_servicios_antiguo'. Pulsa este botón para copiarlos a la estructura nueva de forma automática.")
-        if st.button("🚀 MIGRAR MIS PRODUCTOS A LA TABLA NUEVA", type="primary"):
-            res_viejos = client.table("productos_y_servicios_antiguo").select("*").execute()
-            if res_viejos.data:
-                creados = 0
-                for p in res_viejos.data:
-                    res_check = client.table("productos").select("id").eq("sku", p.get("sku", "")).execute()
-                    if not res_check.data and p.get("sku"):
-                        client.table("productos").insert({
-                            "sku": p.get("sku"),
-                            "nombre": p.get("nombre", "Sin Nombre"),
-                            "categoria": p.get("categoria") if p.get("categoria") else "Producto",
-                            "precio_base": p.get("precio_compra") or 0.0,
-                            "igic_tipo": p.get("tipo_igic") or 7.0,
-                            "stock_actual": p.get("stock_actual") or 0,
-                            "precio_pvp": p.get("precio_pvp") or 0.0,
-                            "codigo_barras": p.get("codigo_barras") or ""
-                        }).execute()
-                        creados += 1
-                st.success(f"¡Magia completada! Se han copiado {creados} productos a la nueva tabla. ¡Ve a la Pestaña 1 de Inventario y los verás todos!")
-            else:
-                st.warning("No se encontraron datos en la tabla antigua.")
-
-    st.markdown("---")
-    
-    opcion_edicion = st.selectbox("Selecciona la tabla para editar:", 
-        ["Productos Físicos", "Servicios", "Todos los Productos (Sin Filtro)", "Clientes", "Proveedores", "Facturas", "Compras"]
-    )
-    
-    if opcion_edicion == "Productos Físicos":
-        tabla_db = "productos"
-        res = client.table(tabla_db).select("*").eq("categoria", "Producto").order("id", desc=True).execute()
-    elif opcion_edicion == "Servicios":
-        tabla_db = "productos"
-        res = client.table(tabla_db).select("*").eq("categoria", "Servicio").order("id", desc=True).execute()
-    elif opcion_edicion == "Todos los Productos (Sin Filtro)":
-        tabla_db = "productos"
-        res = client.table(tabla_db).select("*").order("id", desc=True).execute()
-    else:
-        tabla_db = opcion_edicion.lower()
-        res = client.table(tabla_db).select("*").order("id", desc=True).execute()
-    
-    if res.data:
-        df_admin = pd.DataFrame(res.data)
-        
-        col_config = {}
-        if tabla_db == "productos":
-            df_admin['coste_total_calc'] = (df_admin['precio_base'] * (1 + df_admin['igic_tipo'] / 100)).round(2)
-            
-            col_config = {
-                "nombre": "Nombre Ítem",
-                "categoria": st.column_config.SelectboxColumn("Categoría", options=["Producto", "Servicio"]),
-                "sku": "SKU",
-                "codigo_barras": "Cód. Barras",
-                "igic_tipo": st.column_config.NumberColumn("IGIC %", step=1),
-                "precio_base": st.column_config.NumberColumn("Precio Base (€)", format="%.2f"),
-                "coste_total_calc": st.column_config.NumberColumn("Coste Total (€)", format="%.2f", disabled=True),
-                "precio_pvp": st.column_config.NumberColumn("PVP Final (€)", format="%.2f"),
-                "stock_actual": st.column_config.NumberColumn("Stock", step=1)
-            }
-            
-            cols_orden = ["id", "sku", "codigo_barras", "nombre", "categoria", "precio_base", "igic_tipo", "coste_total_calc", "precio_pvp", "stock_actual"]
-            cols_orden = [c for c in cols_orden if c in df_admin.columns]
-            df_admin = df_admin[cols_orden]
-
-        edited_db = st.data_editor(df_admin, use_container_width=True, hide_index=True, column_config=col_config, key=f"admin_editor_{opcion_edicion}")
-
-        if st.button("💾 GUARDAR CAMBIOS EN LA NUBE", type="primary", key=f"btn_save_admin_{opcion_edicion}"):
-            for index, row in edited_db.iterrows():
-                datos_fila = row.to_dict()
-                if "coste_total_calc" in datos_fila:
-                    del datos_fila["coste_total_calc"]
-                
-                datos_fila_limpios = {k: v for k, v in datos_fila.items() if pd.notna(v)}
-                client.table(tabla_db).update(datos_fila_limpios).eq("id", row["id"]).execute()
-                
-            st.success("✅ Base de datos sincronizada con éxito."); time.sleep(1); st.rerun()
-    else:
-        st.info(f"Todavía no hay datos registrados en {opcion_edicion}.")
-
-
-# ==========================================
-# --- TAB 10: CONTABILIDAD E INFORMES PARA ASESORÍA ---
-# ==========================================
-with tab10:
     st.markdown("<h3 style='margin-top: -15px;'>📊 Contabilidad e Informes para Asesoría</h3>", unsafe_allow_html=True)
     
     sec_gastos, sec_informes = st.tabs(["💸 Registro de Gastos", "📂 Panel Avanzado de Descargas"])
@@ -1314,9 +1228,9 @@ with tab10:
                 st.write("Sin compras o gastos en estas fechas.")
 
 # ==========================================
-# --- TAB 11: AGENDA Y CITAS ---
+# --- TAB 10: AGENDA Y CITAS ---
 # ==========================================
-with tab11:
+with tab10:
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
     
     res_m = client.table("mascotas").select("id, nombre, clientes(nombre_dueno)").execute()
