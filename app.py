@@ -901,6 +901,35 @@ with tab8:
                         st.success("Cliente guardado."); time.sleep(1); st.rerun()
 
         st.markdown("#### 2. Añadir Artículos")
+        
+        # --- MEJORA: Crear artículo directamente desde la factura ---
+        with st.expander("✨ ¿Artículo nuevo? Crear rápido en inventario"):
+            with st.form("nuevo_art_v_final"):
+                na1, na2 = st.columns(2)
+                with na1: na_nombre = st.text_input("Nombre del Producto/Servicio *")
+                with na2: na_sku = st.text_input("SKU / Ref *")
+                
+                na3, na4, na5 = st.columns(3)
+                with na3: na_cat = st.selectbox("Categoría", ["Producto", "Servicio"])
+                with na4: na_base = st.number_input("Precio Base Compra (€)", min_value=0.0, format="%.2f")
+                with na5: na_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
+                
+                na6, na7 = st.columns(2)
+                with na6: na_pvp = st.number_input("PVP Final de Venta (€)", min_value=0.0, format="%.2f")
+                with na7: na_stock = st.number_input("Stock actual", min_value=0)
+                
+                if st.form_submit_button("💾 Crear Artículo e Incluir"):
+                    if na_nombre and na_sku:
+                        client.table("productos").insert({
+                            "sku": na_sku, "nombre": na_nombre, "categoria": na_cat,
+                            "precio_base": na_base, "igic_tipo": na_igic, 
+                            "stock_actual": na_stock if na_cat == "Producto" else 0, 
+                            "precio_pvp": na_pvp
+                        }).execute()
+                        st.success("Artículo creado. Ya puedes añadirlo a la factura justo debajo.")
+                        time.sleep(1.5)
+                        st.rerun()
+
         if not df_inv.empty:
             opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} | EAN: {x.get('codigo_barras', '')} | {x['precio_pvp']}€", axis=1).tolist()
             c_v1, c_v2, c_v3, c_v4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
@@ -999,6 +1028,35 @@ with tab8:
                     st.session_state.prov_rec = np_nom; st.success("Proveedor guardado."); time.sleep(1); st.rerun()
 
         st.markdown("#### Artículos Recibidos")
+        
+        # --- MEJORA: Crear artículo directamente desde la compra ---
+        with st.expander("✨ ¿Artículo nuevo del proveedor? Crear rápido en inventario"):
+            with st.form("nuevo_art_c_final"):
+                nac1, nac2 = st.columns(2)
+                with nac1: nac_nombre = st.text_input("Nombre del Producto *", key="nac_nom")
+                with nac2: nac_sku = st.text_input("SKU / Ref *", key="nac_sku")
+                
+                nac3, nac4, nac5 = st.columns(3)
+                with nac3: nac_cat = st.selectbox("Categoría", ["Producto", "Servicio"], key="nac_cat")
+                with nac4: nac_base = st.number_input("Precio Base Compra (€)", min_value=0.0, format="%.2f", key="nac_base")
+                with nac5: nac_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0], key="nac_igic")
+                
+                nac6, nac7 = st.columns(2)
+                with nac6: nac_pvp = st.number_input("PVP Final de Venta (€)", min_value=0.0, format="%.2f", key="nac_pvp")
+                with nac7: nac_stock = st.number_input("Stock actual", min_value=0, key="nac_stk")
+                
+                if st.form_submit_button("💾 Crear Artículo e Incluir"):
+                    if nac_nombre and nac_sku:
+                        client.table("productos").insert({
+                            "sku": nac_sku, "nombre": nac_nombre, "categoria": nac_cat,
+                            "precio_base": nac_base, "igic_tipo": nac_igic, 
+                            "stock_actual": nac_stock if nac_cat == "Producto" else 0, 
+                            "precio_pvp": nac_pvp
+                        }).execute()
+                        st.success("Artículo guardado en inventario. Ya puedes añadirlo.")
+                        time.sleep(1.5)
+                        st.rerun()
+
         c_i1, c_i2, c_i3, c_i4 = st.columns([2, 1, 1, 1], vertical_alignment="bottom")
         with c_i1: prod_c = st.selectbox("Producto:", df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist(), index=None, key="p_c_f")
         with c_i2: cant_c = st.number_input("Cant", min_value=1, key="cant_c_f")
@@ -1129,7 +1187,7 @@ with tab9:
 with tab10:
     st.markdown("<h3 style='margin-top: -15px;'>📊 Contabilidad e Informes para Asesoría</h3>", unsafe_allow_html=True)
     
-    sec_gastos, sec_informes = st.tabs(["💸 Registro de Gastos", "📂 Descargar Informes (Asesor)"])
+    sec_gastos, sec_informes = st.tabs(["💸 Registro de Gastos", "📂 Panel Avanzado de Descargas"])
 
     with sec_gastos:
         col_g1, col_g2 = st.columns([1, 2])
@@ -1164,53 +1222,62 @@ with tab10:
                 st.info("No hay facturas ni gastos pendientes. ¡Todo al día!")
 
     with sec_informes:
-        st.markdown("#### 📥 Generador de Libros de Ventas y Compras")
-        col_i1, col_i2, col_i3 = st.columns(3)
-        with col_i1:
-            periodo = st.selectbox("Seleccionar Periodo:", ["Este Mes", "1º Trimestre", "2º Trimestre", "3º Trimestre", "4º Trimestre", "Año Completo"])
+        st.markdown("#### 📥 Selector de Fechas Personalizado")
         
-        anio_actual = date.today().year
-        hoy_dt = date.today()
+        # --- MEJORA: Fechas totalmente libres ---
+        c_inf1, c_inf2 = st.columns(2)
+        with c_inf1: f_desde_inf = st.date_input("📅 Desde la fecha:", value=date.today().replace(day=1))
+        with c_inf2: f_hasta_inf = st.date_input("📅 Hasta la fecha:", value=date.today())
         
-        if periodo == "Este Mes": 
-            f_i = hoy_dt.replace(day=1).strftime("%Y-%m-%d")
-            f_f = hoy_dt.strftime("%Y-%m-%d")
-        elif "1º" in periodo: f_i, f_f = f"{anio_actual}-01-01", f"{anio_actual}-03-31"
-        elif "2º" in periodo: f_i, f_f = f"{anio_actual}-04-01", f"{anio_actual}-06-30"
-        elif "3º" in periodo: f_i, f_f = f"{anio_actual}-07-01", f"{anio_actual}-09-30"
-        elif "4º" in periodo: f_i, f_f = f"{anio_actual}-10-01", f"{anio_actual}-12-31"
-        else: f_i, f_f = f"{anio_actual}-01-01", f"{anio_actual}-12-31"
+        st.markdown(f"<p style='color: gray; font-size: 13px;'>Filtrando datos entre el <b>{f_desde_inf.strftime('%d/%m/%Y')}</b> y el <b>{f_hasta_inf.strftime('%d/%m/%Y')}</b>.</p>", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        # Formatear fechas para la base de datos
+        fecha_inicio_q = f"{f_desde_inf}T00:00:00"
+        fecha_fin_q = f"{f_hasta_inf}T23:59:59"
 
-        c_v, c_c = st.columns(2)
+        c_down1, c_down2, c_down3 = st.columns(3)
         
-        with c_v:
-            st.info(f"Ventas en el periodo: {periodo}")
-            res_v = client.table("ventas_historial").select("id, created_at, total, pago_efectivo, pago_tarjeta, pago_bizum, metodo_pago, estado").gte("created_at", f"{f_i}T00:00:00").lte("created_at", f"{f_f}T23:59:59").execute()
-            if res_v.data:
-                df_v = pd.DataFrame(res_v.data)
-                df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y')
-                
-                # Columnas útiles para el asesor
+        with c_down1:
+            st.info("🛒 TICKETS DE MOSTRADOR")
+            res_v_inf = client.table("ventas_historial").select("id, created_at, total, pago_efectivo, pago_tarjeta, pago_bizum, metodo_pago, estado").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+            if res_v_inf.data:
+                df_v = pd.DataFrame(res_v_inf.data)
+                df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
                 df_asesor_v = df_v[['id', 'Fecha', 'total', 'pago_efectivo', 'pago_tarjeta', 'pago_bizum', 'estado']]
-                st.dataframe(df_asesor_v, use_container_width=True, hide_index=True)
-                csv_v = df_asesor_v.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Descargar CSV Ventas", csv_v, f"Ventas_{periodo.replace(' ', '_')}.csv", "text/csv")
-            else:
-                st.write("No hay ventas en este periodo.")
-        
-        with c_c:
-            st.warning(f"Compras/Gastos en el periodo: {periodo}")
-            res_c = client.table("compras").select("id, created_at, tipo, total, estado").gte("created_at", f"{f_i}T00:00:00").lte("created_at", f"{f_f}T23:59:59").execute()
-            if res_c.data:
-                df_c = pd.DataFrame(res_c.data)
-                df_c['Fecha'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y')
                 
-                df_asesor_c = df_c[['id', 'Fecha', 'tipo', 'total', 'estado']]
-                st.dataframe(df_asesor_c, use_container_width=True, hide_index=True)
-                csv_c = df_asesor_c.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Descargar CSV Compras", csv_c, f"Compras_y_Gastos_{periodo.replace(' ', '_')}.csv", "text/csv")
+                csv_v = df_asesor_v.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Descargar CSV de Tickets", csv_v, f"Tickets_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
             else:
-                st.write("No hay compras/gastos en este periodo.")
+                st.write("Sin datos en estas fechas.")
+
+        with c_down2:
+            st.success("📑 FACTURAS EMITIDAS")
+            res_f_inf = client.table("facturas").select("*, clientes(nombre_dueno, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+            if res_f_inf.data:
+                df_f = pd.DataFrame(res_f_inf.data)
+                df_f['Fecha'] = pd.to_datetime(df_f['created_at']).dt.strftime('%d/%m/%Y')
+                df_f['Cliente'] = df_f['clientes'].apply(lambda x: f"{x['nombre_dueno']} ({x['cif']})" if isinstance(x, dict) else "N/A")
+                df_asesor_f = df_f[['numero_factura', 'Fecha', 'Cliente', 'total_neto', 'total_igic', 'total_final', 'forma_pago']]
+                
+                csv_f = df_asesor_f.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Descargar CSV de Facturas", csv_f, f"Facturas_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+            else:
+                st.write("Sin datos en estas fechas.")
+
+        with c_down3:
+            st.warning("🚚 COMPRAS Y GASTOS")
+            res_c_inf = client.table("compras").select("id, created_at, tipo, total, estado, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+            if res_c_inf.data:
+                df_c = pd.DataFrame(res_c_inf.data)
+                df_c['Fecha'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y')
+                df_c['Proveedor_Gasto'] = df_c['proveedores'].apply(lambda x: f"{x['nombre_empresa']} ({x['cif']})" if isinstance(x, dict) else "Gasto General")
+                df_asesor_c = df_c[['id', 'Fecha', 'tipo', 'Proveedor_Gasto', 'total', 'estado']]
+                
+                csv_c = df_asesor_c.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Descargar CSV Compras/Gastos", csv_c, f"Gastos_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+            else:
+                st.write("Sin datos en estas fechas.")
 
 
 # ==========================================
@@ -1239,7 +1306,6 @@ with tab11:
             if st.form_submit_button("Guardar Cita", type="primary", use_container_width=True):
                 if mascota_sel:
                     fecha_hora_str = f"{fecha_c} {hora_c}"
-                    # 🚨 AQUÍ ESTÁ LA CORRECCIÓN CLAVE PARA SUPABASE: 'mascotas_id' en plural 🚨
                     client.table("citas").insert({
                         "mascotas_id": dict_mascotas[mascota_sel],
                         "fecha_hora": fecha_hora_str,
