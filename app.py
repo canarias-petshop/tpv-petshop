@@ -70,35 +70,32 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
 ])
 
 # ==========================================
-# --- TAB 1: GESTIÓN INTEGRAL DE INVENTARIO ---
+# --- TAB 1: INVENTARIO Y SERVICIOS (SEPARADOS) ---
 # ==========================================
 with tab1:
-    st.markdown("<h3 style='margin-top: -15px;'>📦 Control de Inventario y Servicios</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top: -15px;'>📦 Gestión de Inventario y Servicios</h3>", unsafe_allow_html=True)
     
     col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
-    # 1. Obtener proveedores para el formulario de alta
+    # 1. Obtener proveedores para el formulario
     res_proveedores = client.table("proveedores").select("id, nombre_empresa").execute()
     dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores.data} if res_proveedores.data else {}
 
     with col_f:
         st.markdown("#### 📝 Alta de nuevo ítem")
-        with st.form("nuevo_p_final", clear_on_submit=True, border=True):
+        with st.form("nuevo_p_separado", clear_on_submit=True, border=True):
             nombre = st.text_input("Nombre del Producto/Servicio *")
             c1, c2, c3 = st.columns(3)
             with c1: sku = st.text_input("SKU (Interno) *")
-            with c2: cod_barras = st.text_input("Cód. Barras (Pistola)")
+            with c2: cod_barras = st.text_input("Cód. Barras")
             with c3: cat = st.selectbox("Categoría *", ["Producto", "Servicio"])
             
             c4, c5 = st.columns(2)
-            with c4: p_base = st.number_input("Precio Base Compra (€)", min_value=0.0, format="%.2f")
+            with c4: p_base = st.number_input("Base Compra (€)", min_value=0.0, format="%.2f")
             with c5: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
             
-            pvp_sugerido = p_base * (1 + (igic_tipo / 100))
-            st.markdown(f"<small>Coste con IGIC: {pvp_sugerido:.2f} €</small>", unsafe_allow_html=True)
-            
             c6, c7 = st.columns(2)
-            with c6: pvp = st.number_input("PVP Venta Público (€)", min_value=0.0, format="%.2f")
+            with c6: pvp = st.number_input("PVP Venta (€)", min_value=0.0, format="%.2f")
             with c7: stck = st.number_input("Stock Inicial", min_value=0)
             
             provs_sel = st.multiselect("Asociar Proveedores", list(dict_proveedores.keys()))
@@ -116,48 +113,59 @@ with tab1:
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
-        st.markdown("#### 📋 Listado Maestro de Artículos")
-        st.markdown("<p style='font-size:13px; color:gray;'>Edita cualquier celda y pulsa el botón de abajo para guardar los cambios.</p>", unsafe_allow_html=True)
-        
-        # Consultamos todos los productos de la tabla nueva
+        # Consultamos todos los productos de la tabla
         res_prod = client.table("productos").select("*").order("nombre").execute()
         
         if res_prod.data:
             df_inv = pd.DataFrame(res_prod.data)
             
-            # Configuramos el editor para que sea 100% manejable
-            edited_inv = st.data_editor(
-                df_inv,
-                column_config={
-                    "id": None, # Oculto
-                    "sku": st.column_config.TextColumn("SKU", help="Tu código interno"),
-                    "codigo_barras": st.column_config.TextColumn("Código Barras", help="Escanea aquí con la pistola"),
-                    "nombre": st.column_config.TextColumn("Descripción del Producto/Servicio"),
-                    "categoria": st.column_config.SelectboxColumn("Categoría", options=["Producto", "Servicio"]),
-                    "precio_base": st.column_config.NumberColumn("Base Compra (€)", format="%.2f"),
-                    "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                    "precio_pvp": st.column_config.NumberColumn("PVP Venta (€)", format="%.2f"),
-                    "stock_actual": st.column_config.NumberColumn("Stock", step=1)
-                },
-                column_order=["sku", "codigo_barras", "nombre", "categoria", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
-                hide_index=True,
-                use_container_width=True,
-                key="editor_maestro_inv"
-            )
+            # --- MESA 1: PRODUCTOS FÍSICOS ---
+            st.markdown("#### 📦 Inventario de Productos")
+            # Filtramos: Categoría es 'Producto' o está vacío (por si acaso hay antiguos)
+            df_solo_productos = df_inv[df_inv['categoria'].isin(['Producto', None, ''])].copy()
             
-            if st.button("💾 GUARDAR CAMBIOS EN EL INVENTARIO", type="primary", use_container_width=True):
-                with st.spinner("Sincronizando con la nube..."):
-                    for i, row in edited_inv.iterrows():
-                        # Preparamos los datos de la fila
-                        datos_actualizar = row.to_dict()
-                        # Si la categoría sigue vacía, por seguridad le ponemos 'Producto'
-                        if not datos_actualizar.get('categoria'):
-                            datos_actualizar['categoria'] = 'Producto'
-                            
-                        client.table("productos").update(datos_actualizar).eq("id", datos_actualizar['id']).execute()
-                    st.success("✅ ¡Inventario actualizado correctamente!"); time.sleep(1); st.rerun()
+            edit_p = st.data_editor(
+                df_solo_productos,
+                column_config={
+                    "id": None, "categoria": None,
+                    "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
+                    "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
+                    "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock"
+                },
+                column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
+                hide_index=True, use_container_width=True, key="edit_p_sep"
+            )
+            if st.button("💾 Guardar cambios en Productos", key="btn_save_p_sep"):
+                for i, row in edit_p.iterrows():
+                    client.table("productos").update(row.to_dict()).eq("id", row['id']).execute()
+                st.success("Productos actualizados"); time.sleep(0.5); st.rerun()
+
+            st.markdown("---")
+
+            # --- MESA 2: SERVICIOS ---
+            st.markdown("#### ✂️ Catálogo de Servicios")
+            df_solo_servicios = df_inv[df_inv['categoria'] == 'Servicio'].copy()
+            
+            if not df_solo_servicios.empty:
+                edit_s = st.data_editor(
+                    df_solo_servicios,
+                    column_config={
+                        "id": None, "categoria": None, "stock_actual": None, "codigo_barras": None,
+                        "sku": "SKU", "nombre": "Servicio",
+                        "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
+                        "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)"
+                    },
+                    column_order=["sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
+                    hide_index=True, use_container_width=True, key="edit_s_sep"
+                )
+                if st.button("💾 Guardar cambios en Servicios", key="btn_save_s_sep"):
+                    for i, row in edit_s.iterrows():
+                        client.table("productos").update(row.to_dict()).eq("id", row['id']).execute()
+                    st.success("Servicios actualizados"); time.sleep(0.5); st.rerun()
+            else:
+                st.info("No hay servicios registrados. Usa el formulario de la izquierda para crear uno (Peluquería, etc).")
         else:
-            st.warning("No se han encontrado productos. Prueba a crear uno nuevo a la izquierda o revisa la migración en la pestaña Admin.")
+            st.info("Inventario vacío.")
 
 # ==========================================
 # --- TAB 2: CAJA Y TERMINAL DE VENTA ---
