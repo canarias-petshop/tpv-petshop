@@ -492,168 +492,161 @@ with tab3:
             st.info("📭 Aún no tienes clientes registrados. ¡Empieza a añadir fichas a la izquierda!")        
 
 # ==========================================
-# --- TAB 4: HISTORIAL GLOBAL Y EDICIÓN ---
+# --- TAB 4: HISTORIAL (MEJORADO CON FECHAS Y EDICIÓN) ---
 # ==========================================
 with tab4:
-    st.markdown("<h3 style='margin-top: -15px;'>📜 Historial Global y Edición</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top: -15px;'>📜 Historial de Ventas y Cajas</h3>", unsafe_allow_html=True)
+    sub_h_ventas, sub_h_cajas = st.tabs(["🛒 Tickets y Ventas", "🔒 Cierres de Caja"])
     
-    sub_h_tickets, sub_h_facturas, sub_h_compras, sub_h_cajas = st.tabs([
-        "🛒 Tickets de Caja", "📑 Facturas (Clientes)", "🚚 Compras (Proveedores)", "🔒 Cierres de Caja"
-    ])
-    
-    # ------------------------------------------
-    # 1. TICKETS DE CAJA (TPV)
-    # ------------------------------------------
-    with sub_h_tickets:
-        c_t1, c_t2 = st.columns(2)
-        with c_t1: f_ini_t = st.date_input("Desde:", value=pd.to_datetime('today') - pd.Timedelta(days=7), key="ht_1")
-        with c_t2: f_fin_t = st.date_input("Hasta:", value=pd.to_datetime('today'), key="ht_2")
+    with sub_h_ventas:
+        c_f1, c_f2, c_f3 = st.columns([1,1,1])
+        with c_f1: preset = st.selectbox("Filtro rápido:", ["Esta semana", "Este mes", "Trimestre Actual", "Todo el año"])
+        
+        hoy = date.today()
+        if preset == "Esta semana": f_ini = hoy - timedelta(days=hoy.weekday())
+        elif preset == "Este mes": f_ini = hoy.replace(day=1)
+        elif preset == "Trimestre Actual": f_ini = hoy.replace(month=((hoy.month-1)//3)*3+1, day=1)
+        else: f_ini = hoy.replace(month=1, day=1)
 
-        res_v = client.table("ventas_historial").select("*").gte("created_at", f"{f_ini_t}T00:00:00").lte("created_at", f"{f_fin_t}T23:59:59").order("id", desc=True).execute()
+        with c_f2: f_inicio_v = st.date_input("Desde:", value=f_ini)
+        with c_f3: f_fin_v = st.date_input("Hasta:", value=hoy)
+
+        res_v = client.table("ventas_historial").select("*").gte("created_at", f"{f_inicio_v}T00:00:00").lte("created_at", f"{f_fin_v}T23:59:59").order("id", desc=True).execute()
         
         if res_v.data:
             df_v = pd.DataFrame(res_v.data)
-            df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+            try: df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+            except: df_v['Fecha'] = "---"
+            
+            for col in ['metodo_pago', 'estado', 'cliente_deuda']:
+                if col not in df_v.columns: df_v[col] = "N/A"
+
             df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda']].copy()
             
-            st.markdown("💡 *Haz doble clic para corregir Método de Pago, Estado o Deuda.*")
-            edit_tick = st.data_editor(
+            st.markdown("💡 *Haz doble clic en cualquier celda para corregir Método de Pago, Estado o Deuda.*")
+            edited_df = st.data_editor(
                 df_vista,
                 column_config={
-                    "id": st.column_config.NumberColumn("Nº Ticket", disabled=True),
+                    "id": st.column_config.NumberColumn("Nº Ticket", disabled=True, width="small"),
                     "Fecha": st.column_config.TextColumn("Fecha", disabled=True),
                     "total": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f"),
                     "metodo_pago": st.column_config.SelectboxColumn("Método", options=["Efectivo", "Tarjeta", "Bizum", "Mixto"]),
-                    "estado": st.column_config.SelectboxColumn("Estado", options=["Completado", "Deuda", "DEVUELTO"])
+                    "estado": st.column_config.SelectboxColumn("Estado", options=["Completado", "Deuda", "DEVUELTO"]),
+                    "cliente_deuda": st.column_config.TextColumn("Cliente (Si debe)")
                 },
-                hide_index=True, use_container_width=True, key="ed_tick"
+                hide_index=True, use_container_width=True, height=200, key="editor_tickets"
             )
             
-            if st.button("💾 Guardar Correcciones de Tickets", type="primary"):
-                diferencias = edit_tick.compare(df_vista)
+            if st.button("💾 Guardar Correcciones", type="primary"):
+                diferencias = edited_df.compare(df_vista)
                 if not diferencias.empty:
                     for idx in diferencias.index.tolist():
                         client.table("ventas_historial").update({
-                            "metodo_pago": str(edit_tick.loc[idx, 'metodo_pago']),
-                            "estado": str(edit_tick.loc[idx, 'estado']),
-                            "cliente_deuda": str(edit_tick.loc[idx, 'cliente_deuda']) if str(edit_tick.loc[idx, 'cliente_deuda']) != 'nan' else ""
-                        }).eq("id", int(edit_tick.loc[idx, 'id'])).execute()
+                            "metodo_pago": str(edited_df.loc[idx, 'metodo_pago']),
+                            "estado": str(edited_df.loc[idx, 'estado']),
+                            "cliente_deuda": str(edited_df.loc[idx, 'cliente_deuda']) if str(edited_df.loc[idx, 'cliente_deuda']) != 'nan' else ""
+                        }).eq("id", int(edited_df.loc[idx, 'id'])).execute()
                     st.success("Tickets actualizados."); time.sleep(1); st.rerun()
 
-    # ------------------------------------------
-    # 2. FACTURAS EMITIDAS A CLIENTES
-    # ------------------------------------------
-    with sub_h_facturas:
-        c_f1, c_f2 = st.columns(2)
-        with c_f1: f_ini_f = st.date_input("Desde:", value=pd.to_datetime('today') - pd.Timedelta(days=7), key="hf_1")
-        with c_f2: f_fin_f = st.date_input("Hasta:", value=pd.to_datetime('today'), key="hf_2")
-
-        res_fac = client.table("facturas").select("*, clientes(nombre_dueno)").gte("created_at", f"{f_ini_f}T00:00:00").lte("created_at", f"{f_fin_f}T23:59:59").order("numero_factura", desc=True).execute()
-        
-        if res_fac.data:
-            df_fac = pd.DataFrame(res_fac.data)
-            df_fac['Fecha'] = pd.to_datetime(df_fac['created_at']).dt.strftime('%d/%m/%Y')
-            df_fac['Cliente'] = df_fac['clientes'].apply(lambda x: x['nombre_dueno'] if x else '---')
+            st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
             
-            df_vista_fac = df_fac[['id', 'numero_factura', 'Fecha', 'Cliente', 'forma_pago', 'total_final']].copy()
-            st.markdown("💡 *Tabla Editable: Modifica la forma de pago si te equivocaste al archivar.*")
-            edit_fac = st.data_editor(
-                df_vista_fac,
-                column_config={"id": None, "numero_factura": "Nº Factura", "total_final": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True)},
-                hide_index=True, use_container_width=True, key="ed_fac"
-            )
-            
-            if st.button("💾 Guardar Cambios en Facturas", type="primary"):
-                diferencias = edit_fac.compare(df_vista_fac)
-                if not diferencias.empty:
-                    for idx in diferencias.index.tolist():
-                        client.table("facturas").update({"forma_pago": str(edit_fac.loc[idx, 'forma_pago'])}).eq("id", edit_fac.loc[idx, 'id']).execute()
-                    st.success("Facturas actualizadas."); time.sleep(1); st.rerun()
+            t_buscar = st.number_input("Nº Ticket para ver detalle o devolver:", min_value=1, step=1, value=int(df_v['id'].max()))
+            t_info = df_v[df_v['id'] == t_buscar]
+            if not t_info.empty:
+                prods = t_info.iloc[0].get('productos', [])
+                if prods:
+                    st.dataframe(pd.DataFrame(prods)[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True)
+                    if "DEVUELTO" not in str(t_info.iloc[0].get('estado', '')).upper():
+                        if st.button(f"🔄 DEVOLVER TICKET #{t_buscar} Y RESTAURAR STOCK"):
+                            for p in prods:
+                                if not p.get('Manual', False):
+                                    res_p = client.table("productos").select("stock_actual").eq("nombre", p['Producto']).execute()
+                                    if res_p.data:
+                                        client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("nombre", p['Producto']).execute()
+                            client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_buscar)).execute()
+                            st.success("Devolución completada."); time.sleep(1); st.rerun()
+        else: st.info("No hay ventas en este rango de fechas.")
 
-            st.markdown("---")
-            fac_sel = st.selectbox("🔍 Selecciona una Factura para Ver/Reimprimir:", df_fac['numero_factura'].tolist())
-            if fac_sel:
-                fac_data = df_fac[df_fac['numero_factura'] == fac_sel].iloc[0]
-                prods_hist = fac_data.get('productos', [])
-                if prods_hist:
-                    st.dataframe(pd.DataFrame(prods_hist), hide_index=True, use_container_width=True)
-                    
-                    html_print = f"""
-                    <div style="border: 1px solid #ccc; padding: 20px; background: white; color: black; font-family: sans-serif;">
-                        <div style="text-align: right;"><button onclick="window.print()" style="padding: 10px; background: #005275; color: white; border: none; cursor: pointer;">🖨️ REIMPRIMIR FACTURA</button></div>
-                        <h3>ANIMALARIUM - FACTURA (Copia)</h3>
-                        <p><b>Nº Factura:</b> {fac_data['numero_factura']} | <b>Fecha:</b> {fac_data['Fecha']}</p>
-                        <p><b>Cliente:</b> {fac_data['Cliente']} | <b>Pago:</b> {fac_data['forma_pago']}</p>
-                        <hr>
-                        <table style="width: 100%; text-align: left;">
-                            <tr style="background: #eee;"><th>Producto</th><th>Cant.</th><th style='text-align:right;'>Total</th></tr>
-                            {''.join([f"<tr><td>{p.get('Descripción', '---')}</td><td>{p.get('Cantidad', 1)}</td><td style='text-align:right;'>{p.get('Total Línea', 0):.2f}€</td></tr>" for p in prods_hist])}
-                        </table>
-                        <h3 style="text-align: right; margin-top: 20px;">TOTAL: {fac_data['total_final']:.2f}€</h3>
-                    </div>
-                    """
-                    components.html(html_print, height=400, scrolling=True)
-                else:
-                    st.warning("No hay productos guardados en esta factura antigua.")
-        else:
-            st.info("No hay facturas emitidas en estas fechas.")
-
-    # ------------------------------------------
-    # 3. COMPRAS A PROVEEDORES
-    # ------------------------------------------
-    with sub_h_compras:
-        c_c1, c_c2 = st.columns(2)
-        with c_c1: f_ini_c = st.date_input("Desde:", value=pd.to_datetime('today') - pd.Timedelta(days=7), key="hc_1")
-        with c_c2: f_fin_c = st.date_input("Hasta:", value=pd.to_datetime('today'), key="hc_2")
-
-        res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini_c}T00:00:00").lte("created_at", f"{f_fin_c}T23:59:59").order("id", desc=True).execute()
-        
-        if res_comp.data:
-            df_comp = pd.DataFrame(res_comp.data)
-            df_comp['Fecha'] = pd.to_datetime(df_comp['created_at']).dt.strftime('%d/%m/%Y')
-            df_comp['Proveedor'] = df_comp['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
-            
-            df_vista_comp = df_comp[['id', 'Fecha', 'Proveedor', 'tipo', 'estado', 'total']].copy()
-            
-            st.markdown("💡 *Tabla Editable: Pasa facturas de 'Pendiente' a 'Pagado' haciendo doble clic.*")
-            edit_comp = st.data_editor(
-                df_vista_comp,
-                column_config={"id": None, "total": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True), "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Pendiente", "Pagado"])},
-                hide_index=True, use_container_width=True, key="ed_comp"
-            )
-            
-            if st.button("💾 Guardar Cambios en Compras", type="primary"):
-                diferencias = edit_comp.compare(df_vista_comp)
-                if not diferencias.empty:
-                    for idx in diferencias.index.tolist():
-                        client.table("compras").update({
-                            "estado": str(edit_comp.loc[idx, 'estado']), "tipo": str(edit_comp.loc[idx, 'tipo'])
-                        }).eq("id", edit_comp.loc[idx, 'id']).execute()
-                    st.success("Compras actualizadas"); time.sleep(1); st.rerun()
-                
-            st.markdown("---")
-            compra_sel = st.selectbox("🔍 Selecciona una Compra para Ver su Desglose y Descargar:", df_comp['id'].astype(str).tolist())
-            if compra_sel:
-                compra_data = df_comp[df_comp['id'].astype(str) == compra_sel].iloc[0]
-                prods_c = compra_data.get('productos', [])
-                if prods_c:
-                    st.markdown(f"**Desglose de Compra a {compra_data['Proveedor']}**")
-                    df_pc = pd.DataFrame(prods_c)
-                    st.dataframe(df_pc, hide_index=True, use_container_width=True)
-                    
-                    csv = df_pc.to_csv(index=False).encode('utf-8')
-                    st.download_button("📥 Descargar CSV de esta Factura", data=csv, file_name=f"Compra_Proveedor_{compra_sel}.csv", mime="text/csv")
-                else:
-                    st.warning("No hay productos guardados en esta compra antigua.")
-        else:
-            st.info("No hay compras registradas en estas fechas.")
-
-    # ------------------------------------------
-    # 4. CIERRES DE CAJA (Se mantiene tu código original)
-    # ------------------------------------------
     with sub_h_cajas:
-        st.info("Tu código original de Cierres de Caja Z está a salvo en la base de datos y se mostrará aquí cuando agreguemos su bloque. ¡Por ahora centrémonos en que funcionen las facturas y compras!")
-        # (Nota: He omitido el bloque largo del ticket Z para que puedas copiar esto fácil, si quieres lo pegamos de nuevo luego)
+        c_fc1, c_fc2 = st.columns(2)
+        with c_fc1: f_inicio_c = st.date_input("Cajas desde:", value=pd.to_datetime('today') - pd.Timedelta(days=7), key="fc1")
+        with c_fc2: f_fin_c = st.date_input("Cajas hasta:", value=pd.to_datetime('today'), key="fc2")
+
+        try:
+            res_cajas = client.table("control_caja").select("*").eq("estado", "Cerrada").gte("created_at", f"{f_inicio_c}T00:00:00").lte("created_at", f"{f_fin_c}T23:59:59").order("id", desc=True).execute()
+
+            if res_cajas.data:
+                df_c = pd.DataFrame(res_cajas.data)
+                df_c['Fecha Apertura'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+                df_c_vista = df_c[['id', 'Fecha Apertura', 'fondo_inicial', 'total_contado', 'descuadre']]
+                df_c_vista.columns = ['Turno Nº', 'Apertura', 'Fondo Inicial (€)', 'Efectivo Final (€)', 'Descuadre (€)']
+                st.dataframe(df_c_vista, use_container_width=True, hide_index=True, height=200)
+                
+                st.markdown("#### 🖨️ Desglose e Impresión de Cierre")
+                turno_sel = st.selectbox("Selecciona un Turno para ver su desglose e imprimir el Ticket Z:", [None] + df_c['id'].tolist())
+                
+                if turno_sel:
+                    caja_seleccionada = df_c[df_c['id'] == turno_sel].iloc[0]
+                    resumen = caja_seleccionada.get('resumen_pagos', {})
+                    if not resumen or pd.isna(resumen): resumen = {"Efectivo": 0, "Tarjeta": 0, "Bizum": 0, "Ingresos": 0, "Retiradas": 0}
+                    
+                    html_cierre = f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                    <style>
+                        @media screen {{
+                            #ticket-z {{ display: none; }}
+                            .btn-print-z {{ background-color: #d32f2f; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; font-weight: bold; cursor: pointer; }}
+                        }}
+                        @media print {{
+                            #btn-area {{ display: none; }}
+                            #ticket-z {{ display: block; font-family: monospace; font-size: 12px; width: 300px; color: black; }}
+                        }}
+                    </style>
+                    </head>
+                    <body>
+                        <div id="btn-area">
+                            <button class="btn-print-z" onclick="window.print()">🖨️ IMPRIMIR CIERRE Z (TURNO #{turno_sel})</button>
+                        </div>
+                        <div id="ticket-z">
+                            <div style="text-align: center; font-weight: bold; font-size: 16px;">CIERRE DE CAJA Z</div>
+                            <div style="text-align: center;">ANIMALARIUM</div>
+                            <hr style="border-top: 1px dashed black;">
+                            Turno Nº: {turno_sel}<br>
+                            Apertura: {caja_seleccionada['Fecha Apertura']}<br>
+                            Fondo Inicial: {caja_seleccionada['fondo_inicial']:.2f} €<br>
+                            <hr style="border-top: 1px dashed black;">
+                            <b>VENTAS POR MÉTODO:</b><br>
+                            Efectivo: {resumen.get('Efectivo', 0):.2f} €<br>
+                            Tarjeta: {resumen.get('Tarjeta', 0):.2f} €<br>
+                            Bizum: {resumen.get('Bizum', 0):.2f} €<br>
+                            <hr style="border-top: 1px dashed black;">
+                            <b>MOVIMIENTOS DE CAJA:</b><br>
+                            Ingresos Extra: +{resumen.get('Ingresos', 0):.2f} €<br>
+                            Retiradas/Pagos: -{resumen.get('Retiradas', 0):.2f} €<br>
+                            <hr style="border-top: 1px dashed black;">
+                            <b>RESULTADO DEL ARQUEO:</b><br>
+                            Efectivo Contado: {caja_seleccionada['total_contado']:.2f} €<br>
+                            <b>DESCUADRE: {caja_seleccionada['descuadre']:.2f} €</b><br>
+                            <hr style="border-top: 1px dashed black;">
+                            <div style="text-align: center;">Firma Responsable</div>
+                            <br><br><br>
+                        </div>
+                    </body>
+                    </html>
+                    """
+                    components.html(html_cierre, height=50)
+
+                    res_movs = client.table("movimientos_caja").select("*").eq("id_caja", turno_sel).execute()
+                    if res_movs.data:
+                        st.markdown("<p style='font-size:12px; color:gray;'>Detalle de Entradas/Salidas de este turno:</p>", unsafe_allow_html=True)
+                        df_m = pd.DataFrame(res_movs.data)
+                        df_m['Hora'] = pd.to_datetime(df_m['created_at']).dt.strftime('%H:%M')
+                        st.dataframe(df_m[['Hora', 'tipo', 'cantidad', 'motivo']], use_container_width=True, hide_index=True)
+                    else: st.info("No hubo Entradas o Salidas manuales en este turno.")
+            else: st.warning("No hay registros de cajas cerradas en este rango.")
+        except Exception as e: st.error(f"Error cargando cajas: {e}")
 
 
 # ==========================================
