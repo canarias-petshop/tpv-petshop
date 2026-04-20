@@ -70,12 +70,12 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
 ])
 
 # ==========================================
-# --- TAB 1: INVENTARIO TOTAL Y EDITABLE ---
+# --- TAB 1: INVENTARIO (VISTA MODO RADAR) ---
 # ==========================================
 with tab1:
     col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
-    # Obtener proveedores para el formulario
+    # Obtener proveedores
     res_proveedores = client.table("proveedores").select("id, nombre_empresa").execute()
     dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores.data} if res_proveedores.data else {}
 
@@ -92,11 +92,8 @@ with tab1:
             with c4: p_base = st.number_input("Precio Base (€)", min_value=0.0, format="%.2f")
             with c5: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
             
-            coste_total_calc = p_base * (1 + (igic_tipo / 100))
-            st.markdown(f"<p style='margin:0; color:#005275; font-size: 13px;'><b>💰 Coste Total (Base + IGIC): {coste_total_calc:.2f} €</b></p>", unsafe_allow_html=True)
-            
             c6, c7 = st.columns(2)
-            with c6: pvp = st.number_input("PVP Final (€)", min_value=0.0, format="%.2f")
+            with c6: pvp = st.number_input("PVP Venta (€)", min_value=0.0, format="%.2f")
             with c7: stck = st.number_input("Stock Inicial", min_value=0)
             
             provs_sel = st.multiselect("Proveedor/es", list(dict_proveedores.keys()))
@@ -114,72 +111,38 @@ with tab1:
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
-        # 1. Pedimos todos los datos a Supabase
+        st.markdown("#### 📦 TODO EL INVENTARIO (Sin Filtros)")
+        
+        # Pedimos TODO sin filtrar absolutamente nada
         res_all = client.table("productos").select("*").order("id", desc=True).execute()
         
         if res_all.data:
             df_all = pd.DataFrame(res_all.data)
             
-            # REGLA DE RESCATE: Si la categoría está vacía, lo tratamos como "Producto"
-            df_all['categoria'] = df_all['categoria'].fillna('Producto').replace('', 'Producto')
-            
-            # --- SECCIÓN: PRODUCTOS ---
-            st.markdown("#### 📦 Gestión de Productos")
-            df_p = df_all[df_all['categoria'] == 'Producto'].copy()
-            
-            edited_p = st.data_editor(
-                df_p,
+            edited_all = st.data_editor(
+                df_all,
                 column_config={
-                    "id": None, 
-                    "sku": st.column_config.TextColumn("SKU"),
-                    "codigo_barras": st.column_config.TextColumn("Barras"),
-                    "nombre": st.column_config.TextColumn("Nombre"),
-                    "categoria": st.column_config.SelectboxColumn("Tipo", options=["Producto", "Servicio"]),
+                    "id": None, # Ocultamos el ID interno
+                    "sku": "SKU",
+                    "codigo_barras": "Barras",
+                    "nombre": "Nombre",
+                    "categoria": st.column_config.SelectboxColumn("Categoría", options=["Producto", "Servicio"]),
                     "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
                     "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
                     "precio_pvp": st.column_config.NumberColumn("PVP (€)", format="%.2f"),
-                    "stock_actual": st.column_config.NumberColumn("Stock")
+                    "stock_actual": "Stock"
                 },
                 column_order=["sku", "codigo_barras", "nombre", "categoria", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
-                hide_index=True, use_container_width=True, key="editor_inv_p_resq"
+                hide_index=True, use_container_width=True, key="editor_inv_total"
             )
             
-            if st.button("💾 Guardar Cambios en Productos", type="primary", key="btn_save_p_inv"):
-                for i, row in edited_p.iterrows():
+            if st.button("💾 Guardar Cambios Generales", type="primary"):
+                for i, row in edited_all.iterrows():
                     d_row = row.to_dict()
                     client.table("productos").update(d_row).eq("id", d_row['id']).execute()
-                st.success("¡Inventario de productos actualizado!"); time.sleep(1); st.rerun()
-
-            st.markdown("---")
-
-            # --- SECCIÓN: SERVICIOS ---
-            st.markdown("#### ✂️ Gestión de Servicios")
-            df_s = df_all[df_all['categoria'] == 'Servicio'].copy()
-            
-            if not df_s.empty:
-                edited_s = st.data_editor(
-                    df_s,
-                    column_config={
-                        "id": None, "stock_actual": None,
-                        "sku": st.column_config.TextColumn("SKU"),
-                        "nombre": st.column_config.TextColumn("Nombre"),
-                        "categoria": st.column_config.SelectboxColumn("Tipo", options=["Producto", "Servicio"]),
-                        "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
-                        "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                        "precio_pvp": st.column_config.NumberColumn("PVP (€)", format="%.2f")
-                    },
-                    column_order=["sku", "nombre", "categoria", "precio_base", "igic_tipo", "precio_pvp"],
-                    hide_index=True, use_container_width=True, key="editor_inv_s_resq"
-                )
-                
-                if st.button("💾 Guardar Cambios en Servicios", type="primary", key="btn_save_s_inv"):
-                    for i, row in edited_s.iterrows():
-                        client.table("productos").update(row.to_dict()).eq("id", row['id']).execute()
-                    st.success("¡Lista de servicios actualizada!"); time.sleep(1); st.rerun()
-            else:
-                st.info("No hay servicios registrados.")
+                st.success("¡Datos actualizados!"); time.sleep(1); st.rerun()
         else:
-            st.info("La base de datos está vacía.")
+            st.error("🚨 LA TABLA NUEVA ESTÁ COMPLETAMENTE VACÍA. LA MIGRACIÓN NO FUNCIONÓ.")
 
 
 # ==========================================
