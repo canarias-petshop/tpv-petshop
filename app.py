@@ -121,8 +121,13 @@ with tab1:
         if res_prod.data:
             df_inv = pd.DataFrame(res_prod.data)
             
+            # --- LIMPIEZA DE DATOS (Para que no falle el filtro) ---
+            # Esto quita espacios y pone la primera letra en mayúscula (ej: " producto" -> "Producto")
+            df_inv['categoria_filt'] = df_inv['categoria'].fillna('Producto').astype(str).str.strip().str.capitalize()
+
             st.markdown("#### 📦 Inventario de Productos")
-            df_solo_productos = df_inv[df_inv['categoria'].isin(['Producto', None, ''])].copy()
+            # Filtramos: si es "Producto" o está vacío, lo mostramos aquí
+            df_solo_productos = df_inv[df_inv['categoria_filt'] == 'Producto'].copy()
             
             edit_p = st.data_editor(
                 df_solo_productos,
