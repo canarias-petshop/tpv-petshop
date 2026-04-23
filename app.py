@@ -142,8 +142,13 @@ with tab1:
             )
             if st.button("💾 Guardar cambios en Productos", key="btn_save_p_sep"):
                 for i, row in edit_p.iterrows():
-                    client.table("productos").update(row.to_dict()).eq("id", row['id']).execute()
-                st.success("Productos actualizados"); time.sleep(0.5); st.rerun()
+                # Eliminamos la columna temporal que creamos para filtrar antes de guardar
+                    datos_a_guardar = row.to_dict()
+                if 'categoria_filt' in datos_a_guardar: 
+                    del datos_a_guardar['categoria_filt']
+                
+                client.table("productos").update(datos_a_guardar).eq("id", row['id']).execute()
+            st.success("Productos actualizados"); time.sleep(0.5); st.rerun()
 
             st.markdown("---")
 
