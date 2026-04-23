@@ -116,65 +116,75 @@ with tab1:
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
-        res_prod = client.table("productos").select("*").order("nombre").execute()
-        
-        if res_prod.data:
-            df_inv = pd.DataFrame(res_prod.data)
+            res_prod = client.table("productos").select("*").order("nombre").execute()
             
-            # --- LIMPIEZA DE DATOS (Para que no falle el filtro) ---
-            # Esto quita espacios y pone la primera letra en mayúscula (ej: " producto" -> "Producto")
-            df_inv['categoria_filt'] = df_inv['categoria'].fillna('Producto').astype(str).str.strip().str.capitalize()
-
-            st.markdown("#### 📦 Inventario de Productos")
-            # Filtramos: si es "Producto" o está vacío, lo mostramos aquí
-            df_solo_productos = df_inv[df_inv['categoria_filt'] == 'Producto'].copy()
-            
-            edit_p = st.data_editor(
-                df_solo_productos,
-                column_config={
-                    "id": None, "categoria": None,
-                    "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
-                    "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
-                    "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock"
-                },
-                column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
-                hide_index=True, use_container_width=True, key="edit_p_sep"
-            )
-            if st.button("💾 Guardar cambios en Productos", key="btn_save_p_sep"):
-                for i, row in edit_p.iterrows():
-                # Eliminamos la columna temporal que creamos para filtrar antes de guardar
-                    datos_a_guardar = row.to_dict()
-                if 'categoria_filt' in datos_a_guardar: 
-                    del datos_a_guardar['categoria_filt']
+            if res_prod.data:
+                df_inv = pd.DataFrame(res_prod.data)
                 
-                client.table("productos").update(datos_a_guardar).eq("id", row['id']).execute()
-            st.success("Productos actualizados"); time.sleep(0.5); st.rerun()
+                # --- 1. LIMPIEZA DE DATOS ---
+                df_inv['categoria_filt'] = df_inv['categoria'].fillna('Producto').astype(str).str.strip().str.capitalize()
 
-            st.markdown("---")
-
-            st.markdown("#### ✂️ Catálogo de Servicios")
-            df_solo_servicios = df_inv[df_inv['categoria_filt'] == 'Servicio'].copy()
-            
-            if not df_solo_servicios.empty:
-                edit_s = st.data_editor(
-                    df_solo_servicios,
+                # --- 2. TABLA DE PRODUCTOS ---
+                st.markdown("#### 📦 Inventario de Productos")
+                df_solo_productos = df_inv[df_inv['categoria_filt'] == 'Producto'].copy()
+                
+                edit_p = st.data_editor(
+                    df_solo_productos,
                     column_config={
-                        "id": None, "categoria": None, "stock_actual": None, "codigo_barras": None,
-                        "sku": "SKU", "nombre": "Servicio",
+                        "id": None, "categoria": None, "categoria_filt": None,
+                        "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
                         "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
-                        "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)"
+                        "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock"
                     },
-                    column_order=["sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
-                    hide_index=True, use_container_width=True, key="edit_s_sep"
+                    column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
+                    hide_index=True, use_container_width=True, key="edit_p_sep"
                 )
-                if st.button("💾 Guardar cambios en Servicios", key="btn_save_s_sep"):
-                    for i, row in edit_s.iterrows():
-                        client.table("productos").update(row.to_dict()).eq("id", row['id']).execute()
-                    st.success("Servicios actualizados"); time.sleep(0.5); st.rerun()
+                
+                if st.button("💾 Guardar cambios en Productos", key="btn_save_p_sep"):
+                    for i, row in edit_p.iterrows():
+                        datos = row.to_dict()
+                        # IMPORTANTE: Limpiar antes de enviar a Supabase
+                        if 'categoria_filt' in datos: del datos['categoria_filt']
+                        client.table("productos").update(datos).eq("id", row['id']).execute()
+                    
+                    st.success("Productos actualizados")
+                    time.sleep(0.5)
+                    st.rerun()
+
+                st.markdown("---")
+
+                # --- 3. TABLA DE SERVICIOS ---
+                st.markdown("#### ✂️ Catálogo de Servicios")
+                df_solo_servicios = df_inv[df_inv['categoria_filt'] == 'Servicio'].copy()
+                
+                if not df_solo_servicios.empty:
+                    edit_s = st.data_editor(
+                        df_solo_servicios,
+                        column_config={
+                            "id": None, "categoria": None, "categoria_filt": None, 
+                            "stock_actual": None, "codigo_barras": None,
+                            "sku": "SKU", "nombre": "Servicio",
+                            "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
+                            "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)"
+                        },
+                        column_order=["sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
+                        hide_index=True, use_container_width=True, key="edit_s_sep"
+                    )
+                    
+                    if st.button("💾 Guardar cambios en Servicios", key="btn_save_s_sep"):
+                        for i, row in edit_s.iterrows():
+                            datos_s = row.to_dict()
+                            # Limpieza también en servicios
+                            if 'categoria_filt' in datos_s: del datos_s['categoria_filt']
+                            client.table("productos").update(datos_s).eq("id", row['id']).execute()
+                        
+                        st.success("Servicios actualizados")
+                        time.sleep(0.5)
+                        st.rerun()
+                else:
+                    st.info("No hay servicios registrados.")
             else:
-                st.info("No hay servicios registrados.")
-        else:
-            st.info("Inventario vacío.")
+                st.info("Inventario vacío.")
 
 # ==========================================
 # --- TAB 2: CAJA Y TERMINAL DE VENTA ---
