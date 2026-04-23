@@ -265,47 +265,68 @@ with tab2:
             t = st.session_state.ticket_actual
             st.success("✅ Venta realizada con éxito")
             
+           # --- TICKET PARA STAR MICRONICS PASS-PRNT ---
             html_ticket = f"""
             <!DOCTYPE html>
             <html>
             <head>
             <style>
-                @media screen {{
-                    #ticket-impresion {{ display: none; }}
-                    #pantalla {{ font-family: sans-serif; text-align: center; }}
-                    .btn-print {{ padding: 10px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; }}
-                }}
-                @media print {{
-                    #pantalla {{ display: none; }}
-                    #ticket-impresion {{ display: block; font-family: 'Courier New', Courier, monospace; width: 100%; max-width: 300px; color: #000; font-size: 12px; }}
+                body {{ margin: 0; padding: 0; font-family: sans-serif; }}
+                #ticket-impresion {{ display: none; }} /* Se oculta en la pantalla de la tablet */
+                #pantalla {{ text-align: center; }}
+                .btn-print {{ 
+                    padding: 12px; background-color: #005275; color: white; 
+                    border: none; border-radius: 5px; cursor: pointer; 
+                    font-weight: bold; width: 100%; font-size: 15px;
                 }}
             </style>
             </head>
-            <body style="margin: 0; padding: 0;">
-                <div id="pantalla">
-                    <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR TICKET</button>
-                </div>
-                <div id="ticket-impresion">
-                    <div style="text-align: center;">
-                        <b style="font-size: 16px;">ANIMALARIUM</b><br>
-                        Raquel Trujillo Hernández<br>
-                        DNI: 78854854K<br>
-                        C/ José Hernández Alfonso, 26<br>
-                        38009 S/C de Tenerife
-                    </div>
-                    <br>
-                    <div>Fecha: {t['fecha']}</div>
+            <body>
+            
+            <div id="pantalla">
+                <button class="btn-print" onclick="imprimirConStar()">🖨️ IMPRIMIR EN STAR MICRONICS</button>
+            </div>
+
+            <div id="ticket-impresion">
+                <div style="text-align: center; font-family: monospace; width: 300px; font-size: 12px; color: black;">
+                    <b style="font-size: 16px;">ANIMALARIUM</b><br>
+                    Raquel Trujillo Hernández<br>
+                    DNI: 78854854K<br>
+                    C/ José Hernández Alfonso, 26<br>
+                    38009 S/C de Tenerife
+                    <br><br>
+                    <div style="text-align: left;">Fecha: {t['fecha']}</div>
                     <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
                     <table style="width: 100%; font-size: 12px; text-align: left;">
             """
+            
+            # Bucle para meter los productos (No tocar la identación aquí)
             for p in t['productos']:
                 html_ticket += f"<tr><td>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right;'>{p['Subtotal']:.2f}€</td></tr>"
-            
+
             html_ticket += f"""
                     </table>
                     <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
                     <div style="text-align: right; font-size: 14px;"><b>TOTAL: {t['total']:.2f}€</b></div>
                 </div>
+            </div>
+
+            <script>
+            function imprimirConStar() {{
+                // 1. Obtenemos el diseño del ticket
+                var ticketHTML = document.getElementById('ticket-impresion').innerHTML;
+                
+                // 2. Lo codificamos para que pueda viajar por la URL
+                var htmlCodificado = encodeURIComponent(ticketHTML);
+                
+                // 3. Creamos el enlace mágico (nopreview = imprime directo sin preguntar)
+                var starURL = "starpassprnt://v1/print/nopreview?html=" + htmlCodificado;
+                
+                // 4. Lanzamos la App de Star
+                window.location.href = starURL;
+            }}
+            </script>
+            
             </body>
             </html>
             """
