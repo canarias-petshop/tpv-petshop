@@ -148,7 +148,7 @@ with tab1:
             st.markdown("---")
 
             st.markdown("#### ✂️ Catálogo de Servicios")
-            df_solo_servicios = df_inv[df_inv['categoria'] == 'Servicio'].copy()
+            df_solo_servicios = df_inv[df_inv['categoria_filt'] == 'Servicio'].copy()
             
             if not df_solo_servicios.empty:
                 edit_s = st.data_editor(
