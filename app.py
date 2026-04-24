@@ -1011,14 +1011,14 @@ with tab7:
 # --- TAB 8: FACTURACIÓN LEGAL Y STOCK ---
 # ==========================================
 with tab8:
-    st.markdown("<h3 style='margin-top: -15px;'>📑 Gestión Integral de Facturación</h3>", unsafe_allow_html=True)
-    
-    sub_emitir, sub_registrar, sub_archivo = st.tabs([
-        "🧾 Emitir Factura (Venta)", 
-        "📥 Registrar Compra (Proveedor)", 
-        "📂 Archivo de Documentos"
-    ])
+    st.markdown("<h3 style='margin-top: -15px;'> 📑  Gestión Integral de Facturación</h3>", unsafe_allow_html=True)
 
+    sub_emitir, sub_registrar, sub_archivo = st.tabs([
+        " 🧾  Emitir Factura (Venta)", 
+        " 📥  Registrar Compra (Proveedor)", 
+        " 📂  Archivo de Documentos"
+    ])
+    
     res_inv = client.table("productos").select("*").execute()
     df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
     res_cli = client.table("clientes").select("*").execute()
@@ -1036,44 +1036,44 @@ with tab8:
         with c_h1: f_pago = st.selectbox("Forma de Pago", ["Efectivo", "Tarjeta", "Bizum", "Transferencia"], key="fv_p_sel")
         with c_h2: f_emision = st.date_input("Fecha Emisión", key="fv_f_sel")
         with c_h3: f_vence = st.date_input("Vencimiento", key="fv_v_sel")
-
-        with st.expander("👤 Seleccionar / Crear Cliente"):
+        
+        with st.expander(" 👤  Seleccionar / Crear Cliente"):
             c_opc = df_cli.apply(lambda x: f"{x['nombre_dueno']} | CIF: {x.get('cif','-')}", axis=1).tolist() if not df_cli.empty else []
             sel_c = st.selectbox("Cliente:", c_opc, index=None, placeholder="Busca un cliente...")
             with st.form("n_cli_rap", clear_on_submit=True):
                 nc1, nc2 = st.columns(2); n_n = nc1.text_input("Nombre*"); n_c = nc2.text_input("CIF*")
                 if st.form_submit_button("Crear Cliente"):
                     if n_n and n_c: client.table("clientes").insert({"nombre_dueno": n_n, "cif": n_c}).execute(); st.rerun()
-
-        st.markdown("#### 📦 Añadir Artículos")
+        
+        st.markdown("####  📦  Añadir Artículos")
         if not df_inv.empty:
             ca1, ca2 = st.columns([4, 1])
             with ca1: prod = st.selectbox("Selecciona un producto para añadirlo a la tabla:", df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist(), index=None, key="v_prod_sel")
             with ca2:
                 st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
-                if st.button("➕ Añadir a la tabla", use_container_width=True, key="v_btn_add"):
+                if st.button(" ➕  Añadir a la tabla", use_container_width=True, key="v_btn_add"):
                     if prod and sel_c:
                         item = df_inv[df_inv['sku'] == prod.split("SKU: ")[1]].iloc[0]
                         base_u = float(item['precio_pvp']) / (1 + (float(item['igic_tipo'])/100))
                         st.session_state.factura_v_temp.append({
-                            "id": str(item['id']), "Código": item['sku'], "Descripción": item['nombre'], 
+                            "id": str(item['id']), "Código": item['sku'], "Descripción": item['nombre'],
                             "Cantidad": 1, "Base Ud": round(base_u, 2), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0
                         })
                         st.rerun()
-
+        
         if st.session_state.factura_v_temp:
-            st.markdown("💡 *Edita directamente en la tabla la Cantidad, Base, IGIC % y Desc %*")
+            st.markdown(" 💡  *Edita directamente en la tabla la Cantidad, Base, IGIC % y Desc %*")
             df_v = pd.DataFrame(st.session_state.factura_v_temp)
-            
-            # CÁLCULOS MATEMÁTICOS (Se actualizan solos si cambias la cantidad)
+
+            # CÁLCULOS MATEMÁTICOS
             df_v['Coste Ud'] = (df_v['Base Ud'] * (1 + df_v['IGIC %']/100)).round(2)
             df_v['Base Neta'] = (df_v['Base Ud'] * df_v['Cantidad']) * (1 - df_v['Desc %']/100)
             df_v['IGIC €'] = (df_v['Base Neta'] * (df_v['IGIC %']/100)).round(2)
             df_v['Total Línea'] = (df_v['Base Neta'] + df_v['IGIC €']).round(2)
-            
+
             df_v_edit = st.data_editor(
                 df_v, hide_index=True, use_container_width=True, key="ed_v_final",
-                num_rows="dynamic", # <--- AÑADIDO: Habilita la papelera para borrar líneas
+                num_rows="dynamic",
                 column_config={
                     "id": None, "Base Neta": None, "IGIC €": None,
                     "Código": st.column_config.TextColumn(disabled=True),
@@ -1086,25 +1086,25 @@ with tab8:
                     "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
                 }
             )
-            
-            # MAGIA: Si detectamos que cambiaste un número, recargamos para que el Total Línea se actualice
+
+            # MAGIA: Actualización instantánea
             nuevos_datos_v = df_v_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %']].to_dict('records')
             if nuevos_datos_v != st.session_state.factura_v_temp:
                 st.session_state.factura_v_temp = nuevos_datos_v
                 st.rerun()
-            
+
             t_base = df_v['Base Neta'].sum()
             t_igic = df_v['IGIC €'].sum()
             t_final = df_v['Total Línea'].sum()
-            
+
             st.markdown(f"""
             <div style="background-color: #f0f7f9; padding: 15px; border-radius: 10px; border-left: 5px solid #005275;">
-                <p style="margin:0;">Base Imponible Total: {t_base:.2f}€ | IGIC Total: {t_igic:.2f}€</p>
-                <h3 style="margin:0; color: #005275;">TOTAL A PAGAR: {t_final:.2f}€</h3>
+            <p style="margin:0;">Base Imponible Total: {t_base:.2f}€ | IGIC Total: {t_igic:.2f}€</p>
+            <h3 style="margin:0; color: #005275;">TOTAL A PAGAR: {t_final:.2f}€</h3>
             </div>
             """, unsafe_allow_html=True)
-
-            if st.button("🚀 EMITIR FACTURA", type="primary", use_container_width=True):
+            
+            if st.button(" 🚀  EMITIR FACTURA", type="primary", use_container_width=True):
                 c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
                 client.table("facturas").insert({
                     "cliente_id": c_id, "total_neto": float(t_base), "total_igic": float(t_igic), "total_final": float(t_final),
@@ -1115,336 +1115,332 @@ with tab8:
                     if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
                 st.session_state.factura_v_temp = []; st.success("Factura guardada."); st.rerun()
 
-        # ==========================================
-        # SUB-TAB 2: REGISTRAR COMPRA (BUSCADOR + TABLA DINÁMICA)
-        # ==========================================
-        with sub_registrar:
-            # 1. Iniciamos la lista temporal si no existe
-            if 'compra_temp' not in st.session_state:
-                st.session_state.compra_temp = []
-
-            # --- CABECERA DE LA FACTURA ---
-            c_c1, c_c2, c_c3 = st.columns(3)
-            with c_c1: n_fac = st.text_input("Nº Factura Proveedor", key="fac_prov_n")
-            with c_c2: f_fac = st.date_input("Fecha Factura", key="fac_prov_f")
-            with c_c3: f_ven = st.date_input("Vencimiento", key="fac_prov_v")
-
-            # --- SELECCIÓN DE PROVEEDOR ---
-            p_opc = df_prov['nombre_empresa'].tolist() if not df_prov.empty else []
-            sel_p = st.selectbox("Selecciona el Proveedor:", p_opc, index=None, placeholder="Escribe el nombre del proveedor...")
-
-            st.markdown("---")
-
-            # --- BUSCADOR DE PRODUCTOS EXISTENTES ---
-            st.markdown("🔍 **Añadir productos existentes al documento**")
-            if not df_inv.empty:
-                # Creamos una lista de nombres con su SKU para que no haya dudas
-                opciones_inv = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist()
+    # ==========================================
+    # SUB-TAB 2: REGISTRAR COMPRA (BUSCADOR INTELIGENTE + TABLA)
+    # ==========================================
+    with sub_registrar:
+        if 'compra_temp' not in st.session_state:
+            st.session_state.compra_temp = []
+            
+        # --- CABECERA DE LA FACTURA ---
+        c_c1, c_c2, c_c3 = st.columns(3)
+        with c_c1: n_fac = st.text_input("Nº Factura Proveedor", key="fac_prov_n")
+        with c_c2: f_fac = st.date_input("Fecha Factura", key="fac_prov_f")
+        with c_c3: f_ven = st.date_input("Vencimiento", key="fac_prov_v")
+        
+        # --- SELECCIÓN DE PROVEEDOR ---
+        p_opc = df_prov['nombre_empresa'].tolist() if not df_prov.empty else []
+        sel_p = st.selectbox("Selecciona el Proveedor:", p_opc, index=None, placeholder="Escribe el nombre del proveedor...")
+        st.markdown("---")
+        
+        # --- BUSCADOR INTELIGENTE (SIN BUCLES INFINITOS) ---
+        st.markdown(" 🔍  **Añadir productos existentes al documento**")
+        if not df_inv.empty:
+            opciones_inv = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist()
+            
+            prod_buscado = st.selectbox(
+                "Buscar producto por nombre o código:",
+                options=opciones_inv,
+                index=None,
+                placeholder="Empieza a escribir el nombre del artículo...",
+                label_visibility="collapsed",
+                key="selector_compra_doc" # <- Esta es la clave para la limpieza
+            )
+            
+            if prod_buscado:
+                sku_extraido = prod_buscado.split(" | SKU: ")[1]
+                item = df_inv[df_inv['sku'] == sku_extraido].iloc[0]
                 
-                # Este buscador te permite escribir y va filtrando las opciones
-                prod_buscado = st.selectbox(
-                    "Buscar producto por nombre o código:",
-                    options=opciones_inv,
-                    index=None,
-                    placeholder="Empieza a escribir el nombre del artículo...",
-                    label_visibility="collapsed"
-                )
+                st.session_state.compra_temp.append({
+                    "id": str(item['id']),
+                    "Código": item['sku'],
+                    "Descripción": item['nombre'],
+                    "Cantidad": 1,
+                    "Base Ud": float(item['precio_base']),
+                    "IGIC %": float(item['igic_tipo']),
+                    "Desc %": 0.0
+                })
+                # Evitamos el bucle infinito limpiando el campo antes del rerun
+                st.session_state.selector_compra_doc = None 
+                st.rerun()
 
-                if prod_buscado:
-                    # Cuando seleccionas uno, extraemos su SKU para buscarlo en el inventario
-                    sku_extraido = prod_buscado.split(" | SKU: ")[1]
-                    item = df_inv[df_inv['sku'] == sku_extraido].iloc[0]
-                    
-                    # Lo añadimos a nuestra lista de la factura
-                    st.session_state.compra_temp.append({
-                        "id": str(item['id']),
-                        "Código": item['sku'],
-                        "Descripción": item['nombre'],
-                        "Cantidad": 1,
-                        "Base Ud": float(item['precio_base']),
-                        "IGIC %": float(item['igic_tipo']),
-                        "Desc %": 0.0
-                    })
-                    # Refrescamos para que aparezca en la tabla de abajo inmediatamente
-                    st.rerun()
-
-            # --- OPCIÓN PARA ARTÍCULOS NUEVOS (POR SI NO EXISTEN) ---
-            with st.expander("✨ ¿El proveedor te trae un artículo nuevo? Créalo aquí"):
-                with st.form("form_nuevo_art_compra"):
-                    f1, f2 = st.columns(2)
-                    n_nom = f1.text_input("Nombre del Producto*")
-                    n_sku = f2.text_input("SKU / Código*")
-                    f3, f4 = st.columns(2)
-                    n_base = f3.number_input("Precio Base Compra (€)", min_value=0.0, format="%.2f")
-                    n_igic = f4.selectbox("IGIC %", [7.0, 3.0, 0.0, 15.0])
-                    
-                    if st.form_submit_button("Crear y Añadir a Factura"):
-                        if n_nom and n_sku:
-                            # Lo guardamos en el inventario general
-                            res_n = client.table("productos").insert({
-                                "nombre": n_nom, "sku": n_sku, "precio_base": n_base, 
-                                "igic_tipo": n_igic, "categoria": "Producto"
-                            }).execute()
-                            
-                            if res_n.data:
-                                item_n = res_n.data[0]
-                                st.session_state.compra_temp.append({
-                                    "id": str(item_n['id']), "Código": item_n['sku'], 
-                                    "Descripción": item_n['nombre'], "Cantidad": 1, 
-                                    "Base Ud": n_base, "IGIC %": n_igic, "Desc %": 0.0
-                                })
-                                st.success("Producto creado y añadido.")
-                                time.sleep(0.5)
-                                st.rerun()
-
-            # --- TABLA DINÁMICA DE LA FACTURA ---
-            if st.session_state.compra_temp:
-                st.markdown("#### 📋 Líneas de la Factura")
-                df_c = pd.DataFrame(st.session_state.compra_temp)
-
-                # Calculamos las columnas de dinero para que las veas en tiempo real
-                df_c['Base Neta'] = (df_c['Base Ud'] * df_c['Cantidad']) * (1 - df_c['Desc %']/100)
-                df_c['IGIC €'] = (df_c['Base Neta'] * (df_c['IGIC %']/100)).round(2)
-                df_c['Total Línea'] = (df_c['Base Neta'] + df_c['IGIC €']).round(2)
-
-                # La tabla mágica: editable y con papelera para borrar
-                df_c_edit = st.data_editor(
-                    df_c,
-                    column_config={
-                        "id": None, "Base Neta": None, "IGIC €": None, # Columnas internas ocultas
-                        "Código": st.column_config.TextColumn(disabled=True),
-                        "Descripción": st.column_config.TextColumn(disabled=True),
-                        "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
-                        "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
-                        "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                        "Desc %": st.column_config.NumberColumn("Desc. %"),
-                        "Total Línea": st.column_config.NumberColumn("Total Línea (€)", format="%.2f", disabled=True)
-                    },
-                    hide_index=True, use_container_width=True, 
-                    num_rows="dynamic", # <--- Aquí tienes la papelera para borrar líneas
-                    key="editor_compra_actual"
-                )
-
-                # Sincronizamos los cambios (por si cambiaste cantidades o borraste una fila)
-                nuevos_datos = df_c_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %']].to_dict('records')
-                if nuevos_datos != st.session_state.compra_temp:
-                    st.session_state.compra_temp = nuevos_datos
-                    st.rerun()
-
-                # --- TOTALES Y DESCUENTO PRONTO PAGO ---
-                suma_articulos = df_c['Total Línea'].sum()
-                st.markdown("---")
-                col_p1, col_p2 = st.columns([1, 2])
-                with col_p1:
-                    desc_pp = st.number_input("🎁 Dto. Pronto Pago (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
+        # --- ARTÍCULOS NUEVOS ---
+        with st.expander(" ✨  ¿El proveedor te trae un artículo nuevo? Créalo aquí"):
+            with st.form("form_nuevo_art_compra"):
+                f1, f2 = st.columns(2)
+                n_nom = f1.text_input("Nombre del Producto*")
+                n_sku = f2.text_input("SKU / Código*")
+                f3, f4 = st.columns(2)
+                n_base = f3.number_input("Precio Base Compra (€)", min_value=0.0, format="%.2f")
+                n_igic = f4.selectbox("IGIC %", [7.0, 3.0, 0.0, 15.0])
                 
-                total_con_pp = suma_articulos * (1 - desc_pp / 100)
-
-                with col_p2:
-                    st.markdown(f"""
-                    <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f; text-align: right;">
-                        <p style="margin:0; font-size: 14px;">Suma de artículos: {suma_articulos:.2f}€</p>
-                        <h2 style="margin:0; color: #d32f2f;">TOTAL FACTURA: {total_con_pp:.2f}€</h2>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                if st.button("📥 ARCHIVAR ESTA FACTURA Y SUMAR STOCK", type="primary", use_container_width=True):
-                    if sel_p and n_fac:
-                        p_id = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
-                        
-                        # 1. Guardamos la factura en la tabla 'compras'
-                        client.table("compras").insert({
-                            "proveedor_id": p_id, "total": float(total_con_pp), "descuento_pp": float(desc_pp),
-                            "estado": "Recibido", "tipo": f"Factura: {n_fac}", "fecha_vencimiento": str(f_ven),
-                            "productos": st.session_state.compra_temp
+                if st.form_submit_button("Crear y Añadir a Factura"):
+                    if n_nom and n_sku:
+                        res_n = client.table("productos").insert({
+                            "nombre": n_nom, "sku": n_sku, "precio_base": n_base,
+                            "igic_tipo": n_igic, "categoria": "Producto"
                         }).execute()
-                        
-                        # 2. Actualizamos el stock de cada producto
-                        for i in st.session_state.compra_temp:
-                            res_s = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
-                            if res_s.data:
-                                nuevo_stock = (res_s.data[0]['stock_actual'] or 0) + i['Cantidad']
-                                client.table("productos").update({"stock_actual": nuevo_stock}).eq("id", i['id']).execute()
-                        
-                        st.session_state.compra_temp = []
-                        st.success("✅ Factura archivada y stock actualizado correctamente.")
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        st.error("Por favor, rellena el número de factura y selecciona un proveedor.")
-            else:
-                st.info("🛒 Tu lista de artículos está vacía. Usa el buscador de arriba para añadir productos de tu inventario.")
+                        if res_n.data:
+                            item_n = res_n.data[0]
+                            st.session_state.compra_temp.append({
+                                "id": str(item_n['id']), "Código": item_n['sku'],
+                                "Descripción": item_n['nombre'], "Cantidad": 1,
+                                "Base Ud": n_base, "IGIC %": n_igic, "Desc %": 0.0
+                            })
+                            st.success("Producto creado y añadido.")
+                            time.sleep(0.5)
+                            st.rerun()
 
-        # ==========================================
-        # SUB-TAB 3: ARCHIVO Y GESTIÓN DE DOCUMENTOS (EDICIÓN TOTAL)
-        # ==========================================
-        with sub_archivo:
-            st.markdown("#### 🔍 Archivo Histórico de Facturación")
-            tipo_doc = st.radio("Selecciona el tipo de documento:", ["Facturas Emitidas (Ventas)", "Facturas Recibidas (Compras)"], horizontal=True)
-
-            c_f1, c_f2 = st.columns(2)
-            with c_f1: f_ini = st.date_input("Desde:", value=pd.to_datetime('today') - pd.Timedelta(days=30), key="arch_ini")
-            with c_f2: f_fin = st.date_input("Hasta:", value=pd.to_datetime('today'), key="arch_fin")
+        # --- TABLA DINÁMICA DE LA FACTURA ---
+        if st.session_state.compra_temp:
+            st.markdown("####  📋  Líneas de la Factura")
+            df_c = pd.DataFrame(st.session_state.compra_temp)
+            
+            df_c['Base Neta'] = (df_c['Base Ud'] * df_c['Cantidad']) * (1 - df_c['Desc %']/100)
+            df_c['IGIC €'] = (df_c['Base Neta'] * (df_c['IGIC %']/100)).round(2)
+            df_c['Total Línea'] = (df_c['Base Neta'] + df_c['IGIC €']).round(2)
+            
+            df_c_edit = st.data_editor(
+                df_c,
+                column_config={
+                    "id": None, "Base Neta": None, "IGIC €": None,
+                    "Código": st.column_config.TextColumn(disabled=True),
+                    "Descripción": st.column_config.TextColumn(disabled=True),
+                    "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
+                    "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
+                    "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
+                    "Desc %": st.column_config.NumberColumn("Desc. %"),
+                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", format="%.2f", disabled=True)
+                },
+                hide_index=True, use_container_width=True,
+                num_rows="dynamic",
+                key="editor_compra_actual"
+            )
+            
+            nuevos_datos = df_c_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %']].to_dict('records')
+            if nuevos_datos != st.session_state.compra_temp:
+                st.session_state.compra_temp = nuevos_datos
+                st.rerun()
+                
+            # --- TOTALES Y DESCUENTO PRONTO PAGO ---
+            suma_articulos = df_c['Total Línea'].sum()
             st.markdown("---")
+            col_p1, col_p2 = st.columns([1, 2])
+            with col_p1:
+                desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
 
-            # --- OPCIÓN A: FACTURAS EMITIDAS (VENTAS A CLIENTES) ---
-            if "Ventas" in tipo_doc:
-                res_fac = client.table("facturas").select("*, clientes(nombre_dueno)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("numero_factura", desc=True).execute()
-
-                if res_fac.data:
-                    df_fac = pd.DataFrame(res_fac.data)
-                    df_fac['Fecha'] = pd.to_datetime(df_fac['created_at']).dt.strftime('%d/%m/%Y')
-                    df_fac['Cliente'] = df_fac['clientes'].apply(lambda x: x['nombre_dueno'] if x else '---')
-
-                    df_vista_fac = df_fac[['id', 'numero_factura', 'Fecha', 'Cliente', 'forma_pago', 'total_final']].copy()
-                    df_vista_fac.insert(0, "Ver", False)
-
-                    st.markdown("💡 *Marca **'Ver'** para editar el contenido. Los cambios recalcularán el total de la factura.*")
+            total_con_pp = suma_articulos * (1 - desc_pp / 100)
+            
+            with col_p2:
+                st.markdown(f"""
+                <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f; text-align: right;">
+                <p style="margin:0; font-size: 14px;">Suma de artículos: {suma_articulos:.2f}€</p>
+                <h2 style="margin:0; color: #d32f2f;">TOTAL FACTURA: {total_con_pp:.2f}€</h2>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            if st.button(" 📥  ARCHIVAR ESTA FACTURA Y SUMAR STOCK", type="primary", use_container_width=True):
+                if sel_p and n_fac:
+                    p_id = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
                     
-                    edit_fac = st.data_editor(
-                        df_vista_fac,
-                        column_config={
-                            "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False),
-                            "id": None,
-                            "numero_factura": "Nº Factura",
-                            "Fecha": st.column_config.TextColumn(disabled=True),
-                            "Cliente": st.column_config.TextColumn(disabled=True),
-                            "total_final": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True),
-                            "forma_pago": st.column_config.SelectboxColumn("Forma Pago", options=["Efectivo", "Tarjeta", "Bizum", "Transferencia"])
-                        },
-                        hide_index=True, use_container_width=True, key="ed_arch_fac"
-                    )
-
-                    # Guardar cambios en la cabecera (forma de pago)
-                    if st.button("💾 Guardar Cambios Cabecera", key="btn_save_cab_v"):
-                        for idx, row in edit_fac.iterrows():
-                            client.table("facturas").update({"forma_pago": str(row['forma_pago'])}).eq("id", row['id']).execute()
-                        st.success("Formas de pago actualizadas."); st.rerun()
-
-                    # --- DESGLOSE EDITABLE DE VENTA ---
-                    filas_marcadas_f = edit_fac[edit_fac["Ver"] == True]
-                    if not filas_marcadas_f.empty:
-                        f_id = filas_marcadas_f.iloc[0]['id']
-                        fac_data = df_fac[df_fac['id'] == f_id].iloc[0]
-                        prods_hist = fac_data.get('productos', [])
-                        
-                        st.markdown(f"#### 📝 Editando Desglose Factura Nº {fac_data['numero_factura']}")
-                        if prods_hist:
-                            df_ph = pd.DataFrame(prods_hist)
-                            # Aseguramos cálculos
-                            df_ph['Base Neta'] = (df_ph['Base Ud'] * df_ph['Cantidad']) * (1 - df_ph['Desc %']/100)
-                            df_ph['IGIC €'] = (df_ph['Base Neta'] * (df_ph['IGIC %']/100)).round(2)
-                            df_ph['Total Línea'] = (df_ph['Base Neta'] + df_ph['IGIC €']).round(2)
-
-                            edit_ph = st.data_editor(
-                                df_ph, hide_index=True, use_container_width=True, num_rows="dynamic",
-                                key=f"edit_det_v_{f_id}",
-                                column_config={
-                                    "id": None, "Base Neta": None, "IGIC €": None,
-                                    "Código": st.column_config.TextColumn(disabled=True),
-                                    "Descripción": st.column_config.TextColumn(disabled=True),
-                                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", format="%.2f", disabled=True)
-                                }
-                            )
-
-                            new_total_v = edit_ph['Total Línea'].sum()
-                            st.metric("NUEVO TOTAL FACTURA", f"{new_total_v:.2f} €")
-
-                            if st.button(f"🚀 Sincronizar Cambios Factura {fac_data['numero_factura']}"):
-                                nuevo_json_v = json.loads(edit_ph.to_json(orient='records'))
-                                client.table("facturas").update({
-                                    "productos": nuevo_json_v,
-                                    "total_final": float(new_total_v)
-                                }).eq("id", int(f_id)).execute()
-                                st.success("Factura modificada correctamente."); st.rerun()
-
-            # --- OPCIÓN B: FACTURAS RECIBIDAS (COMPRAS / PROVEEDORES) ---
-            else:
-                res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
-
-                if res_comp.data:
-                    df_comp = pd.DataFrame(res_comp.data)
-                    df_comp['Fecha'] = pd.to_datetime(df_comp['created_at']).dt.strftime('%d/%m/%Y')
-                    df_comp['Proveedor'] = df_comp['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
-
-                    df_vista_comp = df_comp[['id', 'Fecha', 'Proveedor', 'tipo', 'estado', 'total']].copy()
-                    df_vista_comp.insert(0, "Ver", False)
-
-                    st.markdown("💡 *Marca **'Ver'** para ver y editar el desglose completo de la compra.*")
+                    client.table("compras").insert({
+                        "proveedor_id": p_id, "total": float(total_con_pp), "descuento_pp": float(desc_pp),
+                        "estado": "Recibido", "tipo": f"Factura: {n_fac}", "fecha_vencimiento": str(f_ven),
+                        "productos": st.session_state.compra_temp
+                    }).execute()
                     
-                    edit_comp = st.data_editor(
-                        df_vista_comp,
-                        column_config={
-                            "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False),
-                            "id": None, "Fecha": st.column_config.TextColumn(disabled=True),
-                            "Proveedor": st.column_config.TextColumn(disabled=True),
-                            "tipo": "Nº Factura Proveedor",
-                            "total": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True),
-                            "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Pendiente", "Pagado"])
-                        },
-                        hide_index=True, use_container_width=True, key="ed_arch_comp"
-                    )
-
-                    if st.button("💾 Guardar Cambios en Estado/Referencia", key="btn_save_cab_c"):
-                        for idx, row in edit_comp.iterrows():
-                            client.table("compras").update({
-                                "estado": str(row['estado']), "tipo": str(row['tipo'])
-                            }).eq("id", row['id']).execute()
-                        st.success("Datos de cabecera actualizados."); st.rerun()
-
-                    # --- DESGLOSE EDITABLE DE COMPRA (LO QUE PEDÍAS) ---
-                    filas_marcadas_c = edit_comp[edit_comp["Ver"] == True]
-                    
-                    if not filas_marcadas_c.empty:
-                        c_id = filas_marcadas_c.iloc[0]['id']
-                        compra_data = df_comp[df_comp['id'] == c_id].iloc[0]
-                        prods_c = compra_data.get('productos', [])
-                        
-                        st.markdown(f"#### 🛒 Editando Artículos de Compra (Ref: {compra_data['tipo']})")
-                        if prods_c:
-                            df_pc = pd.DataFrame(prods_c)
+                    for i in st.session_state.compra_temp:
+                        res_s = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                        if res_s.data:
+                            nuevo_stock = (res_s.data[0]['stock_actual'] or 0) + i['Cantidad']
+                            client.table("productos").update({"stock_actual": nuevo_stock}).eq("id", i['id']).execute()
                             
-                            # 1. Aseguramos que todas las columnas de cálculo existan para que se vea igual que al registrar
-                            df_pc['Coste Ud'] = (df_pc['Base Ud'] * (1 + df_pc['IGIC %']/100)).round(2)
-                            df_pc['Base Neta'] = (df_pc['Base Ud'] * df_pc['Cantidad']) * (1 - df_pc.get('Desc %', 0)/100)
-                            df_pc['IGIC €'] = (df_pc['Base Neta'] * (df_pc['IGIC %']/100)).round(2)
-                            df_pc['Total Línea'] = (df_ph['Base Neta'] + df_ph['IGIC €']).round(2) if 'df_ph' in locals() else (df_pc['Base Neta'] + df_pc['IGIC €']).round(2)
-
-                            # 2. TABLA DINÁMICA Y EDITABLE (Igual que el formulario de alta)
-                            edit_det_c = st.data_editor(
-                                df_pc, 
-                                hide_index=True, 
-                                use_container_width=True, 
-                                num_rows="dynamic", # <--- Permite elegir y eliminar líneas
-                                key=f"edit_det_c_{c_id}",
-                                column_config={
-                                    "id": None, "Base Neta": None, "IGIC €": None,
-                                    "Código": st.column_config.TextColumn(disabled=True),
-                                    "Descripción": st.column_config.TextColumn(disabled=True),
-                                    "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
-                                    "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
-                                    "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                                    "Desc %": st.column_config.NumberColumn("Desc. %"),
-                                    "Coste Ud": st.column_config.NumberColumn("Coste Ud (€)", disabled=True, format="%.2f"),
-                                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
-                                }
-                            )
-
-                            # 3. RECALCULAR TOTALES
-                            nuevo_total_c = edit_det_c['Total Línea'].sum()
-                            st.metric("NUEVO TOTAL COMPRA", f"{nuevo_total_c:.2f} €")
-
-                            if st.button(f"📥 Actualizar Factura Proveedor y Totales"):
-                                nuevo_json_c = json.loads(edit_det_c.to_json(orient='records'))
-                                client.table("compras").update({
-                                    "productos": nuevo_json_c,
-                                    "total": float(nuevo_total_c)
-                                }).eq("id", int(c_id)).execute()
-                                st.success("Compra corregida y archivada con éxito."); st.rerun()
-                        else:
-                            st.warning("No hay detalles de artículos en esta compra.")
+                    st.session_state.compra_temp = []
+                    st.success(" ✅  Factura archivada y stock actualizado correctamente.")
+                    time.sleep(1)
+                    st.rerun()
                 else:
-                    st.info("No hay facturas de proveedores registradas en estas fechas.")
+                    st.error("Por favor, rellena el número de factura y selecciona un proveedor.")
+        else:
+            st.info(" 🛒  Tu lista de artículos está vacía. Usa el buscador de arriba para añadir productos de tu inventario.")
+
+    # ==========================================
+    # SUB-TAB 3: ARCHIVO Y GESTIÓN DE DOCUMENTOS (EDICIÓN TOTAL)
+    # ==========================================
+    with sub_archivo:
+        st.markdown("####  🔍  Archivo Histórico de Facturación")
+        tipo_doc = st.radio("Selecciona el tipo de documento:", ["Facturas Emitidas (Ventas)", "Facturas Recibidas (Compras)"], horizontal=True)
+        
+        c_f1, c_f2 = st.columns(2)
+        with c_f1: f_ini = st.date_input("Desde:", value=pd.to_datetime('today') - pd.Timedelta(days=30), key="arch_ini")
+        with c_f2: f_fin = st.date_input("Hasta:", value=pd.to_datetime('today'), key="arch_fin")
+        st.markdown("---")
+        
+        # --- OPCIÓN A: FACTURAS EMITIDAS (VENTAS A CLIENTES) ---
+        if "Ventas" in tipo_doc:
+            res_fac = client.table("facturas").select("*, clientes(nombre_dueno)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("numero_factura", desc=True).execute()
+            if res_fac.data:
+                df_fac = pd.DataFrame(res_fac.data)
+                df_fac['Fecha'] = pd.to_datetime(df_fac['created_at']).dt.strftime('%d/%m/%Y')
+                df_fac['Cliente'] = df_fac['clientes'].apply(lambda x: x['nombre_dueno'] if x else '---')
+                df_vista_fac = df_fac[['id', 'numero_factura', 'Fecha', 'Cliente', 'forma_pago', 'total_final']].copy()
+                df_vista_fac.insert(0, "Ver", False)
+                st.markdown(" 💡  *Marca **'Ver'** para editar el contenido. Los cambios recalcularán el total de la factura.*")
+
+                edit_fac = st.data_editor(
+                    df_vista_fac,
+                    column_config={
+                        "Ver": st.column_config.CheckboxColumn(" 👁️  Ver", default=False),
+                        "id": None,
+                        "numero_factura": "Nº Factura",
+                        "Fecha": st.column_config.TextColumn(disabled=True),
+                        "Cliente": st.column_config.TextColumn(disabled=True),
+                        "total_final": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True),
+                        "forma_pago": st.column_config.SelectboxColumn("Forma Pago", options=["Efectivo", "Tarjeta", "Bizum", "Transferencia"])
+                    },
+                    hide_index=True, use_container_width=True, key="ed_arch_fac"
+                )
+                
+                # Guardar cambios en la cabecera
+                if st.button(" 💾  Guardar Cambios Cabecera", key="btn_save_cab_v"):
+                    for idx, row in edit_fac.iterrows():
+                        client.table("facturas").update({"forma_pago": str(row['forma_pago'])}).eq("id", row['id']).execute()
+                    st.success("Formas de pago actualizadas."); st.rerun()
+                    
+                # --- DESGLOSE EDITABLE DE VENTA ---
+                filas_marcadas_f = edit_fac[edit_fac["Ver"] == True]
+                if not filas_marcadas_f.empty:
+                    f_id = filas_marcadas_f.iloc[0]['id']
+                    fac_data = df_fac[df_fac['id'] == f_id].iloc[0]
+                    prods_hist = fac_data.get('productos', [])
+                    
+                    st.markdown(f"####  📝  Editando Desglose Factura Nº {fac_data['numero_factura']}")
+                    if prods_hist:
+                        df_ph = pd.DataFrame(prods_hist)
+                        df_ph['Base Neta'] = (df_ph['Base Ud'] * df_ph['Cantidad']) * (1 - df_ph.get('Desc %', 0)/100)
+                        df_ph['IGIC €'] = (df_ph['Base Neta'] * (df_ph['IGIC %']/100)).round(2)
+                        df_ph['Total Línea'] = (df_ph['Base Neta'] + df_ph['IGIC €']).round(2)
+                        
+                        edit_ph = st.data_editor(
+                            df_ph, hide_index=True, use_container_width=True, num_rows="dynamic",
+                            key=f"edit_det_v_{f_id}",
+                            column_config={
+                                "id": None, "Base Neta": None, "IGIC €": None,
+                                "Código": st.column_config.TextColumn(disabled=True),
+                                "Descripción": st.column_config.TextColumn(disabled=True),
+                                "Total Línea": st.column_config.NumberColumn("Total Línea (€)", format="%.2f", disabled=True)
+                            }
+                        )
+                        
+                        # Cálculo de total con Descuento Global
+                        suma_articulos_v = edit_ph['Total Línea'].sum()
+                        col_hv1, col_hv2 = st.columns([1,2])
+                        with col_hv1:
+                            desc_global_v = st.number_input("Corregir Dto. Global (%)", 0.0, 100.0, float(fac_data.get('descuento_global', 0.0)), key=f"dg_v_{f_id}")
+                        
+                        new_total_v = suma_articulos_v * (1 - desc_global_v / 100)
+                        
+                        with col_hv2:
+                            st.metric("NUEVO TOTAL FACTURA", f"{new_total_v:.2f} €")
+                        
+                        if st.button(f" 🚀  Sincronizar Cambios Factura {fac_data['numero_factura']}", type="primary"):
+                            nuevo_json_v = json.loads(edit_ph.to_json(orient='records'))
+                            client.table("facturas").update({
+                                "productos": nuevo_json_v,
+                                "descuento_global": float(desc_global_v),
+                                "total_final": float(new_total_v)
+                            }).eq("id", int(f_id)).execute()
+                            st.success("Factura modificada correctamente."); st.rerun()
+            else:
+                st.info("No hay facturas de ventas registradas en estas fechas.")
+
+        # --- OPCIÓN B: FACTURAS RECIBIDAS (COMPRAS / PROVEEDORES) ---
+        else:
+            res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
+            if res_comp.data:
+                df_comp = pd.DataFrame(res_comp.data)
+                df_comp['Fecha'] = pd.to_datetime(df_comp['created_at']).dt.strftime('%d/%m/%Y')
+                df_comp['Proveedor'] = df_comp['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
+                df_vista_comp = df_comp[['id', 'Fecha', 'Proveedor', 'tipo', 'estado', 'total']].copy()
+                df_vista_comp.insert(0, "Ver", False)
+                st.markdown(" 💡  *Marca **'Ver'** para ver y editar el desglose completo de la compra.*")
+
+                edit_comp = st.data_editor(
+                    df_vista_comp,
+                    column_config={
+                        "Ver": st.column_config.CheckboxColumn(" 👁️  Ver", default=False),
+                        "id": None, "Fecha": st.column_config.TextColumn(disabled=True),
+                        "Proveedor": st.column_config.TextColumn(disabled=True),
+                        "tipo": "Nº Factura Proveedor",
+                        "total": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True),
+                        "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Pendiente", "Pagado"])
+                    },
+                    hide_index=True, use_container_width=True, key="ed_arch_comp"
+                )
+                
+                if st.button(" 💾  Guardar Cambios en Estado/Referencia", key="btn_save_cab_c"):
+                    for idx, row in edit_comp.iterrows():
+                        client.table("compras").update({
+                            "estado": str(row['estado']), "tipo": str(row['tipo'])
+                        }).eq("id", row['id']).execute()
+                    st.success("Datos de cabecera actualizados."); st.rerun()
+
+                # --- DESGLOSE EDITABLE DE COMPRA ---
+                filas_marcadas_c = edit_comp[edit_comp["Ver"] == True]
+                
+                if not filas_marcadas_c.empty:
+                    c_id = filas_marcadas_c.iloc[0]['id']
+                    compra_data = df_comp[df_comp['id'] == c_id].iloc[0]
+                    prods_c = compra_data.get('productos', [])
+                    
+                    st.markdown(f"####  🛒  Editando Artículos de Compra (Ref: {compra_data['tipo']})")
+                    if prods_c:
+                        df_pc = pd.DataFrame(prods_c)
+                        
+                        df_pc['Base Neta'] = (df_pc['Base Ud'] * df_pc['Cantidad']) * (1 - df_pc.get('Desc %', 0)/100)
+                        df_pc['IGIC €'] = (df_pc['Base Neta'] * (df_pc['IGIC %']/100)).round(2)
+                        df_pc['Total Línea'] = (df_pc['Base Neta'] + df_pc['IGIC €']).round(2)
+                        
+                        edit_det_c = st.data_editor(
+                            df_pc, hide_index=True, use_container_width=True, num_rows="dynamic",
+                            key=f"edit_det_c_{c_id}",
+                            column_config={
+                                "id": None, "Base Neta": None, "IGIC €": None,
+                                "Código": st.column_config.TextColumn(disabled=True),
+                                "Descripción": st.column_config.TextColumn(disabled=True),
+                                "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
+                                "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
+                                "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
+                                "Desc %": st.column_config.NumberColumn("Desc. %"),
+                                "Coste Ud": st.column_config.NumberColumn("Coste Ud (€)", disabled=True, format="%.2f"),
+                                "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
+                            }
+                        )
+                        
+                        # Cálculo del total y Descuento Pronto Pago histórico
+                        suma_art_c = edit_det_c['Total Línea'].sum()
+                        col_hc1, col_hc2 = st.columns([1,2])
+                        with col_hc1:
+                            desc_pp_hist = st.number_input("Corregir Dto. Pronto Pago (%)", 0.0, 100.0, float(compra_data.get('descuento_pp', 0.0)), key=f"dg_c_{c_id}")
+                        
+                        nuevo_total_c = suma_art_c * (1 - desc_pp_hist / 100)
+                        
+                        with col_hc2:
+                            st.metric("NUEVO TOTAL COMPRA", f"{nuevo_total_c:.2f} €")
+                            
+                        if st.button(f" 📥  Actualizar Factura Proveedor y Totales", type="primary"):
+                            nuevo_json_c = json.loads(edit_det_c.to_json(orient='records'))
+                            client.table("compras").update({
+                                "productos": nuevo_json_c,
+                                "descuento_pp": float(desc_pp_hist),
+                                "total": float(nuevo_total_c)
+                            }).eq("id", int(c_id)).execute()
+                            st.success("Compra corregida y archivada con éxito."); st.rerun()
+                    else:
+                        st.warning("No hay detalles de artículos en esta compra.")
+            else:
+                st.info("No hay facturas de proveedores registradas en estas fechas.")
+                
 # ==========================================
 # --- TAB 9: CONTABILIDAD E INFORMES PARA ASESORÍA ---
 # ==========================================
