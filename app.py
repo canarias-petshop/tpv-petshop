@@ -591,9 +591,9 @@ with tab4:
 
             df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda']].copy()
             
-            st.markdown("💡 *Toca una fila para ver el desglose. Puedes corregir datos directamente en la tabla.*")
+            st.markdown("💡 *Toca una fila para ver el desglose. Haz doble clic para editar un Método de Pago o Estado.*")
             
-            # --- 3. TABLA DE TICKETS (CON SELECCIÓN TÁCTIL) ---
+            # --- 3. TABLA DE TICKETS (AHORA SÍ CON SELECCIÓN TÁCTIL) ---
             edited_df = st.data_editor(
                 df_vista,
                 column_config={
@@ -604,7 +604,12 @@ with tab4:
                     "estado": st.column_config.SelectboxColumn("Estado", options=["Completado", "Deuda", "DEVUELTO"]),
                     "cliente_deuda": st.column_config.TextColumn("Cliente (Si debe)")
                 },
-                hide_index=True, use_container_width=True, height=200, key="editor_tickets"
+                hide_index=True, 
+                use_container_width=True, 
+                height=200, 
+                key="editor_tickets",
+                on_select="rerun",          # <--- ESTO FALTABA: Hace que escuche el toque
+                selection_mode="single-row" # <--- ESTO FALTABA: Selecciona la fila completa
             )
             
             # Botón para guardar cambios en la tabla principal
@@ -622,7 +627,7 @@ with tab4:
             st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
             
             # --- 4. DETALLE DINÁMICO (AL TOCAR FILA) ---
-            # Comprobamos si hay alguna fila seleccionada táctilmente
+            # Ahora esto funcionará porque 'selection' sí se está registrando
             if "selection" in st.session_state.editor_tickets and st.session_state.editor_tickets["selection"]["rows"]:
                 fila_idx = st.session_state.editor_tickets["selection"]["rows"][0]
                 t_id = df_vista.iloc[fila_idx]['id']
@@ -634,8 +639,6 @@ with tab4:
                 if prods:
                     # Regla de Edición Total: El desglose también es editable
                     df_prods = pd.DataFrame(prods)
-                    # Solo mostramos columnas útiles para el desglose
-                    columnas_ver = [c for c in ['Producto', 'Cantidad', 'Precio', 'Subtotal'] if c in df_prods.columns]
                     
                     edit_prods = st.data_editor(
                         df_prods, 
@@ -644,29 +647,28 @@ with tab4:
                         },
                         use_container_width=True, 
                         hide_index=True, 
-                        num_rows="dynamic", # Permite quitar productos del ticket
+                        num_rows="dynamic",
                         key=f"edit_det_{t_id}"
                     )
                     
-                    # Recálculo de Subtotal si cambias cantidad o precio en el historial
                     if not edit_prods.equals(df_prods):
                         if 'Cantidad' in edit_prods.columns and 'Precio' in edit_prods.columns:
                             edit_prods['Subtotal'] = edit_prods['Cantidad'] * edit_prods['Precio']
                         
                     c1, c2 = st.columns(2)
                     with c1:
-                        if st.button(f"🔄 Actualizar Productos Ticket #{t_id}", use_container_width=True):
+                        if st.button(f"🔄 Guardar Cambios en Ticket #{t_id}", use_container_width=True):
                             nuevo_json = json.loads(edit_prods.to_json(orient='records'))
                             nuevo_total = edit_prods['Subtotal'].sum()
                             client.table("ventas_historial").update({
                                 "productos": nuevo_json,
                                 "total": float(nuevo_total)
                             }).eq("id", int(t_id)).execute()
-                            st.success("Venta corregida y total actualizado."); time.sleep(0.5); st.rerun()
+                            st.success("Venta corregida."); time.sleep(0.5); st.rerun()
                     
                     with c2:
                         if "DEVUELTO" not in str(t_info.get('estado', '')).upper():
-                            if st.button(f"↩️ Devolver Ticket y Restaurar Stock", use_container_width=True):
+                            if st.button(f"↩️ Devolver y Restaurar Stock", use_container_width=True):
                                 for p in prods:
                                     if not p.get('Manual', False):
                                         res_p = client.table("productos").select("stock_actual").eq("nombre", p['Producto']).execute()
@@ -675,7 +677,7 @@ with tab4:
                                 client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_id)).execute()
                                 st.success("Devolución completada."); time.sleep(0.5); st.rerun()
                 else:
-                    st.info("No hay productos registrados en este ticket.")
+                    st.info("No hay productos en este ticket.")
             else:
                 st.info("👆 Toca un ticket en la lista de arriba para ver su contenido aquí.")
                 
