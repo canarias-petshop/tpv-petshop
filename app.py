@@ -1115,7 +1115,7 @@ with tab8:
                     if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
                 st.session_state.factura_v_temp = []; st.success("Factura guardada."); st.rerun()
 
-    # ==========================================
+        # ==========================================
         # SUB-TAB 2: REGISTRAR COMPRA (BUSCADOR + TABLA DINÁMICA)
         # ==========================================
         with sub_registrar:
