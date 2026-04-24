@@ -558,13 +558,14 @@ with tab3:
             st.info("📭 Aún no tienes clientes registrados. ¡Empieza a añadir fichas a la izquierda!")        
 
 # ==========================================
-# --- TAB 4: HISTORIAL (MEJORADO CON FECHAS Y EDICIÓN) ---
+# --- TAB 4: HISTORIAL DE VENTAS
 # ==========================================
 with tab4:
     st.markdown("<h3 style='margin-top: -15px;'>📜 Historial de Ventas y Cajas</h3>", unsafe_allow_html=True)
     sub_h_ventas, sub_h_cajas = st.tabs(["🛒 Tickets y Ventas", "🔒 Cierres de Caja"])
     
     with sub_h_ventas:
+        # --- 1. FILTROS DE FECHA ---
         c_f1, c_f2, c_f3 = st.columns([1,1,1])
         with c_f1: preset = st.selectbox("Filtro rápido:", ["Esta semana", "Este mes", "Trimestre Actual", "Todo el año"])
         
@@ -577,6 +578,7 @@ with tab4:
         with c_f2: f_inicio_v = st.date_input("Desde:", value=f_ini)
         with c_f3: f_fin_v = st.date_input("Hasta:", value=hoy)
 
+        # --- 2. CARGA DE DATOS DE SUPABASE ---
         res_v = client.table("ventas_historial").select("*").gte("created_at", f"{f_inicio_v}T00:00:00").lte("created_at", f"{f_fin_v}T23:59:59").order("id", desc=True).execute()
         
         if res_v.data:
@@ -589,7 +591,9 @@ with tab4:
 
             df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda']].copy()
             
-            st.markdown("💡 *Haz doble clic en cualquier celda para corregir Método de Pago, Estado o Deuda.*")
+            st.markdown("💡 *Toca una fila para ver el desglose. Puedes corregir datos directamente en la tabla.*")
+            
+            # --- 3. TABLA DE TICKETS (CON SELECCIÓN TÁCTIL) ---
             edited_df = st.data_editor(
                 df_vista,
                 column_config={
@@ -603,7 +607,8 @@ with tab4:
                 hide_index=True, use_container_width=True, height=200, key="editor_tickets"
             )
             
-            if st.button("💾 Guardar Correcciones", type="primary"):
+            # Botón para guardar cambios en la tabla principal
+            if st.button("💾 Guardar Correcciones en Lista", type="primary"):
                 diferencias = edited_df.compare(df_vista)
                 if not diferencias.empty:
                     for idx in diferencias.index.tolist():
@@ -612,27 +617,71 @@ with tab4:
                             "estado": str(edited_df.loc[idx, 'estado']),
                             "cliente_deuda": str(edited_df.loc[idx, 'cliente_deuda']) if str(edited_df.loc[idx, 'cliente_deuda']) != 'nan' else ""
                         }).eq("id", int(edited_df.loc[idx, 'id'])).execute()
-                    st.success("Tickets actualizados."); time.sleep(1); st.rerun()
+                    st.success("Tickets actualizados."); time.sleep(0.5); st.rerun()
 
             st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
             
-            t_buscar = st.number_input("Nº Ticket para ver detalle o devolver:", min_value=1, step=1, value=int(df_v['id'].max()))
-            t_info = df_v[df_v['id'] == t_buscar]
-            if not t_info.empty:
-                prods = t_info.iloc[0].get('productos', [])
+            # --- 4. DETALLE DINÁMICO (AL TOCAR FILA) ---
+            # Comprobamos si hay alguna fila seleccionada táctilmente
+            if "selection" in st.session_state.editor_tickets and st.session_state.editor_tickets["selection"]["rows"]:
+                fila_idx = st.session_state.editor_tickets["selection"]["rows"][0]
+                t_id = df_vista.iloc[fila_idx]['id']
+                t_info = df_v[df_v['id'] == t_id].iloc[0]
+                
+                st.markdown(f"#### 🔎 Detalle del Ticket #{t_id}")
+                prods = t_info.get('productos', [])
+                
                 if prods:
-                    st.dataframe(pd.DataFrame(prods)[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True)
-                    if "DEVUELTO" not in str(t_info.iloc[0].get('estado', '')).upper():
-                        if st.button(f"🔄 DEVOLVER TICKET #{t_buscar} Y RESTAURAR STOCK"):
-                            for p in prods:
-                                if not p.get('Manual', False):
-                                    res_p = client.table("productos").select("stock_actual").eq("nombre", p['Producto']).execute()
-                                    if res_p.data:
-                                        client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("nombre", p['Producto']).execute()
-                            client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_buscar)).execute()
-                            st.success("Devolución completada."); time.sleep(1); st.rerun()
+                    # Regla de Edición Total: El desglose también es editable
+                    df_prods = pd.DataFrame(prods)
+                    # Solo mostramos columnas útiles para el desglose
+                    columnas_ver = [c for c in ['Producto', 'Cantidad', 'Precio', 'Subtotal'] if c in df_prods.columns]
+                    
+                    edit_prods = st.data_editor(
+                        df_prods, 
+                        column_config={
+                            "Subtotal": st.column_config.NumberColumn("Subtotal", format="%.2f", disabled=True)
+                        },
+                        use_container_width=True, 
+                        hide_index=True, 
+                        num_rows="dynamic", # Permite quitar productos del ticket
+                        key=f"edit_det_{t_id}"
+                    )
+                    
+                    # Recálculo de Subtotal si cambias cantidad o precio en el historial
+                    if not edit_prods.equals(df_prods):
+                        if 'Cantidad' in edit_prods.columns and 'Precio' in edit_prods.columns:
+                            edit_prods['Subtotal'] = edit_prods['Cantidad'] * edit_prods['Precio']
+                        
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if st.button(f"🔄 Actualizar Productos Ticket #{t_id}", use_container_width=True):
+                            nuevo_json = json.loads(edit_prods.to_json(orient='records'))
+                            nuevo_total = edit_prods['Subtotal'].sum()
+                            client.table("ventas_historial").update({
+                                "productos": nuevo_json,
+                                "total": float(nuevo_total)
+                            }).eq("id", int(t_id)).execute()
+                            st.success("Venta corregida y total actualizado."); time.sleep(0.5); st.rerun()
+                    
+                    with c2:
+                        if "DEVUELTO" not in str(t_info.get('estado', '')).upper():
+                            if st.button(f"↩️ Devolver Ticket y Restaurar Stock", use_container_width=True):
+                                for p in prods:
+                                    if not p.get('Manual', False):
+                                        res_p = client.table("productos").select("stock_actual").eq("nombre", p['Producto']).execute()
+                                        if res_p.data:
+                                            client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("nombre", p['Producto']).execute()
+                                client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_id)).execute()
+                                st.success("Devolución completada."); time.sleep(0.5); st.rerun()
+                else:
+                    st.info("No hay productos registrados en este ticket.")
+            else:
+                st.info("👆 Toca un ticket en la lista de arriba para ver su contenido aquí.")
+                
         else: st.info("No hay ventas en este rango de fechas.")
 
+    # --- SUB-PESTAÑA CAJAS (MANTENEMOS TU LÓGICA ORIGINAL) ---
     with sub_h_cajas:
         c_fc1, c_fc2 = st.columns(2)
         with c_fc1: f_inicio_c = st.date_input("Cajas desde:", value=pd.to_datetime('today') - pd.Timedelta(days=7), key="fc1")
@@ -713,7 +762,6 @@ with tab4:
                     else: st.info("No hubo Entradas o Salidas manuales en este turno.")
             else: st.warning("No hay registros de cajas cerradas en este rango.")
         except Exception as e: st.error(f"Error cargando cajas: {e}")
-
 
 # ==========================================
 # --- TAB 5: CONTROL DE CAJA FUERTE ---
