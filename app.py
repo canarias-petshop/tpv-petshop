@@ -558,14 +558,13 @@ with tab3:
             st.info("📭 Aún no tienes clientes registrados. ¡Empieza a añadir fichas a la izquierda!")        
 
 # ==========================================
-# --- TAB 4: HISTORIAL DE VENTAS
+# --- TAB 4: HISTORIAL (VERSIÓN CON CASILLA DE VER) ---
 # ==========================================
 with tab4:
     st.markdown("<h3 style='margin-top: -15px;'>📜 Historial de Ventas y Cajas</h3>", unsafe_allow_html=True)
     sub_h_ventas, sub_h_cajas = st.tabs(["🛒 Tickets y Ventas", "🔒 Cierres de Caja"])
     
     with sub_h_ventas:
-        # --- 1. FILTROS DE FECHA ---
         c_f1, c_f2, c_f3 = st.columns([1,1,1])
         with c_f1: preset = st.selectbox("Filtro rápido:", ["Esta semana", "Este mes", "Trimestre Actual", "Todo el año"])
         
@@ -578,7 +577,6 @@ with tab4:
         with c_f2: f_inicio_v = st.date_input("Desde:", value=f_ini)
         with c_f3: f_fin_v = st.date_input("Hasta:", value=hoy)
 
-        # --- 2. CARGA DE DATOS DE SUPABASE ---
         res_v = client.table("ventas_historial").select("*").gte("created_at", f"{f_inicio_v}T00:00:00").lte("created_at", f"{f_fin_v}T23:59:59").order("id", desc=True).execute()
         
         if res_v.data:
@@ -589,15 +587,20 @@ with tab4:
             for col in ['metodo_pago', 'estado', 'cliente_deuda']:
                 if col not in df_v.columns: df_v[col] = "N/A"
 
+            # 1. PREPARAMOS EL DATAFRAME
             df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda']].copy()
             
-            st.markdown("💡 *Toca una fila para ver el desglose. Haz doble clic para editar un Método de Pago o Estado.*")
+            # --- MAGIA TÁCTIL: Añadimos la columna Checkbox ---
+            df_vista.insert(0, "Ver", False)
             
-            # --- 3. TABLA DE TICKETS (AHORA SÍ CON SELECCIÓN TÁCTIL) ---
+            st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir el desglose abajo. Haz doble clic en las celdas normales para corregirlas.*")
+            
+            # 2. TABLA EDITABLE CON CASILLA
             edited_df = st.data_editor(
                 df_vista,
                 column_config={
-                    "id": st.column_config.NumberColumn("Nº Ticket", disabled=True, width="small"),
+                    "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False),
+                    "id": st.column_config.NumberColumn("Nº", disabled=True, width="small"),
                     "Fecha": st.column_config.TextColumn("Fecha", disabled=True),
                     "total": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f"),
                     "metodo_pago": st.column_config.SelectboxColumn("Método", options=["Efectivo", "Tarjeta", "Bizum", "Mixto"]),
@@ -606,15 +609,16 @@ with tab4:
                 },
                 hide_index=True, 
                 use_container_width=True, 
-                height=200, 
-                key="editor_tickets",
-                on_select="rerun",          # <--- ESTO FALTABA: Hace que escuche el toque
-                selection_mode="single-row" # <--- ESTO FALTABA: Selecciona la fila completa
+                height=250, 
+                key="editor_tickets"
             )
             
-            # Botón para guardar cambios en la tabla principal
-            if st.button("💾 Guardar Correcciones en Lista", type="primary"):
-                diferencias = edited_df.compare(df_vista)
+            # 3. GUARDAR CORRECCIONES EN SUPABASE
+            if st.button("💾 Guardar Correcciones de la Tabla", type="primary"):
+                # Ignoramos la columna 'Ver' para que no afecte a la base de datos
+                df_original = df_vista.drop(columns=["Ver"])
+                df_editado = edited_df.drop(columns=["Ver"])
+                diferencias = df_editado.compare(df_original)
                 if not diferencias.empty:
                     for idx in diferencias.index.tolist():
                         client.table("ventas_historial").update({
@@ -622,24 +626,24 @@ with tab4:
                             "estado": str(edited_df.loc[idx, 'estado']),
                             "cliente_deuda": str(edited_df.loc[idx, 'cliente_deuda']) if str(edited_df.loc[idx, 'cliente_deuda']) != 'nan' else ""
                         }).eq("id", int(edited_df.loc[idx, 'id'])).execute()
-                    st.success("Tickets actualizados."); time.sleep(0.5); st.rerun()
+                    st.success("Tickets actualizados."); time.sleep(0.8); st.rerun()
 
             st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
             
-            # --- 4. DETALLE DINÁMICO (AL TOCAR FILA) ---
-            # Ahora esto funcionará porque 'selection' sí se está registrando
-            if "selection" in st.session_state.editor_tickets and st.session_state.editor_tickets["selection"]["rows"]:
-                fila_idx = st.session_state.editor_tickets["selection"]["rows"][0]
-                t_id = df_vista.iloc[fila_idx]['id']
+            # --- 4. DETALLE DINÁMICO ---
+            # Detectamos qué fila tiene la casilla marcada
+            filas_marcadas = edited_df[edited_df["Ver"] == True]
+            
+            if not filas_marcadas.empty:
+                t_id = filas_marcadas.iloc[0]['id'] # Cogemos el ID marcado
                 t_info = df_v[df_v['id'] == t_id].iloc[0]
                 
-                st.markdown(f"#### 🔎 Detalle del Ticket #{t_id}")
+                st.markdown(f"#### 🔎 Desglose del Ticket #{t_id}")
                 prods = t_info.get('productos', [])
                 
                 if prods:
-                    # Regla de Edición Total: El desglose también es editable
+                    # El desglose también se puede editar
                     df_prods = pd.DataFrame(prods)
-                    
                     edit_prods = st.data_editor(
                         df_prods, 
                         column_config={
@@ -651,6 +655,7 @@ with tab4:
                         key=f"edit_det_{t_id}"
                     )
                     
+                    # Recalcular Subtotal si cambias Cantidad o Precio
                     if not edit_prods.equals(df_prods):
                         if 'Cantidad' in edit_prods.columns and 'Precio' in edit_prods.columns:
                             edit_prods['Subtotal'] = edit_prods['Cantidad'] * edit_prods['Precio']
@@ -679,11 +684,11 @@ with tab4:
                 else:
                     st.info("No hay productos en este ticket.")
             else:
-                st.info("👆 Toca un ticket en la lista de arriba para ver su contenido aquí.")
+                st.info("👆 Marca la casilla '👁️ Ver' de un ticket arriba para ver su contenido aquí abajo.")
                 
         else: st.info("No hay ventas en este rango de fechas.")
 
-    # --- SUB-PESTAÑA CAJAS (MANTENEMOS TU LÓGICA ORIGINAL) ---
+    # --- SUB-PESTAÑA CAJAS (MANTENEMOS TU CÓDIGO ORIGINAL INTACTO) ---
     with sub_h_cajas:
         c_fc1, c_fc2 = st.columns(2)
         with c_fc1: f_inicio_c = st.date_input("Cajas desde:", value=pd.to_datetime('today') - pd.Timedelta(days=7), key="fc1")
