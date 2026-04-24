@@ -1234,8 +1234,8 @@ with tab8:
                 time.sleep(1.5)
                 st.rerun()
 
-    # ==========================================
-        # SUB-TAB 3: ARCHIVO Y GESTIÓN DE DOCUMENTOS (VERSIÓN TÁCTIL)
+        # ==========================================
+        # SUB-TAB 3: ARCHIVO Y GESTIÓN DE DOCUMENTOS (EDICIÓN TOTAL)
         # ==========================================
         with sub_archivo:
             st.markdown("#### 🔍 Archivo Histórico de Facturación")
@@ -1246,7 +1246,7 @@ with tab8:
             with c_f2: f_fin = st.date_input("Hasta:", value=pd.to_datetime('today'), key="arch_fin")
             st.markdown("---")
 
-            # --- OPCIÓN A: FACTURAS DE CLIENTES ---
+            # --- OPCIÓN A: FACTURAS EMITIDAS (VENTAS A CLIENTES) ---
             if "Ventas" in tipo_doc:
                 res_fac = client.table("facturas").select("*, clientes(nombre_dueno)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("numero_factura", desc=True).execute()
 
@@ -1255,18 +1255,16 @@ with tab8:
                     df_fac['Fecha'] = pd.to_datetime(df_fac['created_at']).dt.strftime('%d/%m/%Y')
                     df_fac['Cliente'] = df_fac['clientes'].apply(lambda x: x['nombre_dueno'] if x else '---')
 
-                    # 1. PREPARAMOS EL DATAFRAME TÁCTIL
                     df_vista_fac = df_fac[['id', 'numero_factura', 'Fecha', 'Cliente', 'forma_pago', 'total_final']].copy()
-                    df_vista_fac.insert(0, "Ver", False) # Añadimos la casilla
+                    df_vista_fac.insert(0, "Ver", False)
 
-                    st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir la factura. Haz doble clic en la Forma de Pago si necesitas corregirla.*")
+                    st.markdown("💡 *Marca **'Ver'** para editar el contenido. Los cambios recalcularán el total de la factura.*")
                     
-                    # 2. TABLA EDITABLE CON CASILLA
                     edit_fac = st.data_editor(
                         df_vista_fac,
                         column_config={
                             "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False),
-                            "id": None, # Oculto en la vista
+                            "id": None,
                             "numero_factura": "Nº Factura",
                             "Fecha": st.column_config.TextColumn(disabled=True),
                             "Cliente": st.column_config.TextColumn(disabled=True),
@@ -1276,53 +1274,50 @@ with tab8:
                         hide_index=True, use_container_width=True, key="ed_arch_fac"
                     )
 
-                    # Guardar cambios rápidos de la tabla
-                    if st.button("💾 Guardar Cambios en Formas de Pago", type="primary"):
-                        df_orig_f = df_vista_fac.drop(columns=["Ver"])
-                        df_edit_f = edit_fac.drop(columns=["Ver"])
-                        diferencias = df_edit_f.compare(df_orig_f)
-                        if not diferencias.empty:
-                            for idx in diferencias.index.tolist():
-                                client.table("facturas").update({"forma_pago": str(edit_fac.loc[idx, 'forma_pago'])}).eq("id", edit_fac.loc[idx, 'id']).execute()
-                            st.success("Facturas actualizadas."); time.sleep(0.8); st.rerun()
+                    # Guardar cambios en la cabecera (forma de pago)
+                    if st.button("💾 Guardar Cambios Cabecera", key="btn_save_cab_v"):
+                        for idx, row in edit_fac.iterrows():
+                            client.table("facturas").update({"forma_pago": str(row['forma_pago'])}).eq("id", row['id']).execute()
+                        st.success("Formas de pago actualizadas."); st.rerun()
 
-                    # 3. VISUALIZAR FACTURA AL MARCAR LA CASILLA
+                    # --- DESGLOSE EDITABLE DE VENTA ---
                     filas_marcadas_f = edit_fac[edit_fac["Ver"] == True]
-                    
                     if not filas_marcadas_f.empty:
                         f_id = filas_marcadas_f.iloc[0]['id']
                         fac_data = df_fac[df_fac['id'] == f_id].iloc[0]
                         prods_hist = fac_data.get('productos', [])
                         
-                        st.markdown(f"#### 🖨️ Factura Nº {fac_data['numero_factura']}")
-                        
+                        st.markdown(f"#### 📝 Editando Desglose Factura Nº {fac_data['numero_factura']}")
                         if prods_hist:
-                            st.dataframe(pd.DataFrame(prods_hist)[['Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Total Línea']], hide_index=True, use_container_width=True)
-                            
-                            html_print = f"""
-                            <div style="border: 1px solid #ccc; padding: 20px; background: white; color: black; font-family: sans-serif;">
-                                <div style="text-align: right;"><button onclick="window.print()" style="padding: 10px; background: #005275; color: white; border: none; cursor: pointer;">🖨️ REIMPRIMIR FACTURA</button></div>
-                                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #005275; margin-top: 10px;">
-                                    <div><h2>ANIMALARIUM</h2><p>Raquel Trujillo Hernández<br>DNI: 78854854K<br>S/C de Tenerife</p></div>
-                                    <div style="text-align: right;"><h3>FACTURA DE VENTA</h3><p>Nº {fac_data['numero_factura']}<br>Fecha: {fac_data['Fecha']}</p></div>
-                                </div>
-                                <div style="margin: 15px 0; padding: 10px; background: #f4f4f4;">
-                                    <b>Cliente:</b> {fac_data['Cliente']}<br><b>Formato de Pago:</b> {fac_data['forma_pago']}
-                                </div>
-                                <table style="width: 100%; text-align: left; border-collapse: collapse;">
-                                    <tr style="background: #005275; color: white;"><th>Producto</th><th>Cant.</th><th style='text-align:right;'>Total</th></tr>
-                                    {''.join([f"<tr><td style='padding: 5px; border-bottom: 1px solid #eee;'>{p.get('Descripción', '---')}</td><td style='padding: 5px; border-bottom: 1px solid #eee;'>{p.get('Cantidad', 1)}</td><td style='text-align:right; padding: 5px; border-bottom: 1px solid #eee;'>{p.get('Total Línea', 0):.2f}€</td></tr>" for p in prods_hist])}
-                                </table>
-                                <h3 style="text-align: right; margin-top: 20px;">TOTAL: {fac_data['total_final']:.2f}€</h3>
-                            </div>
-                            """
-                            components.html(html_print, height=450, scrolling=True)
-                    else:
-                        st.info("👆 Marca la casilla '👁️ Ver' para visualizar e imprimir la factura.")
-                else:
-                    st.info("No hay facturas de clientes en estas fechas.")
+                            df_ph = pd.DataFrame(prods_hist)
+                            # Aseguramos cálculos
+                            df_ph['Base Neta'] = (df_ph['Base Ud'] * df_ph['Cantidad']) * (1 - df_ph['Desc %']/100)
+                            df_ph['IGIC €'] = (df_ph['Base Neta'] * (df_ph['IGIC %']/100)).round(2)
+                            df_ph['Total Línea'] = (df_ph['Base Neta'] + df_ph['IGIC €']).round(2)
 
-            # --- OPCIÓN B: COMPRAS A PROVEEDORES ---
+                            edit_ph = st.data_editor(
+                                df_ph, hide_index=True, use_container_width=True, num_rows="dynamic",
+                                key=f"edit_det_v_{f_id}",
+                                column_config={
+                                    "id": None, "Base Neta": None, "IGIC €": None,
+                                    "Código": st.column_config.TextColumn(disabled=True),
+                                    "Descripción": st.column_config.TextColumn(disabled=True),
+                                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", format="%.2f", disabled=True)
+                                }
+                            )
+
+                            new_total_v = edit_ph['Total Línea'].sum()
+                            st.metric("NUEVO TOTAL FACTURA", f"{new_total_v:.2f} €")
+
+                            if st.button(f"🚀 Sincronizar Cambios Factura {fac_data['numero_factura']}"):
+                                nuevo_json_v = json.loads(edit_ph.to_json(orient='records'))
+                                client.table("facturas").update({
+                                    "productos": nuevo_json_v,
+                                    "total_final": float(new_total_v)
+                                }).eq("id", int(f_id)).execute()
+                                st.success("Factura modificada correctamente."); st.rerun()
+
+            # --- OPCIÓN B: FACTURAS RECIBIDAS (COMPRAS / PROVEEDORES) ---
             else:
                 res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
 
@@ -1331,39 +1326,32 @@ with tab8:
                     df_comp['Fecha'] = pd.to_datetime(df_comp['created_at']).dt.strftime('%d/%m/%Y')
                     df_comp['Proveedor'] = df_comp['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
 
-                    # 1. PREPARAMOS EL DATAFRAME TÁCTIL
                     df_vista_comp = df_comp[['id', 'Fecha', 'Proveedor', 'tipo', 'estado', 'total']].copy()
                     df_vista_comp.insert(0, "Ver", False)
 
-                    st.markdown("💡 *Marca la casilla **'👁️ Ver'** para ver el detalle de los artículos comprados.*")
+                    st.markdown("💡 *Marca **'Ver'** para ver y editar el desglose completo de la compra.*")
                     
-                    # 2. TABLA EDITABLE CON CASILLA
                     edit_comp = st.data_editor(
                         df_vista_comp,
                         column_config={
                             "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False),
-                            "id": None,
-                            "Fecha": st.column_config.TextColumn(disabled=True),
+                            "id": None, "Fecha": st.column_config.TextColumn(disabled=True),
                             "Proveedor": st.column_config.TextColumn(disabled=True),
-                            "tipo": "Referencia / Nº Factura",
+                            "tipo": "Nº Factura Proveedor",
                             "total": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True),
                             "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Pendiente", "Pagado"])
                         },
                         hide_index=True, use_container_width=True, key="ed_arch_comp"
                     )
 
-                    if st.button("💾 Guardar Cambios en Compras", type="primary"):
-                        df_orig_c = df_vista_comp.drop(columns=["Ver"])
-                        df_edit_c = edit_comp.drop(columns=["Ver"])
-                        diferencias = df_edit_c.compare(df_orig_c)
-                        if not diferencias.empty:
-                            for idx in diferencias.index.tolist():
-                                client.table("compras").update({
-                                    "estado": str(edit_comp.loc[idx, 'estado']), "tipo": str(edit_comp.loc[idx, 'tipo'])
-                                }).eq("id", edit_comp.loc[idx, 'id']).execute()
-                        st.success("Compras actualizadas"); time.sleep(0.8); st.rerun()
+                    if st.button("💾 Guardar Cambios en Estado/Referencia", key="btn_save_cab_c"):
+                        for idx, row in edit_comp.iterrows():
+                            client.table("compras").update({
+                                "estado": str(row['estado']), "tipo": str(row['tipo'])
+                            }).eq("id", row['id']).execute()
+                        st.success("Datos de cabecera actualizados."); st.rerun()
 
-                    # 3. VISUALIZAR COMPRA AL MARCAR LA CASILLA
+                    # --- DESGLOSE EDITABLE DE COMPRA (LO QUE PEDÍAS) ---
                     filas_marcadas_c = edit_comp[edit_comp["Ver"] == True]
                     
                     if not filas_marcadas_c.empty:
@@ -1371,23 +1359,49 @@ with tab8:
                         compra_data = df_comp[df_comp['id'] == c_id].iloc[0]
                         prods_c = compra_data.get('productos', [])
                         
-                        st.markdown(f"#### 📦 Desglose de la Compra (Ref: {compra_data['tipo']})")
+                        st.markdown(f"#### 🛒 Editando Artículos de Compra (Ref: {compra_data['tipo']})")
                         if prods_c:
                             df_pc = pd.DataFrame(prods_c)
                             
-                            # Magia antibloqueo: Si no está el Coste Ud en la base de datos, lo calculamos al vuelo
-                            if 'Coste Ud' not in df_pc.columns and 'Base Ud' in df_pc.columns and 'IGIC %' in df_pc.columns:
-                                df_pc['Coste Ud'] = (df_pc['Base Ud'] * (1 + df_pc['IGIC %'] / 100)).round(2)
-                                
-                            # Mostramos solo las columnas que de verdad existen para evitar el KeyError
-                            columnas_seguras = [c for c in ['Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Coste Ud'] if c in df_pc.columns]
-                            
-                            st.dataframe(df_pc[columnas_seguras], hide_index=True, use_container_width=True)
-                            
-                            csv = df_pc.to_csv(index=False).encode('utf-8')
-                            st.download_button("📥 Descargar CSV de esta Factura", data=csv, file_name=f"Compra_{c_id}.csv", mime="text/csv")
+                            # 1. Aseguramos que todas las columnas de cálculo existan para que se vea igual que al registrar
+                            df_pc['Coste Ud'] = (df_pc['Base Ud'] * (1 + df_pc['IGIC %']/100)).round(2)
+                            df_pc['Base Neta'] = (df_pc['Base Ud'] * df_pc['Cantidad']) * (1 - df_pc.get('Desc %', 0)/100)
+                            df_pc['IGIC €'] = (df_pc['Base Neta'] * (df_pc['IGIC %']/100)).round(2)
+                            df_pc['Total Línea'] = (df_ph['Base Neta'] + df_ph['IGIC €']).round(2) if 'df_ph' in locals() else (df_pc['Base Neta'] + df_pc['IGIC €']).round(2)
+
+                            # 2. TABLA DINÁMICA Y EDITABLE (Igual que el formulario de alta)
+                            edit_det_c = st.data_editor(
+                                df_pc, 
+                                hide_index=True, 
+                                use_container_width=True, 
+                                num_rows="dynamic", # <--- Permite elegir y eliminar líneas
+                                key=f"edit_det_c_{c_id}",
+                                column_config={
+                                    "id": None, "Base Neta": None, "IGIC €": None,
+                                    "Código": st.column_config.TextColumn(disabled=True),
+                                    "Descripción": st.column_config.TextColumn(disabled=True),
+                                    "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
+                                    "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
+                                    "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
+                                    "Desc %": st.column_config.NumberColumn("Desc. %"),
+                                    "Coste Ud": st.column_config.NumberColumn("Coste Ud (€)", disabled=True, format="%.2f"),
+                                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
+                                }
+                            )
+
+                            # 3. RECALCULAR TOTALES
+                            nuevo_total_c = edit_det_c['Total Línea'].sum()
+                            st.metric("NUEVO TOTAL COMPRA", f"{nuevo_total_c:.2f} €")
+
+                            if st.button(f"📥 Actualizar Factura Proveedor y Totales"):
+                                nuevo_json_c = json.loads(edit_det_c.to_json(orient='records'))
+                                client.table("compras").update({
+                                    "productos": nuevo_json_c,
+                                    "total": float(nuevo_total_c)
+                                }).eq("id", int(c_id)).execute()
+                                st.success("Compra corregida y archivada con éxito."); st.rerun()
                         else:
-                            st.warning("No se guardaron artículos detallados en esta compra (probablemente es antigua o manual).")
+                            st.warning("No hay detalles de artículos en esta compra.")
                 else:
                     st.info("No hay facturas de proveedores registradas en estas fechas.")
 # ==========================================
