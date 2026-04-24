@@ -1188,49 +1188,56 @@ with tab8:
                 st.session_state.compra_temp = nuevos_datos_c
                 st.rerun()
             
+            # --- CÁLCULOS Y DESCUENTO PRONTO PAGO ---
             t_base_c = df_c['Base Neta'].sum()
             t_igic_c = df_c['IGIC €'].sum()
-            t_final_c = df_c['Total Línea'].sum()
+            suma_antes_desc = df_c['Total Línea'].sum()
+
+            st.markdown("---")
+            col_d1, col_d2 = st.columns([1, 2])
+            with col_d1:
+                # Nuevo campo para el descuento por pronto pago
+                desc_pp_porc = st.number_input("🎁 Descuento Pronto Pago (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5, key="pp_desc_alta")
             
-            st.markdown(f"""
-            <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f;">
-                <p style="margin:0;">Base Imponible Total: {t_base_c:.2f}€ | IGIC Total: {t_igic_c:.2f}€</p>
+            # Cálculo del total final aplicando el descuento
+            t_final_c = suma_antes_desc * (1 - desc_pp_porc / 100)
+
+            with col_d2:
+                st.markdown(f"""
+                <div style="background-color: #fff5f5; padding: 10px; border-radius: 10px; border-left: 5px solid #d32f2f;">
+                <p style="margin:0; font-size: 13px;">Suma Líneas: {suma_antes_desc:.2f}€ | Dto. aplicado: -{(suma_antes_desc - t_final_c):.2f}€</p>
                 <h3 style="margin:0; color: #d32f2f;">TOTAL COMPRA: {t_final_c:.2f}€</h3>
-            </div>
-            """, unsafe_allow_html=True)
+                </div>
+                """, unsafe_allow_html=True)
 
             if st.button("📥 ARCHIVAR COMPRA", type="primary", use_container_width=True):
                 p_id = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
-                
-                # 1. Guardar la factura completa en "compras"
+
+                # IMPORTANTE: Guardamos el descuento y el total corregido
                 client.table("compras").insert({
-                    "proveedor_id": p_id, "total": float(t_final_c), "estado": "Recibido", "tipo": f"Factura: {n_fac}",
-                    "fecha_vencimiento": str(f_ven), "productos": st.session_state.compra_temp
+                    "proveedor_id": p_id, 
+                    "total": float(t_final_c), 
+                    "descuento_pp": float(desc_pp_porc), # <-- Nueva columna
+                    "estado": "Recibido", 
+                    "tipo": f"Factura: {n_fac}",
+                    "fecha_vencimiento": str(f_ven), 
+                    "productos": st.session_state.compra_temp
                 }).execute()
-                
-                # Bucle para recorrer cada producto que has añadido a la factura
+
+                # (El resto del código de stock y precios de coste se mantiene igual...)
                 for i in st.session_state.compra_temp:
-                    # 2. Sumar el stock en la tabla "productos"
                     res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
-                    if res.data: 
+                    if res.data:
                         client.table("productos").update({"stock_actual": (res.data[0]['stock_actual'] or 0) + i['Cantidad']}).eq("id", i['id']).execute()
-                    
-                    # 3. MÁGIA: Guardar/Actualizar el precio de coste de ESTE proveedor
+                    # Actualizar precio de coste del proveedor
                     res_pp = client.table("productos_proveedores").select("id").eq("producto_id", i['id']).eq("proveedor_id", p_id).execute()
                     if res_pp.data:
-                        # Si ya existía la relación, le actualizamos el precio al de esta factura
                         client.table("productos_proveedores").update({"precio_coste": float(i['Base Ud'])}).eq("id", res_pp.data[0]['id']).execute()
                     else:
-                        # Si nunca le habíamos comprado esto a este proveedor, creamos la relación
-                        client.table("productos_proveedores").insert({
-                            "producto_id": i['id'], 
-                            "proveedor_id": p_id, 
-                            "precio_coste": float(i['Base Ud'])
-                        }).execute()
-                        
-                # Limpiar el carrito y avisar
+                        client.table("productos_proveedores").insert({"producto_id": i['id'], "proveedor_id": p_id, "precio_coste": float(i['Base Ud'])}).execute()
+
                 st.session_state.compra_temp = []
-                st.success("✅ Compra archivada, stock sumado y precios de coste actualizados.")
+                st.success("✅ Compra archivada con descuento aplicado.")
                 time.sleep(1.5)
                 st.rerun()
 
