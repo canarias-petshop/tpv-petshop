@@ -1073,6 +1073,7 @@ with tab8:
             
             df_v_edit = st.data_editor(
                 df_v, hide_index=True, use_container_width=True, key="ed_v_final",
+                num_rows="dynamic", # <--- AÑADIDO: Habilita la papelera para borrar líneas
                 column_config={
                     "id": None, "Base Neta": None, "IGIC €": None,
                     "Código": st.column_config.TextColumn(disabled=True),
@@ -1167,6 +1168,7 @@ with tab8:
             
             df_c_edit = st.data_editor(
                 df_c, hide_index=True, use_container_width=True, key="ed_c_final",
+                num_rows="dynamic", # <--- AÑADIDO: Habilita la papelera para borrar líneas
                 column_config={
                     "id": None, "Base Neta": None, "IGIC €": None,
                     "Código": st.column_config.TextColumn(disabled=True),
