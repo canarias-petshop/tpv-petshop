@@ -1027,7 +1027,7 @@ with tab8:
     df_prov = pd.DataFrame(res_prov.data) if res_prov.data else pd.DataFrame()
 
     # ==========================================
-    # SUB-TAB 1: EMITIR FACTURA DE VENTA
+    # SUB-TAB 1: EMITIR FACTURA DE VENTA (LÓGICA PVP LIMPIA)
     # ==========================================
     with sub_emitir:
         if 'factura_v_temp' not in st.session_state: st.session_state.factura_v_temp = []
@@ -1054,47 +1054,43 @@ with tab8:
             if prod_v:
                 sku_v = prod_v.split(" | SKU: ")[1]
                 it_v = df_inv[df_inv['sku'] == sku_v].iloc[0]
+                
+                # AÑADIMOS EL PRODUCTO DIRECTAMENTE CON SU PRECIO DE VENTA (PVP)
                 st.session_state.factura_v_temp.append({
                     "id": str(it_v['id']), "Código": it_v['sku'], "Descripción": it_v['nombre'],
-                    "Cantidad": 1, "Base Ud": float(it_v['precio_base']), "IGIC %": float(it_v['igic_tipo']), "Desc %": 0.0
+                    "Cantidad": 1, "Precio Venta": float(it_v['precio_pvp']), "Desc %": 0.0
                 })
                 st.session_state.llave_busqueda_v += 1 
                 st.rerun()
         
         if st.session_state.factura_v_temp:
-            st.markdown(" 💡  *Edita directamente en la tabla la Cantidad, Base, IGIC % y Desc %*")
+            st.markdown(" 💡  *Edita directamente en la tabla la Cantidad, el Precio de Venta y el Descuento.*")
             df_v = pd.DataFrame(st.session_state.factura_v_temp)
 
-            # CÁLCULOS MATEMÁTICOS
-            df_v['Coste Ud'] = (df_v['Base Ud'] * (1 + df_v['IGIC %']/100)).round(2)
-            df_v['Base Neta'] = (df_v['Base Ud'] * df_v['Cantidad']) * (1 - df_v['Desc %']/100)
-            df_v['IGIC €'] = (df_v['Base Neta'] * (df_v['IGIC %']/100)).round(2)
-            df_v['Total Línea'] = (df_v['Base Neta'] + df_v['IGIC €']).round(2)
+            # CÁLCULO SIMPLE Y LIMPIO PARA VENTAS AL PÚBLICO
+            df_v['Total Línea'] = (df_v['Precio Venta'] * df_v['Cantidad']) * (1 - df_v['Desc %']/100)
+            df_v['Total Línea'] = df_v['Total Línea'].round(2)
 
             df_v_edit = st.data_editor(
                 df_v, hide_index=True, use_container_width=True, key="ed_v_final",
                 num_rows="dynamic",
                 column_config={
-                    "id": None, "Base Neta": None, "IGIC €": None, # Ocultamos Base Neta e IGIC € de la vista
+                    "id": None,
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
-                    "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
-                    "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                    "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
+                    "Precio Venta": st.column_config.NumberColumn("Precio Venta (€)", format="%.2f"),
                     "Desc %": st.column_config.NumberColumn("Desc. %", min_value=0.0),
-                    "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
+                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
                 }
             )
 
-            nuevos_datos_v = df_v_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %']].to_dict('records')
+            nuevos_datos_v = df_v_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Precio Venta', 'Desc %']].to_dict('records')
             if nuevos_datos_v != st.session_state.factura_v_temp:
                 st.session_state.factura_v_temp = nuevos_datos_v
                 st.rerun()
 
             # Desglose Final de Ventas
-            t_base_v = df_v['Base Neta'].sum()
-            t_igic_v = df_v['IGIC €'].sum()
             suma_articulos_v = df_v['Total Línea'].sum()
 
             st.markdown("---")
@@ -1102,29 +1098,31 @@ with tab8:
             with col_v1:
                 desc_g_v = st.number_input(" 🎁  Dto. Global (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5, key="desc_v_alta")
             
-            # Recálculo si hay descuento
-            t_base_final_v = t_base_v * (1 - desc_g_v / 100)
-            t_igic_final_v = t_igic_v * (1 - desc_g_v / 100)
+            # Recálculo final
             total_v_final = suma_articulos_v * (1 - desc_g_v / 100)
 
             with col_v2:
                 st.markdown(f"""
                 <div style="background-color: #f0f7f9; padding: 15px; border-radius: 10px; border-left: 5px solid #005275; text-align: right;">
-                <p style="margin:0; font-size: 14px;">Base Imponible: {t_base_final_v:.2f}€ | IGIC Total: {t_igic_final_v:.2f}€</p>
+                <p style="margin:0; font-size: 14px;">Suma de artículos: {suma_articulos_v:.2f}€</p>
                 <h2 style="margin:0; color: #005275;">TOTAL FACTURA: {total_v_final:.2f}€</h2>
                 </div>
                 """, unsafe_allow_html=True)
             
             if st.button(" 🚀  EMITIR FACTURA", type="primary", use_container_width=True):
-                c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
-                client.table("facturas").insert({
-                    "cliente_id": c_id, "total_neto": float(t_base_final_v), "total_igic": float(t_igic_final_v), "total_final": float(total_v_final),
-                    "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
-                }).execute()
-                for i in st.session_state.factura_v_temp:
-                    res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
-                    if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
-                st.session_state.factura_v_temp = []; st.success("Factura guardada."); st.rerun()
+                if sel_c:
+                    c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
+                    # Guardamos la venta. Anotamos el total_final (dejamos neto e igic a 0 por compatibilidad de DB)
+                    client.table("facturas").insert({
+                        "cliente_id": c_id, "total_neto": float(total_v_final), "total_igic": 0.0, "total_final": float(total_v_final),
+                        "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
+                    }).execute()
+                    for i in st.session_state.factura_v_temp:
+                        res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                        if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
+                    st.session_state.factura_v_temp = []; st.success("Factura guardada correctamente."); time.sleep(1); st.rerun()
+                else:
+                    st.error("Debes seleccionar un cliente para emitir la factura.")
 
     # ==========================================
     # SUB-TAB 2: REGISTRAR COMPRA (PROVEEDOR)
@@ -1215,7 +1213,7 @@ with tab8:
             st.markdown("####  📋  Líneas de la Factura")
             df_c = pd.DataFrame(st.session_state.compra_temp)
             
-            # CÁLCULOS MATEMÁTICOS
+            # CÁLCULOS MATEMÁTICOS (Desglosado visible en Compras)
             df_c['Coste Ud'] = (df_c['Base Ud'] * (1 + df_c['IGIC %']/100)).round(2)
             df_c['Base Neta'] = (df_c['Base Ud'] * df_c['Cantidad']) * (1 - df_c['Desc %']/100)
             df_c['IGIC €'] = (df_c['Base Neta'] * (df_c['IGIC %']/100)).round(2)
@@ -1224,14 +1222,16 @@ with tab8:
             df_c_edit = st.data_editor(
                 df_c,
                 column_config={
-                    "id": None, "Base Neta": None, "IGIC €": None, # Ocultamos Base Neta e IGIC €
+                    "id": None,
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
                     "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
                     "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                    "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
                     "Desc %": st.column_config.NumberColumn("Desc. %"),
+                    "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
+                    "Base Neta": st.column_config.NumberColumn("Total Base", disabled=True, format="%.2f"),
+                    "IGIC €": st.column_config.NumberColumn("Total IGIC", disabled=True, format="%.2f"),
                     "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
                 },
                 hide_index=True, use_container_width=True,
@@ -1343,24 +1343,27 @@ with tab8:
                     st.markdown(f"####  📝  Editando Desglose Factura Nº {fac_data['numero_factura']}")
                     if prods_hist:
                         df_ph = pd.DataFrame(prods_hist)
-                        df_ph['Coste Ud'] = (df_ph['Base Ud'] * (1 + df_ph['IGIC %']/100)).round(2)
-                        df_ph['Base Neta'] = (df_ph['Base Ud'] * df_ph['Cantidad']) * (1 - df_ph.get('Desc %', 0)/100)
-                        df_ph['IGIC €'] = (df_ph['Base Neta'] * (df_ph['IGIC %']/100)).round(2)
-                        df_ph['Total Línea'] = (df_ph['Base Neta'] + df_ph['IGIC €']).round(2)
+                        
+                        # --- TRADUCTOR MÁGICO PARA FACTURAS ANTIGUAS ---
+                        # Si la factura antigua no tiene "Precio Venta", se lo calculamos al vuelo para que no de error
+                        if 'Precio Venta' not in df_ph.columns:
+                            df_ph['Precio Venta'] = (df_ph.get('Base Ud', 0) * (1 + df_ph.get('IGIC %', 0)/100)).round(2)
+                            
+                        # Cálculo simple de ventas
+                        df_ph['Total Línea'] = (df_ph['Precio Venta'] * df_ph['Cantidad']) * (1 - df_ph.get('Desc %', 0)/100)
+                        df_ph['Total Línea'] = df_ph['Total Línea'].round(2)
                         
                         edit_ph = st.data_editor(
                             df_ph, hide_index=True, use_container_width=True, num_rows="dynamic",
                             key=f"edit_det_v_{f_id}",
                             column_config={
-                                "id": None, "Base Neta": None, "IGIC €": None, # Ocultamos Base Neta e IGIC €
+                                "id": None, "Base Neta": None, "IGIC €": None, "Base Ud": None, "IGIC %": None, "Coste Ud": None,
                                 "Código": st.column_config.TextColumn(disabled=True),
                                 "Descripción": st.column_config.TextColumn(disabled=True),
                                 "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
-                                "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
-                                "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                                "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
+                                "Precio Venta": st.column_config.NumberColumn("Precio Venta (€)", format="%.2f"),
                                 "Desc %": st.column_config.NumberColumn("Desc. %", min_value=0.0),
-                                "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
+                                "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
                             }
                         )
                         
@@ -1436,27 +1439,39 @@ with tab8:
                             df_pc, hide_index=True, use_container_width=True, num_rows="dynamic",
                             key=f"edit_det_c_{c_id}",
                             column_config={
-                                "id": None, "Base Neta": None, "IGIC €": None, # Ocultamos Base Neta e IGIC €
+                                "id": None,
                                 "Código": st.column_config.TextColumn(disabled=True),
                                 "Descripción": st.column_config.TextColumn(disabled=True),
                                 "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
                                 "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
                                 "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                                "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
                                 "Desc %": st.column_config.NumberColumn("Desc. %"),
+                                "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
+                                "Base Neta": st.column_config.NumberColumn("Total Base", disabled=True, format="%.2f"),
+                                "IGIC €": st.column_config.NumberColumn("Total IGIC", disabled=True, format="%.2f"),
                                 "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
                             }
                         )
                         
+                        t_base_c = edit_det_c['Base Neta'].sum()
+                        t_igic_c = edit_det_c['IGIC €'].sum()
                         suma_art_c = edit_det_c['Total Línea'].sum()
+                        
                         col_hc1, col_hc2 = st.columns([1,2])
                         with col_hc1:
                             desc_pp_hist = st.number_input("Corregir Dto. Pronto Pago (%)", 0.0, 100.0, float(compra_data.get('descuento_pp', 0.0)), key=f"dg_c_{c_id}")
                         
+                        t_base_final_c = t_base_c * (1 - desc_pp_hist / 100)
+                        t_igic_final_c = t_igic_c * (1 - desc_pp_hist / 100)
                         nuevo_total_c = suma_art_c * (1 - desc_pp_hist / 100)
                         
                         with col_hc2:
-                            st.metric("NUEVO TOTAL COMPRA", f"{nuevo_total_c:.2f} €")
+                            st.markdown(f"""
+                            <div style="background-color: #fff5f5; padding: 10px; border-radius: 10px; border-left: 5px solid #d32f2f; text-align: right;">
+                            <p style="margin:0; font-size: 14px;">Base Imponible: {t_base_final_c:.2f}€ | IGIC Total: {t_igic_final_c:.2f}€</p>
+                            <h3 style="margin:0; color: #d32f2f;">NUEVO TOTAL COMPRA: {nuevo_total_c:.2f}€</h3>
+                            </div>
+                            """, unsafe_allow_html=True)
                             
                         if st.button(f" 📥  Actualizar Factura Proveedor y Totales", type="primary"):
                             nuevo_json_c = json.loads(edit_det_c.to_json(orient='records'))
