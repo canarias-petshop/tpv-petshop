@@ -1065,6 +1065,7 @@ with tab8:
             st.markdown(" 💡  *Edita directamente en la tabla la Cantidad, Base, IGIC % y Desc %*")
             df_v = pd.DataFrame(st.session_state.factura_v_temp)
 
+            # CÁLCULOS MATEMÁTICOS (Ahora sí, desglosado y visible)
             df_v['Coste Ud'] = (df_v['Base Ud'] * (1 + df_v['IGIC %']/100)).round(2)
             df_v['Base Neta'] = (df_v['Base Ud'] * df_v['Cantidad']) * (1 - df_v['Desc %']/100)
             df_v['IGIC €'] = (df_v['Base Neta'] * (df_v['IGIC %']/100)).round(2)
@@ -1074,15 +1075,17 @@ with tab8:
                 df_v, hide_index=True, use_container_width=True, key="ed_v_final",
                 num_rows="dynamic",
                 column_config={
-                    "id": None, "Base Neta": None, "IGIC €": None,
+                    "id": None,
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
                     "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
                     "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
                     "Desc %": st.column_config.NumberColumn("Desc. %", min_value=0.0),
-                    "Coste Ud": st.column_config.NumberColumn("Coste Ud (€)", disabled=True, format="%.2f"),
-                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
+                    "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
+                    "Base Neta": st.column_config.NumberColumn("Total Base", disabled=True, format="%.2f"),
+                    "IGIC €": st.column_config.NumberColumn("Total IGIC", disabled=True, format="%.2f"),
+                    "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
                 }
             )
 
@@ -1091,22 +1094,34 @@ with tab8:
                 st.session_state.factura_v_temp = nuevos_datos_v
                 st.rerun()
 
-            t_base = df_v['Base Neta'].sum()
-            t_igic = df_v['IGIC €'].sum()
-            t_final = df_v['Total Línea'].sum()
+            # Desglose Final de Ventas
+            t_base_v = df_v['Base Neta'].sum()
+            t_igic_v = df_v['IGIC €'].sum()
+            suma_articulos_v = df_v['Total Línea'].sum()
 
-            st.markdown(f"""
-            <div style="background-color: #f0f7f9; padding: 15px; border-radius: 10px; border-left: 5px solid #005275;">
-            <p style="margin:0;">Base Imponible Total: {t_base:.2f}€ | IGIC Total: {t_igic:.2f}€</p>
-            <h3 style="margin:0; color: #005275;">TOTAL A PAGAR: {t_final:.2f}€</h3>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("---")
+            col_v1, col_v2 = st.columns([1, 2])
+            with col_v1:
+                desc_g_v = st.number_input(" 🎁  Dto. Global (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5, key="desc_v_alta")
+            
+            # Recálculo si hay descuento
+            t_base_final_v = t_base_v * (1 - desc_g_v / 100)
+            t_igic_final_v = t_igic_v * (1 - desc_g_v / 100)
+            total_v_final = suma_articulos_v * (1 - desc_g_v / 100)
+
+            with col_v2:
+                st.markdown(f"""
+                <div style="background-color: #f0f7f9; padding: 15px; border-radius: 10px; border-left: 5px solid #005275; text-align: right;">
+                <p style="margin:0; font-size: 14px;">Base Imponible: {t_base_final_v:.2f}€ | IGIC Total: {t_igic_final_v:.2f}€</p>
+                <h2 style="margin:0; color: #005275;">TOTAL FACTURA: {total_v_final:.2f}€</h2>
+                </div>
+                """, unsafe_allow_html=True)
             
             if st.button(" 🚀  EMITIR FACTURA", type="primary", use_container_width=True):
                 c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
                 client.table("facturas").insert({
-                    "cliente_id": c_id, "total_neto": float(t_base), "total_igic": float(t_igic), "total_final": float(t_final),
-                    "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
+                    "cliente_id": c_id, "total_neto": float(t_base_final_v), "total_igic": float(t_igic_final_v), "total_final": float(total_v_final),
+                    "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
                 }).execute()
                 for i in st.session_state.factura_v_temp:
                     res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
@@ -1125,7 +1140,6 @@ with tab8:
         with c_c2: f_fac = st.date_input("Fecha Factura", key="fac_prov_f")
         with c_c3: f_ven = st.date_input("Vencimiento", key="fac_prov_v")
         
-        # --- AQUÍ DEVOLVEMOS EL EXPANSOR PARA CREAR PROVEEDOR ---
         with st.expander(" 🚚  Seleccionar / Crear Proveedor", expanded=True):
             p_opc = df_prov['nombre_empresa'].tolist() if not df_prov.empty else []
             sel_p = st.selectbox("Selecciona el Proveedor:", p_opc, index=None, placeholder="Escribe el nombre del proveedor...")
@@ -1170,7 +1184,6 @@ with tab8:
                     "IGIC %": float(item['igic_tipo']),
                     "Desc %": 0.0
                 })
-                # Sumamos a la llave para limpiar el buscador sin bloquear la app
                 st.session_state.llave_busqueda_c += 1 
                 st.rerun()
 
@@ -1204,6 +1217,8 @@ with tab8:
             st.markdown("####  📋  Líneas de la Factura")
             df_c = pd.DataFrame(st.session_state.compra_temp)
             
+            # CÁLCULOS MATEMÁTICOS (Desglosado visible)
+            df_c['Coste Ud'] = (df_c['Base Ud'] * (1 + df_c['IGIC %']/100)).round(2)
             df_c['Base Neta'] = (df_c['Base Ud'] * df_c['Cantidad']) * (1 - df_c['Desc %']/100)
             df_c['IGIC €'] = (df_c['Base Neta'] * (df_c['IGIC %']/100)).round(2)
             df_c['Total Línea'] = (df_c['Base Neta'] + df_c['IGIC €']).round(2)
@@ -1211,14 +1226,17 @@ with tab8:
             df_c_edit = st.data_editor(
                 df_c,
                 column_config={
-                    "id": None, "Base Neta": None, "IGIC €": None,
+                    "id": None,
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
                     "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
                     "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
                     "Desc %": st.column_config.NumberColumn("Desc. %"),
-                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", format="%.2f", disabled=True)
+                    "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
+                    "Base Neta": st.column_config.NumberColumn("Total Base", disabled=True, format="%.2f"),
+                    "IGIC €": st.column_config.NumberColumn("Total IGIC", disabled=True, format="%.2f"),
+                    "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
                 },
                 hide_index=True, use_container_width=True,
                 num_rows="dynamic",
@@ -1230,18 +1248,25 @@ with tab8:
                 st.session_state.compra_temp = nuevos_datos
                 st.rerun()
                 
-            suma_articulos = df_c['Total Línea'].sum()
+            # --- TOTALES Y DESCUENTO PRONTO PAGO ---
+            t_base_c = df_c['Base Neta'].sum()
+            t_igic_c = df_c['IGIC €'].sum()
+            suma_articulos_c = df_c['Total Línea'].sum()
+
             st.markdown("---")
             col_p1, col_p2 = st.columns([1, 2])
             with col_p1:
                 desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
 
-            total_con_pp = suma_articulos * (1 - desc_pp / 100)
+            # Recálculo si hay descuento
+            t_base_final_c = t_base_c * (1 - desc_pp / 100)
+            t_igic_final_c = t_igic_c * (1 - desc_pp / 100)
+            total_con_pp = suma_articulos_c * (1 - desc_pp / 100)
             
             with col_p2:
                 st.markdown(f"""
                 <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f; text-align: right;">
-                <p style="margin:0; font-size: 14px;">Suma de artículos: {suma_articulos:.2f}€</p>
+                <p style="margin:0; font-size: 14px;">Base Imponible: {t_base_final_c:.2f}€ | IGIC Total: {t_igic_final_c:.2f}€</p>
                 <h2 style="margin:0; color: #d32f2f;">TOTAL FACTURA: {total_con_pp:.2f}€</h2>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1322,6 +1347,7 @@ with tab8:
                     st.markdown(f"####  📝  Editando Desglose Factura Nº {fac_data['numero_factura']}")
                     if prods_hist:
                         df_ph = pd.DataFrame(prods_hist)
+                        df_ph['Coste Ud'] = (df_ph['Base Ud'] * (1 + df_ph['IGIC %']/100)).round(2)
                         df_ph['Base Neta'] = (df_ph['Base Ud'] * df_ph['Cantidad']) * (1 - df_ph.get('Desc %', 0)/100)
                         df_ph['IGIC €'] = (df_ph['Base Neta'] * (df_ph['IGIC %']/100)).round(2)
                         df_ph['Total Línea'] = (df_ph['Base Neta'] + df_ph['IGIC €']).round(2)
@@ -1330,10 +1356,17 @@ with tab8:
                             df_ph, hide_index=True, use_container_width=True, num_rows="dynamic",
                             key=f"edit_det_v_{f_id}",
                             column_config={
-                                "id": None, "Base Neta": None, "IGIC €": None,
+                                "id": None,
                                 "Código": st.column_config.TextColumn(disabled=True),
                                 "Descripción": st.column_config.TextColumn(disabled=True),
-                                "Total Línea": st.column_config.NumberColumn("Total Línea (€)", format="%.2f", disabled=True)
+                                "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
+                                "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
+                                "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
+                                "Desc %": st.column_config.NumberColumn("Desc. %", min_value=0.0),
+                                "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
+                                "Base Neta": st.column_config.NumberColumn("Total Base", disabled=True, format="%.2f"),
+                                "IGIC €": st.column_config.NumberColumn("Total IGIC", disabled=True, format="%.2f"),
+                                "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
                             }
                         )
                         
@@ -1400,6 +1433,7 @@ with tab8:
                     if prods_c:
                         df_pc = pd.DataFrame(prods_c)
                         
+                        df_pc['Coste Ud'] = (df_pc['Base Ud'] * (1 + df_pc['IGIC %']/100)).round(2)
                         df_pc['Base Neta'] = (df_pc['Base Ud'] * df_pc['Cantidad']) * (1 - df_pc.get('Desc %', 0)/100)
                         df_pc['IGIC €'] = (df_pc['Base Neta'] * (df_pc['IGIC %']/100)).round(2)
                         df_pc['Total Línea'] = (df_pc['Base Neta'] + df_pc['IGIC €']).round(2)
@@ -1408,15 +1442,17 @@ with tab8:
                             df_pc, hide_index=True, use_container_width=True, num_rows="dynamic",
                             key=f"edit_det_c_{c_id}",
                             column_config={
-                                "id": None, "Base Neta": None, "IGIC €": None,
+                                "id": None,
                                 "Código": st.column_config.TextColumn(disabled=True),
                                 "Descripción": st.column_config.TextColumn(disabled=True),
                                 "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
                                 "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
                                 "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
                                 "Desc %": st.column_config.NumberColumn("Desc. %"),
-                                "Coste Ud": st.column_config.NumberColumn("Coste Ud (€)", disabled=True, format="%.2f"),
-                                "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
+                                "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
+                                "Base Neta": st.column_config.NumberColumn("Total Base", disabled=True, format="%.2f"),
+                                "IGIC €": st.column_config.NumberColumn("Total IGIC", disabled=True, format="%.2f"),
+                                "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
                             }
                         )
                         
