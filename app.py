@@ -630,20 +630,20 @@ with tab4:
 
             st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
             
-            # --- 4. DETALLE DINÁMICO ---
+           # --- 4. DETALLE DINÁMICO (CON DESCUENTO EDITABLE) ---
             filas_marcadas = edited_df[edited_df["Ver"] == True]
             
             if not filas_marcadas.empty:
                 t_id = filas_marcadas.iloc[0]['id']
                 t_info = df_v[df_v['id'] == t_id].iloc[0]
                 
-                st.markdown(f"#### 🔎 Detalle del Ticket #{t_id}")
+                st.markdown(f"#### 🔎 Detalle y Edición del Ticket #{t_id}")
                 prods = t_info.get('productos', [])
                 
                 if prods:
                     df_prods = pd.DataFrame(prods)
                     
-                    # Mostramos la tabla de productos (ocultando columnas internas)
+                    # 1. Tabla de productos editable
                     edit_prods = st.data_editor(
                         df_prods, 
                         column_config={
@@ -659,45 +659,68 @@ with tab4:
                         key=f"edit_det_{t_id}"
                     )
                     
-                    # --- NUEVO: RESUMEN DE TOTALES Y DESCUENTO GLOBAL ---
-                    subtotal_productos = edit_prods['Subtotal'].sum()
-                    desc_global_porc = t_info.get('descuento_global', 0)
-                    total_con_descuento = subtotal_productos * (1 - desc_global_porc / 100)
+                    # Recalcular subtotal de la lista por si hubo cambios en la tabla
+                    if 'Cantidad' in edit_prods.columns and 'Precio' in edit_prods.columns:
+                        edit_prods['Subtotal'] = (edit_prods['Cantidad'] * edit_prods['Precio']) * (1 - edit_prods.get('Desc. %', 0) / 100)
+                    
+                    suma_articulos = edit_prods['Subtotal'].sum()
 
-                    # Lo mostramos en un cuadrito limpio
+                    st.markdown("---")
+                    # 2. SECCIÓN DE TOTALES CON DESCUENTO EDITABLE
                     c_tot1, c_tot2, c_tot3 = st.columns(3)
+                    
                     with c_tot1:
-                        st.metric("Suma Artículos", f"{subtotal_productos:.2f}€")
+                        st.metric("Suma Artículos", f"{suma_articulos:.2f}€")
+                    
                     with c_tot2:
-                        if desc_global_porc > 0:
-                            st.metric("Dto. Global Aplicado", f"{desc_global_porc}%", delta=f"-{(subtotal_productos - total_con_descuento):.2f}€", delta_color="normal")
-                        else:
-                            st.write("Sin descuento global")
+                        # Nuevo: Cuadro para cambiar el descuento global del ticket
+                        nuevo_desc_global = st.number_input(
+                            "Corregir Dto. Global (%)", 
+                            min_value=0, 
+                            max_value=100, 
+                            value=int(t_info.get('descuento_global', 0)),
+                            key=f"desc_glob_{t_id}"
+                        )
+                    
+                    # Calculamos el total final aplicando el descuento que haya en el cuadro
+                    total_final_calculado = suma_articulos * (1 - nuevo_desc_global / 100)
+                    
                     with c_tot3:
-                        st.metric("TOTAL FINAL", f"{total_con_descuento:.2f}€")
+                        st.metric("TOTAL FINAL", f"{total_final_calculado:.2f}€", 
+                                  delta=f"-{(suma_articulos - total_final_calculado):.2f}€" if nuevo_desc_global > 0 else None)
 
-                    # --- BOTONES DE ACCIÓN ---
+                    # 3. BOTONES DE ACCIÓN
                     c1, c2 = st.columns(2)
                     with c1:
-                        if st.button(f"🔄 Guardar Cambios en Ticket #{t_id}", use_container_width=True):
+                        if st.button(f"💾 Guardar Todo (Productos + Descuento)", use_container_width=True, type="primary"):
                             nuevo_json = json.loads(edit_prods.to_json(orient='records'))
-                            # Guardamos el nuevo total recalculado con el descuento que ya tenía el ticket
+                            
+                            # Actualizamos Supabase con la nueva lista de productos, el nuevo descuento y el nuevo total
                             client.table("ventas_historial").update({
                                 "productos": nuevo_json,
-                                "total": float(total_con_descuento)
+                                "descuento_global": float(nuevo_desc_global),
+                                "total": float(total_final_calculado)
                             }).eq("id", int(t_id)).execute()
-                            st.success("Ticket actualizado."); time.sleep(0.5); st.rerun()
+                            
+                            st.success(f"Ticket #{t_id} actualizado correctamente.")
+                            time.sleep(0.8)
+                            st.rerun()
                     
                     with c2:
                         if "DEVUELTO" not in str(t_info.get('estado', '')).upper():
                             if st.button(f"↩️ Devolver y Restaurar Stock", use_container_width=True):
-                                # (Tu lógica de devolución que ya funciona...)
-                                st.write("Procesando devolución...")
-                                # ... (resto del código de devolución)
+                                # Lógica de devolución (la que ya tenías)
+                                for p in prods:
+                                    if not p.get('Manual', False):
+                                        res_p = client.table("productos").select("stock_actual").eq("nombre", p['Producto']).execute()
+                                        if res_p.data:
+                                            client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("nombre", p['Producto']).execute()
+                                client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_id)).execute()
+                                st.success("Venta anulada y stock devuelto."); time.sleep(0.8); st.rerun()
                 else:
-                    st.info("No hay productos en este ticket.")
+                    st.info("Este ticket no tiene productos registrados.")
             else:
-                st.info("👆 Marca la casilla '👁️ Ver' de un ticket arriba para ver su contenido aquí abajo.")
+                st.info("👆 Marca la casilla '👁️ Ver' de un ticket arriba para editarlo.")
                 
         else: st.info("No hay ventas en este rango de fechas.")
 
