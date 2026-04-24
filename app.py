@@ -647,7 +647,9 @@ with tab4:
                     edit_prods = st.data_editor(
                         df_prods, 
                         column_config={
-                            "Subtotal": st.column_config.NumberColumn("Subtotal", format="%.2f", disabled=True)
+                            "Subtotal": st.column_config.NumberColumn("Subtotal", format="%.2f", disabled=True),
+                            "Manual": None, # <--- Magia: Oculta la columna visualmente, pero la mantiene en los datos
+                            "IGIC": None    # Ocultamos también el IGIC si no te hace falta verlo aquí
                         },
                         use_container_width=True, 
                         hide_index=True, 
