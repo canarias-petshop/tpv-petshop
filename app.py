@@ -1031,6 +1031,7 @@ with tab8:
     # ==========================================
     with sub_emitir:
         if 'factura_v_temp' not in st.session_state: st.session_state.factura_v_temp = []
+        if 'llave_busqueda_v' not in st.session_state: st.session_state.llave_busqueda_v = 0
         
         c_h1, c_h2, c_h3 = st.columns(3)
         with c_h1: f_pago = st.selectbox("Forma de Pago", ["Efectivo", "Tarjeta", "Bizum", "Transferencia"], key="fv_p_sel")
@@ -1047,25 +1048,23 @@ with tab8:
         
         st.markdown("####  📦  Añadir Artículos")
         if not df_inv.empty:
-            ca1, ca2 = st.columns([4, 1])
-            with ca1: prod = st.selectbox("Selecciona un producto para añadirlo a la tabla:", df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist(), index=None, key="v_prod_sel")
-            with ca2:
-                st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
-                if st.button(" ➕  Añadir a la tabla", use_container_width=True, key="v_btn_add"):
-                    if prod and sel_c:
-                        item = df_inv[df_inv['sku'] == prod.split("SKU: ")[1]].iloc[0]
-                        base_u = float(item['precio_pvp']) / (1 + (float(item['igic_tipo'])/100))
-                        st.session_state.factura_v_temp.append({
-                            "id": str(item['id']), "Código": item['sku'], "Descripción": item['nombre'],
-                            "Cantidad": 1, "Base Ud": round(base_u, 2), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0
-                        })
-                        st.rerun()
+            opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist()
+            prod_v = st.selectbox("Buscar producto:", opciones_v, index=None, key=f"search_v_alta_{st.session_state.llave_busqueda_v}", placeholder="Escribe para filtrar...")
+            
+            if prod_v:
+                sku_v = prod_v.split(" | SKU: ")[1]
+                it_v = df_inv[df_inv['sku'] == sku_v].iloc[0]
+                st.session_state.factura_v_temp.append({
+                    "id": str(it_v['id']), "Código": it_v['sku'], "Descripción": it_v['nombre'],
+                    "Cantidad": 1, "Base Ud": float(it_v['precio_base']), "IGIC %": float(it_v['igic_tipo']), "Desc %": 0.0
+                })
+                st.session_state.llave_busqueda_v += 1 
+                st.rerun()
         
         if st.session_state.factura_v_temp:
             st.markdown(" 💡  *Edita directamente en la tabla la Cantidad, Base, IGIC % y Desc %*")
             df_v = pd.DataFrame(st.session_state.factura_v_temp)
 
-            # CÁLCULOS MATEMÁTICOS
             df_v['Coste Ud'] = (df_v['Base Ud'] * (1 + df_v['IGIC %']/100)).round(2)
             df_v['Base Neta'] = (df_v['Base Ud'] * df_v['Cantidad']) * (1 - df_v['Desc %']/100)
             df_v['IGIC €'] = (df_v['Base Neta'] * (df_v['IGIC %']/100)).round(2)
@@ -1087,7 +1086,6 @@ with tab8:
                 }
             )
 
-            # MAGIA: Actualización instantánea
             nuevos_datos_v = df_v_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %']].to_dict('records')
             if nuevos_datos_v != st.session_state.factura_v_temp:
                 st.session_state.factura_v_temp = nuevos_datos_v
@@ -1116,24 +1114,36 @@ with tab8:
                 st.session_state.factura_v_temp = []; st.success("Factura guardada."); st.rerun()
 
     # ==========================================
-    # SUB-TAB 2: REGISTRAR COMPRA (BUSCADOR INTELIGENTE + TABLA)
+    # SUB-TAB 2: REGISTRAR COMPRA (PROVEEDOR)
     # ==========================================
     with sub_registrar:
-        if 'compra_temp' not in st.session_state:
-            st.session_state.compra_temp = []
+        if 'compra_temp' not in st.session_state: st.session_state.compra_temp = []
+        if 'llave_busqueda_c' not in st.session_state: st.session_state.llave_busqueda_c = 0
             
-        # --- CABECERA DE LA FACTURA ---
         c_c1, c_c2, c_c3 = st.columns(3)
         with c_c1: n_fac = st.text_input("Nº Factura Proveedor", key="fac_prov_n")
         with c_c2: f_fac = st.date_input("Fecha Factura", key="fac_prov_f")
         with c_c3: f_ven = st.date_input("Vencimiento", key="fac_prov_v")
         
-        # --- SELECCIÓN DE PROVEEDOR ---
-        p_opc = df_prov['nombre_empresa'].tolist() if not df_prov.empty else []
-        sel_p = st.selectbox("Selecciona el Proveedor:", p_opc, index=None, placeholder="Escribe el nombre del proveedor...")
+        # --- AQUÍ DEVOLVEMOS EL EXPANSOR PARA CREAR PROVEEDOR ---
+        with st.expander(" 🚚  Seleccionar / Crear Proveedor", expanded=True):
+            p_opc = df_prov['nombre_empresa'].tolist() if not df_prov.empty else []
+            sel_p = st.selectbox("Selecciona el Proveedor:", p_opc, index=None, placeholder="Escribe el nombre del proveedor...")
+            
+            st.markdown("<p style='font-size: 13px; color: gray;'>¿No está en la lista? Añádelo rápido aquí:</p>", unsafe_allow_html=True)
+            with st.form("form_nuevo_proveedor_rapido", clear_on_submit=True):
+                np1, np2 = st.columns(2)
+                n_emp_new = np1.text_input("Nombre de la Empresa*")
+                n_cif_new = np2.text_input("CIF / NIF")
+                if st.form_submit_button("➕ Crear Nuevo Proveedor"):
+                    if n_emp_new:
+                        client.table("proveedores").insert({"nombre_empresa": n_emp_new, "cif": n_cif_new}).execute()
+                        st.success(f"Proveedor '{n_emp_new}' creado correctamente.")
+                        time.sleep(0.8)
+                        st.rerun()
+                        
         st.markdown("---")
         
-        # --- BUSCADOR INTELIGENTE (SIN BUCLES INFINITOS) ---
         st.markdown(" 🔍  **Añadir productos existentes al documento**")
         if not df_inv.empty:
             opciones_inv = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist()
@@ -1144,7 +1154,7 @@ with tab8:
                 index=None,
                 placeholder="Empieza a escribir el nombre del artículo...",
                 label_visibility="collapsed",
-                key="selector_compra_doc" # <- Esta es la clave para la limpieza
+                key=f"selector_compra_doc_{st.session_state.llave_busqueda_c}" 
             )
             
             if prod_buscado:
@@ -1160,11 +1170,10 @@ with tab8:
                     "IGIC %": float(item['igic_tipo']),
                     "Desc %": 0.0
                 })
-                # Evitamos el bucle infinito limpiando el campo antes del rerun
-                st.session_state.selector_compra_doc = None 
+                # Sumamos a la llave para limpiar el buscador sin bloquear la app
+                st.session_state.llave_busqueda_c += 1 
                 st.rerun()
 
-        # --- ARTÍCULOS NUEVOS ---
         with st.expander(" ✨  ¿El proveedor te trae un artículo nuevo? Créalo aquí"):
             with st.form("form_nuevo_art_compra"):
                 f1, f2 = st.columns(2)
@@ -1191,7 +1200,6 @@ with tab8:
                             time.sleep(0.5)
                             st.rerun()
 
-        # --- TABLA DINÁMICA DE LA FACTURA ---
         if st.session_state.compra_temp:
             st.markdown("####  📋  Líneas de la Factura")
             df_c = pd.DataFrame(st.session_state.compra_temp)
@@ -1222,7 +1230,6 @@ with tab8:
                 st.session_state.compra_temp = nuevos_datos
                 st.rerun()
                 
-            # --- TOTALES Y DESCUENTO PRONTO PAGO ---
             suma_articulos = df_c['Total Línea'].sum()
             st.markdown("---")
             col_p1, col_p2 = st.columns([1, 2])
@@ -1301,13 +1308,11 @@ with tab8:
                     hide_index=True, use_container_width=True, key="ed_arch_fac"
                 )
                 
-                # Guardar cambios en la cabecera
                 if st.button(" 💾  Guardar Cambios Cabecera", key="btn_save_cab_v"):
                     for idx, row in edit_fac.iterrows():
                         client.table("facturas").update({"forma_pago": str(row['forma_pago'])}).eq("id", row['id']).execute()
                     st.success("Formas de pago actualizadas."); st.rerun()
                     
-                # --- DESGLOSE EDITABLE DE VENTA ---
                 filas_marcadas_f = edit_fac[edit_fac["Ver"] == True]
                 if not filas_marcadas_f.empty:
                     f_id = filas_marcadas_f.iloc[0]['id']
@@ -1332,7 +1337,6 @@ with tab8:
                             }
                         )
                         
-                        # Cálculo de total con Descuento Global
                         suma_articulos_v = edit_ph['Total Línea'].sum()
                         col_hv1, col_hv2 = st.columns([1,2])
                         with col_hv1:
@@ -1385,7 +1389,6 @@ with tab8:
                         }).eq("id", row['id']).execute()
                     st.success("Datos de cabecera actualizados."); st.rerun()
 
-                # --- DESGLOSE EDITABLE DE COMPRA ---
                 filas_marcadas_c = edit_comp[edit_comp["Ver"] == True]
                 
                 if not filas_marcadas_c.empty:
@@ -1417,7 +1420,6 @@ with tab8:
                             }
                         )
                         
-                        # Cálculo del total y Descuento Pronto Pago histórico
                         suma_art_c = edit_det_c['Total Línea'].sum()
                         col_hc1, col_hc2 = st.columns([1,2])
                         with col_hc1:
@@ -1440,7 +1442,7 @@ with tab8:
                         st.warning("No hay detalles de artículos en esta compra.")
             else:
                 st.info("No hay facturas de proveedores registradas en estas fechas.")
-                
+
 # ==========================================
 # --- TAB 9: CONTABILIDAD E INFORMES PARA ASESORÍA ---
 # ==========================================
