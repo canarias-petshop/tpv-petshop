@@ -166,34 +166,46 @@ with tab1:
 
                 st.markdown("---")
 
-                # --- 3. TABLA DE SERVICIOS ---
+                # --- TABLA DE SERVICIOS MEJORADA ---
                 st.markdown("#### ✂️ Catálogo de Servicios")
                 df_solo_servicios = df_inv[df_inv['categoria_filt'] == 'Servicio'].copy()
-                
-                if not df_solo_servicios.empty:
-                    edit_s = st.data_editor(
-                        df_solo_servicios,
-                        column_config={
-                            "id": None, "categoria": None, "categoria_filt": None, 
-                            "stock_actual": None, "codigo_barras": None,
-                            "sku": "SKU", "nombre": "Servicio",
-                            "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
-                            "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)"
-                        },
-                        column_order=["sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
-                        hide_index=True, use_container_width=True, key="edit_s_sep"
-                    )
-                    
-                    if st.button("💾 Guardar cambios en Servicios", key="btn_save_s_sep"):
-                        for i, row in edit_s.iterrows():
+
+                # Habilitamos num_rows="dynamic" para que puedas borrar servicios
+                edit_s = st.data_editor(
+                    df_solo_servicios,
+                    column_config={
+                        "id": None, "categoria": None, "categoria_filt": None,
+                        "sku": "Código", "nombre": "Descripción del Servicio",
+                        "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
+                        "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)"
+                    },
+                    column_order=["sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
+                    hide_index=True, 
+                    use_container_width=True, 
+                    num_rows="dynamic", # <--- PERMITE BORRAR FILAS DE SERVICIOS
+                    key="edit_s_sep"
+                )
+
+                if st.button("💾 Guardar cambios en Servicios", key="btn_save_s_sep"):
+                    # 1. Identificar si algún servicio fue eliminado de la tabla
+                    ids_s_actuales = edit_s['id'].dropna().tolist()
+                    ids_s_originales = df_solo_servicios['id'].tolist()
+                    ids_s_a_borrar = [id_orig for id_orig in ids_s_originales if id_orig not in ids_s_actuales]
+
+                    # 2. Borrar de la base de datos los servicios eliminados
+                    for id_del in ids_s_a_borrar:
+                        client.table("productos").delete().eq("id", id_del).execute()
+
+                    # 3. Actualizar o guardar los cambios en los servicios que quedan
+                    for i, row in edit_s.iterrows():
+                        if pd.notna(row['id']):
                             datos_s = row.to_dict()
-                            # Limpieza también en servicios
+                            # Quitamos la columna temporal para que Supabase no dé error
                             if 'categoria_filt' in datos_s: del datos_s['categoria_filt']
                             client.table("productos").update(datos_s).eq("id", row['id']).execute()
-                        
-                        st.success("Servicios actualizados")
-                        time.sleep(0.5)
-                        st.rerun()
+
+                    st.success("Catálogo de servicios actualizado")
+                    st.rerun()
                 else:
                     st.info("No hay servicios registrados.")
             else:
