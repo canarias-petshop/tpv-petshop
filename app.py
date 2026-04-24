@@ -1374,14 +1374,20 @@ with tab8:
                         st.markdown(f"#### 📦 Desglose de la Compra (Ref: {compra_data['tipo']})")
                         if prods_c:
                             df_pc = pd.DataFrame(prods_c)
-                            st.dataframe(df_pc[['Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Coste Ud']], hide_index=True, use_container_width=True)
+                            
+                            # Magia antibloqueo: Si no está el Coste Ud en la base de datos, lo calculamos al vuelo
+                            if 'Coste Ud' not in df_pc.columns and 'Base Ud' in df_pc.columns and 'IGIC %' in df_pc.columns:
+                                df_pc['Coste Ud'] = (df_pc['Base Ud'] * (1 + df_pc['IGIC %'] / 100)).round(2)
+                                
+                            # Mostramos solo las columnas que de verdad existen para evitar el KeyError
+                            columnas_seguras = [c for c in ['Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Coste Ud'] if c in df_pc.columns]
+                            
+                            st.dataframe(df_pc[columnas_seguras], hide_index=True, use_container_width=True)
                             
                             csv = df_pc.to_csv(index=False).encode('utf-8')
                             st.download_button("📥 Descargar CSV de esta Factura", data=csv, file_name=f"Compra_{c_id}.csv", mime="text/csv")
                         else:
                             st.warning("No se guardaron artículos detallados en esta compra (probablemente es antigua o manual).")
-                    else:
-                        st.info("👆 Marca la casilla '👁️ Ver' para desplegar los artículos comprados.")
                 else:
                     st.info("No hay facturas de proveedores registradas en estas fechas.")
 # ==========================================
