@@ -1065,7 +1065,7 @@ with tab8:
             st.markdown(" 💡  *Edita directamente en la tabla la Cantidad, Base, IGIC % y Desc %*")
             df_v = pd.DataFrame(st.session_state.factura_v_temp)
 
-            # CÁLCULOS MATEMÁTICOS (Ahora sí, desglosado y visible)
+            # CÁLCULOS MATEMÁTICOS
             df_v['Coste Ud'] = (df_v['Base Ud'] * (1 + df_v['IGIC %']/100)).round(2)
             df_v['Base Neta'] = (df_v['Base Ud'] * df_v['Cantidad']) * (1 - df_v['Desc %']/100)
             df_v['IGIC €'] = (df_v['Base Neta'] * (df_v['IGIC %']/100)).round(2)
@@ -1075,16 +1075,14 @@ with tab8:
                 df_v, hide_index=True, use_container_width=True, key="ed_v_final",
                 num_rows="dynamic",
                 column_config={
-                    "id": None,
+                    "id": None, "Base Neta": None, "IGIC €": None, # Ocultamos Base Neta e IGIC € de la vista
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
                     "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
                     "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                    "Desc %": st.column_config.NumberColumn("Desc. %", min_value=0.0),
                     "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
-                    "Base Neta": st.column_config.NumberColumn("Total Base", disabled=True, format="%.2f"),
-                    "IGIC €": st.column_config.NumberColumn("Total IGIC", disabled=True, format="%.2f"),
+                    "Desc %": st.column_config.NumberColumn("Desc. %", min_value=0.0),
                     "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
                 }
             )
@@ -1217,7 +1215,7 @@ with tab8:
             st.markdown("####  📋  Líneas de la Factura")
             df_c = pd.DataFrame(st.session_state.compra_temp)
             
-            # CÁLCULOS MATEMÁTICOS (Desglosado visible)
+            # CÁLCULOS MATEMÁTICOS
             df_c['Coste Ud'] = (df_c['Base Ud'] * (1 + df_c['IGIC %']/100)).round(2)
             df_c['Base Neta'] = (df_c['Base Ud'] * df_c['Cantidad']) * (1 - df_c['Desc %']/100)
             df_c['IGIC €'] = (df_c['Base Neta'] * (df_c['IGIC %']/100)).round(2)
@@ -1226,16 +1224,14 @@ with tab8:
             df_c_edit = st.data_editor(
                 df_c,
                 column_config={
-                    "id": None,
+                    "id": None, "Base Neta": None, "IGIC €": None, # Ocultamos Base Neta e IGIC €
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
                     "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
                     "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                    "Desc %": st.column_config.NumberColumn("Desc. %"),
                     "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
-                    "Base Neta": st.column_config.NumberColumn("Total Base", disabled=True, format="%.2f"),
-                    "IGIC €": st.column_config.NumberColumn("Total IGIC", disabled=True, format="%.2f"),
+                    "Desc %": st.column_config.NumberColumn("Desc. %"),
                     "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
                 },
                 hide_index=True, use_container_width=True,
@@ -1356,16 +1352,14 @@ with tab8:
                             df_ph, hide_index=True, use_container_width=True, num_rows="dynamic",
                             key=f"edit_det_v_{f_id}",
                             column_config={
-                                "id": None,
+                                "id": None, "Base Neta": None, "IGIC €": None, # Ocultamos Base Neta e IGIC €
                                 "Código": st.column_config.TextColumn(disabled=True),
                                 "Descripción": st.column_config.TextColumn(disabled=True),
                                 "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
                                 "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
                                 "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                                "Desc %": st.column_config.NumberColumn("Desc. %", min_value=0.0),
                                 "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
-                                "Base Neta": st.column_config.NumberColumn("Total Base", disabled=True, format="%.2f"),
-                                "IGIC €": st.column_config.NumberColumn("Total IGIC", disabled=True, format="%.2f"),
+                                "Desc %": st.column_config.NumberColumn("Desc. %", min_value=0.0),
                                 "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
                             }
                         )
@@ -1442,16 +1436,14 @@ with tab8:
                             df_pc, hide_index=True, use_container_width=True, num_rows="dynamic",
                             key=f"edit_det_c_{c_id}",
                             column_config={
-                                "id": None,
+                                "id": None, "Base Neta": None, "IGIC €": None, # Ocultamos Base Neta e IGIC €
                                 "Código": st.column_config.TextColumn(disabled=True),
                                 "Descripción": st.column_config.TextColumn(disabled=True),
                                 "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
                                 "Base Ud": st.column_config.NumberColumn("Base Ud (€)", format="%.2f"),
                                 "IGIC %": st.column_config.SelectboxColumn("IGIC %", options=[0.0, 3.0, 7.0, 15.0]),
-                                "Desc %": st.column_config.NumberColumn("Desc. %"),
                                 "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f"),
-                                "Base Neta": st.column_config.NumberColumn("Total Base", disabled=True, format="%.2f"),
-                                "IGIC €": st.column_config.NumberColumn("Total IGIC", disabled=True, format="%.2f"),
+                                "Desc %": st.column_config.NumberColumn("Desc. %"),
                                 "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f")
                             }
                         )
