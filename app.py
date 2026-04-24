@@ -124,10 +124,11 @@ with tab1:
                 # --- 1. LIMPIEZA DE DATOS ---
                 df_inv['categoria_filt'] = df_inv['categoria'].fillna('Producto').astype(str).str.strip().str.capitalize()
 
-                # --- 2. TABLA DE PRODUCTOS ---
+                # --- TABLA DE PRODUCTOS MEJORADA ---
                 st.markdown("#### 📦 Inventario de Productos")
                 df_solo_productos = df_inv[df_inv['categoria_filt'] == 'Producto'].copy()
-                
+
+                # Ahora permitimos borrar filas con num_rows="dynamic"
                 edit_p = st.data_editor(
                     df_solo_productos,
                     column_config={
@@ -137,19 +138,31 @@ with tab1:
                         "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock"
                     },
                     column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
-                    hide_index=True, use_container_width=True, key="edit_p_sep"
+                    hide_index=True, 
+                    use_container_width=True, 
+                    num_rows="dynamic", # <--- ESTO PERMITE BORRAR FILAS
+                    key="edit_p_sep"
                 )
-                
+
                 if st.button("💾 Guardar cambios en Productos", key="btn_save_p_sep"):
+                    # 1. Detectar si alguna fila ha sido borrada
+                    ids_actuales = edit_p['id'].dropna().tolist()
+                    ids_originales = df_solo_productos['id'].tolist()
+                    ids_a_borrar = [id_orig for id_orig in ids_originales if id_orig not in ids_actuales]
+
+                    # 2. Borrar de Supabase los que ya no están en la tabla
+                    for id_del in ids_a_borrar:
+                        client.table("productos").delete().eq("id", id_del).execute()
+
+                    # 3. Actualizar los que se han quedado (por si cambiaste precios o stock)
                     for i, row in edit_p.iterrows():
-                        datos = row.to_dict()
-                        # IMPORTANTE: Limpiar antes de enviar a Supabase
-                        if 'categoria_filt' in datos: del datos['categoria_filt']
-                        client.table("productos").update(datos).eq("id", row['id']).execute()
-                    
-                    st.success("Productos actualizados")
-                    time.sleep(0.5)
-                    st.rerun()
+                        if pd.notna(row['id']): # Solo actualizamos si el producto ya existía
+                            datos = row.to_dict()
+                            if 'categoria_filt' in datos: del datos['categoria_filt']
+                            client.table("productos").update(datos).eq("id", row['id']).execute()
+
+                    st.success("Inventario sincronizado correctamente")
+                    st.rerun() # Recargamos para ver los cambios [cite: 9]
 
                 st.markdown("---")
 
