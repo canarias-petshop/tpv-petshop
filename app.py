@@ -895,22 +895,18 @@ with tab5:
                     ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0.0
                     retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
                     
-                    res_ventas = client.table("ventas_historial").select("total, metodo_pago, estado").gte("created_at", fecha_ap_str).execute()
-                    
-                    t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
-                    if res_ventas.data:
-                        for v in res_ventas.data:
-                            if v['estado'] != 'DEVUELTO':
-                                mp = str(v.get('metodo_pago', ''))
-                                if mp == 'Efectivo': t_efe += float(v['total'])
-                                elif mp == 'Tarjeta': t_tar += float(v['total'])
-                                elif mp == 'Bizum': t_biz += float(v['total'])
-                                elif 'Mixto' in mp:
-                                    try:
-                                        t_efe += float(re.search(r'E:([0-9.]+)', mp).group(1))
-                                        t_tar += float(re.search(r'T:([0-9.]+)', mp).group(1))
-                                        t_biz += float(re.search(r'B:([0-9.]+)', mp).group(1))
-                                    except: pass
+                    # --- NUEVO CÁLCULO DE CIERRE (Suma los pagos reales de tus columnas) ---
+                res_ventas = client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado").gte("created_at", fecha_ap_str).execute()
+
+                t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
+                if res_ventas.data:
+                    for v in res_ventas.data:
+                        # Solo sumamos el dinero si el ticket no ha sido devuelto
+                        if v.get('estado') != 'DEVUELTO':
+                            t_efe += float(v.get('pago_efectivo') or 0.0)
+                            t_tar += float(v.get('pago_tarjeta') or 0.0)
+                            t_biz += float(v.get('pago_bizum') or 0.0)
+                # ----------------------------------------------------------------------
                     
                     efectivo_teorico_en_caja = fondo_actual + t_efe + ingresos - retiradas
                     descuadre = efectivo_final - efectivo_teorico_en_caja
