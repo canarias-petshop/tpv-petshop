@@ -549,27 +549,29 @@ with tab3:
             c_nom = st.text_input("Nombre y Apellidos *")
             c_tel = st.text_input("Teléfono")
             c_ema = st.text_input("Email")
+            c_nac = st.date_input("F. Nacimiento", value=None)
             
             st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
             st.markdown("<p style='margin: 0; font-size: 13px; color: gray;'>🐾 Añadir mascota principal (Opcional)</p>", unsafe_allow_html=True)
             
             m_nom = st.text_input("Nombre de la mascota")
-            cm1, cm2 = st.columns(2)
+            cm1, cm2, cm3 = st.columns(3)
             with cm1: m_esp = st.selectbox("Especie", ["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"])
             with cm2: m_raz = st.text_input("Raza")
+            with cm3: m_nac = st.date_input("Nac. Mascota", value=None)
             m_obs = st.text_input("Observaciones (Alergias, carácter...)")
 
             if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
                 if c_nom:
                     res_cli = client.table("clientes").insert({
-                        "nombre_dueno": c_nom, "telefono": c_tel, "email": c_ema
+                        "nombre_dueno": c_nom, "telefono": c_tel, "email": c_ema, "fecha_nacimiento": str(c_nac) if c_nac else ""
                     }).execute()
 
                     if res_cli.data and m_nom:
                         cli_id = res_cli.data[0]['id']
                         client.table("mascotas").insert({
                             "cliente_id": cli_id, "nombre": m_nom, "especie": m_esp, 
-                            "raza": m_raz, "observaciones": m_obs
+                            "raza": m_raz, "observaciones": m_obs, "fecha_nacimiento": str(m_nac) if m_nac else ""
                         }).execute()
 
                     st.success("Cliente guardado correctamente"); time.sleep(0.5); st.rerun()
@@ -577,24 +579,51 @@ with tab3:
                     st.warning("El nombre del dueño es obligatorio.")
 
     with col_c2:
-        st.markdown("#### 📋 Directorio de Clientes")
-        res_clientes = client.table("clientes").select("id, nombre_dueno, telefono, email, mascotas(nombre, especie)").order("created_at", desc=True).execute()
+        # Función para calcular la edad visualmente
+        def calcular_edad(fecha_str):
+            try:
+                nac = pd.to_datetime(fecha_str)
+                hoy = pd.to_datetime("today")
+                anios = hoy.year - nac.year - ((hoy.month, hoy.day) < (nac.month, nac.day))
+                if anios == 0:
+                    meses = hoy.month - nac.month - ((hoy.day) < (nac.day))
+                    if meses < 0: meses += 12
+                    return f"{meses} meses"
+                return f"{anios} años"
+            except: return ""
 
-        if res_clientes.data:
-            df_cli = pd.DataFrame(res_clientes.data)
-            def formatear_mascotas(lista_mascotas):
-                if isinstance(lista_mascotas, list) and len(lista_mascotas) > 0:
-                    return ", ".join([f"{m['nombre']} ({m['especie']})" for m in lista_mascotas])
-                return "Sin mascotas"
-
-            df_cli['Mascotas Registradas'] = df_cli['mascotas'].apply(formatear_mascotas)
-            st.dataframe(df_cli[['nombre_dueno', 'telefono', 'email', 'Mascotas Registradas']],
-                         use_container_width=True, hide_index=True, height=250)
+        sub_cli, sub_masc = st.tabs(["👤 Directorio de Dueños", "🐾 Fichas de Mascotas"])
+        
+        with sub_cli:
+            res_clientes = client.table("clientes").select("*").order("created_at", desc=True).execute()
+            if res_clientes.data:
+                df_cli = pd.DataFrame(res_clientes.data)
+                if 'fecha_nacimiento' not in df_cli.columns: df_cli['fecha_nacimiento'] = ""
+                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'email', 'fecha_nacimiento']].copy()
+                
+                ed_cli = st.data_editor(
+                    df_cli_vista,
+                    column_config={"id": None, "nombre_dueno": "Nombre Dueño", "telefono": "Teléfono", "email": "Email", "fecha_nacimiento": "F. Nacimiento"},
+                    use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_clientes", height=250
+                )
+                if st.button("💾 Guardar Cambios en Dueños", type="primary"):
+                    ids_actuales = ed_cli['id'].dropna().tolist()
+                    ids_orig = df_cli_vista['id'].tolist()
+                    for id_b in [i for i in ids_orig if i not in ids_actuales]: client.table("clientes").delete().eq("id", id_b).execute()
+                    
+                    for _, row in ed_cli.iterrows():
+                        if pd.notna(row['id']):
+                            client.table("clientes").update({
+                                "nombre_dueno": str(row['nombre_dueno']), "telefono": str(row['telefono']),
+                                "email": str(row['email']), "fecha_nacimiento": str(row['fecha_nacimiento'])
+                            }).eq("id", row['id']).execute()
+                    st.success("Directorio de dueños actualizado."); time.sleep(0.5); st.rerun()
+            else: st.info("No hay dueños registrados.")
 
             st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
 
             st.markdown("#### ➕ Añadir otra mascota a un cliente")
-            dict_cli = {f"{c['nombre_dueno']} ({c['telefono']})": c['id'] for c in res_clientes.data}
+            dict_cli = {f"{c['nombre_dueno']} ({c['telefono']})": c['id'] for c in res_clientes.data} if res_clientes.data else {}
             
             with st.form("nueva_mascota_extra", clear_on_submit=True, border=False):
                 sel_cli = st.selectbox("Selecciona el dueño:", list(dict_cli.keys()))
@@ -611,8 +640,36 @@ with tab3:
                         st.success("Mascota añadida a la familia"); time.sleep(0.5); st.rerun()
                     else:
                         st.warning("Falta el nombre de la mascota.")
-        else:
-            st.info("📭 Aún no tienes clientes registrados. ¡Empieza a añadir fichas a la izquierda!")        
+                        
+        with sub_masc:
+            res_mascotas = client.table("mascotas").select("*, clientes(nombre_dueno)").order("created_at", desc=True).execute()
+            if res_mascotas.data:
+                df_m = pd.DataFrame(res_mascotas.data)
+                df_m['Dueño'] = df_m['clientes'].apply(lambda x: x.get('nombre_dueno', '') if isinstance(x, dict) else '')
+                if 'fecha_nacimiento' not in df_m.columns: df_m['fecha_nacimiento'] = ""
+                df_m['Edad'] = df_m['fecha_nacimiento'].apply(calcular_edad)
+                
+                df_m_vista = df_m[['id', 'nombre', 'Dueño', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'observaciones']].copy()
+                
+                ed_m = st.data_editor(
+                    df_m_vista,
+                    column_config={"id": None, "Dueño": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones (Tiempo/Alergias)"},
+                    use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_mascotas", height=400
+                )
+                if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
+                    ids_actuales = ed_m['id'].dropna().tolist()
+                    ids_orig = df_m_vista['id'].tolist()
+                    for id_b in [i for i in ids_orig if i not in ids_actuales]: client.table("mascotas").delete().eq("id", id_b).execute()
+                    
+                    for _, row in ed_m.iterrows():
+                        if pd.notna(row['id']):
+                            client.table("mascotas").update({
+                                "nombre": str(row['nombre']), "especie": str(row['especie']),
+                                "raza": str(row['raza']), "fecha_nacimiento": str(row['fecha_nacimiento']),
+                                "observaciones": str(row['observaciones'])
+                            }).eq("id", row['id']).execute()
+                    st.success("Fichas de mascotas actualizadas."); time.sleep(0.5); st.rerun()
+            else: st.info("No hay mascotas registradas.")
 
 # ==========================================
 # --- TAB 4: HISTORIAL (VERSIÓN CON CASILLA DE VER) ---
@@ -1550,7 +1607,8 @@ with tab10:
                 st.markdown("#### ➕ Nueva Cita")
                 mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None)
                 fecha_c = st.date_input("Fecha *")
-                hora_c = st.time_input("Hora *")
+                hora_c = st.time_input("Hora de Inicio *")
+                duracion_c = st.number_input("Duración estimada (minutos) *", min_value=15, max_value=300, value=60, step=15)
                 servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
                 
                 if st.form_submit_button("Guardar Cita", type="primary", use_container_width=True):
@@ -1559,7 +1617,8 @@ with tab10:
                         client.table("citas").insert({
                             "mascotas_id": dict_mascotas[mascota_sel],
                             "fecha_hora": fecha_hora_str,
-                            "servicio": servicio_sel
+                            "servicio": servicio_sel,
+                            "duracion_minutos": int(duracion_c)
                         }).execute()
                         st.success("Cita agendada.")
                         time.sleep(1); st.rerun()
@@ -1568,17 +1627,19 @@ with tab10:
 
         with c_agenda2:
             st.markdown("#### 🗓️ Directorio de Citas (Editable)")
-            res_citas = client.table("citas").select("id, fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
+            res_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
             
             if res_citas.data:
                 citas_formateadas = []
                 for c in res_citas.data:
                     mascota_info = c.get('mascotas', {})
                     cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
+                    dur = c.get('duracion_minutos') if c.get('duracion_minutos') is not None else 60
                     
                     citas_formateadas.append({
                         "id": c['id'],
                         "Día y Hora": c['fecha_hora'],
+                        "Duración (min)": dur,
                         "Servicio": c['servicio'],
                         "Mascota": mascota_info.get('nombre', 'N/A'),
                         "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
@@ -1588,7 +1649,7 @@ with tab10:
                 df_citas = pd.DataFrame(citas_formateadas)
                 
                 ed_citas = st.data_editor(
-                    df_citas[['id', 'Día y Hora', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
+                    df_citas[['id', 'Día y Hora', 'Duración (min)', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
                     column_config={
                         "id": None,
@@ -1609,6 +1670,7 @@ with tab10:
                         if pd.notna(row['id']):
                             client.table("citas").update({
                                 "fecha_hora": str(row['Día y Hora']),
+                                "duracion_minutos": int(row['Duración (min)']),
                                 "servicio": str(row['Servicio'])
                             }).eq("id", row['id']).execute()
                     st.success("Agenda actualizada."); time.sleep(0.8); st.rerun()
@@ -1619,28 +1681,29 @@ with tab10:
         st.markdown("#### 🕒 Cuadrante de Trabajo Diario")
         dia_ver = st.date_input("Selecciona un día para ver los huecos libres:", value=date.today())
         
-        horas_trabajo = [f"{h:02d}:{m:02d}" for h in range(9, 21) for m in (0, 30)]
+        # Creamos una cuadrícula estricta de 15 en 15 minutos (09:00 a 20:45)
+        horas_trabajo = [f"{h:02d}:{m:02d}" for h in range(9, 21) for m in (0, 15, 30, 45)]
         df_cuadrante = pd.DataFrame({"Hora": horas_trabajo})
-        df_cuadrante["Cita"] = "✅ Libre"
+        df_cuadrante["Estado"] = "🟩 Libre"
         df_cuadrante["Detalle"] = ""
         
         if res_citas.data:
             for c in res_citas.data:
                 try:
-                    dt_obj = pd.to_datetime(c['fecha_hora'])
-                    if dt_obj.date() == dia_ver:
-                        hora_str = dt_obj.strftime('%H:%M')
+                    dt_start = pd.to_datetime(c['fecha_hora'])
+                    if dt_start.date() == dia_ver:
+                        dur = c.get('duracion_minutos') if c.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + pd.Timedelta(minutes=dur)
                         mascota = c.get('mascotas', {}).get('nombre', 'Mascota')
+                        detalle_texto = f"{mascota} ({dur} min) - {c['servicio']}"
                         
-                        idx = df_cuadrante[df_cuadrante['Hora'] == hora_str].index
-                        if not idx.empty:
-                            df_cuadrante.loc[idx, "Cita"] = "🔴 OCUPADO"
-                            df_cuadrante.loc[idx, "Detalle"] = f"{mascota} - {c['servicio']}"
-                        else:
-                            # Si agendan a horas raras (ej 09:15), se añade la fila
-                            nueva = pd.DataFrame({"Hora": [hora_str], "Cita": ["🔴 OCUPADO"], "Detalle": [f"{mascota} - {c['servicio']}"]})
-                            df_cuadrante = pd.concat([df_cuadrante, nueva], ignore_index=True)
+                        # Recorremos la cuadrícula y rellenamos los huecos afectados
+                        for idx, row in df_cuadrante.iterrows():
+                            q_time = pd.to_datetime(f"{dia_ver} {row['Hora']}")
+                            if dt_start <= q_time < dt_end:
+                                df_cuadrante.loc[idx, "Estado"] = "🔴 OCUPADO"
+                                df_cuadrante.loc[idx, "Detalle"] = detalle_texto
                 except: pass
                 
         df_cuadrante = df_cuadrante.sort_values("Hora").reset_index(drop=True)
-        st.dataframe(df_cuadrante, use_container_width=True, hide_index=True, height=500)
+        st.dataframe(df_cuadrante, use_container_width=True, hide_index=True, height=600)
