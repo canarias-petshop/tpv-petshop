@@ -7,6 +7,7 @@ import json
 import urllib.parse
 import streamlit.components.v1 as components
 import re
+import hashlib
 
 # --- 1. CONFIGURACIÓN Y ESTILO ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
@@ -97,6 +98,14 @@ except Exception as e:
     else:
         st.error(f"Detalle técnico: {e}")
     st.stop()
+
+# --- 4.5. MÓDULO DE SEGURIDAD VERI*FACTU ---
+def generar_hash_verifactu(tipo_doc, fecha, importe_total, hash_anterior):
+    """Genera el hash SHA-256 encadenado según directrices de la normativa."""
+    hash_ant = hash_anterior if hash_anterior else ""
+    cadena = f"{tipo_doc}|{fecha}|{importe_total:.2f}|{hash_ant}"
+    huella = hashlib.sha256(cadena.encode('utf-8')).hexdigest()
+    return huella.upper()
 
 # --- CABECERA COMPACTA ---
 c_logo, c_titulo = st.columns([0.08, 0.92], vertical_alignment="center")
@@ -483,6 +492,12 @@ with tab2:
                         carrito_limpio = json.loads(edited_df.to_json(orient='records'))
                         
                         try:
+                            # --- MÓDULO VERI*FACTU: CÁLCULO DE HASH ---
+                            fecha_emision = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                            res_h = client.table("ventas_historial").select("hash_actual").order("id", desc=True).limit(1).execute()
+                            h_ant = res_h.data[0]['hash_actual'] if res_h.data and res_h.data[0].get('hash_actual') else ""
+                            h_act = generar_hash_verifactu("TICKET", fecha_emision, float(total_f), h_ant)
+                            
                             # INSERCIÓN CON COLUMNAS EXACTAS CONTABLES
                             client.table("ventas_historial").insert({
                                 "total": float(total_f), "pagado": float(pagado_hoy), "pendiente": float(pendiente),
@@ -491,7 +506,9 @@ with tab2:
                                 "estado": "Completado" if pendiente == 0 else "Deuda",
                                 "pago_efectivo": float(p_efectivo),
                                 "pago_tarjeta": float(p_tarjeta),
-                                "pago_bizum": float(p_bizum)
+                                "pago_bizum": float(p_bizum),
+                                "hash_anterior": h_ant,
+                                "hash_actual": h_act
                             }).execute()
                             
                             for i in carrito_limpio:
@@ -1143,9 +1160,18 @@ with tab8:
             if st.button(" 🚀  EMITIR FACTURA", type="primary", use_container_width=True):
                 if sel_c:
                     c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
+                    
+                    # --- MÓDULO VERI*FACTU: CÁLCULO DE HASH ---
+                    fecha_emision_fac = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                    res_hf = client.table("facturas").select("hash_actual").order("id", desc=True).limit(1).execute()
+                    h_ant_f = res_hf.data[0]['hash_actual'] if res_hf.data and res_hf.data[0].get('hash_actual') else ""
+                    h_act_f = generar_hash_verifactu("FACTURA", fecha_emision_fac, float(total_v_final), h_ant_f)
+                    
                     client.table("facturas").insert({
                         "cliente_id": c_id, "total_neto": float(total_v_final), "total_igic": 0.0, "total_final": float(total_v_final),
-                        "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
+                        "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp,
+                        "hash_anterior": h_ant_f,
+                        "hash_actual": h_act_f
                     }).execute()
                     for i in st.session_state.factura_v_temp:
                         res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
