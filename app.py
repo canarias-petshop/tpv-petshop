@@ -690,9 +690,14 @@ with tab3:
                     
                     df_hist = pd.DataFrame(historial)
                     for col in ["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]:
-                        if col not in df_hist.columns: df_hist[col] = ""
+                        if col not in df_hist.columns: df_hist[col] = None
                         
                     df_hist = df_hist[["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]]
+                    
+                    # Conversión explícita de tipos para evitar errores de compatibilidad en Streamlit
+                    df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%d/%m/%Y", errors="coerce")
+                    df_hist["Duración (min)"] = pd.to_numeric(df_hist["Duración (min)"], errors="coerce")
+                    df_hist["Importe (€)"] = pd.to_numeric(df_hist["Importe (€)"], errors="coerce")
                     
                     ed_hist = st.data_editor(
                         df_hist,
@@ -710,7 +715,7 @@ with tab3:
                     
                     if st.button(f"💾 Guardar Historial de {m_nombre}", type="primary"):
                         df_save = ed_hist.copy()
-                        df_save['Fecha'] = df_save['Fecha'].astype(str).replace('NaT', '').replace('None', '')
+                        df_save['Fecha'] = pd.to_datetime(df_save['Fecha']).dt.strftime('%d/%m/%Y').fillna("")
                         df_save = df_save.fillna("")
                         nuevo_historial = df_save.to_dict(orient='records')
                         
