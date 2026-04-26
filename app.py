@@ -55,8 +55,15 @@ try:
         f"{st.secrets['url']}/rest/v1", 
         headers={"apikey": st.secrets['key'], "Authorization": f"Bearer {st.secrets['key']}"}
     )
+    # Test de conexión rápido para atrapar fallos de credenciales o tablas faltantes
+    client.table("proveedores").select("id").limit(1).execute()
 except Exception as e:
-    st.error("Error de conexión"); st.stop()
+    *n if "relation" in str(e) and "does not exist" in str(e):
+            st.error("🛠️ **Diagnóstico:** Tu app se conectó a Supabase, pero la tabla no existe. Parece que la base de datos está vacía.")
+            st.info("💡 **Solución:** Entra en tu panel de Supabase, ve a 'SQL Editor' y ejecuta el código para crear las tablas del proyecto.")
+        else:
+            st.error(f"Detalle técnico: {e}")
+    st.stop()
 
 # --- CABECERA COMPACTA ---
 c_logo, c_titulo = st.columns([0.08, 0.92], vertical_alignment="center")
