@@ -241,7 +241,7 @@ with tab2:
                 with c2: 
                     if st.button("➕ Añadir", use_container_width=True, type="primary", key="btn_b"):
                         st.session_state.carrito.append({
-                            "Producto": fila_p['nombre'], "Cantidad": cant, "Precio": fila_p['precio_pvp'],
+                            "id": str(fila_p['id']), "Producto": fila_p['nombre'], "Cantidad": cant, "Precio": fila_p['precio_pvp'],
                             "Subtotal": cant * float(fila_p['precio_pvp']), "IGIC": fila_p.get('igic_tipo', 7), "Manual": False
                         })
                         st.rerun()
@@ -262,7 +262,7 @@ with tab2:
             if not coincid.empty:
                 fila_pist = coincid.iloc[0]
                 st.session_state.carrito.append({
-                    "Producto": fila_pist['nombre'], "Cantidad": cant_p, "Precio": fila_pist['precio_pvp'],
+                    "id": str(fila_pist['id']), "Producto": fila_pist['nombre'], "Cantidad": cant_p, "Precio": fila_pist['precio_pvp'],
                     "Subtotal": cant_p * float(fila_pist['precio_pvp']), "IGIC": fila_pist.get('igic_tipo', 7), "Manual": False
                 })
                 st.session_state.limpiar_codigo = True; st.rerun()
@@ -455,11 +455,11 @@ with tab2:
                             }).execute()
                             
                             for i in carrito_limpio:
-                                if not i.get('Manual', False):
-                                    res = client.table("productos").select("stock_actual").eq("nombre", i['Producto']).execute()
+                                if not i.get('Manual', False) and 'id' in i:
+                                    res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
                                     if res.data:
                                         n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
-                                        client.table("productos").update({"stock_actual": n_stock}).eq("nombre", i['Producto']).execute()
+                                        client.table("productos").update({"stock_actual": n_stock}).eq("id", i['id']).execute()
                             
                             st.session_state.ticket_actual = {
                                 "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
@@ -711,10 +711,10 @@ with tab4:
                             if st.button(f"↩️ Devolver y Restaurar Stock", use_container_width=True):
                                 # Lógica de devolución (la que ya tenías)
                                 for p in prods:
-                                    if not p.get('Manual', False):
-                                        res_p = client.table("productos").select("stock_actual").eq("nombre", p['Producto']).execute()
+                                    if not p.get('Manual', False) and 'id' in p:
+                                        res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
                                         if res_p.data:
-                                            client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("nombre", p['Producto']).execute()
+                                            client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
                                 client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_id)).execute()
                                 st.success("Venta anulada y stock devuelto."); time.sleep(0.8); st.rerun()
                 else:
