@@ -51,10 +51,18 @@ if not st.session_state.acceso_concedido:
 
 # --- 4. CONEXIÓN A SUPABASE ---
 try:
-    url_limpia = st.secrets['url'].rstrip('/')
+    # Limpieza extrema por si se han colado espacios, comillas o rutas duplicadas en la nube
+    raw_url = st.secrets['url'].strip().strip('"').strip("'").rstrip('/')
+    if raw_url.endswith('/rest/v1'):
+        api_url = raw_url
+    else:
+        api_url = f"{raw_url}/rest/v1"
+        
+    api_key = st.secrets['key'].strip().strip('"').strip("'")
+
     client = SyncPostgrestClient(
-        f"{url_limpia}/rest/v1", 
-        headers={"apikey": st.secrets['key'], "Authorization": f"Bearer {st.secrets['key']}"}
+        api_url, 
+        headers={"apikey": api_key, "Authorization": f"Bearer {api_key}"}
     )
     # Test de conexión rápido para atrapar fallos de credenciales o tablas faltantes
     client.table("proveedores").select("id").limit(1).execute()
