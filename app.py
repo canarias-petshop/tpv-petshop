@@ -51,18 +51,20 @@ if not st.session_state.acceso_concedido:
 
 # --- 4. CONEXIÓN A SUPABASE ---
 try:
+    url_limpia = st.secrets['url'].rstrip('/')
     client = SyncPostgrestClient(
-        f"{st.secrets['url']}/rest/v1", 
+        f"{url_limpia}/rest/v1", 
         headers={"apikey": st.secrets['key'], "Authorization": f"Bearer {st.secrets['key']}"}
     )
     # Test de conexión rápido para atrapar fallos de credenciales o tablas faltantes
     client.table("proveedores").select("id").limit(1).execute()
 except Exception as e:
-    *n if "relation" in str(e) and "does not exist" in str(e):
-            st.error("🛠️ **Diagnóstico:** Tu app se conectó a Supabase, pero la tabla no existe. Parece que la base de datos está vacía.")
-            st.info("💡 **Solución:** Entra en tu panel de Supabase, ve a 'SQL Editor' y ejecuta el código para crear las tablas del proyecto.")
-        else:
-            st.error(f"Detalle técnico: {e}")
+    st.error("🚨 **Error de Conexión a la Base de Datos**")
+    if "relation" in str(e) and "does not exist" in str(e):
+        st.error("🛠️ **Diagnóstico:** Tu app se conectó a Supabase, pero la tabla no existe. Parece que la base de datos está vacía.")
+        st.info("💡 **Solución:** Entra en tu panel de Supabase, ve a 'SQL Editor' y ejecuta el código para crear las tablas del proyecto.")
+    else:
+        st.error(f"Detalle técnico: {e}")
     st.stop()
 
 # --- CABECERA COMPACTA ---
