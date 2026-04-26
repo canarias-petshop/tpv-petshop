@@ -598,8 +598,17 @@ with tab3:
             res_clientes = client.table("clientes").select("*").order("created_at", desc=True).execute()
             if res_clientes.data:
                 df_cli = pd.DataFrame(res_clientes.data)
+                
+                b_cli = st.text_input("🔍 Buscar cliente (Nombre o Teléfono):", placeholder="Escribe para filtrar...", key="b_cli").strip().lower()
+                
                 if 'fecha_nacimiento' not in df_cli.columns: df_cli['fecha_nacimiento'] = ""
                 df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'email', 'fecha_nacimiento']].copy()
+                
+                if b_cli:
+                    df_cli_vista = df_cli_vista[
+                        df_cli_vista['nombre_dueno'].str.lower().str.contains(b_cli, na=False) |
+                        df_cli_vista['telefono'].astype(str).str.contains(b_cli, na=False)
+                    ]
                 
                 ed_cli = st.data_editor(
                     df_cli_vista,
@@ -645,11 +654,18 @@ with tab3:
             res_mascotas = client.table("mascotas").select("*, clientes(nombre_dueno)").order("id", desc=True).execute()
             if res_mascotas.data:
                 df_m = pd.DataFrame(res_mascotas.data)
+                
+                b_masc = st.text_input("🔍 Buscar mascota por nombre:", placeholder="Escribe para filtrar...", key="b_masc").strip().lower()
+                
                 df_m['Dueño'] = df_m['clientes'].apply(lambda x: x.get('nombre_dueno', '') if isinstance(x, dict) else '')
                 if 'fecha_nacimiento' not in df_m.columns: df_m['fecha_nacimiento'] = ""
                 df_m['Edad'] = df_m['fecha_nacimiento'].apply(calcular_edad)
                 
                 df_m_vista = df_m[['id', 'nombre', 'Dueño', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'observaciones']].copy()
+                
+                if b_masc:
+                    df_m_vista = df_m_vista[df_m_vista['nombre'].str.lower().str.contains(b_masc, na=False)]
+                    
                 df_m_vista.insert(0, "Ver", False)
                 
                 st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir la ficha completa y el historial de la mascota.*")
