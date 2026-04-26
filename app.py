@@ -642,7 +642,7 @@ with tab3:
                         st.warning("Falta el nombre de la mascota.")
                         
         with sub_masc:
-            res_mascotas = client.table("mascotas").select("*, clientes(nombre_dueno)").order("created_at", desc=True).execute()
+            res_mascotas = client.table("mascotas").select("*, clientes(nombre_dueno)").order("id", desc=True).execute()
             if res_mascotas.data:
                 df_m = pd.DataFrame(res_mascotas.data)
                 df_m['Dueño'] = df_m['clientes'].apply(lambda x: x.get('nombre_dueno', '') if isinstance(x, dict) else '')
