@@ -13,10 +13,33 @@ st.set_page_config(page_title="Animalarium TPV", layout="wide")
 
 st.markdown("""
     <style>
-        .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
-        .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: -10px !important; }
-        [data-testid="column"] { padding: 0 5px !important; }
-        [data-testid="stTabs"] { margin-top: -15px !important; }
+        /* 1. Ajuste del contenedor para aprovechar el ancho sin aplastar */
+        .block-container { padding-top: 2rem !important; padding-bottom: 2rem !important; max-width: 98% !important; }
+        
+        /* 2. Textos y etiquetas más legibles en tablet */
+        p, .stMarkdown, div[data-testid="stMarkdownContainer"] { font-size: 1.1rem !important; }
+        label { font-size: 1.15rem !important; font-weight: 500 !important; }
+        
+        /* 3. Cuadros de texto y números más grandes para escribir fácil */
+        input, select { font-size: 1.15rem !important; }
+        .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: 5px !important; }
+        
+        /* 4. Botones grandes, gruesos y fáciles de pulsar con el dedo */
+        .stButton > button {
+            min-height: 60px !important;
+            font-size: 1.2rem !important;
+            font-weight: bold !important;
+        }
+
+        /* 5. Pestañas principales más grandes */
+        button[data-baseweb="tab"] {
+            font-size: 1.15rem !important;
+            padding-top: 15px !important;
+            padding-bottom: 15px !important;
+        }
+        
+        /* 6. Espaciado entre columnas (quitamos el estrechamiento) */
+        [data-testid="column"] { padding: 0 12px !important; }
         
         /* Ocultar Streamlit */
         [data-testid="stHeader"], [data-testid="stFooter"], footer, 
