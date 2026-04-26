@@ -1533,6 +1533,8 @@ with tab9:
 with tab10:
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
     
+    sub_agenda, sub_calendario = st.tabs(["📝 Gestión de Citas", "🕒 Cuadrante Diario"])
+    
     res_m = client.table("mascotas").select("id, nombre, clientes(nombre_dueno)").execute()
     dict_mascotas = {}
     if res_m.data:
@@ -1540,51 +1542,105 @@ with tab10:
             dueno = m['clientes']['nombre_dueno'] if m.get('clientes') else "Desconocido"
             dict_mascotas[f"🐾 {m['nombre']} (De: {dueno})"] = m['id']
 
-    c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
-    
-    with c_agenda1:
-        with st.form("nueva_cita", border=True):
-            st.markdown("#### ➕ Nueva Cita")
-            mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None)
-            fecha_c = st.date_input("Fecha *")
-            hora_c = st.time_input("Hora *")
-            servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
-            
-            if st.form_submit_button("Guardar Cita", type="primary", use_container_width=True):
-                if mascota_sel:
-                    fecha_hora_str = f"{fecha_c} {hora_c}"
-                    client.table("citas").insert({
-                        "mascotas_id": dict_mascotas[mascota_sel],
-                        "fecha_hora": fecha_hora_str,
-                        "servicio": servicio_sel
-                    }).execute()
-                    st.success("Cita agendada correctamente.")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error("Debes seleccionar una mascota.")
+    with sub_agenda:
+        c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
+        
+        with c_agenda1:
+            with st.form("nueva_cita", border=True):
+                st.markdown("#### ➕ Nueva Cita")
+                mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None)
+                fecha_c = st.date_input("Fecha *")
+                hora_c = st.time_input("Hora *")
+                servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
+                
+                if st.form_submit_button("Guardar Cita", type="primary", use_container_width=True):
+                    if mascota_sel:
+                        fecha_hora_str = f"{fecha_c} {hora_c.strftime('%H:%M')}"
+                        client.table("citas").insert({
+                            "mascotas_id": dict_mascotas[mascota_sel],
+                            "fecha_hora": fecha_hora_str,
+                            "servicio": servicio_sel
+                        }).execute()
+                        st.success("Cita agendada.")
+                        time.sleep(1); st.rerun()
+                    else:
+                        st.error("Debes seleccionar una mascota.")
 
-    with c_agenda2:
-        st.markdown("#### 🗓️ Próximas Citas")
-        res_citas = client.table("citas").select("id, fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
+        with c_agenda2:
+            st.markdown("#### 🗓️ Directorio de Citas (Editable)")
+            res_citas = client.table("citas").select("id, fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
+            
+            if res_citas.data:
+                citas_formateadas = []
+                for c in res_citas.data:
+                    mascota_info = c.get('mascotas', {})
+                    cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
+                    
+                    citas_formateadas.append({
+                        "id": c['id'],
+                        "Día y Hora": c['fecha_hora'],
+                        "Servicio": c['servicio'],
+                        "Mascota": mascota_info.get('nombre', 'N/A'),
+                        "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
+                        "Teléfono": cliente_info.get('telefono', 'N/A')
+                    })
+                    
+                df_citas = pd.DataFrame(citas_formateadas)
+                
+                ed_citas = st.data_editor(
+                    df_citas[['id', 'Día y Hora', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
+                    use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
+                    column_config={
+                        "id": None,
+                        "Mascota": st.column_config.TextColumn(disabled=True),
+                        "Dueño": st.column_config.TextColumn(disabled=True),
+                        "Teléfono": st.column_config.TextColumn(disabled=True)
+                    }
+                )
+                
+                if st.button("💾 Guardar Cambios en Agenda", type="primary"):
+                    ids_actuales = ed_citas['id'].dropna().tolist()
+                    ids_orig = df_citas['id'].tolist()
+                    ids_borrar = [i for i in ids_orig if i not in ids_actuales]
+                    
+                    for id_b in ids_borrar: client.table("citas").delete().eq("id", id_b).execute()
+                    
+                    for _, row in ed_citas.iterrows():
+                        if pd.notna(row['id']):
+                            client.table("citas").update({
+                                "fecha_hora": str(row['Día y Hora']),
+                                "servicio": str(row['Servicio'])
+                            }).eq("id", row['id']).execute()
+                    st.success("Agenda actualizada."); time.sleep(0.8); st.rerun()
+            else:
+                st.info("No hay citas agendadas en el sistema.")
+                
+    with sub_calendario:
+        st.markdown("#### 🕒 Cuadrante de Trabajo Diario")
+        dia_ver = st.date_input("Selecciona un día para ver los huecos libres:", value=date.today())
+        
+        horas_trabajo = [f"{h:02d}:{m:02d}" for h in range(9, 21) for m in (0, 30)]
+        df_cuadrante = pd.DataFrame({"Hora": horas_trabajo})
+        df_cuadrante["Cita"] = "✅ Libre"
+        df_cuadrante["Detalle"] = ""
         
         if res_citas.data:
-            citas_formateadas = []
             for c in res_citas.data:
-                dt_obj = pd.to_datetime(c['fecha_hora'])
-                mascota_info = c.get('mascotas', {})
-                cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
+                try:
+                    dt_obj = pd.to_datetime(c['fecha_hora'])
+                    if dt_obj.date() == dia_ver:
+                        hora_str = dt_obj.strftime('%H:%M')
+                        mascota = c.get('mascotas', {}).get('nombre', 'Mascota')
+                        
+                        idx = df_cuadrante[df_cuadrante['Hora'] == hora_str].index
+                        if not idx.empty:
+                            df_cuadrante.loc[idx, "Cita"] = "🔴 OCUPADO"
+                            df_cuadrante.loc[idx, "Detalle"] = f"{mascota} - {c['servicio']}"
+                        else:
+                            # Si agendan a horas raras (ej 09:15), se añade la fila
+                            nueva = pd.DataFrame({"Hora": [hora_str], "Cita": ["🔴 OCUPADO"], "Detalle": [f"{mascota} - {c['servicio']}"]})
+                            df_cuadrante = pd.concat([df_cuadrante, nueva], ignore_index=True)
+                except: pass
                 
-                citas_formateadas.append({
-                    "Día": dt_obj.strftime('%d/%m/%Y'),
-                    "Hora": dt_obj.strftime('%H:%M'),
-                    "Mascota": mascota_info.get('nombre', 'N/A'),
-                    "Servicio": c['servicio'],
-                    "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
-                    "Teléfono": cliente_info.get('telefono', 'N/A')
-                })
-                
-            df_citas = pd.DataFrame(citas_formateadas)
-            st.dataframe(df_citas, use_container_width=True, hide_index=True, height=400)
-        else:
-            st.info("No hay citas agendadas en el sistema.")
+        df_cuadrante = df_cuadrante.sort_values("Hora").reset_index(drop=True)
+        st.dataframe(df_cuadrante, use_container_width=True, hide_index=True, height=500)
