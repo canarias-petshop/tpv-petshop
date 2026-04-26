@@ -592,6 +592,19 @@ with tab3:
                 return f"{anios} años"
             except: return ""
 
+        def calcular_duracion_media(historial):
+            """Calcula la duración media de los servicios a partir del historial JSON."""
+            if not isinstance(historial, list) or not historial:
+                return "N/A"
+            
+            duraciones = [t['Duración (min)'] for t in historial if isinstance(t, dict) and isinstance(t.get('Duración (min)'), (int, float))]
+            
+            if not duraciones:
+                return "N/A"
+                
+            media = sum(duraciones) / len(duraciones)
+            return f"{int(media)} min"
+
         sub_cli, sub_masc = st.tabs(["👤 Directorio de Dueños", "🐾 Fichas de Mascotas"])
         
         with sub_cli:
@@ -660,8 +673,11 @@ with tab3:
                 df_m['Dueño'] = df_m['clientes'].apply(lambda x: x.get('nombre_dueno', '') if isinstance(x, dict) else '')
                 if 'fecha_nacimiento' not in df_m.columns: df_m['fecha_nacimiento'] = ""
                 df_m['Edad'] = df_m['fecha_nacimiento'].apply(calcular_edad)
+                if 'historial_trabajos' not in df_m.columns:
+                    df_m['historial_trabajos'] = [[] for _ in range(len(df_m))]
+                df_m['Duración Media'] = df_m['historial_trabajos'].apply(calcular_duracion_media)
                 
-                df_m_vista = df_m[['id', 'nombre', 'Dueño', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'observaciones']].copy()
+                df_m_vista = df_m[['id', 'nombre', 'Dueño', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'Duración Media', 'observaciones']].copy()
                 
                 if b_masc:
                     df_m_vista = df_m_vista[df_m_vista['nombre'].str.lower().str.contains(b_masc, na=False)]
@@ -672,7 +688,7 @@ with tab3:
                 
                 ed_m = st.data_editor(
                     df_m_vista,
-                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "Dueño": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones Generales"},
+                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "Dueño": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_mascotas", height=400
                 )
                 if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
