@@ -650,18 +650,22 @@ with tab3:
                 df_m['Edad'] = df_m['fecha_nacimiento'].apply(calcular_edad)
                 
                 df_m_vista = df_m[['id', 'nombre', 'Dueño', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'observaciones']].copy()
+                df_m_vista.insert(0, "Ver", False)
+                
+                st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir la ficha completa y el historial de la mascota.*")
                 
                 ed_m = st.data_editor(
                     df_m_vista,
-                    column_config={"id": None, "Dueño": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones (Tiempo/Alergias)"},
+                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "Dueño": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones Generales"},
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_mascotas", height=400
                 )
                 if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
-                    ids_actuales = ed_m['id'].dropna().tolist()
+                    ed_m_clean = ed_m.drop(columns=["Ver"])
+                    ids_actuales = ed_m_clean['id'].dropna().tolist()
                     ids_orig = df_m_vista['id'].tolist()
                     for id_b in [i for i in ids_orig if i not in ids_actuales]: client.table("mascotas").delete().eq("id", id_b).execute()
                     
-                    for _, row in ed_m.iterrows():
+                    for _, row in ed_m_clean.iterrows():
                         if pd.notna(row['id']):
                             client.table("mascotas").update({
                                 "nombre": str(row['nombre']), "especie": str(row['especie']),
@@ -669,6 +673,50 @@ with tab3:
                                 "observaciones": str(row['observaciones'])
                             }).eq("id", row['id']).execute()
                     st.success("Fichas de mascotas actualizadas."); time.sleep(0.5); st.rerun()
+                    
+                st.markdown("---")
+                
+                # --- FICHA COMPLETA E HISTORIAL DE LA MASCOTA ---
+                filas_m_marcadas = ed_m[ed_m["Ver"] == True]
+                if not filas_m_marcadas.empty:
+                    m_id = filas_m_marcadas.iloc[0]['id']
+                    m_data = df_m[df_m['id'] == m_id].iloc[0]
+                    m_nombre = m_data['nombre']
+                    
+                    st.markdown(f"#### 📖 Ficha e Historial Clínico/Peluquería: **{m_nombre}**")
+                    
+                    historial = m_data.get('historial_trabajos')
+                    if not isinstance(historial, list): historial = []
+                    
+                    df_hist = pd.DataFrame(historial)
+                    for col in ["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]:
+                        if col not in df_hist.columns: df_hist[col] = ""
+                        
+                    df_hist = df_hist[["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]]
+                    
+                    ed_hist = st.data_editor(
+                        df_hist,
+                        num_rows="dynamic",
+                        use_container_width=True,
+                        hide_index=True,
+                        key=f"ed_hist_{m_id}",
+                        column_config={
+                            "Fecha": st.column_config.DateColumn("Fecha (D/M/A)", format="DD/MM/YYYY"),
+                            "Trabajo / Servicio": st.column_config.TextColumn("Servicio Realizado"),
+                            "Duración (min)": st.column_config.NumberColumn("Duración (min)", min_value=0, step=5),
+                            "Importe (€)": st.column_config.NumberColumn("Importe Cobrado (€)", format="%.2f", min_value=0.0)
+                        }
+                    )
+                    
+                    if st.button(f"💾 Guardar Historial de {m_nombre}", type="primary"):
+                        df_save = ed_hist.copy()
+                        df_save['Fecha'] = df_save['Fecha'].astype(str).replace('NaT', '').replace('None', '')
+                        df_save = df_save.fillna("")
+                        nuevo_historial = df_save.to_dict(orient='records')
+                        
+                        client.table("mascotas").update({"historial_trabajos": nuevo_historial}).eq("id", m_id).execute()
+                        st.success("Historial actualizado correctamente."); time.sleep(0.5); st.rerun()
+                        
             else: st.info("No hay mascotas registradas.")
 
 # ==========================================
