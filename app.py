@@ -619,7 +619,7 @@ with tab3:
             df_hist = df_hist[["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]]
             
             df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%d/%m/%Y", errors="coerce")
-            df_hist["Duración (min)"] = pd.to_numeric(df_hist["Duración (min)", errors="coerce"])
+            df_hist["Duración (min)"] = pd.to_numeric(df_hist["Duración (min)"], errors="coerce")
             df_hist["Importe (€)"] = pd.to_numeric(df_hist["Importe (€)"], errors="coerce")
             
             ed_hist = st.data_editor(
@@ -658,7 +658,7 @@ with tab3:
             citas_ordenadas = []
             for c in citas_dia:
                 dt_ini = pd.to_datetime(c['fecha_hora'])
-                dt_fin = dt_ini + pd.Timedelta(minutes=c.get('duracion_minutos', 60))
+                dt_fin = dt_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
                 citas_ordenadas.append({"ini": dt_ini, "fin": dt_fin})
             citas_ordenadas.sort(key=lambda x: x["ini"])
             
@@ -687,7 +687,7 @@ with tab3:
                     solapa = False
                     for c in citas_dia:
                         c_ini = pd.to_datetime(c['fecha_hora'])
-                        c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos', 60))
+                        c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
                         if dt_ini < c_fin and dt_fin > c_ini:
                             solapa = True; break
                     if not solapa: huecos.append(f"{h:02d}:{m:02d}")
