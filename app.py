@@ -789,6 +789,22 @@ with tab3:
                         client.table("mascotas").update({"historial_trabajos": nuevo_historial}).eq("id", m_id).execute()
                         st.success("Historial actualizado correctamente."); time.sleep(0.5); st.rerun()
                         
+                    st.markdown("---")
+                    st.markdown(f"#### 📅 Agendar Cita para **{m_nombre}**")
+                    with st.form(f"form_cita_{m_id}", border=True):
+                        fc1, fc2, fc3, fc4 = st.columns([1.5, 1, 1, 1.5])
+                        with fc1: f_fecha = st.date_input("Fecha de la cita")
+                        with fc2: f_hora = st.time_input("Hora inicio")
+                        with fc3: f_dur = st.number_input("Duración (min)", min_value=5, max_value=300, value=60, step=5)
+                        with fc4: f_serv = st.selectbox("Servicio", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
+                        
+                        if st.form_submit_button("➕ Guardar Cita", type="primary", use_container_width=True):
+                            fecha_hora_str = f"{f_fecha} {f_hora.strftime('%H:%M')}"
+                            client.table("citas").insert({
+                                "mascotas_id": m_id, "fecha_hora": fecha_hora_str, "servicio": f_serv, "duracion_minutos": int(f_dur)
+                            }).execute()
+                            st.success("¡Cita añadida a la agenda!"); time.sleep(1); st.rerun()
+                            
             else: st.info("No hay mascotas registradas.")
 
 # ==========================================
@@ -1831,7 +1847,7 @@ with tab10:
         st.dataframe(df_cuadrante, use_container_width=True, hide_index=True, height=600)
 
     with sub_semanal:
-        st.markdown("#### 🗓️ Cuadrante de Trabajo Semanal (Intervalos de 30 min)")
+        st.markdown("#### 🗓️ Cuadrante de Trabajo Semanal (Vista Flexible)")
         dia_referencia = st.date_input("Selecciona una fecha para ver su semana:", value=date.today(), key="semana_picker")
         
         start_of_week = dia_referencia - timedelta(days=dia_referencia.weekday())
@@ -1839,15 +1855,12 @@ with tab10:
 
         st.markdown(f"##### Semana del {start_of_week.strftime('%d/%m/%Y')} al {end_of_week.strftime('%d/%m/%Y')}")
 
-        # Define days and 30-minute time slots
         dias_semana_dt = [(start_of_week + timedelta(days=i)) for i in range(7)]
         nombres_dias_col = [d.strftime('%A\n%d/%m') for d in dias_semana_dt]
-        horas = [f"{h:02d}:{m:02d}" for h in range(9, 21) for m in (0, 30)]
 
-        # Create empty grid, using a simple emoji for free slots
-        df_semana = pd.DataFrame(index=horas, columns=nombres_dias_col).fillna("✅ Libre")
+        # Diccionario para agrupar citas por columna (día)
+        citas_por_dia = {dia: [] for dia in nombres_dias_col}
 
-        # Filter appointments for the selected week
         if res_citas.data:
             for cita in res_citas.data:
                 try:
@@ -1858,26 +1871,27 @@ with tab10:
                         
                         col_dia = dt_start.strftime('%A\n%d/%m')
                         mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
-                        detalle_cita = f"🔴 {mascota_nombre} ({duracion}min)"
                         
-                        # Iterate over the time slots of the grid
-                        is_first_slot = True
-                        for hora_slot_str in df_semana.index:
-                            slot_time = datetime.strptime(hora_slot_str, "%H:%M").time()
-                            slot_datetime = datetime.combine(dt_start.date(), slot_time)
-                            slot_end_datetime = slot_datetime + timedelta(minutes=30)
-                            
-                            # Check for overlap: (StartA < EndB) and (EndA > StartB)
-                            if dt_start < slot_end_datetime and dt_end > slot_datetime:
-                                if is_first_slot:
-                                    df_semana.loc[hora_slot_str, col_dia] = detalle_cita
-                                    is_first_slot = False
-                                else:
-                                    # Mark subsequent slots as busy continuation
-                                    df_semana.loc[hora_slot_str, col_dia] = "🔴"
-                except Exception:
-                    # Silently ignore parsing errors for robustness
-                    pass
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
         
-        # Display the weekly grid
-        st.dataframe(df_semana, use_container_width=True, height=600)
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
