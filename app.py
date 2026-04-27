@@ -187,6 +187,25 @@ with tab1:
                     st.warning(f"⚠️ **ATENCIÓN: Tienes {len(df_bajo_stock)} producto(s) bajo mínimos (2 unidades o menos).**")
                     with st.expander("👀 Ver lista de productos para reponer"):
                         st.dataframe(df_bajo_stock[['sku', 'nombre', 'stock_actual']], hide_index=True, use_container_width=True)
+                        
+                        # --- INTEGRACIÓN CON PEDIDOS A PROVEEDORES ---
+                        res_borradores = client.table("pedidos_proveedores").select("id, proveedores(nombre_empresa)").eq("estado", "Borrador").execute()
+                        if res_borradores.data:
+                            opciones_borrador = {f"Borrador #{b['id']} - {b['proveedores']['nombre_empresa']}": b['id'] for b in res_borradores.data if b.get('proveedores')}
+                            c_ped1, c_ped2 = st.columns([2, 1])
+                            with c_ped1: prods_a_pedir = st.multiselect("Selecciona productos para añadir a un pedido:", df_bajo_stock['nombre'].tolist())
+                            with c_ped2:
+                                borrador_sel = st.selectbox("Selecciona el Borrador:", list(opciones_borrador.keys()))
+                                if st.button("➕ Añadir al Borrador", use_container_width=True) and prods_a_pedir and borrador_sel:
+                                    draft_id = opciones_borrador[borrador_sel]
+                                    prods_actuales = client.table("pedidos_proveedores").select("productos").eq("id", draft_id).execute().data[0].get('productos', [])
+                                    for p_nom in prods_a_pedir:
+                                        if not any(item.get('Producto') == p_nom for item in prods_actuales):
+                                            prods_actuales.append({"Producto": p_nom, "Cantidad": 1})
+                                    client.table("pedidos_proveedores").update({"productos": prods_actuales}).eq("id", draft_id).execute()
+                                    st.success("¡Añadidos al borrador! Ve a la Pestaña 7 para gestionarlo.")
+                        else:
+                            st.info("💡 Ve a la Pestaña 7 (Proveedores) para crear un Borrador de Pedido y añadir estos productos.")
 
                 # --- TABLA DE PRODUCTOS MEJORADA ---
                 st.markdown("#### 📦 Inventario de Productos")
@@ -396,6 +415,11 @@ with tab2:
                     </table>
                     <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
                     <div style="text-align: right; font-size: 28px;"><b>TOTAL: {t['total']:.2f}€</b></div>
+"""
+            if t.get('cliente_fidel'):
+                html_ticket += f"<div style='font-size:18px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {t['cliente_fidel']}</b><br>Has ganado +{t['puntos_ganados']} puntos hoy!</div>"
+
+            html_ticket += f"""
                     
                     <div style="font-size: 18px; color: #000; margin-top: 30px; text-align: center;">
                         <b>POLÍTICA DE DEVOLUCIÓN</b><br>
@@ -470,7 +494,14 @@ with tab2:
                 st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
                 sub_antes = edited_df["Subtotal"].sum()
-                desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=0, step=1)
+                
+                # --- FIDELIZACIÓN ---
+                res_cli_puntos = client.table("clientes").select("id, nombre_dueno, puntos").execute()
+                opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} (Puntos: {c['puntos']})" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
+                
+                c_desc, c_fid = st.columns(2)
+                with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=0, step=1)
+                with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli)
                 total_f = sub_antes * (1 - desc_g / 100)
                 
                 st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
@@ -530,6 +561,15 @@ with tab2:
                             h_ant = res_h.data[0]['hash_actual'] if res_h.data and res_h.data[0].get('hash_actual') else ""
                             h_act = generar_hash_verifactu("TICKET", fecha_emision, float(total_f), h_ant)
                             
+                            # ASIGNACIÓN DE PUNTOS
+                            cliente_fidel_nombre = ""
+                            puntos_ganados = 0
+                            if "Ninguno" not in cliente_fidelidad:
+                                cliente_fidel_nombre = cliente_fidelidad.split(" (Puntos:")[0]
+                                cliente_info = next(c for c in res_cli_puntos.data if c['nombre_dueno'] == cliente_fidel_nombre)
+                                puntos_ganados = int(total_f // 10) # 1 punto por cada 10€
+                                client.table("clientes").update({"puntos": cliente_info.get('puntos', 0) + puntos_ganados}).eq("id", cliente_info['id']).execute()
+
                             # INSERCIÓN CON COLUMNAS EXACTAS CONTABLES
                             client.table("ventas_historial").insert({
                                 "total": float(total_f), "pagado": float(pagado_hoy), "pendiente": float(pendiente),
@@ -554,7 +594,8 @@ with tab2:
                             
                             st.session_state.ticket_actual = {
                                 "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                                "productos": carrito_limpio, "total": total_f, "metodo": metodo_log
+                                "productos": carrito_limpio, "total": total_f, "metodo": metodo_log,
+                                "cliente_fidel": cliente_fidel_nombre, "puntos_ganados": puntos_ganados
                             }
                             st.session_state.carrito = []
                             st.rerun()
@@ -1534,15 +1575,43 @@ with tab7:
                     df_ped['Proveedor'] = df_ped['proveedores'].apply(lambda x: x.get('nombre_empresa', ''))
                     df_ped['Fecha'] = pd.to_datetime(df_ped['created_at']).dt.strftime('%d/%m/%Y')
                     
+                    df_ped_vista = df_ped[['id', 'Fecha', 'Proveedor', 'estado']].copy()
+                    df_ped_vista.insert(0, "Ver/Editar", False)
+                    
                     ed_ped = st.data_editor(
-                        df_ped[['id', 'Fecha', 'Proveedor', 'estado']],
+                        df_ped_vista,
                         hide_index=True, use_container_width=True,
-                        column_config={"id": None, "estado": st.column_config.SelectboxColumn("Estado", options=["Borrador", "Enviado", "Recibido"])}
+                        column_config={
+                            "Ver/Editar": st.column_config.CheckboxColumn("👁️ Ver"),
+                            "id": None, "estado": st.column_config.SelectboxColumn("Estado", options=["Borrador", "Enviado", "Recibido"])
+                        }
                     )
                     if st.button("💾 Guardar Estados de Pedidos"):
                         for _, r in ed_ped.iterrows():
                             client.table("pedidos_proveedores").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
                         st.rerun()
+                        
+                    # Mostrar detalle del pedido marcado
+                    filas_ped = ed_ped[ed_ped["Ver/Editar"] == True]
+                    if not filas_ped.empty:
+                        st.markdown("---")
+                        ped_id = filas_ped.iloc[0]['id']
+                        ped_data = df_ped[df_ped['id'] == ped_id].iloc[0]
+                        st.markdown(f"#### 🛒 Contenido del Borrador #{ped_id} ({ped_data['Proveedor']})")
+                        
+                        lista_prods_ped = ped_data.get('productos', [])
+                        df_prods_ped = pd.DataFrame(lista_prods_ped) if lista_prods_ped else pd.DataFrame(columns=["Producto", "Cantidad"])
+                        if 'Producto' not in df_prods_ped.columns: df_prods_ped['Producto'] = ""
+                        if 'Cantidad' not in df_prods_ped.columns: df_prods_ped['Cantidad'] = 1
+                        
+                        ed_prods_ped = st.data_editor(
+                            df_prods_ped, use_container_width=True, hide_index=True, num_rows="dynamic",
+                            column_config={"Producto": st.column_config.TextColumn("Producto a pedir"), "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1)}
+                        )
+                        
+                        if st.button("💾 Guardar Productos del Borrador"):
+                            client.table("pedidos_proveedores").update({"productos": json.loads(ed_prods_ped.to_json(orient='records'))}).eq("id", ped_id).execute()
+                            st.success("Borrador actualizado"); st.rerun()
         except:
             pass
 
