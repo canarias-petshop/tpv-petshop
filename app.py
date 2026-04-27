@@ -590,7 +590,7 @@ with tab3:
 
     with col_c2:
         st.markdown("#### 📋 Directorio de Clientes")
-        res_clientes = client.table("clientes").select("id, nombre_dueno, telefono, email, mascotas(nombre, especie)").order("created_at", desc=True).execute()
+        res_clientes = client.table("clientes").select("id, nombre_dueno, telefono, email, puntos, mascotas(nombre, especie)").order("created_at", desc=True).execute()
 
         if res_clientes.data:
             df_cli = pd.DataFrame(res_clientes.data)
@@ -600,7 +600,8 @@ with tab3:
                 return "Sin mascotas"
 
             df_cli['Mascotas Registradas'] = df_cli['mascotas'].apply(formatear_mascotas)
-            st.dataframe(df_cli[['nombre_dueno', 'telefono', 'email', 'Mascotas Registradas']],
+            st.dataframe(df_cli[['nombre_dueno', 'telefono', 'email', 'puntos', 'Mascotas Registradas']],
+                         column_config={"puntos": st.column_config.NumberColumn("Puntos VIP", format="%d")},
                          use_container_width=True, hide_index=True, height=250)
 
             st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
