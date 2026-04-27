@@ -1614,47 +1614,27 @@ with tab8:
                 df_fac['Cliente'] = df_fac['clientes'].apply(lambda x: x['nombre_dueno'] if x else '---')
                 df_vista = df_fac[['id', 'numero_factura', 'total_final', 'Cliente', 'forma_pago']].copy()
                 
-                # Insertamos las dos casillas al principio de la tabla
-                df_vista.insert(0, "Borrar", False)
+                # 🚨 LEY ANTIFRAUDE (VERI*FACTU): Prohibido borrar facturas emitidas
                 df_vista.insert(0, "Ver", False)
                 
                 ed_fac = st.data_editor(
                     df_vista, hide_index=True, use_container_width=True, key="ed_h_f", 
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver"), 
-                        "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"), 
                         "id": None
                     }
                 )
-                
-                # 1. SISTEMA DE BORRADO DIRECTO DESDE LA TABLA
-                filas_borrar_v = ed_fac[ed_fac["Borrar"] == True]
-                if not filas_borrar_v.empty:
-                    st.error(f"⚠️ Has marcado {len(filas_borrar_v)} factura(s) para eliminar. El stock de los artículos se devolverá automáticamente a la tienda.")
-                    if st.button("🚨 CONFIRMAR ELIMINACIÓN DE FACTURA(S)", type="primary", use_container_width=True):
-                        for idx, row in filas_borrar_v.iterrows():
-                            f_id = row['id']
-                            f_data = df_fac[df_fac['id'] == f_id].iloc[0]
-                            # Devolver stock
-                            for p in f_data.get('productos', []):
-                                res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
-                                if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
-                            # Eliminar registro
-                            client.table("facturas").delete().eq("id", f_id).execute()
-                        st.success("Factura(s) eliminada(s) correctamente."); time.sleep(1); st.rerun()
                 
                 st.markdown("---")
                 
                 # 2. SISTEMA DE GUARDADO DE CABECERA (Forma de pago)
                 if st.button(" 💾  Guardar Cambios en Forma de Pago"):
-                    # Solo guardamos las que no están marcadas para borrar
-                    filas_validas = ed_fac[ed_fac["Borrar"] == False]
-                    for idx, row in filas_validas.iterrows():
+                    for idx, row in ed_fac.iterrows():
                         client.table("facturas").update({"forma_pago": str(row['forma_pago'])}).eq("id", row['id']).execute()
                     st.success("Formas de pago actualizadas."); time.sleep(0.5); st.rerun()
 
                 # 3. SISTEMA DE DESGLOSE
-                filas = ed_fac[(ed_fac["Ver"] == True) & (ed_fac["Borrar"] == False)]
+                filas = ed_fac[(ed_fac["Ver"] == True)]
                 if not filas.empty:
                     f_id = filas.iloc[0]['id']
                     f_data = df_fac[df_fac['id'] == f_id].iloc[0]
