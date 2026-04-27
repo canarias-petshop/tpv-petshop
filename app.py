@@ -222,7 +222,7 @@ with tab2:
         </div>
     """, unsafe_allow_html=True)
 
-    col_busqueda, col_carrito = st.columns([1.1, 1], gap="small")
+    col_busqueda, col_carrito = st.columns([1, 1.4], gap="small")
     
     with col_busqueda:
         res_inv = client.table("productos").select("*").execute()
@@ -378,7 +378,7 @@ with tab2:
                         "Desc. %": st.column_config.NumberColumn("Desc. %", min_value=0, max_value=100, format="%d%%"),
                         "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True),
                     },
-                    hide_index=True, use_container_width=True, num_rows="dynamic", height=110, key="ed_car_ticket"
+                    hide_index=True, use_container_width=True, num_rows="dynamic", height=250, key="ed_car_ticket"
                 )
                 
                 if not edited_df.equals(df_car):
