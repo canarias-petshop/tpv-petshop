@@ -999,15 +999,17 @@ with tab4:
             df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda']].copy()
             
             # --- MAGIA TÁCTIL: Añadimos la columna Checkbox ---
+            df_vista.insert(0, "Borrar", False)
             df_vista.insert(0, "Ver", False)
             
-            st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir el desglose abajo. Haz doble clic en las celdas normales para corregirlas.*")
+            st.markdown("💡 *Marca **'👁️ Ver'** para abrir el desglose. Marca **'🗑️ Borrar'** para eliminar. Haz doble clic en las celdas normales para corregirlas.*")
             
             # 2. TABLA EDITABLE CON CASILLA
             edited_df = st.data_editor(
                 df_vista,
                 column_config={
                     "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False),
+                    "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
                     "id": st.column_config.NumberColumn("Nº", disabled=True, width="small"),
                     "Fecha": st.column_config.TextColumn("Fecha", disabled=True),
                     "total": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f"),
@@ -1021,11 +1023,30 @@ with tab4:
                 key="editor_tickets"
             )
             
+            # 2.5 SISTEMA DE BORRADO DE TICKETS (PARA PRUEBAS)
+            filas_borrar_tk = edited_df[edited_df["Borrar"] == True]
+            if not filas_borrar_tk.empty:
+                st.error(f"⚠️ Has marcado {len(filas_borrar_tk)} ticket(s) para eliminar. El stock se restaurará automáticamente (excepto artículos manuales).")
+                if st.button("🚨 CONFIRMAR ELIMINACIÓN", type="primary", use_container_width=True):
+                    for idx, row in filas_borrar_tk.iterrows():
+                        tk_id = row['id']
+                        tk_data = df_v[df_v['id'] == tk_id].iloc[0]
+                        # Devolver stock solo si el ticket no estaba ya DEVUELTO
+                        if str(tk_data.get('estado', '')).upper() != "DEVUELTO":
+                            for p in tk_data.get('productos', []):
+                                if not p.get('Manual', False) and 'id' in p:
+                                    res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                    if res_p.data:
+                                        client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
+                        # Eliminar registro
+                        client.table("ventas_historial").delete().eq("id", tk_id).execute()
+                    st.success("Ticket(s) eliminado(s) correctamente."); time.sleep(1); st.rerun()
+
             # 3. GUARDAR CORRECCIONES EN SUPABASE
             if st.button("💾 Guardar Correcciones de la Tabla", type="primary"):
-                # Ignoramos la columna 'Ver' para que no afecte a la base de datos
-                df_original = df_vista.drop(columns=["Ver"])
-                df_editado = edited_df.drop(columns=["Ver"])
+                # Ignoramos las columnas de acción para que no afecten a la base de datos
+                df_original = df_vista.drop(columns=["Ver", "Borrar"])
+                df_editado = edited_df.drop(columns=["Ver", "Borrar"])
                 diferencias = df_editado.compare(df_original)
                 if not diferencias.empty:
                     for idx in diferencias.index.tolist():
