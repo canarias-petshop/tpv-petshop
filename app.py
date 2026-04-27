@@ -404,8 +404,8 @@ with tab2:
                 // 4. Creamos el enlace añadiendo el parámetro 'back' obligatorio
                 var starURL = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
                 
-                // 5. Lanzamos la App de Star desde la ventana principal
-                window.top.location.href = starURL;
+                // 5. Lanzamos la App de Star (usamos window.location porque el iframe bloquea window.top)
+                window.location.href = starURL;
             }}
             </script>
             
