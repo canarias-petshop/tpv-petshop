@@ -1610,15 +1610,30 @@ with tab7:
         with cp1:
             st.markdown("#### ➕ Nuevo Proveedor")
             with st.form("n_prov_full", clear_on_submit=True):
+                st.markdown("**Datos Principales**")
                 n_emp = st.text_input("Nombre Empresa *")
-                n_cif = st.text_input("CIF / NIF")
-                n_tel = st.text_input("Teléfono Principal")
-                n_ema = st.text_input("Email Principal")
+                c_np1, c_np2 = st.columns(2)
+                with c_np1: n_cif = st.text_input("CIF / NIF")
+                with c_np2: n_tel = st.text_input("Teléfono Fijo")
+                
+                c_np3, c_np4 = st.columns(2)
+                with c_np3: n_mov = st.text_input("Móvil")
+                with c_np4: n_ema = st.text_input("Email")
+                
+                st.markdown("**Ubicación Rápida**")
+                n_dir = st.text_input("Dirección")
+                c_np5, c_np6 = st.columns(2)
+                with c_np5: n_pob = st.text_input("Población")
+                with c_np6: n_pais = st.text_input("País", value="España - Islas Canarias")
+                
                 if st.form_submit_button("Guardar Proveedor", use_container_width=True, type="primary"):
                     if n_emp:
                         client.table("proveedores").insert({
                             "nombre_empresa": n_emp, "cif": n_cif,
-                            "telefono": n_tel, "email": n_ema
+                            "telefono": n_tel, "movil": n_mov, "email": n_ema,
+                            "direccion": n_dir, "poblacion": n_pob, "pais": n_pais,
+                            "codigo_pais": "ES_CANARY" if "Canarias" in n_pais else "ES",
+                            "idioma": "Español"
                         }).execute()
                         st.success("Guardado"); time.sleep(0.5); st.rerun()
         with cp2:
@@ -1628,19 +1643,19 @@ with tab7:
                 df_p = pd.DataFrame(res_p.data)
                 
                 # Aseguramos que las nuevas columnas existan en el DataFrame (por si no has corrido el SQL aún)
-                for col in ['telefono', 'email', 'direccion', 'persona_contacto', 'iban', 'notas', 'contacto']:
+                for col in ['telefono', 'movil', 'email', 'direccion', 'poblacion', 'codigo_postal', 'provincia', 'pais', 'codigo_pais', 'idioma', 'forma_pago', 'persona_contacto', 'iban', 'swift', 'notas', 'contacto']:
                     if col not in df_p.columns: df_p[col] = ""
                     
-                df_p_vista = df_p[['id', 'nombre_empresa', 'telefono', 'email']].copy()
+                df_p_vista = df_p[['id', 'nombre_empresa', 'telefono', 'movil', 'email']].copy()
                 df_p_vista.insert(0, "Ver Ficha", False)
                 
                 st.markdown("💡 *Marca **'👁️ Ver Ficha'** para acceder a todos los datos de contacto y facturación.*")
                 
                 ed_p = st.data_editor(
-                    df_p_vista, hide_index=True, use_container_width=True, key="ed_prov", height=200,
+                    df_p_vista, hide_index=True, use_container_width=True, key="ed_prov", height=250,
                     column_config={
                         "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
-                        "id": None, "nombre_empresa": "Empresa", "telefono": "Teléfono", "email": "Email"
+                        "id": None, "nombre_empresa": "Empresa", "telefono": "Teléfono Fijo", "movil": "Móvil", "email": "Email"
                     }
                 )
                 
@@ -1649,7 +1664,7 @@ with tab7:
                         if pd.notna(row['id']):
                             client.table("proveedores").update({
                                 "nombre_empresa": str(row['nombre_empresa']),
-                                "telefono": str(row['telefono']), "email": str(row['email'])
+                                "telefono": str(row['telefono']), "movil": str(row['movil']), "email": str(row['email'])
                             }).eq("id", row['id']).execute()
                     st.success("Directorio actualizado."); time.sleep(0.5); st.rerun()
                     
@@ -1668,28 +1683,51 @@ with tab7:
                     st.caption(f"💾 *Información antigua registrada:* {p_data['contacto']}")
                 
                 with st.form(f"ficha_prov_{p_id}", border=True):
-                    cf1, cf2, cf3 = st.columns(3)
-                    with cf1: f_nom = st.text_input("Nombre Empresa", value=p_data.get('nombre_empresa',''))
+                    st.markdown("**1. Información Fiscal y de Contacto**")
+                    cf1, cf2, cf3 = st.columns([1.5, 1, 1])
+                    with cf1: f_nom = st.text_input("Nombre Empresa *", value=p_data.get('nombre_empresa',''))
                     with cf2: f_cif = st.text_input("CIF / NIF", value=p_data.get('cif',''))
                     with cf3: f_per = st.text_input("Persona de Contacto", value=p_data.get('persona_contacto',''))
                     
-                    cf4, cf5 = st.columns(2)
-                    with cf4: f_tel = st.text_input("Teléfonos (Principal y adicionales)", value=p_data.get('telefono',''))
-                    with cf5: f_ema = st.text_input("Emails", value=p_data.get('email',''))
+                    cf4, cf5, cf6 = st.columns(3)
+                    with cf4: f_tel = st.text_input("Teléfono Fijo", value=p_data.get('telefono',''))
+                    with cf5: f_mov = st.text_input("Móvil", value=p_data.get('movil',''))
+                    with cf6: f_ema = st.text_input("Email", value=p_data.get('email',''))
                     
+                    st.markdown("**2. Ubicación**")
                     f_dir = st.text_input("Dirección Completa", value=p_data.get('direccion',''))
                     
-                    cf6, cf7 = st.columns(2)
-                    with cf6: f_iban = st.text_input("Número de Cuenta (IBAN)", value=p_data.get('iban',''))
-                    with cf7: f_not = st.text_input("Fax / Otras Notas", value=p_data.get('notas',''))
+                    cf7, cf8, cf9 = st.columns(3)
+                    with cf7: f_pob = st.text_input("Población", value=p_data.get('poblacion',''))
+                    with cf8: f_cp = st.text_input("Código Postal", value=p_data.get('codigo_postal',''))
+                    with cf9: f_prov = st.text_input("Provincia", value=p_data.get('provincia',''))
+                    
+                    cf10, cf11, cf12 = st.columns(3)
+                    with cf10: f_pais = st.text_input("País", value=p_data.get('pais',''))
+                    with cf11: f_cod_pais = st.text_input("Código País", value=p_data.get('codigo_pais',''))
+                    with cf12: f_idioma = st.text_input("Idioma", value=p_data.get('idioma',''))
+                    
+                    st.markdown("**3. Facturación y Notas**")
+                    cf13, cf14, cf15 = st.columns([1, 1.5, 1])
+                    with cf13: f_fpago = st.text_input("Forma de Pago", value=p_data.get('forma_pago',''))
+                    with cf14: f_iban = st.text_input("IBAN", value=p_data.get('iban',''))
+                    with cf15: f_swift = st.text_input("SWIFT", value=p_data.get('swift',''))
+                    
+                    f_not = st.text_area("Fax / Otras Notas / Observaciones", value=p_data.get('notas',''))
                     
                     if st.form_submit_button("💾 Guardar Ficha Completa", type="primary", use_container_width=True):
-                        client.table("proveedores").update({
-                            "nombre_empresa": f_nom, "cif": f_cif, "persona_contacto": f_per,
-                            "telefono": f_tel, "email": f_ema, "direccion": f_dir,
-                            "iban": f_iban, "notas": f_not, "contacto": "" # Borramos la línea antigua ya que se ha organizado
-                        }).eq("id", p_id).execute()
-                        st.success("Ficha del proveedor actualizada correctamente."); time.sleep(0.5); st.rerun()
+                        if f_nom:
+                            client.table("proveedores").update({
+                                "nombre_empresa": f_nom, "cif": f_cif, "persona_contacto": f_per,
+                                "telefono": f_tel, "movil": f_mov, "email": f_ema, "direccion": f_dir,
+                                "poblacion": f_pob, "codigo_postal": f_cp, "provincia": f_prov,
+                                "pais": f_pais, "codigo_pais": f_cod_pais, "idioma": f_idioma,
+                                "forma_pago": f_fpago, "iban": f_iban, "swift": f_swift, "notas": f_not, 
+                                "contacto": "" # Borramos la línea antigua ya que se ha organizado
+                            }).eq("id", p_id).execute()
+                            st.success("Ficha del proveedor actualizada correctamente."); time.sleep(0.5); st.rerun()
+                        else:
+                            st.error("El nombre de la empresa es obligatorio.")
 
     with sub_pedidos:
         st.markdown("#### 📦 Borrador de Pedidos a Proveedores")
