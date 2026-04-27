@@ -30,10 +30,8 @@ def test_database_schema(client):
     print("\n--- 🔍 Test 2: Verificación de Columnas Críticas ---")
     st.subheader("🔍 Test 2: Verificación de Columnas Críticas")
     tablas_a_revisar = {
-        "facturas": ["descuento_global", "total_final", "productos"],
-        "compras": ["descuento_pp", "productos"],
-        "ventas_historial": ["pago_efectivo", "pago_tarjeta", "pago_bizum"]
-    }
+        "facturas": ["descuento_global", "total_final", "productos"odu
+        "ventas_historial": ["pago_efectivo", "p
     
     for tabla, columnas in tablas_a_revisar.items():
         try:

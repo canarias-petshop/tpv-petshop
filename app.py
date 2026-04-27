@@ -508,7 +508,9 @@ with tab2:
                                 "pago_tarjeta": float(p_tarjeta),
                                 "pago_bizum": float(p_bizum),
                                 "hash_anterior": h_ant,
-                                "hash_actual": h_act
+                                "hash_actual": h_act,
+                                "qr_verifactu": "",
+                                "estado_hacienda": "Pendiente"
                             }).execute()
                             
                             for i in carrito_limpio:
@@ -1502,7 +1504,9 @@ with tab8:
                         "cliente_id": c_id, "total_neto": float(total_v_final), "total_igic": 0.0, "total_final": float(total_v_final),
                         "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp,
                         "hash_anterior": h_ant_f,
-                        "hash_actual": h_act_f
+                        "hash_actual": h_act_f,
+                        "qr_verifactu": "",
+                        "estado_hacienda": "Pendiente"
                     }).execute()
                     for i in st.session_state.factura_v_temp:
                         res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
