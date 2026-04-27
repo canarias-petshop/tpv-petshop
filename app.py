@@ -338,6 +338,7 @@ with tab2:
                     38009 S/C de Tenerife
                     <br><br>
                     <div style="text-align: left;">Fecha: {t['fecha']}</div>
+                    {f'<div style="text-align: left;">Cliente: {t["cliente"]}</div>' if t.get('cliente') else ''}
                     <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
                     <table style="width: 100%; font-size: 12px; text-align: left;">
             """
@@ -346,10 +347,14 @@ with tab2:
             for p in t['productos']:
                 html_ticket += f"<tr><td>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right;'>{p['Subtotal']:.2f}€</td></tr>"
 
+            if t.get('descuento_puntos', 0) > 0:
+                html_ticket += f"<tr><td>Canjeo VIP</td><td style='text-align: right;'>-{t['descuento_puntos']:.2f}€</td></tr>"
+
             html_ticket += f"""
                     </table>
                     <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
                     <div style="text-align: right; font-size: 14px;"><b>TOTAL: {t['total']:.2f}€</b></div>
+                    {f'<hr style="border-top: 1px dashed #000; margin: 5px 0px;"><div style="text-align: center; font-size: 11px;">🌟 Puntos ganados: +{t["puntos_ganados"]} | Saldo VIP: {t["saldo_puntos"]}</div>' if t.get('puntos_ganados') is not None else ''}
                 </div>
             </div>
 
@@ -408,7 +413,39 @@ with tab2:
                 sub_antes = edited_df["Subtotal"].sum()
                 desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=0, step=1)
                 total_f = sub_antes * (1 - desc_g / 100)
+                total_f_parcial = sub_antes * (1 - desc_g / 100)
                 
+                # --- NUEVO: SELECTOR DE CLIENTE Y PUNTOS VIP ---
+                res_cli = client.table("clientes").select("id, nombre_dueno, telefono, puntos").execute()
+                df_cli = pd.DataFrame(res_cli.data) if res_cli.data else pd.DataFrame()
+                
+                cliente_sel = None
+                puntos_disponibles = 0
+                puntos_a_usar = 0
+                descuento_puntos = 0.0
+                
+                if not df_cli.empty:
+                    opc_cli = df_cli.apply(lambda x: f"{x['nombre_dueno']} - {x.get('telefono', '')}", axis=1).tolist()
+                    cli_elegido = st.selectbox("👤 Cliente (Puntos VIP / Deuda):", ["Anónimo / Mostrador"] + opc_cli)
+                    
+                    if cli_elegido != "Anónimo / Mostrador":
+                        nombre_c = cli_elegido.split(" - ")[0]
+                        cliente_sel = df_cli[df_cli['nombre_dueno'] == nombre_c].iloc[0]
+                        puntos_disponibles = int(cliente_sel.get('puntos', 0) or 0)
+                        
+                        if puntos_disponibles > 0:
+                            st.markdown(f"<p style='color:#005275; font-size:13px; margin-bottom:5px;'>🌟 El cliente tiene <b>{puntos_disponibles} puntos</b> (10 pts = 1€)</p>", unsafe_allow_html=True)
+                            max_pts = int(min(puntos_disponibles, (total_f_parcial * 0.5) * 10)) # Max 50% del ticket
+                            if max_pts > 0:
+                                usar_pts = st.checkbox(f"Canjear puntos (Máximo {max_pts} pts = {max_pts/10:.2f}€)")
+                                if usar_pts:
+                                    puntos_a_usar = st.number_input("¿Cuántos puntos canjear?", min_value=1, max_value=max_pts, value=max_pts)
+                                    descuento_puntos = puntos_a_usar / 10.0
+                        else:
+                            st.markdown("<p style='color:gray; font-size:12px; margin-bottom:5px;'>🌟 El cliente aún no tiene puntos.</p>", unsafe_allow_html=True)
+
+                total_f = total_f_parcial - descuento_puntos
+
                 st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
                 metodo = st.radio("p", ["Efectivo", "Tarjeta", "Bizum", "Mixto"], horizontal=True, label_visibility="collapsed")
@@ -450,7 +487,10 @@ with tab2:
 
                 nombre_deudor = ""
                 if pendiente > 0:
-                    nombre_deudor = st.text_input("👤 Nombre para la deuda:", placeholder="¿Quién debe?")
+                    if cliente_sel is not None:
+                        nombre_deudor = st.text_input("👤 Nombre para la deuda:", value=cliente_sel['nombre_dueno'])
+                    else:
+                        nombre_deudor = st.text_input("👤 Nombre para la deuda:", placeholder="¿Quién debe?")
 
                 st.markdown("<div style='height: 2px;'></div>", unsafe_allow_html=True)
                 c_cob, c_vac = st.columns([2, 1])
@@ -478,9 +518,21 @@ with tab2:
                                         n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
                                         client.table("productos").update({"stock_actual": n_stock}).eq("nombre", i['Producto']).execute()
                             
+                            # --- ACTUALIZAR PUNTOS VIP ---
+                            puntos_ganados = 0
+                            saldo_final_puntos = 0
+                            if cliente_sel is not None:
+                                puntos_ganados = int(total_f) # 1 punto por euro gastado
+                                saldo_final_puntos = puntos_disponibles - puntos_a_usar + puntos_ganados
+                                client.table("clientes").update({"puntos": saldo_final_puntos}).eq("id", str(cliente_sel['id'])).execute()
+
                             st.session_state.ticket_actual = {
                                 "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                                "productos": carrito_limpio, "total": total_f, "metodo": metodo_log
+                                "productos": carrito_limpio, "total": total_f, "metodo": metodo_log,
+                                "cliente": cliente_sel['nombre_dueno'] if cliente_sel is not None else None,
+                                "descuento_puntos": descuento_puntos,
+                                "puntos_ganados": puntos_ganados if cliente_sel is not None else None,
+                                "saldo_puntos": saldo_final_puntos if cliente_sel is not None else None
                             }
                             st.session_state.carrito = []
                             st.rerun()
