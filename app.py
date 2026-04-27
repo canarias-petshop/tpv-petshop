@@ -608,7 +608,7 @@ with tab3:
         sub_cli, sub_masc = st.tabs(["👤 Directorio de Dueños", "🐾 Fichas de Mascotas"])
         
         with sub_cli:
-            res_clientes = client.table("clientes").select("*").order("created_at", desc=True).execute()
+            res_clientes = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).execute()
             if res_clientes.data:
                 df_cli = pd.DataFrame(res_clientes.data)
                 
@@ -623,23 +623,58 @@ with tab3:
                         df_cli_vista['telefono'].astype(str).str.contains(b_cli, na=False)
                     ]
                 
+                df_cli_vista.insert(0, "Ver", False)
+                st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir la ficha del cliente y ver sus mascotas.*")
+                
                 ed_cli = st.data_editor(
                     df_cli_vista,
-                    column_config={"id": None, "nombre_dueno": "Nombre Dueño", "telefono": "Teléfono", "email": "Email", "fecha_nacimiento": "F. Nacimiento"},
+                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "nombre_dueno": "Nombre Dueño", "telefono": "Teléfono", "email": "Email", "fecha_nacimiento": "F. Nacimiento"},
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_clientes", height=250
                 )
                 if st.button("💾 Guardar Cambios en Dueños", type="primary"):
-                    ids_actuales = ed_cli['id'].dropna().tolist()
+                    ed_cli_clean = ed_cli.drop(columns=["Ver"])
+                    ids_actuales = ed_cli_clean['id'].dropna().tolist()
                     ids_orig = df_cli_vista['id'].tolist()
                     for id_b in [i for i in ids_orig if i not in ids_actuales]: client.table("clientes").delete().eq("id", id_b).execute()
                     
-                    for _, row in ed_cli.iterrows():
+                    for _, row in ed_cli_clean.iterrows():
                         if pd.notna(row['id']):
                             client.table("clientes").update({
                                 "nombre_dueno": str(row['nombre_dueno']), "telefono": str(row['telefono']),
                                 "email": str(row['email']), "fecha_nacimiento": str(row['fecha_nacimiento'])
                             }).eq("id", row['id']).execute()
                     st.success("Directorio de dueños actualizado."); time.sleep(0.5); st.rerun()
+                    
+                st.markdown("---")
+                
+                # --- FICHA COMPLETA DEL DUEÑO Y SUS MASCOTAS ---
+                filas_c_marcadas = ed_cli[ed_cli["Ver"] == True]
+                if not filas_c_marcadas.empty:
+                    c_id = filas_c_marcadas.iloc[0]['id']
+                    c_data = df_cli[df_cli['id'] == c_id].iloc[0]
+                    c_nombre = c_data['nombre_dueno']
+                    
+                    st.markdown(f"#### 📖 Ficha de Dueño: **{c_nombre}**")
+                    
+                    mascotas_lista = c_data.get('mascotas', [])
+                    if isinstance(mascotas_lista, list) and len(mascotas_lista) > 0:
+                        df_mc = pd.DataFrame(mascotas_lista)
+                        if 'fecha_nacimiento' not in df_mc.columns: df_mc['fecha_nacimiento'] = ""
+                        df_mc['Edad'] = df_mc['fecha_nacimiento'].apply(calcular_edad)
+                        
+                        cols_ok = ['nombre', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'observaciones']
+                        for col in cols_ok:
+                            if col not in df_mc.columns: df_mc[col] = ""
+                            
+                        df_mc_show = df_mc[cols_ok].rename(columns={
+                            "nombre": "Nombre Mascota", "especie": "Especie", "raza": "Raza", 
+                            "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones"
+                        })
+                        
+                        st.dataframe(df_mc_show, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Este cliente no tiene mascotas registradas.")
+                        
             else: st.info("No hay dueños registrados.")
 
             st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
