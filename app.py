@@ -7,40 +7,16 @@ import json
 import urllib.parse
 import streamlit.components.v1 as components
 import re
-import hashlib
 
 # --- 1. CONFIGURACIÓN Y ESTILO ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
 
 st.markdown("""
     <style>
-        /* 1. Ajuste del contenedor para aprovechar el ancho sin aplastar */
-        .block-container { padding-top: 2rem !important; padding-bottom: 2rem !important; max-width: 98% !important; }
-        
-        /* 2. Textos y etiquetas más legibles en tablet */
-        p, .stMarkdown, div[data-testid="stMarkdownContainer"] { font-size: 1.1rem !important; }
-        label { font-size: 1.15rem !important; font-weight: 500 !important; }
-        
-        /* 3. Cuadros de texto y números más grandes para escribir fácil */
-        input, select { font-size: 1.15rem !important; }
-        .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: 5px !important; }
-        
-        /* 4. Botones grandes, gruesos y fáciles de pulsar con el dedo */
-        .stButton > button {
-            min-height: 60px !important;
-            font-size: 1.2rem !important;
-            font-weight: bold !important;
-        }
-
-        /* 5. Pestañas principales más grandes */
-        button[data-baseweb="tab"] {
-            font-size: 1.15rem !important;
-            padding-top: 15px !important;
-            padding-bottom: 15px !important;
-        }
-        
-        /* 6. Espaciado entre columnas (quitamos el estrechamiento) */
-        [data-testid="column"] { padding: 0 12px !important; }
+        .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
+        .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: -10px !important; }
+        [data-testid="column"] { padding: 0 5px !important; }
+        [data-testid="stTabs"] { margin-top: -15px !important; }
         
         /* Ocultar Streamlit */
         [data-testid="stHeader"], [data-testid="stFooter"], footer, 
@@ -75,37 +51,12 @@ if not st.session_state.acceso_concedido:
 
 # --- 4. CONEXIÓN A SUPABASE ---
 try:
-    # Limpieza extrema por si se han colado espacios, comillas o rutas duplicadas en la nube
-    raw_url = st.secrets['url'].strip().strip('"').strip("'").rstrip('/')
-    if raw_url.endswith('/rest/v1'):
-        api_url = raw_url
-    else:
-        api_url = f"{raw_url}/rest/v1"
-        
-    api_key = st.secrets['key'].strip().strip('"').strip("'")
-
     client = SyncPostgrestClient(
-        api_url, 
-        headers={"apikey": api_key, "Authorization": f"Bearer {api_key}"}
+        f"{st.secrets['url']}/rest/v1", 
+        headers={"apikey": st.secrets['key'], "Authorization": f"Bearer {st.secrets['key']}"}
     )
-    # Test de conexión rápido para atrapar fallos de credenciales o tablas faltantes
-    client.table("proveedores").select("id").limit(1).execute()
 except Exception as e:
-    st.error("🚨 **Error de Conexión a la Base de Datos**")
-    if "relation" in str(e) and "does not exist" in str(e):
-        st.error("🛠️ **Diagnóstico:** Tu app se conectó a Supabase, pero la tabla no existe. Parece que la base de datos está vacía.")
-        st.info("💡 **Solución:** Entra en tu panel de Supabase, ve a 'SQL Editor' y ejecuta el código para crear las tablas del proyecto.")
-    else:
-        st.error(f"Detalle técnico: {e}")
-    st.stop()
-
-# --- 4.5. MÓDULO DE SEGURIDAD VERI*FACTU ---
-def generar_hash_verifactu(tipo_doc, fecha, importe_total, hash_anterior):
-    """Genera el hash SHA-256 encadenado según directrices de la normativa."""
-    hash_ant = hash_anterior if hash_anterior else ""
-    cadena = f"{tipo_doc}|{fecha}|{importe_total:.2f}|{hash_ant}"
-    huella = hashlib.sha256(cadena.encode('utf-8')).hexdigest()
-    return huella.upper()
+    st.error("Error de conexión"); st.stop()
 
 # --- CABECERA COMPACTA ---
 c_logo, c_titulo = st.columns([0.08, 0.92], vertical_alignment="center")
@@ -135,54 +86,32 @@ with tab1:
 
     with col_f:
         st.markdown("#### 📝 Alta de nuevo ítem")
-        cat_item = st.radio("Selecciona qué vas a registrar:", ["Producto", "Servicio"], horizontal=True)
-        
         with st.form("nuevo_p_separado", clear_on_submit=True, border=True):
-            nombre = st.text_input(f"Nombre del {cat_item} *")
-            c1, c2 = st.columns(2)
+            nombre = st.text_input("Nombre del Producto/Servicio *")
+            c1, c2, c3 = st.columns(3)
             with c1: sku = st.text_input("SKU (Interno) *")
-            with c2: 
-                if cat_item == "Producto":
-                    cod_barras = st.text_input("Cód. Barras")
-                else:
-                    cod_barras = ""
+            with c2: cod_barras = st.text_input("Cód. Barras")
+            with c3: cat = st.selectbox("Categoría *", ["Producto", "Servicio"])
             
-            if cat_item == "Producto":
-                c4, c5 = st.columns(2, vertical_alignment="bottom")
-                with c4: p_base = st.number_input("Coste Compra (€)", min_value=0.0, format="%.2f", value=None)
-                with c5: igic_tipo = st.selectbox("IGIC Compra %", [7.00, 0.00, 3.00, 15.00])
-                
-                c6, c7 = st.columns(2, vertical_alignment="bottom")
-                with c6: pvp = st.number_input("PVP Público (€) *", min_value=0.0, format="%.2f", value=None)
-                with c7: stck = st.number_input("Stock Inicial", min_value=0, value=None)
-                provs_sel = st.multiselect("Asociar Proveedores", list(dict_proveedores.keys()))
-            else:
-                c4, c5 = st.columns(2, vertical_alignment="bottom")
-                with c4: pvp = st.number_input("Precio Cerrado (€) *", min_value=0.0, format="%.2f", value=None)
-                with c5: igic_tipo = st.selectbox("IGIC (%)", [7.00, 0.00, 3.00, 15.00])
-                p_base = 0.0
-                stck = 0
-                provs_sel = []
-                st.info("💡 El sistema desglosará automáticamente la Base Imponible y la cuota de IGIC en la tabla.")
+            c4, c5 = st.columns(2)
+            with c4: p_base = st.number_input("Base Compra (€)", min_value=0.0, format="%.2f")
+            with c5: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
+            
+            c6, c7 = st.columns(2)
+            with c6: pvp = st.number_input("PVP Venta (€)", min_value=0.0, format="%.2f")
+            with c7: stck = st.number_input("Stock Inicial", min_value=0)
+            
+            provs_sel = st.multiselect("Asociar Proveedores", list(dict_proveedores.keys()))
             
             if st.form_submit_button("💾 REGISTRAR", use_container_width=True, type="primary"):
-                pvp_val = pvp if pvp is not None else 0.0
-                p_base_val = p_base if p_base is not None else 0.0
-                stck_val = stck if stck is not None else 0
-                
                 if nombre and sku:
-                    if cat_item == "Servicio":
-                        p_base_calc = pvp_val / (1 + (igic_tipo / 100))
-                    else:
-                        p_base_calc = p_base_val
-
                     res_ins = client.table("productos").insert({
-                        "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": cat_item,
-                        "precio_base": p_base_calc, "igic_tipo": igic_tipo, 
-                        "stock_actual": stck_val, "precio_pvp": pvp_val
+                        "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": cat,
+                        "precio_base": p_base, "igic_tipo": igic_tipo, 
+                        "stock_actual": stck if cat == "Producto" else 0, "precio_pvp": pvp
                     }).execute()
-                    if cat_item == "Producto" and res_ins.data and provs_sel:
-                        rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base_calc} for p in provs_sel]
+                    if res_ins.data and provs_sel:
+                        rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base} for p in provs_sel]
                         client.table("productos_proveedores").insert(rels).execute()
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
@@ -195,36 +124,9 @@ with tab1:
                 # --- 1. LIMPIEZA DE DATOS ---
                 df_inv['categoria_filt'] = df_inv['categoria'].fillna('Producto').astype(str).str.strip().str.capitalize()
 
-                df_solo_productos = df_inv[df_inv['categoria_filt'] == 'Producto'].copy()
-
-                # --- ALERTA DE STOCK BAJO ---
-                df_bajo_stock = df_solo_productos[df_solo_productos['stock_actual'] <= 2].sort_values(by="stock_actual")
-                if not df_bajo_stock.empty:
-                    st.warning(f"⚠️ **ATENCIÓN: Tienes {len(df_bajo_stock)} producto(s) bajo mínimos (2 unidades o menos).**")
-                    with st.expander("👀 Ver lista de productos para reponer"):
-                        st.dataframe(df_bajo_stock[['sku', 'nombre', 'stock_actual']], hide_index=True, use_container_width=True)
-                        
-                        # --- INTEGRACIÓN CON PEDIDOS A PROVEEDORES ---
-                        res_borradores = client.table("pedidos_proveedores").select("id, proveedores(nombre_empresa)").eq("estado", "Borrador").execute()
-                        if res_borradores.data:
-                            opciones_borrador = {f"Borrador #{b['id']} - {b['proveedores']['nombre_empresa']}": b['id'] for b in res_borradores.data if b.get('proveedores')}
-                            c_ped1, c_ped2 = st.columns([2, 1])
-                            with c_ped1: prods_a_pedir = st.multiselect("Selecciona productos para añadir a un pedido:", df_bajo_stock['nombre'].tolist())
-                            with c_ped2:
-                                borrador_sel = st.selectbox("Selecciona el Borrador:", list(opciones_borrador.keys()))
-                                if st.button("➕ Añadir al Borrador", use_container_width=True) and prods_a_pedir and borrador_sel:
-                                    draft_id = opciones_borrador[borrador_sel]
-                                    prods_actuales = client.table("pedidos_proveedores").select("productos").eq("id", draft_id).execute().data[0].get('productos', [])
-                                    for p_nom in prods_a_pedir:
-                                        if not any(item.get('Producto') == p_nom for item in prods_actuales):
-                                            prods_actuales.append({"Producto": p_nom, "Cantidad": 1})
-                                    client.table("pedidos_proveedores").update({"productos": prods_actuales}).eq("id", draft_id).execute()
-                                    st.success("¡Añadidos al borrador! Ve a la Pestaña 7 para gestionarlo.")
-                        else:
-                            st.info("💡 Ve a la Pestaña 7 (Proveedores) para crear un Borrador de Pedido y añadir estos productos.")
-
                 # --- TABLA DE PRODUCTOS MEJORADA ---
                 st.markdown("#### 📦 Inventario de Productos")
+                df_solo_productos = df_inv[df_inv['categoria_filt'] == 'Producto'].copy()
 
                 # Ahora permitimos borrar filas con num_rows="dynamic"
                 edit_p = st.data_editor(
@@ -232,8 +134,8 @@ with tab1:
                     column_config={
                         "id": None, "categoria": None, "categoria_filt": None,
                         "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
-                        "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f"),
-                        "igic_tipo": "IGIC Compra %", "precio_pvp": "PVP Venta (€)", "stock_actual": "Stock"
+                        "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
+                        "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock"
                     },
                     column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
                     hide_index=True, 
@@ -267,9 +169,6 @@ with tab1:
                 # --- TABLA DE SERVICIOS MEJORADA ---
                 st.markdown("#### ✂️ Catálogo de Servicios")
                 df_solo_servicios = df_inv[df_inv['categoria_filt'] == 'Servicio'].copy()
-                
-                # Añadimos la columna calculada de Cuota de IGIC para mostrar el desglose
-                df_solo_servicios['Cuota IGIC (€)'] = df_solo_servicios['precio_pvp'] - df_solo_servicios['precio_base']
 
                 # Habilitamos num_rows="dynamic" para que puedas borrar servicios
                 edit_s = st.data_editor(
@@ -277,12 +176,10 @@ with tab1:
                     column_config={
                         "id": None, "categoria": None, "categoria_filt": None,
                         "sku": "Código", "nombre": "Descripción del Servicio",
-                        "precio_base": st.column_config.NumberColumn("Base Real sin IGIC (€)", format="%.2f", disabled=True),
-                        "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[7.0, 0.0, 3.0, 15.0]),
-                        "Cuota IGIC (€)": st.column_config.NumberColumn("Cuota IGIC (€)", format="%.2f", disabled=True),
-                        "precio_pvp": st.column_config.NumberColumn("Precio Cerrado (PVP) (€)", format="%.2f")
+                        "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
+                        "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)"
                     },
-                    column_order=["sku", "nombre", "precio_base", "igic_tipo", "Cuota IGIC (€)", "precio_pvp"],
+                    column_order=["sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
                     hide_index=True, 
                     use_container_width=True, 
                     num_rows="dynamic", # <--- PERMITE BORRAR FILAS DE SERVICIOS
@@ -302,18 +199,15 @@ with tab1:
                     # 3. Actualizar o guardar los cambios en los servicios que quedan
                     for i, row in edit_s.iterrows():
                         if pd.notna(row['id']):
-                            # Recalculamos la base real de forma automática si cambiaste el PVP o el IGIC en la tabla
-                            nuevo_pvp = float(row['precio_pvp'])
-                            nuevo_igic = float(row['igic_tipo'])
-                            nueva_base = nuevo_pvp / (1 + (nuevo_igic / 100))
-                            
-                            client.table("productos").update({
-                                "sku": str(row['sku']), "nombre": str(row['nombre']),
-                                "precio_pvp": nuevo_pvp, "igic_tipo": nuevo_igic, "precio_base": nueva_base
-                            }).eq("id", row['id']).execute()
+                            datos_s = row.to_dict()
+                            # Quitamos la columna temporal para que Supabase no dé error
+                            if 'categoria_filt' in datos_s: del datos_s['categoria_filt']
+                            client.table("productos").update(datos_s).eq("id", row['id']).execute()
 
                     st.success("Catálogo de servicios actualizado")
                     st.rerun()
+                else:
+                    st.info("No hay servicios registrados.")
             else:
                 st.info("Inventario vacío.")
 
@@ -328,13 +222,13 @@ with tab2:
         </div>
     """, unsafe_allow_html=True)
 
-    col_busqueda, col_carrito = st.columns([1, 1.4], gap="small")
+    col_busqueda, col_carrito = st.columns([1.1, 1], gap="small")
     
     with col_busqueda:
         res_inv = client.table("productos").select("*").execute()
         df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
         
-        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>🔍 Buscar producto o servicio</p>", unsafe_allow_html=True)
+        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>🔍 Buscar Producto</p>", unsafe_allow_html=True)
         if not df_inv.empty:
             opciones = df_inv.apply(lambda x: f"{x['nombre']} | {x['precio_pvp']}€", axis=1).tolist()
             prod_sel = st.selectbox("s1", opciones, index=None, placeholder="Escribe para buscar...", label_visibility="collapsed", key="sb_n")
@@ -347,7 +241,7 @@ with tab2:
                 with c2: 
                     if st.button("➕ Añadir", use_container_width=True, type="primary", key="btn_b"):
                         st.session_state.carrito.append({
-                            "id": str(fila_p['id']), "Producto": fila_p['nombre'], "Cantidad": cant, "Precio": fila_p['precio_pvp'],
+                            "Producto": fila_p['nombre'], "Cantidad": cant, "Precio": fila_p['precio_pvp'],
                             "Subtotal": cant * float(fila_p['precio_pvp']), "IGIC": fila_p.get('igic_tipo', 7), "Manual": False
                         })
                         st.rerun()
@@ -368,21 +262,21 @@ with tab2:
             if not coincid.empty:
                 fila_pist = coincid.iloc[0]
                 st.session_state.carrito.append({
-                    "id": str(fila_pist['id']), "Producto": fila_pist['nombre'], "Cantidad": cant_p, "Precio": fila_pist['precio_pvp'],
+                    "Producto": fila_pist['nombre'], "Cantidad": cant_p, "Precio": fila_pist['precio_pvp'],
                     "Subtotal": cant_p * float(fila_pist['precio_pvp']), "IGIC": fila_pist.get('igic_tipo', 7), "Manual": False
                 })
                 st.session_state.limpiar_codigo = True; st.rerun()
 
         st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>✍️ Artículo manual</p>", unsafe_allow_html=True)
+        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>✍️ Artículo Manual</p>", unsafe_allow_html=True)
         with st.form("f_man", clear_on_submit=True, border=False):
             cm1, cm2, cm3 = st.columns([1.3, 1, 1]) 
-            with cm1: m_nom = st.text_input("Artículo", placeholder="Nombre...", label_visibility="visible")
-            with cm2: m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", value=None, label_visibility="visible")
+            with cm1: m_nom = st.text_input("Producto", placeholder="Nombre...", label_visibility="visible")
+            with cm2: m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", label_visibility="visible")
             with cm3: m_can = st.number_input("Cant.", min_value=1, value=1, label_visibility="visible")
             if st.form_submit_button("➕ Añadir Manual al Carrito", use_container_width=True):
-                if m_nom and m_pre is not None and m_pre >= 0:
+                if m_nom and m_pre > 0:
                     st.session_state.carrito.append({
                         "Producto": m_nom, "Cantidad": m_can, "Precio": m_pre,
                         "Subtotal": m_can * float(m_pre), "IGIC": 0, "Manual": True
@@ -419,37 +313,26 @@ with tab2:
             </div>
 
             <div id="ticket-impresion">
-                <div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
-                    <b style="font-size: 34px;">ANIMALARIUM</b><br>
+                <div style="text-align: center; font-family: monospace; width: 300px; font-size: 12px; color: black;">
+                    <b style="font-size: 16px;">ANIMALARIUM</b><br>
                     Raquel Trujillo Hernández<br>
                     DNI: 78854854K<br>
                     C/ José Hernández Alfonso, 26<br>
                     38009 S/C de Tenerife
                     <br><br>
-                    <div style="text-align: left; font-size: 22px;">Fecha: {t['fecha']}</div>
-                    <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
-                    <table style="width: 100%; font-size: 22px; text-align: left; font-weight: bold;">
+                    <div style="text-align: left;">Fecha: {t['fecha']}</div>
+                    <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
+                    <table style="width: 100%; font-size: 12px; text-align: left;">
             """
             
             # Bucle para meter los productos (No tocar la identación aquí)
             for p in t['productos']:
-                html_ticket += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
+                html_ticket += f"<tr><td>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right;'>{p['Subtotal']:.2f}€</td></tr>"
 
             html_ticket += f"""
                     </table>
-                    <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
-                    <div style="text-align: right; font-size: 28px;"><b>TOTAL: {t['total']:.2f}€</b></div>
-"""
-            if t.get('cliente_fidel'):
-                html_ticket += f"<div style='font-size:18px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {t['cliente_fidel']}</b><br>Has ganado +{t['puntos_ganados']} puntos hoy!</div>"
-
-            html_ticket += f"""
-                    
-                    <div style="font-size: 18px; color: #000; margin-top: 30px; text-align: center;">
-                        <b>POLÍTICA DE DEVOLUCIÓN</b><br>
-                        Plazo de 14 días con ticket y<br>
-                        embalaje original en perfecto estado.
-                    </div>
+                    <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
+                    <div style="text-align: right; font-size: 14px;"><b>TOTAL: {t['total']:.2f}€</b></div>
                 </div>
             </div>
 
@@ -458,25 +341,13 @@ with tab2:
                 // 1. Obtenemos el diseño del ticket
                 var ticketHTML = document.getElementById('ticket-impresion').innerHTML;
                 
-                // 1.5. ENVOLVEMOS EL TICKET EN UN HTML COMPLETO PARA EVITAR ERROR 011
-                var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
-                
                 // 2. Lo codificamos para que pueda viajar por la URL
-                var htmlCodificado = encodeURIComponent(fullHTML);
+                var htmlCodificado = encodeURIComponent(ticketHTML);
                 
-                // 3. Obtenemos la URL REAL de tu TPV usando un "ancla" (#) para evitar la recarga de Streamlit
-                var urlRetorno = "https://google.com"; // Retorno de emergencia para evitar error E002
-                try {{
-                    if (window.top.location.href && window.top.location.href !== "about:blank") {{
-                        var baseUrl = window.top.location.href.split('#')[0];
-                        urlRetorno = baseUrl + "#impreso";
-                    }}
-                }} catch(e) {{}}
+                // 3. Creamos el enlace mágico (nopreview = imprime directo sin preguntar)
+                var starURL = "starpassprnt://v1/print/nopreview?html=" + htmlCodificado;
                 
-                // 4. Creamos el enlace añadiendo el parámetro 'back' obligatorio
-                var starURL = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
-                
-                // 5. Lanzamos la App de Star
+                // 4. Lanzamos la App de Star
                 window.location.href = starURL;
             }}
             </script>
@@ -507,7 +378,7 @@ with tab2:
                         "Desc. %": st.column_config.NumberColumn("Desc. %", min_value=0, max_value=100, format="%d%%"),
                         "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True),
                     },
-                    hide_index=True, use_container_width=True, num_rows="dynamic", height=250, key="ed_car_ticket"
+                    hide_index=True, use_container_width=True, num_rows="dynamic", height=110, key="ed_car_ticket"
                 )
                 
                 if not edited_df.equals(df_car):
@@ -518,34 +389,8 @@ with tab2:
                 st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
                 sub_antes = edited_df["Subtotal"].sum()
-                
-                # --- FIDELIZACIÓN ---
-                res_cli_puntos = client.table("clientes").select("id, nombre_dueno, puntos").execute()
-                opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} (Puntos: {c.get('puntos') or 0})" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
-                
-                c_desc, c_fid = st.columns(2)
-                with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=None, step=1)
-                with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli)
-                total_f = sub_antes * (1 - (desc_g or 0) / 100)
-                
-                # --- LÓGICA DE CANJEO DE PUNTOS ---
-                desc_puntos_eur = 0.0
-                puntos_a_descontar = 0
-                if "Ninguno" not in cliente_fidelidad:
-                    pts_str = cliente_fidelidad.split("(Puntos: ")[1].replace(")", "")
-                    puntos_disp = int(pts_str) if pts_str.isdigit() else 0
-                    if puntos_disp > 0:
-                        max_descuento_eur = total_f * 0.50
-                        max_puntos_permitidos = int(max_descuento_eur / 0.10)
-                        puntos_a_usar = min(puntos_disp, max_puntos_permitidos)
-                        eur_a_descontar = puntos_a_usar * 0.10
-                        if puntos_a_usar > 0:
-                            if st.checkbox(f"💳 Canjear {puntos_a_usar} puntos por -{eur_a_descontar:.2f}€ (Límite 50%)", value=False):
-                                desc_puntos_eur = eur_a_descontar
-                                puntos_a_descontar = puntos_a_usar
-                
-                total_f = total_f - desc_puntos_eur
-                if total_f < 0: total_f = 0.0
+                desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=0, step=1)
+                total_f = sub_antes * (1 - desc_g / 100)
                 
                 st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
@@ -556,34 +401,28 @@ with tab2:
                 if metodo == "Efectivo":
                     c_tot, c_ent, c_cam = st.columns([0.8, 1, 1])
                     with c_tot: st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
-                    with c_ent: entregado = st.number_input("Entregado €", min_value=0.0, value=None, placeholder=f"{total_f:.2f}", format="%.2f")
+                    with c_ent: entregado = st.number_input("Entregado €", min_value=0.0, value=float(total_f), format="%.2f")
                     with c_cam:
-                        ent_val = entregado if entregado is not None else total_f
-                        cambio = ent_val - total_f
+                        cambio = entregado - total_f
                         if cambio >= 0:
                             st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>CAMBIO</p><h3 style='margin:0; color:green;'>{cambio:.2f}€</h3>", unsafe_allow_html=True)
                             pagado_hoy = total_f
                             p_efectivo = total_f
                         else:
                             st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>DEUDA</p><h3 style='margin:0; color:orange;'>{-cambio:.2f}€</h3>", unsafe_allow_html=True)
-                            pagado_hoy = ent_val; pendiente = -cambio
-                            p_efectivo = ent_val
+                            pagado_hoy = entregado; pendiente = -cambio
+                            p_efectivo = entregado
 
                 elif metodo == "Mixto":
                     st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
                     cm1, cm2, cm3 = st.columns(3)
-                    with cm1: p_e = st.number_input("Efe.", min_value=0.0, value=None)
-                    with cm2: p_t = st.number_input("Tar.", min_value=0.0, value=None)
-                    with cm3: p_b = st.number_input("Biz.", min_value=0.0, value=None)
-                    
-                    p_e_val = p_e or 0.0
-                    p_t_val = p_t or 0.0
-                    p_b_val = p_b or 0.0
-                    
-                    pagado_hoy = p_e_val + p_t_val + p_b_val
-                    p_efectivo = p_e_val; p_tarjeta = p_t_val; p_bizum = p_b_val
+                    with cm1: p_e = st.number_input("Efe.", min_value=0.0, value=0.0)
+                    with cm2: p_t = st.number_input("Tar.", min_value=0.0, value=0.0)
+                    with cm3: p_b = st.number_input("Biz.", min_value=0.0, value=0.0)
+                    pagado_hoy = p_e + p_t + p_b
+                    p_efectivo = p_e; p_tarjeta = p_t; p_bizum = p_b
                     pendiente = total_f - pagado_hoy if pagado_hoy < total_f else 0.0
-                    metodo_log = f"Mixto (E:{p_e_val}|T:{p_t_val}|B:{p_b_val})"
+                    metodo_log = f"Mixto (E:{p_e}|T:{p_t}|B:{p_b})"
                     if pendiente > 0: st.warning(f"Pendiente: {pendiente:.2f}€")
                 
                 else:
@@ -604,23 +443,6 @@ with tab2:
                         carrito_limpio = json.loads(edited_df.to_json(orient='records'))
                         
                         try:
-                            # --- MÓDULO VERI*FACTU: CÁLCULO DE HASH ---
-                            fecha_emision = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                            res_h = client.table("ventas_historial").select("hash_actual").order("id", desc=True).limit(1).execute()
-                            h_ant = res_h.data[0]['hash_actual'] if res_h.data and res_h.data[0].get('hash_actual') else ""
-                            h_act = generar_hash_verifactu("TICKET", fecha_emision, float(total_f), h_ant)
-                            
-                            # ASIGNACIÓN DE PUNTOS
-                            cliente_fidel_nombre = ""
-                            puntos_ganados = 0
-                            nuevo_saldo = 0
-                            if "Ninguno" not in cliente_fidelidad:
-                                cliente_fidel_nombre = cliente_fidelidad.split(" (Puntos:")[0]
-                                cliente_info = next(c for c in res_cli_puntos.data if c['nombre_dueno'] == cliente_fidel_nombre)
-                                puntos_ganados = int(total_f // 10) # 1 punto por cada 10€
-                                nuevo_saldo = cliente_info.get('puntos', 0) - puntos_a_descontar + puntos_ganados
-                                client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cliente_info['id']).execute()
-
                             # INSERCIÓN CON COLUMNAS EXACTAS CONTABLES
                             client.table("ventas_historial").insert({
                                 "total": float(total_f), "pagado": float(pagado_hoy), "pendiente": float(pendiente),
@@ -629,25 +451,19 @@ with tab2:
                                 "estado": "Completado" if pendiente == 0 else "Deuda",
                                 "pago_efectivo": float(p_efectivo),
                                 "pago_tarjeta": float(p_tarjeta),
-                                "pago_bizum": float(p_bizum),
-                                "hash_anterior": h_ant,
-                                "hash_actual": h_act,
-                                "qr_verifactu": "",
-                                "estado_hacienda": "Pendiente"
+                                "pago_bizum": float(p_bizum)
                             }).execute()
                             
                             for i in carrito_limpio:
-                                if not i.get('Manual', False) and 'id' in i:
-                                    res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                                if not i.get('Manual', False):
+                                    res = client.table("productos").select("stock_actual").eq("nombre", i['Producto']).execute()
                                     if res.data:
                                         n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
-                                        client.table("productos").update({"stock_actual": n_stock}).eq("id", i['id']).execute()
+                                        client.table("productos").update({"stock_actual": n_stock}).eq("nombre", i['Producto']).execute()
                             
                             st.session_state.ticket_actual = {
                                 "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                                "productos": carrito_limpio, "total": total_f, "metodo": metodo_log,
-                                "cliente_fidel": cliente_fidel_nombre, "puntos_ganados": puntos_ganados,
-                                "puntos_descontados": puntos_a_descontar, "nuevo_saldo": nuevo_saldo
+                                "productos": carrito_limpio, "total": total_f, "metodo": metodo_log
                             }
                             st.session_state.carrito = []
                             st.rerun()
@@ -676,31 +492,27 @@ with tab3:
             c_nom = st.text_input("Nombre y Apellidos *")
             c_tel = st.text_input("Teléfono")
             c_ema = st.text_input("Email")
-            c_nac = st.date_input("F. Nacimiento", value=None)
-            c_rgpd = st.checkbox("📝 Acepta LOPD/RGPD (Envío info y promos)", value=True)
             
             st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-            st.markdown("<p style='margin: 0; font-size: 13px; color: gray;'>🐾 Añadir mascota (Deja en blanco si es solo cliente de tienda)</p>", unsafe_allow_html=True)
+            st.markdown("<p style='margin: 0; font-size: 13px; color: gray;'>🐾 Añadir mascota principal (Opcional)</p>", unsafe_allow_html=True)
             
             m_nom = st.text_input("Nombre de la mascota")
-            cm1, cm2, cm3 = st.columns(3)
+            cm1, cm2 = st.columns(2)
             with cm1: m_esp = st.selectbox("Especie", ["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"])
             with cm2: m_raz = st.text_input("Raza")
-            with cm3: m_nac = st.date_input("Nac. Mascota", value=None)
             m_obs = st.text_input("Observaciones (Alergias, carácter...)")
 
             if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
                 if c_nom:
                     res_cli = client.table("clientes").insert({
-                        "nombre_dueno": c_nom, "telefono": c_tel, "email": c_ema, "fecha_nacimiento": str(c_nac) if c_nac else "",
-                        "rgpd_consent": c_rgpd, "puntos": 0
+                        "nombre_dueno": c_nom, "telefono": c_tel, "email": c_ema
                     }).execute()
 
                     if res_cli.data and m_nom:
                         cli_id = res_cli.data[0]['id']
                         client.table("mascotas").insert({
                             "cliente_id": cli_id, "nombre": m_nom, "especie": m_esp, 
-                            "raza": m_raz, "observaciones": m_obs, "fecha_nacimiento": str(m_nac) if m_nac else ""
+                            "raza": m_raz, "observaciones": m_obs
                         }).execute()
 
                     st.success("Cliente guardado correctamente"); time.sleep(0.5); st.rerun()
@@ -708,280 +520,27 @@ with tab3:
                     st.warning("El nombre del dueño es obligatorio.")
 
     with col_c2:
-        # Función para calcular la edad visualmente
-        def calcular_edad(fecha_str):
-            try:
-                nac = pd.to_datetime(fecha_str)
-                hoy = pd.to_datetime("today")
-                anios = hoy.year - nac.year - ((hoy.month, hoy.day) < (nac.month, nac.day))
-                if anios == 0:
-                    meses = hoy.month - nac.month - ((hoy.day) < (nac.day))
-                    if meses < 0: meses += 12
-                    return f"{meses} meses"
-                return f"{anios} años"
-            except: return ""
+        st.markdown("#### 📋 Directorio de Clientes")
+        res_clientes = client.table("clientes").select("id, nombre_dueno, telefono, email, mascotas(nombre, especie)").order("created_at", desc=True).execute()
 
-        def calcular_duracion_media(historial):
-            """Calcula la duración media de los servicios a partir del historial JSON."""
-            if not isinstance(historial, list) or not historial:
-                return "N/A"
-            
-            duraciones = [t['Duración (min)'] for t in historial if isinstance(t, dict) and isinstance(t.get('Duración (min)'), (int, float))]
-            
-            if not duraciones:
-                return "N/A"
-                
-            media = sum(duraciones) / len(duraciones)
-            return f"{int(media)} min"
+        if res_clientes.data:
+            df_cli = pd.DataFrame(res_clientes.data)
+            def formatear_mascotas(lista_mascotas):
+                if isinstance(lista_mascotas, list) and len(lista_mascotas) > 0:
+                    return ", ".join([f"{m['nombre']} ({m['especie']})" for m in lista_mascotas])
+                return "Sin mascotas"
 
-        def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix):
-            """Renderiza la ficha clínica, el historial y el sistema inteligente de reservas."""
-            st.markdown(f"#### 📖 Ficha e Historial Clínico/Peluquería: **{m_nombre}**")
-            
-            historial = m_data.get('historial_trabajos')
-            if not isinstance(historial, list): historial = []
-            
-            df_hist = pd.DataFrame(historial)
-            for col in ["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]:
-                if col not in df_hist.columns: df_hist[col] = None
-                
-            df_hist = df_hist[["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]]
-            
-            df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%d/%m/%Y", errors="coerce")
-            df_hist["Duración (min)"] = pd.to_numeric(df_hist["Duración (min)"], errors="coerce")
-            df_hist["Importe (€)"] = pd.to_numeric(df_hist["Importe (€)"], errors="coerce")
-            
-            ed_hist = st.data_editor(
-                df_hist, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_hist_{prefix}_{m_id}",
-                column_config={
-                    "Fecha": st.column_config.DateColumn("Fecha (D/M/A)", format="DD/MM/YYYY"),
-                    "Trabajo / Servicio": st.column_config.TextColumn("Servicio Realizado"),
-                    "Duración (min)": st.column_config.NumberColumn("Duración (min)", min_value=0, step=5),
-                    "Importe (€)": st.column_config.NumberColumn("Importe Cobrado (€)", format="%.2f", min_value=0.0)
-                }
-            )
-            
-            if st.button(f"💾 Guardar Historial de {m_nombre}", type="primary", key=f"btn_hist_{prefix}_{m_id}"):
-                df_save = ed_hist.copy()
-                df_save['Fecha'] = pd.to_datetime(df_save['Fecha']).dt.strftime('%d/%m/%Y').fillna("")
-                df_save = df_save.fillna("")
-                client.table("mascotas").update({"historial_trabajos": df_save.to_dict(orient='records')}).eq("id", m_id).execute()
-                st.success("Historial actualizado correctamente."); time.sleep(0.5); st.rerun()
-                
-            st.markdown("---")
-            st.markdown(f"#### 📅 Agendar Cita Inteligente para **{m_nombre}**")
-            st.markdown("<p style='color: gray; font-size: 13px;'>El sistema calcula automáticamente los huecos libres (09:00 a 21:00) para la fecha y duración seleccionadas.</p>", unsafe_allow_html=True)
-            
-            c_cal1, c_cal2 = st.columns([1, 1])
-            with c_cal1: f_fecha = st.date_input("1. Selecciona la fecha de la cita:", value=date.today(), key=f"fcita_{prefix}_{m_id}")
-            with c_cal2: f_dur = st.number_input("2. Duración del servicio (minutos)", min_value=5, max_value=300, value=60, step=5, key=f"fdur_{prefix}_{m_id}")
-            
-            res_citas = client.table("citas").select("fecha_hora, duracion_minutos").gte("fecha_hora", f"{f_fecha} 00:00:00").lte("fecha_hora", f"{f_fecha} 23:59:59").execute()
-            citas_dia = res_citas.data if res_citas.data else []
-            
-            # --- CÁLCULO DE TRAMOS LIBRES CONTINUOS ---
-            bloques_libres = []
-            hora_actual = pd.to_datetime(f"{f_fecha} 09:00")
-            fin_jornada = pd.to_datetime(f"{f_fecha} 21:00")
-            
-            citas_ordenadas = []
-            for c in citas_dia:
-                dt_ini = pd.to_datetime(c['fecha_hora'])
-                dt_fin = dt_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
-                citas_ordenadas.append({"ini": dt_ini, "fin": dt_fin})
-            citas_ordenadas.sort(key=lambda x: x["ini"])
-            
-            for c in citas_ordenadas:
-                if hora_actual < c["ini"]:
-                    if (c["ini"] - hora_actual).total_seconds() / 60 >= f_dur:
-                        bloques_libres.append(f"{hora_actual.strftime('%H:%M')} a {c['ini'].strftime('%H:%M')}")
-                hora_actual = max(hora_actual, c["fin"])
-                
-            if hora_actual < fin_jornada and (fin_jornada - hora_actual).total_seconds() / 60 >= f_dur:
-                bloques_libres.append(f"{hora_actual.strftime('%H:%M')} a {fin_jornada.strftime('%H:%M')}")
-                
-            if bloques_libres:
-                st.success(f"🟢 **Tramos libres para {f_dur} min:** " + " | ".join(bloques_libres))
-            else:
-                st.error(f"🔴 No hay tramos continuos de {f_dur} minutos libres en este día.")
-
-            # --- CÁLCULO DE HUECOS SELECCIONABLES (Cada 5 min) ---
-            huecos = []
-            for h in range(9, 21):
-                for m in range(0, 60, 5):
-                    dt_ini = pd.to_datetime(f"{f_fecha} {h:02d}:{m:02d}")
-                    dt_fin = dt_ini + pd.Timedelta(minutes=f_dur)
-                    if dt_fin > pd.to_datetime(f"{f_fecha} 21:00"): continue
-                    
-                    solapa = False
-                    for c in citas_dia:
-                        c_ini = pd.to_datetime(c['fecha_hora'])
-                        c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
-                        if dt_ini < c_fin and dt_fin > c_ini:
-                            solapa = True; break
-                    if not solapa: huecos.append(f"{h:02d}:{m:02d}")
-                    
-            if not huecos:
-                st.warning("⚠️ No hay horas de inicio disponibles este día para esa duración.")
-            else:
-                with st.form(f"form_cita_{prefix}_{m_id}", border=True):
-                    fc_1, fc_2 = st.columns([1, 2])
-                    with fc_1: f_hora = st.selectbox("3. Hora de inicio:", huecos)
-                    with fc_2: f_serv = st.selectbox("4. Servicio:", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
-                    if st.form_submit_button("➕ Confirmar Cita", type="primary", use_container_width=True):
-                        client.table("citas").insert({"mascotas_id": m_id, "fecha_hora": f"{f_fecha} {f_hora}", "servicio": f_serv, "duracion_minutos": int(f_dur)}).execute()
-                        st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
-
-        sub_cli, sub_masc, sub_alertas, sub_encargos = st.tabs(["👤 Directorio de Clientes", "🐾 Fichas de Mascotas", "🔔 Alertas y Recordatorios", "🛍️ Encargos de Clientes"])
-        
-        with sub_cli:
-            res_clientes = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).execute()
-            if res_clientes.data:
-                df_cli = pd.DataFrame(res_clientes.data)
-                
-                # --- MÉTRICAS DE CLIENTES ---
-                total_clientes = len(df_cli)
-                clientes_con_mascota = sum(1 for c in res_clientes.data if c.get('mascotas') and len(c['mascotas']) > 0)
-                clientes_sin_mascota = total_clientes - clientes_con_mascota
-                
-                c_met1, c_met2, c_met3 = st.columns(3)
-                with c_met1: st.metric("👥 Total Clientes", total_clientes)
-                with c_met2: st.metric("🐾 Con Mascota", clientes_con_mascota)
-                with c_met3: st.metric("🛍️ Solo Tienda", clientes_sin_mascota)
-                st.markdown("<hr style='margin: 5px 0px 15px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-
-                b_cli = st.text_input("🔍 Buscar cliente (Nombre o Teléfono):", placeholder="Escribe para filtrar...", key="b_cli").strip().lower()
-                
-                if 'fecha_nacimiento' not in df_cli.columns: df_cli['fecha_nacimiento'] = ""
-                df_cli['Tipo Cliente'] = df_cli['mascotas'].apply(lambda x: "🐾 Con mascota" if isinstance(x, list) and len(x) > 0 else "🛍️ Solo tienda")
-                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'email', 'fecha_nacimiento', 'Tipo Cliente']].copy()
-                
-                if b_cli:
-                    df_cli_vista = df_cli_vista[
-                        df_cli_vista['nombre_dueno'].str.lower().str.contains(b_cli, na=False) |
-                        df_cli_vista['telefono'].astype(str).str.contains(b_cli, na=False)
-                    ]
-                
-                # Aseguramos columnas nuevas por si acaban de ejecutarse en SQL
-                if 'rgpd_consent' not in df_cli.columns: df_cli['rgpd_consent'] = True
-                if 'puntos' not in df_cli.columns: df_cli['puntos'] = 0
-                
-                df_cli_vista['RGPD'] = df_cli['rgpd_consent']
-                df_cli_vista['Puntos'] = df_cli['puntos']
-
-                df_cli_vista.insert(0, "Ver", False)
-                st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir la ficha del cliente y ver sus mascotas.*")
-                
-                ed_cli = st.data_editor(
-                    df_cli_vista,
-                    column_config={
-                        "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), 
-                        "id": None, "nombre_dueno": "Nombre Cliente", "telefono": "Tel.", 
-                        "email": "Email", "fecha_nacimiento": "F. Nac",
-                        "RGPD": st.column_config.CheckboxColumn("LOPD"),
-                        "Puntos": st.column_config.NumberColumn("🌟 Ptos"),
-                        "Tipo Cliente": st.column_config.TextColumn("Perfil", disabled=True)
-                    },
-                    use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_clientes", height=250
-                )
-                if st.button("💾 Guardar Cambios en Clientes", type="primary"):
-                    ed_cli_clean = ed_cli.drop(columns=["Ver", "Tipo Cliente"])
-                    ids_actuales = ed_cli_clean['id'].dropna().tolist()
-                    ids_orig = df_cli_vista['id'].tolist()
-                    for id_b in [i for i in ids_orig if i not in ids_actuales]: client.table("clientes").delete().eq("id", id_b).execute()
-                    
-                    for _, row in ed_cli_clean.iterrows():
-                        if pd.notna(row['id']):
-                            client.table("clientes").update({
-                                "nombre_dueno": str(row['nombre_dueno']), "telefono": str(row['telefono']),
-                                "email": str(row['email']), "fecha_nacimiento": str(row['fecha_nacimiento']),
-                                "rgpd_consent": bool(row.get('RGPD', True)), "puntos": int(row.get('Puntos', 0))
-                            }).eq("id", row['id']).execute()
-                    st.success("Directorio de clientes actualizado."); time.sleep(0.5); st.rerun()
-                    
-                st.markdown("---")
-                
-                # --- FICHA COMPLETA DEL DUEÑO Y SUS MASCOTAS ---
-                filas_c_marcadas = ed_cli[ed_cli["Ver"] == True]
-                if not filas_c_marcadas.empty:
-                    c_id = filas_c_marcadas.iloc[0]['id']
-                    c_data = df_cli[df_cli['id'] == c_id].iloc[0]
-                    c_nombre = c_data['nombre_dueno']
-                    
-                    st.markdown(f"#### 📖 Ficha de Cliente: **{c_nombre}**")
-                    
-                    mascotas_lista = c_data.get('mascotas', [])
-                    if isinstance(mascotas_lista, list) and len(mascotas_lista) > 0:
-                        df_mc = pd.DataFrame(mascotas_lista)
-                        if 'fecha_nacimiento' not in df_mc.columns: df_mc['fecha_nacimiento'] = ""
-                        df_mc['Edad'] = df_mc['fecha_nacimiento'].apply(calcular_edad)
-                        if 'historial_trabajos' not in df_mc.columns: df_mc['historial_trabajos'] = [[] for _ in range(len(df_mc))]
-                        df_mc['Duración Media'] = df_mc['historial_trabajos'].apply(calcular_duracion_media)
-                        
-                        cols_ok = ['id', 'nombre', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'Duración Media', 'observaciones']
-                        for col in cols_ok:
-                            if col not in df_mc.columns: df_mc[col] = ""
-                            
-                        df_mc_show = df_mc[cols_ok].rename(columns={
-                            "nombre": "Nombre Mascota", "especie": "Especie", "raza": "Raza", 
-                            "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones"
-                        })
-                        
-                        df_mc_show.insert(0, "Ver Ficha", False)
-                        st.markdown("💡 *Edita los datos directamente. Para eliminar, selecciona la fila y pulsa 'Supr'. Marca **'👁️ Ver Ficha'** para abrir el historial y agendar.*")
-                        ed_mc = st.data_editor(
-                            df_mc_show, use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_mc_{c_id}",
-                            column_config={
-                                "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
-                                "id": None, "Edad": st.column_config.TextColumn(disabled=True), "Duración Media": st.column_config.TextColumn(disabled=True)
-                            }
-                        )
-                        
-                        if st.button("💾 Guardar Cambios en Mascotas de esta Familia", key=f"btn_save_mc_{c_id}"):
-                            # 1. Detectar si el usuario ha borrado filas con la papelera o Supr
-                            ids_actuales = ed_mc['id'].dropna().tolist()
-                            ids_orig = df_mc_show['id'].dropna().tolist()
-                            ids_a_borrar = [i for i in ids_orig if i not in ids_actuales]
-                            for id_del in ids_a_borrar:
-                                client.table("mascotas").delete().eq("id", id_del).execute()
-                                
-                            # 2. Actualizar mascotas existentes o insertar las nuevas
-                            for _, ru in ed_mc.iterrows():
-                                if pd.notna(ru['id']):
-                                    client.table("mascotas").update({
-                                        "nombre": str(ru['Nombre Mascota']), "especie": str(ru['Especie']),
-                                        "raza": str(ru['Raza']), "fecha_nacimiento": str(ru['F. Nacimiento']),
-                                        "observaciones": str(ru['Observaciones'])
-                                    }).eq("id", ru['id']).execute()
-                                else:
-                                    if pd.notna(ru['Nombre Mascota']) and str(ru['Nombre Mascota']).strip():
-                                        client.table("mascotas").insert({
-                                            "cliente_id": c_id, "nombre": str(ru['Nombre Mascota']),
-                                            "especie": str(ru['Especie']) if pd.notna(ru['Especie']) else "",
-                                            "raza": str(ru['Raza']) if pd.notna(ru['Raza']) else "",
-                                            "fecha_nacimiento": str(ru['F. Nacimiento']) if pd.notna(ru['F. Nacimiento']) else "",
-                                            "observaciones": str(ru['Observaciones']) if pd.notna(ru['Observaciones']) else ""
-                                        }).execute()
-                            st.success("Datos de la familia actualizados."); time.sleep(0.5); st.rerun()
-                            
-                        filas_ver_mc = ed_mc[ed_mc["Ver Ficha"] == True]
-                        if not filas_ver_mc.empty:
-                            st.markdown("---")
-                            m_id_sel = filas_ver_mc.iloc[0]['id']
-                            m_data_sel = next(item for item in mascotas_lista if item["id"] == m_id_sel)
-                            mostrar_ficha_clinica(m_id_sel, m_data_sel['nombre'], m_data_sel, prefix="fam")
-                    else:
-                        st.info("Este cliente no tiene mascotas registradas.")
-                        
-            else: st.info("No hay clientes registrados.")
+            df_cli['Mascotas Registradas'] = df_cli['mascotas'].apply(formatear_mascotas)
+            st.dataframe(df_cli[['nombre_dueno', 'telefono', 'email', 'Mascotas Registradas']],
+                         use_container_width=True, hide_index=True, height=250)
 
             st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
 
             st.markdown("#### ➕ Añadir otra mascota a un cliente")
-            dict_cli = {f"{c['nombre_dueno']} ({c['telefono']})": c['id'] for c in res_clientes.data} if res_clientes.data else {}
+            dict_cli = {f"{c['nombre_dueno']} ({c['telefono']})": c['id'] for c in res_clientes.data}
             
             with st.form("nueva_mascota_extra", clear_on_submit=True, border=False):
-                sel_cli = st.selectbox("Selecciona el cliente:", list(dict_cli.keys()))
+                sel_cli = st.selectbox("Selecciona el dueño:", list(dict_cli.keys()))
                 c_m1, c_m2, c_m3 = st.columns([1.5, 1, 1])
                 with c_m1: nx_nom = st.text_input("Nombre mascota", key="nx_nom")
                 with c_m2: nx_esp = st.selectbox("Especie", ["Perro", "Gato", "Ave", "Roedor", "Otro"], key="nx_esp")
@@ -995,188 +554,8 @@ with tab3:
                         st.success("Mascota añadida a la familia"); time.sleep(0.5); st.rerun()
                     else:
                         st.warning("Falta el nombre de la mascota.")
-                        
-        with sub_masc:
-            res_mascotas = client.table("mascotas").select("*, clientes(nombre_dueno)").order("id", desc=True).execute()
-            if res_mascotas.data:
-                df_m = pd.DataFrame(res_mascotas.data)
-                
-                b_masc = st.text_input("🔍 Buscar mascota por nombre:", placeholder="Escribe para filtrar...", key="b_masc").strip().lower()
-                
-                df_m['Dueño'] = df_m['clientes'].apply(lambda x: x.get('nombre_dueno', '') if isinstance(x, dict) else '')
-                if 'fecha_nacimiento' not in df_m.columns: df_m['fecha_nacimiento'] = ""
-                df_m['Edad'] = df_m['fecha_nacimiento'].apply(calcular_edad)
-                if 'historial_trabajos' not in df_m.columns:
-                    df_m['historial_trabajos'] = [[] for _ in range(len(df_m))]
-                df_m['Duración Media'] = df_m['historial_trabajos'].apply(calcular_duracion_media)
-                
-                df_m_vista = df_m[['id', 'nombre', 'Dueño', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'Duración Media', 'observaciones']].copy()
-                
-                if b_masc:
-                    df_m_vista = df_m_vista[df_m_vista['nombre'].str.lower().str.contains(b_masc, na=False)]
-                    
-                df_m_vista.insert(0, "Ver", False)
-                
-                st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir la ficha completa y el historial de la mascota.*")
-                
-                ed_m = st.data_editor(
-                    df_m_vista,
-                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "Dueño": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
-                    use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_mascotas", height=400
-                )
-                if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
-                    ed_m_clean = ed_m.drop(columns=["Ver"])
-                    ids_actuales = ed_m_clean['id'].dropna().tolist()
-                    ids_orig = df_m_vista['id'].tolist()
-                    for id_b in [i for i in ids_orig if i not in ids_actuales]: client.table("mascotas").delete().eq("id", id_b).execute()
-                    
-                    for _, row in ed_m_clean.iterrows():
-                        if pd.notna(row['id']):
-                            client.table("mascotas").update({
-                                "nombre": str(row['nombre']), "especie": str(row['especie']),
-                                "raza": str(row['raza']), "fecha_nacimiento": str(row['fecha_nacimiento']),
-                                "observaciones": str(row['observaciones'])
-                            }).eq("id", row['id']).execute()
-                    st.success("Fichas de mascotas actualizadas."); time.sleep(0.5); st.rerun()
-                    
-                st.markdown("---")
-                
-                # --- FICHA COMPLETA E HISTORIAL DE LA MASCOTA ---
-                filas_m_marcadas = ed_m[ed_m["Ver"] == True]
-                if not filas_m_marcadas.empty:
-                    m_id = filas_m_marcadas.iloc[0]['id']
-                    m_data = df_m[df_m['id'] == m_id].iloc[0]
-                    m_nombre = m_data['nombre']
-                    mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix="ind")
-            else: st.info("No hay mascotas registradas.")
-
-        with sub_alertas:
-            st.markdown("#### 🔔 Alertas de Mantenimiento Inteligentes")
-            st.markdown("<p style='color:gray; font-size:14px;'>El sistema escanea el historial de las mascotas y te avisa de las que llevan tiempo sin venir, generándote un enlace directo para enviarles un WhatsApp pre-escrito con un solo toque.</p>", unsafe_allow_html=True)
-            
-            c_al1, c_al2 = st.columns([1, 2])
-            with c_al1:
-                dias_aviso = st.slider("Mostrar mascotas que no hayan venido en más de (días):", min_value=15, max_value=180, value=45, step=5)
-            
-            res_m_alertas = client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").execute()
-            
-            if res_m_alertas.data:
-                alertas = []
-                hoy_dt = pd.to_datetime('today')
-                
-                for m in res_m_alertas.data:
-                    hist = m.get('historial_trabajos', [])
-                    if isinstance(hist, list) and len(hist) > 0:
-                        try:
-                            fechas = [pd.to_datetime(h['Fecha'], format='%d/%m/%Y', errors='coerce') for h in hist if h.get('Fecha')]
-                            fechas = [f for f in fechas if pd.notna(f)]
-                            if fechas:
-                                ultima_visita = max(fechas)
-                                dias_transcurridos = (hoy_dt - ultima_visita).days
-                                
-                                if dias_transcurridos >= dias_aviso:
-                                    dueno = m['clientes']['nombre_dueno'] if m.get('clientes') else 'Dueño'
-                                    telefono = m['clientes']['telefono'] if m.get('clientes') else ''
-                                    
-                                    # Preparar el número para WhatsApp (+34 España)
-                                    tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
-                                    if tel_limpio and len(tel_limpio) == 9 and not tel_limpio.startswith('34'):
-                                        tel_limpio = '34' + tel_limpio
-                                        
-                                    # Mensaje de marketing amistoso
-                                    mensaje = f"¡Hola {dueno}! 🐾 Soy Raquel de Animalarium. Te escribo porque he visto en la ficha de {m['nombre']} que ya le toca su sesión de mantenimiento (hace {dias_transcurridos} días de su última visita). ¿Te gustaría que le busquemos un huequito en la agenda para estos días? ¡Un saludo! 🐶✂️"
-                                    url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje)}" if tel_limpio else None
-                                    
-                                    alertas.append({
-                                        "Mascota": m['nombre'], "Dueño": dueno,
-                                        "Última Visita": ultima_visita.strftime('%d/%m/%Y'),
-                                        "Días Sin Venir": dias_transcurridos, "WhatsApp": url_wa
-                                    })
-                        except Exception as e: pass
-                
-                if alertas:
-                    df_alertas = pd.DataFrame(alertas).sort_values(by="Días Sin Venir", ascending=False)
-                    st.warning(f"⚠️ Tienes **{len(alertas)}** clientes pendientes de contactar para mantenimiento.")
-                    st.dataframe(df_alertas, use_container_width=True, hide_index=True, column_config={"WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Enviar WhatsApp")})
-                else:
-                    st.success("✨ ¡Genial! Tienes la agenda al día. Ninguna mascota supera los días de alerta.")
-
-        with sub_encargos:
-            col_en1, col_en2 = st.columns([1, 2])
-            with col_en1:
-                st.markdown("#### 📝 Registrar Encargo")
-                with st.form("n_encargo", clear_on_submit=True):
-                    opc_cli_enc = ["👤 Cliente no registrado (Escribir a mano)"]
-                    if res_clientes.data:
-                        opc_cli_enc += [f"{c['nombre_dueno']} | {c['telefono']}" for c in res_clientes.data]
-                    
-                    sel_cli_enc = st.selectbox("1. Buscar Cliente:", opc_cli_enc)
-                    
-                    st.markdown("<p style='font-size:12px; color:gray; margin:0;'>O rellenar si no está registrado:</p>", unsafe_allow_html=True)
-                    c_nom_man, c_tel_man = st.columns(2)
-                    with c_nom_man: e_cli_man = st.text_input("Nombre", key="e_cli_man")
-                    with c_tel_man: e_tel_man = st.text_input("Teléfono", key="e_tel_man")
-                    
-                    st.markdown("---")
-                    e_prod = st.text_input("2. Producto que pide *")
-                    e_cant = st.number_input("3. Cantidad *", min_value=1, value=1)
-                    e_obs = st.text_area("4. Observaciones")
-                    
-                    if st.form_submit_button("Guardar Encargo", type="primary", use_container_width=True):
-                        # Determinar cliente
-                        if "Cliente no registrado" not in sel_cli_enc:
-                            final_cli = sel_cli_enc.split(" | ")[0]
-                            final_tel = sel_cli_enc.split(" | ")[1] if len(sel_cli_enc.split(" | ")) > 1 else ""
-                        else:
-                            final_cli = e_cli_man
-                            final_tel = e_tel_man
-                            
-                        if final_cli and e_prod:
-                            try:
-                                client.table("encargos_clientes").insert({
-                                    "nombre_cliente": final_cli, "telefono": final_tel, 
-                                    "detalle_pedido": f"{e_cant}x {e_prod}",
-                                    "notas": e_obs, "estado": "Pendiente"
-                                }).execute()
-                                st.success("Encargo guardado."); time.sleep(0.5); st.rerun()
-                            except Exception as e:
-                                st.error("Error al guardar en la base de datos.")
-                        else:
-                            st.warning("Debes indicar un cliente y el producto a pedir.")
-            
-            with col_en2:
-                st.markdown("#### 📌 Encargos Pendientes")
-                try:
-                    res_e = client.table("encargos_clientes").select("*").order("created_at", desc=True).execute()
-                    if res_e.data:
-                        df_e = pd.DataFrame(res_e.data)
-                        df_e['Fecha'] = pd.to_datetime(df_e['created_at']).dt.strftime('%d/%m/%Y')
-                        if 'notas' not in df_e.columns: df_e['notas'] = ""
-                        
-                        hoy_date = pd.to_datetime('today')
-                        for idx, row in df_e.iterrows():
-                            dias = (hoy_date - pd.to_datetime(row['created_at']).dt.tz_localize(None)).days
-                            if dias >= 2 and row['estado'] == 'Pendiente':
-                                st.warning(f"⚠️ **RETRASO:** El encargo de {row['nombre_cliente']} lleva {dias} días en estado Pendiente.")
-                        
-                        df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'notas', 'estado']]
-                        ed_e = st.data_editor(
-                            df_e_vista, hide_index=True, use_container_width=True, num_rows="dynamic", height=300,
-                            column_config={
-                                "id": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
-                                "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
-                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Entregado"])
-                            }
-                        )
-                        if st.button("💾 Guardar Cambios en Encargos"):
-                            for _, r in ed_e.iterrows():
-                                if pd.notna(r['id']):
-                                    client.table("encargos_clientes").update({
-                                        "estado": str(r['estado']), "notas": str(r['notas'])
-                                    }).eq("id", r['id']).execute()
-                            st.rerun()
-                    else: st.info("No hay encargos activos.")
-                except: st.warning("Por favor, revisa la conexión con la tabla encargos_clientes.")
+        else:
+            st.info("📭 Aún no tienes clientes registrados. ¡Empieza a añadir fichas a la izquierda!")        
 
 # ==========================================
 # --- TAB 4: HISTORIAL (VERSIÓN CON CASILLA DE VER) ---
@@ -1212,17 +591,15 @@ with tab4:
             df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda']].copy()
             
             # --- MAGIA TÁCTIL: Añadimos la columna Checkbox ---
-            df_vista.insert(0, "Borrar", False)
             df_vista.insert(0, "Ver", False)
             
-            st.markdown("💡 *Marca **'👁️ Ver'** para abrir el desglose. Marca **'🗑️ Borrar'** para eliminar. Haz doble clic en las celdas normales para corregirlas.*")
+            st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir el desglose abajo. Haz doble clic en las celdas normales para corregirlas.*")
             
             # 2. TABLA EDITABLE CON CASILLA
             edited_df = st.data_editor(
                 df_vista,
                 column_config={
                     "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False),
-                    "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
                     "id": st.column_config.NumberColumn("Nº", disabled=True, width="small"),
                     "Fecha": st.column_config.TextColumn("Fecha", disabled=True),
                     "total": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f"),
@@ -1236,30 +613,11 @@ with tab4:
                 key="editor_tickets"
             )
             
-            # 2.5 SISTEMA DE BORRADO DE TICKETS (PARA PRUEBAS)
-            filas_borrar_tk = edited_df[edited_df["Borrar"] == True]
-            if not filas_borrar_tk.empty:
-                st.error(f"⚠️ Has marcado {len(filas_borrar_tk)} ticket(s) para eliminar. El stock se restaurará automáticamente (excepto artículos manuales).")
-                if st.button("🚨 CONFIRMAR ELIMINACIÓN", type="primary", use_container_width=True):
-                    for idx, row in filas_borrar_tk.iterrows():
-                        tk_id = row['id']
-                        tk_data = df_v[df_v['id'] == tk_id].iloc[0]
-                        # Devolver stock solo si el ticket no estaba ya DEVUELTO
-                        if str(tk_data.get('estado', '')).upper() != "DEVUELTO":
-                            for p in tk_data.get('productos', []):
-                                if not p.get('Manual', False) and 'id' in p:
-                                    res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
-                                    if res_p.data:
-                                        client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
-                        # Eliminar registro
-                        client.table("ventas_historial").delete().eq("id", tk_id).execute()
-                    st.success("Ticket(s) eliminado(s) correctamente."); time.sleep(1); st.rerun()
-
             # 3. GUARDAR CORRECCIONES EN SUPABASE
             if st.button("💾 Guardar Correcciones de la Tabla", type="primary"):
-                # Ignoramos las columnas de acción para que no afecten a la base de datos
-                df_original = df_vista.drop(columns=["Ver", "Borrar"])
-                df_editado = edited_df.drop(columns=["Ver", "Borrar"])
+                # Ignoramos la columna 'Ver' para que no afecte a la base de datos
+                df_original = df_vista.drop(columns=["Ver"])
+                df_editado = edited_df.drop(columns=["Ver"])
                 diferencias = df_editado.compare(df_original)
                 if not diferencias.empty:
                     for idx in diferencias.index.tolist():
@@ -1353,10 +711,10 @@ with tab4:
                             if st.button(f"↩️ Devolver y Restaurar Stock", use_container_width=True):
                                 # Lógica de devolución (la que ya tenías)
                                 for p in prods:
-                                    if not p.get('Manual', False) and 'id' in p:
-                                        res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                    if not p.get('Manual', False):
+                                        res_p = client.table("productos").select("stock_actual").eq("nombre", p['Producto']).execute()
                                         if res_p.data:
-                                            client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
+                                            client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("nombre", p['Producto']).execute()
                                 client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_id)).execute()
                                 st.success("Venta anulada y stock devuelto."); time.sleep(0.8); st.rerun()
                 else:
@@ -1462,10 +820,9 @@ with tab5:
         st.info("😴 La caja está actualmente CERRADA.")
         with st.form("abrir_caja", border=True):
             st.markdown("<h4 style='margin: 0 0 10px 0;'>🔓 Apertura de Turno</h4>", unsafe_allow_html=True)
-            fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=1.0, value=None)
+            fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=1.0)
             if st.form_submit_button("ABRIR CAJA AHORA", type="primary", use_container_width=True):
-                fondo_val = fondo_ini or 0.0
-                client.table("control_caja").insert({"fondo_inicial": float(fondo_val), "estado": "Abierta"}).execute()
+                client.table("control_caja").insert({"fondo_inicial": float(fondo_ini), "estado": "Abierta"}).execute()
                 st.success("¡Caja abierta!"); time.sleep(1); st.rerun()
     else:
         id_caja = caja_actual['id']
@@ -1486,10 +843,10 @@ with tab5:
             with st.form("form_movimientos", clear_on_submit=True, border=True):
                 c_tipo, c_cant = st.columns([1, 1])
                 with c_tipo: tipo_mov = st.selectbox("Tipo", ["Retirada 🔻", "Ingreso 🔺"])
-                with c_cant: cant_mov = st.number_input("Euros €", min_value=0.01, step=1.0, value=None)
+                with c_cant: cant_mov = st.number_input("Euros €", min_value=0.01, step=1.0)
                 motivo_mov = st.text_input("Motivo", placeholder="Ej: Pago proveedor, cambio...")
                 if st.form_submit_button("Registrar Movimiento", use_container_width=True):
-                    if motivo_mov and cant_mov is not None:
+                    if motivo_mov:
                         tipo_limpio = "Retirada" if "Retirada" in tipo_mov else "Ingreso"
                         client.table("movimientos_caja").insert({"id_caja": id_caja, "tipo": tipo_limpio, "cantidad": float(cant_mov), "motivo": motivo_mov}).execute()
                         st.rerun()
@@ -1504,56 +861,55 @@ with tab5:
             with st.container(border=True):
                 st.markdown("<p style='font-size: 11px; font-weight: bold; color: gray; margin:0;'>💵 BILLETES</p>", unsafe_allow_html=True)
                 cb1, cb2, cb3, cb4, cb5, cb6 = st.columns(6)
-                with cb1: b200 = st.number_input("200", 0, step=1, key="b200", value=None)
-                with cb2: b100 = st.number_input("100", 0, step=1, key="b100", value=None)
-                with cb3: b50 = st.number_input("50", 0, step=1, key="b50", value=None)
-                with cb4: b20 = st.number_input("20", 0, step=1, key="b20", value=None)
-                with cb5: b10 = st.number_input("10", 0, step=1, key="b10", value=None)
-                with cb6: b5 = st.number_input("5", 0, step=1, key="b5", value=None)
+                with cb1: b200 = st.number_input("200", 0, step=1, key="b200")
+                with cb2: b100 = st.number_input("100", 0, step=1, key="b100")
+                with cb3: b50 = st.number_input("50", 0, step=1, key="b50")
+                with cb4: b20 = st.number_input("20", 0, step=1, key="b20")
+                with cb5: b10 = st.number_input("10", 0, step=1, key="b10")
+                with cb6: b5 = st.number_input("5", 0, step=1, key="b5")
 
                 st.markdown("<p style='font-size: 11px; font-weight: bold; color: gray; margin:0; padding-top: 5px;'>🪙 MONEDAS</p>", unsafe_allow_html=True)
                 cm1, cm2, cm3, cm4, cm5, cm6, cm7, cm8 = st.columns(8)
-                with cm1: m2 = st.number_input("2€", 0, step=1, key="m2", value=None)
-                with cm2: m1 = st.number_input("1€", 0, step=1, key="m1", value=None)
-                with cm3: m50c = st.number_input("50¢", 0, step=1, key="m50c", value=None)
-                with cm4: m20c = st.number_input("20¢", 0, step=1, key="m20c", value=None)
-                with cm5: m10c = st.number_input("10¢", 0, step=1, key="m10c", value=None)
-                with cm6: m5c = st.number_input("5¢", 0, step=1, key="m5c", value=None)
-                with cm7: m2c = st.number_input("2¢", 0, step=1, key="m2c", value=None)
-                with cm8: m1c = st.number_input("1¢", 0, step=1, key="m1c", value=None)
+                with cm1: m2 = st.number_input("2€", 0, step=1, key="m2")
+                with cm2: m1 = st.number_input("1€", 0, step=1, key="m1")
+                with cm3: m50c = st.number_input("50¢", 0, step=1, key="m50c")
+                with cm4: m20c = st.number_input("20¢", 0, step=1, key="m20c")
+                with cm5: m10c = st.number_input("10¢", 0, step=1, key="m10c")
+                with cm6: m5c = st.number_input("5¢", 0, step=1, key="m5c")
+                with cm7: m2c = st.number_input("2¢", 0, step=1, key="m2c")
+                with cm8: m1c = st.number_input("1¢", 0, step=1, key="m1c")
                 
-                total_calc = ((b200 or 0)*200) + ((b100 or 0)*100) + ((b50 or 0)*50) + ((b20 or 0)*20) + ((b10 or 0)*10) + ((b5 or 0)*5) + \
-                             ((m2 or 0)*2) + ((m1 or 0)*1) + ((m50c or 0)*0.50) + ((m20c or 0)*0.20) + ((m10c or 0)*0.10) + ((m5c or 0)*0.05) + \
-                             ((m2c or 0)*0.02) + ((m1c or 0)*0.01)
+                total_calc = (b200*200) + (b100*100) + (b50*50) + (b20*20) + (b10*10) + (b5*5) + \
+                             (m2*2) + (m1*1) + (m50c*0.50) + (m20c*0.20) + (m10c*0.10) + (m5c*0.05) + \
+                             (m2c*0.02) + (m1c*0.01)
                 st.info(f"**Total Contado: {total_calc:.2f}€**")
 
             with st.form("form_cierre_final", border=True):
                 st.markdown("<p style='margin: 0 0 5px 0; font-weight: bold;'>🔒 Confirmar Cierre</p>", unsafe_allow_html=True)
                 
                 c_f1, c_f2 = st.columns([1, 1])
-                with c_f1: efectivo_final = st.number_input("Efectivo Final Real", min_value=0.0, value=None, placeholder=f"{total_calc:.2f}", label_visibility="collapsed")
+                with c_f1: efectivo_final = st.number_input("Efectivo Final Real", min_value=0.0, value=float(total_calc), label_visibility="collapsed")
                 with c_f2: submit_cierre = st.form_submit_button("CERRAR CAJA DEFINITIVA", type="primary", use_container_width=True)
                     
                 if submit_cierre:
-                    ef_val = efectivo_final if efectivo_final is not None else total_calc
                     ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0.0
                     retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
                     
                     # --- NUEVO CÁLCULO DE CIERRE (Suma los pagos reales de tus columnas) ---
-                    res_ventas = client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado").gte("created_at", fecha_ap_str).execute()
+                res_ventas = client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado").gte("created_at", fecha_ap_str).execute()
 
-                    t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
-                    if res_ventas.data:
-                        for v in res_ventas.data:
-                            # Solo sumamos el dinero si el ticket no ha sido devuelto
-                            if v.get('estado') != 'DEVUELTO':
-                                t_efe += float(v.get('pago_efectivo') or 0.0)
-                                t_tar += float(v.get('pago_tarjeta') or 0.0)
-                                t_biz += float(v.get('pago_bizum') or 0.0)
-                    # ----------------------------------------------------------------------
-                        
+                t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
+                if res_ventas.data:
+                    for v in res_ventas.data:
+                        # Solo sumamos el dinero si el ticket no ha sido devuelto
+                        if v.get('estado') != 'DEVUELTO':
+                            t_efe += float(v.get('pago_efectivo') or 0.0)
+                            t_tar += float(v.get('pago_tarjeta') or 0.0)
+                            t_biz += float(v.get('pago_bizum') or 0.0)
+                # ----------------------------------------------------------------------
+                    
                     efectivo_teorico_en_caja = fondo_actual + t_efe + ingresos - retiradas
-                    descuadre = ef_val - efectivo_teorico_en_caja
+                    descuadre = efectivo_final - efectivo_teorico_en_caja
                     
                     resumen_json = {
                         "Efectivo": round(t_efe, 2), "Tarjeta": round(t_tar, 2), "Bizum": round(t_biz, 2),
@@ -1562,7 +918,7 @@ with tab5:
                     
                     client.table("control_caja").update({
                         "estado": "Cerrada", 
-                        "total_contado": float(ef_val), 
+                        "total_contado": float(efectivo_final), 
                         "descuadre": float(descuadre),
                         "resumen_pagos": resumen_json
                     }).eq("id", id_caja).execute()
@@ -1624,193 +980,28 @@ with tab6:
 # --- TAB 7: PROVEEDORES ---
 # ==========================================
 with tab7:
-    st.markdown("<h3 style='margin-top:-15px;'>📦 Pedidos a Proveedores</h3>", unsafe_allow_html=True)
-    sub_prov, sub_pedidos = st.tabs(["🚚 Directorio Proveedores", "📦 Hacer Pedido a Proveedor"])
-    
-    with sub_prov:
-        cp1, cp2 = st.columns([1, 2])
-        with cp1:
-            st.markdown("#### ➕ Nuevo Proveedor")
-            with st.form("n_prov_full", clear_on_submit=True):
-                st.markdown("**Datos Principales**")
-                n_emp = st.text_input("Nombre Empresa *")
-                c_np1, c_np2 = st.columns(2)
-                with c_np1: n_cif = st.text_input("CIF / NIF")
-                with c_np2: n_tel = st.text_input("Teléfono Fijo")
-                
-                c_np3, c_np4 = st.columns(2)
-                with c_np3: n_mov = st.text_input("Móvil")
-                with c_np4: n_ema = st.text_input("Email")
-                
-                st.markdown("**Ubicación Rápida**")
-                n_dir = st.text_input("Dirección")
-                c_np5, c_np6 = st.columns(2)
-                with c_np5: n_pob = st.text_input("Población")
-                with c_np6: n_pais = st.text_input("País", value="España - Islas Canarias")
-                
-                if st.form_submit_button("Guardar Proveedor", use_container_width=True, type="primary"):
-                    if n_emp:
-                        client.table("proveedores").insert({
-                            "nombre_empresa": n_emp, "cif": n_cif,
-                            "telefono": n_tel, "movil": n_mov, "email": n_ema,
-                            "direccion": n_dir, "poblacion": n_pob, "pais": n_pais,
-                            "codigo_pais": "ES_CANARY" if "Canarias" in n_pais else "ES",
-                            "idioma": "Español"
-                        }).execute()
-                        st.success("Guardado"); time.sleep(0.5); st.rerun()
-        with cp2:
-            st.markdown("#### 📋 Directorio")
-            res_p = client.table("proveedores").select("*").execute()
-            if res_p.data:
-                df_p = pd.DataFrame(res_p.data)
-                
-                # Aseguramos que las nuevas columnas existan en el DataFrame (por si no has corrido el SQL aún)
-                for col in ['telefono', 'movil', 'email', 'direccion', 'poblacion', 'codigo_postal', 'provincia', 'pais', 'codigo_pais', 'idioma', 'forma_pago', 'persona_contacto', 'iban', 'swift', 'notas', 'contacto']:
-                    if col not in df_p.columns: df_p[col] = ""
-                    
-                df_p_vista = df_p[['id', 'nombre_empresa', 'telefono', 'movil', 'email']].copy()
-                df_p_vista.insert(0, "Ver Ficha", False)
-                
-                st.markdown("💡 *Marca **'👁️ Ver Ficha'** para acceder a todos los datos de contacto y facturación.*")
-                
-                ed_p = st.data_editor(
-                    df_p_vista, hide_index=True, use_container_width=True, key="ed_prov", height=250,
-                    column_config={
-                        "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
-                        "id": None, "nombre_empresa": "Empresa", "telefono": "Teléfono Fijo", "movil": "Móvil", "email": "Email"
-                    }
-                )
-                
-                if st.button("💾 Guardar Cambios Rápidos", type="primary"):
-                    for _, row in ed_p.iterrows():
-                        if pd.notna(row['id']):
-                            client.table("proveedores").update({
-                                "nombre_empresa": str(row['nombre_empresa']),
-                                "telefono": str(row['telefono']), "movil": str(row['movil']), "email": str(row['email'])
-                            }).eq("id", row['id']).execute()
-                    st.success("Directorio actualizado."); time.sleep(0.5); st.rerun()
-                    
-        # --- FICHA COMPLETA DEL PROVEEDOR ---
-        if 'res_p' in locals() and res_p.data:
-            filas_ver = ed_p[ed_p["Ver Ficha"] == True]
-            if not filas_ver.empty:
-                p_id = filas_ver.iloc[0]['id']
-                p_data = df_p[df_p['id'] == p_id].iloc[0]
-                
-                st.markdown("---")
-                st.markdown(f"#### 🏢 Ficha Completa: **{p_data['nombre_empresa']}**")
-                
-                # Mostrar datos antiguos si existen para que el usuario pueda copiarlos
-                if p_data.get('contacto') and str(p_data['contacto']).strip() and str(p_data['contacto']).strip() != "nan":
-                    st.caption(f"💾 *Información antigua registrada:* {p_data['contacto']}")
-                
-                with st.form(f"ficha_prov_{p_id}", border=True):
-                    st.markdown("**1. Información Fiscal y de Contacto**")
-                    cf1, cf2, cf3 = st.columns([1.5, 1, 1])
-                    with cf1: f_nom = st.text_input("Nombre Empresa *", value=p_data.get('nombre_empresa',''))
-                    with cf2: f_cif = st.text_input("CIF / NIF", value=p_data.get('cif',''))
-                    with cf3: f_per = st.text_input("Persona de Contacto", value=p_data.get('persona_contacto',''))
-                    
-                    cf4, cf5, cf6 = st.columns(3)
-                    with cf4: f_tel = st.text_input("Teléfono Fijo", value=p_data.get('telefono',''))
-                    with cf5: f_mov = st.text_input("Móvil", value=p_data.get('movil',''))
-                    with cf6: f_ema = st.text_input("Email", value=p_data.get('email',''))
-                    
-                    st.markdown("**2. Ubicación**")
-                    f_dir = st.text_input("Dirección Completa", value=p_data.get('direccion',''))
-                    
-                    cf7, cf8, cf9 = st.columns(3)
-                    with cf7: f_pob = st.text_input("Población", value=p_data.get('poblacion',''))
-                    with cf8: f_cp = st.text_input("Código Postal", value=p_data.get('codigo_postal',''))
-                    with cf9: f_prov = st.text_input("Provincia", value=p_data.get('provincia',''))
-                    
-                    cf10, cf11, cf12 = st.columns(3)
-                    with cf10: f_pais = st.text_input("País", value=p_data.get('pais',''))
-                    with cf11: f_cod_pais = st.text_input("Código País", value=p_data.get('codigo_pais',''))
-                    with cf12: f_idioma = st.text_input("Idioma", value=p_data.get('idioma',''))
-                    
-                    st.markdown("**3. Facturación y Notas**")
-                    cf13, cf14, cf15 = st.columns([1, 1.5, 1])
-                    with cf13: f_fpago = st.text_input("Forma de Pago", value=p_data.get('forma_pago',''))
-                    with cf14: f_iban = st.text_input("IBAN", value=p_data.get('iban',''))
-                    with cf15: f_swift = st.text_input("SWIFT", value=p_data.get('swift',''))
-                    
-                    f_not = st.text_area("Fax / Otras Notas / Observaciones", value=p_data.get('notas',''))
-                    
-                    if st.form_submit_button("💾 Guardar Ficha Completa", type="primary", use_container_width=True):
-                        if f_nom:
-                            client.table("proveedores").update({
-                                "nombre_empresa": f_nom, "cif": f_cif, "persona_contacto": f_per,
-                                "telefono": f_tel, "movil": f_mov, "email": f_ema, "direccion": f_dir,
-                                "poblacion": f_pob, "codigo_postal": f_cp, "provincia": f_prov,
-                                "pais": f_pais, "codigo_pais": f_cod_pais, "idioma": f_idioma,
-                                "forma_pago": f_fpago, "iban": f_iban, "swift": f_swift, "notas": f_not, 
-                                "contacto": "" # Borramos la línea antigua ya que se ha organizado
-                            }).eq("id", p_id).execute()
-                            st.success("Ficha del proveedor actualizada correctamente."); time.sleep(0.5); st.rerun()
-                        else:
-                            st.error("El nombre de la empresa es obligatorio.")
-
-    with sub_pedidos:
-        st.markdown("#### 📦 Borrador de Pedidos a Proveedores")
-        st.info("💡 **Sistema de Pedidos en Fase Beta**: Aquí puedes empezar a guardar borradores. En la próxima actualización vincularemos esto directamente a los botones de 'Bajo Mínimos' del inventario.")
-        try:
-            res_provs_p = client.table("proveedores").select("id, nombre_empresa").execute()
-            dict_pp = {p['nombre_empresa']: p['id'] for p in res_provs_p.data} if res_provs_p.data else {}
-            
-            cp_a, cp_b = st.columns([1, 2])
-            with cp_a:
-                sel_prov_ped = st.selectbox("Selecciona Proveedor para abrir pedido", list(dict_pp.keys()))
-                if st.button("Crear Nuevo Borrador", use_container_width=True):
-                    client.table("pedidos_proveedores").insert({"proveedor_id": dict_pp[sel_prov_ped], "estado": "Borrador", "productos": []}).execute()
-                    st.rerun()
-                    
-            with cp_b:
-                res_ped = client.table("pedidos_proveedores").select("*, proveedores(nombre_empresa)").order("created_at", desc=True).execute()
-                if res_ped.data:
-                    df_ped = pd.DataFrame(res_ped.data)
-                    df_ped['Proveedor'] = df_ped['proveedores'].apply(lambda x: x.get('nombre_empresa', ''))
-                    df_ped['Fecha'] = pd.to_datetime(df_ped['created_at']).dt.strftime('%d/%m/%Y')
-                    
-                    df_ped_vista = df_ped[['id', 'Fecha', 'Proveedor', 'estado']].copy()
-                    df_ped_vista.insert(0, "Ver/Editar", False)
-                    
-                    ed_ped = st.data_editor(
-                        df_ped_vista,
-                        hide_index=True, use_container_width=True,
-                        column_config={
-                            "Ver/Editar": st.column_config.CheckboxColumn("👁️ Ver"),
-                            "id": None, "estado": st.column_config.SelectboxColumn("Estado", options=["Borrador", "Enviado", "Recibido"])
-                        }
-                    )
-                    if st.button("💾 Guardar Estados de Pedidos"):
-                        for _, r in ed_ped.iterrows():
-                            client.table("pedidos_proveedores").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
-                        st.rerun()
-                        
-                    # Mostrar detalle del pedido marcado
-                    filas_ped = ed_ped[ed_ped["Ver/Editar"] == True]
-                    if not filas_ped.empty:
-                        st.markdown("---")
-                        ped_id = filas_ped.iloc[0]['id']
-                        ped_data = df_ped[df_ped['id'] == ped_id].iloc[0]
-                        st.markdown(f"#### 🛒 Contenido del Borrador #{ped_id} ({ped_data['Proveedor']})")
-                        
-                        lista_prods_ped = ped_data.get('productos', [])
-                        df_prods_ped = pd.DataFrame(lista_prods_ped) if lista_prods_ped else pd.DataFrame(columns=["Producto", "Cantidad"])
-                        if 'Producto' not in df_prods_ped.columns: df_prods_ped['Producto'] = ""
-                        if 'Cantidad' not in df_prods_ped.columns: df_prods_ped['Cantidad'] = 1
-                        
-                        ed_prods_ped = st.data_editor(
-                            df_prods_ped, use_container_width=True, hide_index=True, num_rows="dynamic",
-                            column_config={"Producto": st.column_config.TextColumn("Producto a pedir"), "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1)}
-                        )
-                        
-                        if st.button("💾 Guardar Productos del Borrador"):
-                            client.table("pedidos_proveedores").update({"productos": json.loads(ed_prods_ped.to_json(orient='records'))}).eq("id", ped_id).execute()
-                            st.success("Borrador actualizado"); st.rerun()
-        except:
-            pass
+    st.markdown("### 🚚 Gestión de Proveedores y Pagos")
+    cp1, cp2 = st.columns([1, 2])
+    with cp1:
+        with st.form("n_prov_full", clear_on_submit=True):
+            n_emp = st.text_input("Nombre Empresa *")
+            n_cif = st.text_input("CIF / NIF")
+            n_dir = st.text_input("Dirección")
+            n_tel = st.text_input("Teléfono")
+            n_ema = st.text_input("Email")
+            n_iban = st.text_input("Número de Cuenta (IBAN)")
+            if st.form_submit_button("➕ Guardar Proveedor", use_container_width=True, type="primary"):
+                if n_emp:
+                    client.table("proveedores").insert({
+                        "nombre_empresa": n_emp,
+                        "cif": n_cif,
+                        "contacto": f"Tel: {n_tel} | Email: {n_ema} | Dir: {n_dir} | IBAN: {n_iban}"
+                    }).execute()
+                    st.success("Guardado"); time.sleep(0.5); st.rerun()
+    with cp2:
+        res_p = client.table("proveedores").select("*").execute()
+        if res_p.data:
+            st.dataframe(pd.DataFrame(res_p.data)[['nombre_empresa', 'contacto']], use_container_width=True, hide_index=True)
 
 # ==========================================
 # --- TAB 8: FACTURACIÓN LEGAL Y STOCK ---
@@ -1897,9 +1088,9 @@ with tab8:
             st.markdown("---")
             col_v1, col_v2 = st.columns([1, 2])
             with col_v1:
-                desc_g_v = st.number_input(" 🎁  Dto. Global (%)", 0.0, 100.0, value=None, key="desc_v_alta")
+                desc_g_v = st.number_input(" 🎁  Dto. Global (%)", 0.0, 100.0, 0.0, key="desc_v_alta")
             
-            total_v_final = suma_articulos_v * (1 - (desc_g_v or 0.0) / 100)
+            total_v_final = suma_articulos_v * (1 - desc_g_v / 100)
 
             with col_v2:
                 st.markdown(f"""
@@ -1912,20 +1103,9 @@ with tab8:
             if st.button(" 🚀  EMITIR FACTURA", type="primary", use_container_width=True):
                 if sel_c:
                     c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
-                    
-                    # --- MÓDULO VERI*FACTU: CÁLCULO DE HASH ---
-                    fecha_emision_fac = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                    res_hf = client.table("facturas").select("hash_actual").order("id", desc=True).limit(1).execute()
-                    h_ant_f = res_hf.data[0]['hash_actual'] if res_hf.data and res_hf.data[0].get('hash_actual') else ""
-                    h_act_f = generar_hash_verifactu("FACTURA", fecha_emision_fac, float(total_v_final), h_ant_f)
-                    
                     client.table("facturas").insert({
                         "cliente_id": c_id, "total_neto": float(total_v_final), "total_igic": 0.0, "total_final": float(total_v_final),
-                        "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp,
-                        "hash_anterior": h_ant_f,
-                        "hash_actual": h_act_f,
-                        "qr_verifactu": "",
-                        "estado_hacienda": "Pendiente"
+                        "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
                     }).execute()
                     for i in st.session_state.factura_v_temp:
                         res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
@@ -1992,8 +1172,8 @@ with tab8:
             t_base_c = df_c['Base Neta'].sum()
             t_igic_c = df_c['IGIC €'].sum()
             suma_articulos_c = df_c['Total Línea'].sum()
-            desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", 0.0, 100.0, value=None)
-            total_con_pp = suma_articulos_c * (1 - (desc_pp or 0.0) / 100)
+            desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", 0.0, 100.0, 0.0)
+            total_con_pp = suma_articulos_c * (1 - desc_pp / 100)
             
             st.markdown(f"""
             <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f; text-align: right;">
@@ -2033,27 +1213,47 @@ with tab8:
                 df_fac['Cliente'] = df_fac['clientes'].apply(lambda x: x['nombre_dueno'] if x else '---')
                 df_vista = df_fac[['id', 'numero_factura', 'total_final', 'Cliente', 'forma_pago']].copy()
                 
-                # 🚨 LEY ANTIFRAUDE (VERI*FACTU): Prohibido borrar facturas emitidas
+                # Insertamos las dos casillas al principio de la tabla
+                df_vista.insert(0, "Borrar", False)
                 df_vista.insert(0, "Ver", False)
                 
                 ed_fac = st.data_editor(
                     df_vista, hide_index=True, use_container_width=True, key="ed_h_f", 
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver"), 
+                        "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"), 
                         "id": None
                     }
                 )
+                
+                # 1. SISTEMA DE BORRADO DIRECTO DESDE LA TABLA
+                filas_borrar_v = ed_fac[ed_fac["Borrar"] == True]
+                if not filas_borrar_v.empty:
+                    st.error(f"⚠️ Has marcado {len(filas_borrar_v)} factura(s) para eliminar. El stock de los artículos se devolverá automáticamente a la tienda.")
+                    if st.button("🚨 CONFIRMAR ELIMINACIÓN DE FACTURA(S)", type="primary", use_container_width=True):
+                        for idx, row in filas_borrar_v.iterrows():
+                            f_id = row['id']
+                            f_data = df_fac[df_fac['id'] == f_id].iloc[0]
+                            # Devolver stock
+                            for p in f_data.get('productos', []):
+                                res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
+                            # Eliminar registro
+                            client.table("facturas").delete().eq("id", f_id).execute()
+                        st.success("Factura(s) eliminada(s) correctamente."); time.sleep(1); st.rerun()
                 
                 st.markdown("---")
                 
                 # 2. SISTEMA DE GUARDADO DE CABECERA (Forma de pago)
                 if st.button(" 💾  Guardar Cambios en Forma de Pago"):
-                    for idx, row in ed_fac.iterrows():
+                    # Solo guardamos las que no están marcadas para borrar
+                    filas_validas = ed_fac[ed_fac["Borrar"] == False]
+                    for idx, row in filas_validas.iterrows():
                         client.table("facturas").update({"forma_pago": str(row['forma_pago'])}).eq("id", row['id']).execute()
                     st.success("Formas de pago actualizadas."); time.sleep(0.5); st.rerun()
 
                 # 3. SISTEMA DE DESGLOSE
-                filas = ed_fac[(ed_fac["Ver"] == True)]
+                filas = ed_fac[(ed_fac["Ver"] == True) & (ed_fac["Borrar"] == False)]
                 if not filas.empty:
                     f_id = filas.iloc[0]['id']
                     f_data = df_fac[df_fac['id'] == f_id].iloc[0]
@@ -2149,11 +1349,11 @@ with tab9:
             with st.form("nuevo_gasto"):
                 st.markdown("#### Registrar Gasto Operativo")
                 concepto = st.text_input("Concepto (Luz, Alquiler, Material...)")
-                importe = st.number_input("Importe Total (€)", min_value=0.0, value=None)
+                importe = st.number_input("Importe Total (€)", min_value=0.0)
                 f_vence = st.date_input("Fecha de Vencimiento")
                 estado_g = st.selectbox("Estado", ["Pagado", "Pendiente"])
                 if st.form_submit_button("Guardar Gasto"):
-                    if importe is not None and importe > 0:
+                    if importe > 0:
                         client.table("compras").insert({
                             "tipo": "Gasto Operativo", "total": importe, 
                             "estado": estado_g, "fecha_vencimiento": str(f_vence)
@@ -2267,172 +1467,58 @@ with tab9:
 with tab10:
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
     
-    # --- DATOS COMUNES PARA TODAS LAS SUB-PESTAÑAS DE AGENDA ---
     res_m = client.table("mascotas").select("id, nombre, clientes(nombre_dueno)").execute()
     dict_mascotas = {}
     if res_m.data:
         for m in res_m.data:
             dueno = m['clientes']['nombre_dueno'] if m.get('clientes') else "Desconocido"
             dict_mascotas[f"🐾 {m['nombre']} (De: {dueno})"] = m['id']
+
+    c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
+    
+    with c_agenda1:
+        with st.form("nueva_cita", border=True):
+            st.markdown("#### ➕ Nueva Cita")
+            mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None)
+            fecha_c = st.date_input("Fecha *")
+            hora_c = st.time_input("Hora *")
+            servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
             
-    res_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
-    
-    # --- PESTAÑAS DE VISTAS ---
-    sub_agenda, sub_diario, sub_semanal = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal"])
-    
-    with sub_agenda:
-        c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
-        
-        with c_agenda1:
-            with st.form("nueva_cita", border=True):
-                st.markdown("#### ➕ Nueva Cita")
-                mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None)
-                fecha_c = st.date_input("Fecha *")
-                hora_c = st.time_input("Hora de Inicio *")
-                duracion_c = st.number_input("Duración estimada (minutos) *", min_value=5, max_value=300, value=60, step=5)
-                servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
-                
-                if st.form_submit_button("Guardar Cita", type="primary", use_container_width=True):
-                    if mascota_sel:
-                        fecha_hora_str = f"{fecha_c} {hora_c.strftime('%H:%M')}"
-                        client.table("citas").insert({
-                            "mascotas_id": dict_mascotas[mascota_sel],
-                            "fecha_hora": fecha_hora_str,
-                            "servicio": servicio_sel,
-                            "duracion_minutos": int(duracion_c)
-                        }).execute()
-                        st.success("Cita agendada.")
-                        time.sleep(1); st.rerun()
-                    else:
-                        st.error("Debes seleccionar una mascota.")
+            if st.form_submit_button("Guardar Cita", type="primary", use_container_width=True):
+                if mascota_sel:
+                    fecha_hora_str = f"{fecha_c} {hora_c}"
+                    client.table("citas").insert({
+                        "mascotas_id": dict_mascotas[mascota_sel],
+                        "fecha_hora": fecha_hora_str,
+                        "servicio": servicio_sel
+                    }).execute()
+                    st.success("Cita agendada correctamente.")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Debes seleccionar una mascota.")
 
-        with c_agenda2:
-            st.markdown("#### 🗓️ Directorio de Citas (Editable)")
-            if res_citas.data:
-                citas_formateadas = []
-                for c in res_citas.data:
-                    mascota_info = c.get('mascotas', {})
-                    cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
-                    dur = c.get('duracion_minutos') if c.get('duracion_minutos') is not None else 60
-                    
-                    citas_formateadas.append({
-                        "id": c['id'],
-                        "Día y Hora": c['fecha_hora'],
-                        "Duración (min)": dur,
-                        "Servicio": c['servicio'],
-                        "Mascota": mascota_info.get('nombre', 'N/A'),
-                        "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
-                        "Teléfono": cliente_info.get('telefono', 'N/A')
-                    })
-                    
-                df_citas = pd.DataFrame(citas_formateadas)
-                
-                ed_citas = st.data_editor(
-                    df_citas[['id', 'Día y Hora', 'Duración (min)', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
-                    use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
-                    column_config={
-                        "id": None,
-                        "Mascota": st.column_config.TextColumn(disabled=True),
-                        "Dueño": st.column_config.TextColumn(disabled=True),
-                        "Teléfono": st.column_config.TextColumn(disabled=True)
-                    }
-                )
-                
-                if st.button("💾 Guardar Cambios en Agenda", type="primary"):
-                    ids_actuales = ed_citas['id'].dropna().tolist()
-                    ids_orig = df_citas['id'].tolist()
-                    ids_borrar = [i for i in ids_orig if i not in ids_actuales]
-                    
-                    for id_b in ids_borrar: client.table("citas").delete().eq("id", id_b).execute()
-                    
-                    for _, row in ed_citas.iterrows():
-                        if pd.notna(row['id']):
-                            client.table("citas").update({
-                                "fecha_hora": str(row['Día y Hora']),
-                                "duracion_minutos": int(row['Duración (min)']),
-                                "servicio": str(row['Servicio'])
-                            }).eq("id", row['id']).execute()
-                    st.success("Agenda actualizada."); time.sleep(0.8); st.rerun()
-            else:
-                st.info("No hay citas agendadas en el sistema.")
-                
-    with sub_diario:
-        st.markdown("#### 🕒 Cuadrante de Trabajo Diario (Intervalos de 5 min)")
-        dia_ver = st.date_input("Selecciona un día para ver los huecos libres:", value=date.today())
-        
-        # Creamos una cuadrícula estricta de 5 en 5 minutos (09:00 a 20:55)
-        horas_trabajo = [f"{h:02d}:{m:02d}" for h in range(9, 21) for m in range(0, 60, 5)]
-        df_cuadrante = pd.DataFrame({"Hora": horas_trabajo})
-        df_cuadrante["Estado"] = "🟩 Libre"
-        df_cuadrante["Detalle"] = ""
+    with c_agenda2:
+        st.markdown("#### 🗓️ Próximas Citas")
+        res_citas = client.table("citas").select("id, fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
         
         if res_citas.data:
+            citas_formateadas = []
             for c in res_citas.data:
-                try:
-                    dt_start = pd.to_datetime(c['fecha_hora'])
-                    if dt_start.date() == dia_ver:
-                        dur = c.get('duracion_minutos') if c.get('duracion_minutos') is not None else 60
-                        dt_end = dt_start + pd.Timedelta(minutes=dur)
-                        mascota = c.get('mascotas', {}).get('nombre', 'Mascota')
-                        detalle_texto = f"{mascota} ({dur} min) - {c['servicio']}"
-                        
-                        # Recorremos la cuadrícula y rellenamos los huecos afectados
-                        for idx, row in df_cuadrante.iterrows():
-                            q_time = pd.to_datetime(f"{dia_ver} {row['Hora']}")
-                            if dt_start <= q_time < dt_end:
-                                df_cuadrante.loc[idx, "Estado"] = "🔴 OCUPADO"
-                                df_cuadrante.loc[idx, "Detalle"] = detalle_texto
-                except: pass
+                dt_obj = pd.to_datetime(c['fecha_hora'])
+                mascota_info = c.get('mascotas', {})
+                cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
                 
-        df_cuadrante = df_cuadrante.sort_values("Hora").reset_index(drop=True)
-        st.dataframe(df_cuadrante, use_container_width=True, hide_index=True, height=600)
-
-    with sub_semanal:
-        st.markdown("#### 🗓️ Cuadrante de Trabajo Semanal (Vista Flexible)")
-        dia_referencia = st.date_input("Selecciona una fecha para ver su semana:", value=date.today(), key="semana_picker")
-        
-        start_of_week = dia_referencia - timedelta(days=dia_referencia.weekday())
-        end_of_week = start_of_week + timedelta(days=6)
-
-        st.markdown(f"##### Semana del {start_of_week.strftime('%d/%m/%Y')} al {end_of_week.strftime('%d/%m/%Y')}")
-
-        dias_semana_dt = [(start_of_week + timedelta(days=i)) for i in range(7)]
-        nombres_dias_col = [d.strftime('%A\n%d/%m') for d in dias_semana_dt]
-
-        # Diccionario para agrupar citas por columna (día)
-        citas_por_dia = {dia: [] for dia in nombres_dias_col}
-
-        if res_citas.data:
-            for cita in res_citas.data:
-                try:
-                    dt_start = pd.to_datetime(cita['fecha_hora'])
-                    if start_of_week <= dt_start.date() <= end_of_week:
-                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
-                        dt_end = dt_start + timedelta(minutes=duracion)
-                        
-                        col_dia = dt_start.strftime('%A\n%d/%m')
-                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
-                        
-                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
-                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
-                        citas_por_dia[col_dia].append((dt_start, texto_cita))
-                except Exception: pass
-        
-        # Ordenar cronológicamente y preparar para la tabla
-        max_filas = 0
-        for dia in nombres_dias_col:
-            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
-            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
-            if len(citas_por_dia[dia]) > max_filas:
-                max_filas = len(citas_por_dia[dia])
+                citas_formateadas.append({
+                    "Día": dt_obj.strftime('%d/%m/%Y'),
+                    "Hora": dt_obj.strftime('%H:%M'),
+                    "Mascota": mascota_info.get('nombre', 'N/A'),
+                    "Servicio": c['servicio'],
+                    "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
+                    "Teléfono": cliente_info.get('telefono', 'N/A')
+                })
                 
-        if max_filas == 0:
-            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
-            st.info("Semana completamente libre. No hay citas agendadas.")
+            df_citas = pd.DataFrame(citas_formateadas)
+            st.dataframe(df_citas, use_container_width=True, hide_index=True, height=400)
         else:
-            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
-            for dia in nombres_dias_col:
-                while len(citas_por_dia[dia]) < max_filas:
-                    citas_por_dia[dia].append("")
-            df_semana = pd.DataFrame(citas_por_dia)
-            st.dataframe(df_semana, use_container_width=True, hide_index=True)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+            st.info("No hay citas agendadas en el sistema.")
