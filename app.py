@@ -86,73 +86,93 @@ with tab1:
 
     with col_f:
         st.markdown("#### 📝 Alta de nuevo ítem")
-        with st.form("nuevo_p_separado", clear_on_submit=True, border=True):
-            nombre = st.text_input("Nombre del Producto/Servicio *")
-            c1, c2, c3 = st.columns(3)
-            with c1: sku = st.text_input("SKU (Interno) *")
-            with c2: cod_barras = st.text_input("Cód. Barras")
-            with c3: cat = st.selectbox("Categoría *", ["Producto", "Servicio"])
-            
-            c4, c5 = st.columns(2)
-            with c4: p_base = st.number_input("Base Compra (€)", min_value=0.0, format="%.2f")
-            with c5: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
-            
-            c6, c7 = st.columns(2)
-            with c6: pvp = st.number_input("PVP Venta (€)", min_value=0.0, format="%.2f")
-            with c7: stck = st.number_input("Stock Inicial", min_value=0)
-            
-            provs_sel = st.multiselect("Asociar Proveedores", list(dict_proveedores.keys()))
-            
-            if st.form_submit_button("💾 REGISTRAR", use_container_width=True, type="primary"):
-                if nombre and sku:
-                    res_ins = client.table("productos").insert({
-                        "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": cat,
-                        "precio_base": p_base, "igic_tipo": igic_tipo, 
-                        "stock_actual": stck if cat == "Producto" else 0, "precio_pvp": pvp
-                    }).execute()
-                    if res_ins.data and provs_sel:
-                        rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base} for p in provs_sel]
-                        client.table("productos_proveedores").insert(rels).execute()
-                    st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
+        tab_prod, tab_serv = st.tabs(["📦 Nuevo Producto", "✂️ Nuevo Servicio"])
+        
+        with tab_prod:
+            with st.form("nuevo_producto", clear_on_submit=True, border=True):
+                nombre = st.text_input("Nombre del Producto *")
+                c1, c2 = st.columns(2)
+                with c1: sku = st.text_input("SKU (Interno) *")
+                with c2: cod_barras = st.text_input("Cód. Barras")
+                
+                c4, c5 = st.columns(2)
+                with c4: p_base = st.number_input("Base Compra (€)", min_value=0.0, format="%.2f")
+                with c5: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
+                
+                c6, c7 = st.columns(2)
+                with c6: pvp = st.number_input("PVP Venta (€)", min_value=0.0, format="%.2f")
+                with c7: stck = st.number_input("Stock Inicial", min_value=0)
+                
+                provs_sel = st.multiselect("Asociar Proveedores", list(dict_proveedores.keys()))
+                
+                if st.form_submit_button("💾 REGISTRAR PRODUCTO", use_container_width=True, type="primary"):
+                    if nombre and sku:
+                        res_ins = client.table("productos").insert({
+                            "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": "Producto",
+                            "precio_base": p_base, "igic_tipo": igic_tipo, 
+                            "stock_actual": stck, "precio_pvp": pvp
+                        }).execute()
+                        if res_ins.data and provs_sel:
+                            rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base} for p in provs_sel]
+                            client.table("productos_proveedores").insert(rels).execute()
+                        st.success("Producto guardado correctamente"); time.sleep(0.5); st.rerun()
+
+        with tab_serv:
+            with st.form("nuevo_servicio", clear_on_submit=True, border=True):
+                nombre_s = st.text_input("Nombre del Servicio *")
+                sku_s = st.text_input("SKU (Código Interno) *")
+                
+                c_s1, c_s2 = st.columns(2)
+                with c_s1: pvp_s = st.number_input("PVP Final (€) (IGIC inc.)", min_value=0.0, format="%.2f")
+                with c_s2: igic_tipo_s = st.selectbox("IGIC Aplicado %", [7.00, 0.00, 3.00, 15.00], key="igic_serv")
+                
+                if st.form_submit_button("💾 REGISTRAR SERVICIO", use_container_width=True, type="primary"):
+                    if nombre_s and sku_s:
+                        # Calculamos la base automáticamente a partir del PVP final
+                        base_calc = pvp_s / (1 + (igic_tipo_s / 100))
+                        client.table("productos").insert({
+                            "sku": sku_s, "codigo_barras": "", "nombre": nombre_s, "categoria": "Servicio",
+                            "precio_base": round(base_calc, 2), "igic_tipo": igic_tipo_s, 
+                            "stock_actual": 0, "precio_pvp": pvp_s
+                        }).execute()
+                        st.success("Servicio guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
-            res_prod = client.table("productos").select("*").order("nombre").execute()
+        res_prod = client.table("productos").select("*").order("nombre").execute()
+        
+        if res_prod.data:
+            df_inv = pd.DataFrame(res_prod.data)
             
-            if res_prod.data:
-                df_inv = pd.DataFrame(res_prod.data)
-                
-                # --- 1. LIMPIEZA DE DATOS ---
-                df_inv['categoria_filt'] = df_inv['categoria'].fillna('Producto').astype(str).str.strip().str.capitalize()
+            # --- 1. LIMPIEZA DE DATOS ---
+            df_inv['categoria_filt'] = df_inv['categoria'].fillna('Producto').astype(str).str.strip().str.capitalize()
 
-                # --- TABLA DE PRODUCTOS MEJORADA ---
-                st.markdown("#### 📦 Inventario de Productos")
-                df_solo_productos = df_inv[df_inv['categoria_filt'] == 'Producto'].copy()
+            # --- TABLA DE PRODUCTOS MEJORADA ---
+            st.markdown("#### 📦 Inventario de Productos")
+            df_solo_productos = df_inv[df_inv['categoria_filt'] == 'Producto'].copy()
 
-                # Ahora permitimos borrar filas con num_rows="dynamic"
-                edit_p = st.data_editor(
-                    df_solo_productos,
-                    column_config={
-                        "id": None, "categoria": None, "categoria_filt": None,
-                        "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
-                        "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
-                        "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock"
-                    },
-                    column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
-                    hide_index=True, 
-                    use_container_width=True, 
-                    num_rows="dynamic", # <--- ESTO PERMITE BORRAR FILAS
-                    key="edit_p_sep"
-                )
+            # Ahora permitimos borrar filas con num_rows="dynamic"
+            edit_p = st.data_editor(
+                df_solo_productos,
+                column_config={
+                    "id": None, "categoria": None, "categoria_filt": None,
+                    "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
+                    "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
+                    "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock"
+                },
+                column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
+                hide_index=True, 
+                use_container_width=True, 
+                num_rows="dynamic",
+                key="edit_p_sep"
+            )
+            if st.button("💾 Guardar cambios en Productos", key="btn_save_p_sep"):
+                # 1. Detectar si alguna fila ha sido borrada
+                ids_actuales = edit_p['id'].dropna().tolist()
+                ids_originales = df_solo_productos['id'].tolist()
+                ids_a_borrar = [id_orig for id_orig in ids_originales if id_orig not in ids_actuales]
 
-                if st.button("💾 Guardar cambios en Productos", key="btn_save_p_sep"):
-                    # 1. Detectar si alguna fila ha sido borrada
-                    ids_actuales = edit_p['id'].dropna().tolist()
-                    ids_originales = df_solo_productos['id'].tolist()
-                    ids_a_borrar = [id_orig for id_orig in ids_originales if id_orig not in ids_actuales]
-
-                    # 2. Borrar de Supabase los que ya no están en la tabla
-                    for id_del in ids_a_borrar:
-                        client.table("productos").delete().eq("id", id_del).execute()
+                for id_del in ids_a_borrar:
+                    client.table("productos").delete().eq("id", id_del).execute()
 
                     # 3. Actualizar los que se han quedado (por si cambiaste precios o stock)
                     for i, row in edit_p.iterrows():
@@ -176,7 +196,7 @@ with tab1:
                     column_config={
                         "id": None, "categoria": None, "categoria_filt": None,
                         "sku": "Código", "nombre": "Descripción del Servicio",
-                        "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
+                        "precio_base": st.column_config.NumberColumn("Base Calc. (€)", format="%.2f", disabled=True),
                         "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)"
                     },
                     column_order=["sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
@@ -202,6 +222,11 @@ with tab1:
                             datos_s = row.to_dict()
                             # Quitamos la columna temporal para que Supabase no dé error
                             if 'categoria_filt' in datos_s: del datos_s['categoria_filt']
+                            
+                            # Recalcular la base automáticamente por si se modificó el PVP en la tabla
+                            if 'precio_pvp' in datos_s and 'igic_tipo' in datos_s:
+                                datos_s['precio_base'] = round(float(datos_s['precio_pvp']) / (1 + (float(datos_s['igic_tipo']) / 100)), 2)
+                                
                             client.table("productos").update(datos_s).eq("id", row['id']).execute()
 
                     st.success("Catálogo de servicios actualizado")
@@ -221,7 +246,6 @@ with tab2:
             <h4 style='margin:0; color: #333; white-space: nowrap; padding-right: 10px;'>🛒 Tu Carrito</h4>
         </div>
     """, unsafe_allow_html=True)
-
     col_busqueda, col_carrito = st.columns([1, 1.4], gap="small")
     
     with col_busqueda:
@@ -246,13 +270,6 @@ with tab2:
                         })
                         st.rerun()
         
-        st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-
-        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>📇 Escáner de Pistola</p>", unsafe_allow_html=True)
-        if 'limpiar_codigo' in st.session_state and st.session_state.limpiar_codigo:
-            st.session_state.input_pistola = ""
-            st.session_state.limpiar_codigo = False
-
         cp1, cp2 = st.columns([2, 1])
         with cp1: cod_leido = st.text_input("p1", placeholder="Esperando escaneo...", label_visibility="collapsed", key="input_pistola")
         with cp2: cant_p = st.number_input("p2", min_value=1, value=1, label_visibility="collapsed", key="cant_p")
@@ -896,17 +913,17 @@ with tab5:
                     retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
                     
                     # --- NUEVO CÁLCULO DE CIERRE (Suma los pagos reales de tus columnas) ---
-                res_ventas = client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado").gte("created_at", fecha_ap_str).execute()
+                    res_ventas = client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado").gte("created_at", fecha_ap_str).execute()
 
-                t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
-                if res_ventas.data:
-                    for v in res_ventas.data:
-                        # Solo sumamos el dinero si el ticket no ha sido devuelto
-                        if v.get('estado') != 'DEVUELTO':
-                            t_efe += float(v.get('pago_efectivo') or 0.0)
-                            t_tar += float(v.get('pago_tarjeta') or 0.0)
-                            t_biz += float(v.get('pago_bizum') or 0.0)
-                # ----------------------------------------------------------------------
+                    t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
+                    if res_ventas.data:
+                        for v in res_ventas.data:
+                            # Solo sumamos el dinero si el ticket no ha sido devuelto
+                            if v.get('estado') != 'DEVUELTO':
+                                t_efe += float(v.get('pago_efectivo') or 0.0)
+                                t_tar += float(v.get('pago_tarjeta') or 0.0)
+                                t_biz += float(v.get('pago_bizum') or 0.0)
+                    # ----------------------------------------------------------------------
                     
                     efectivo_teorico_en_caja = fondo_actual + t_efe + ingresos - retiradas
                     descuadre = efectivo_final - efectivo_teorico_en_caja
@@ -1543,8 +1560,3 @@ with tab10:
                     "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
                     "Teléfono": cliente_info.get('telefono', 'N/A')
                 })
-                
-            df_citas = pd.DataFrame(citas_formateadas)
-            st.dataframe(df_citas, use_container_width=True, hide_index=True, height=400)
-        else:
-            st.info("No hay citas agendadas en el sistema.")
