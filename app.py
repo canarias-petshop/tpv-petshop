@@ -845,7 +845,7 @@ with tab3:
                                 "email": str(row['email']), "fecha_nacimiento": str(row['fecha_nacimiento']),
                                 "rgpd_consent": bool(row.get('RGPD', True)), "puntos": int(row.get('Puntos', 0))
                             }).eq("id", row['id']).execute()
-                st.success("Directorio de clientes actualizado."); time.sleep(0.5); st.rerun()
+                    st.success("Directorio de clientes actualizado."); time.sleep(0.5); st.rerun()
                     
                 st.markdown("---")
                 
