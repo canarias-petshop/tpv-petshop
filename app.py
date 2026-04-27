@@ -144,7 +144,13 @@ with tab1:
             df_inv = pd.DataFrame(res_prod.data)
             
             # --- 1. LIMPIEZA DE DATOS ---
-            df_inv['categoria_filt'] = df_inv['categoria'].fillna('Producto').astype(str).str.strip().str.capitalize()
+            def clasificar_cat(cat):
+                if pd.isna(cat) or str(cat).strip() == "": return "Producto"
+                texto = str(cat).lower().strip()
+                if 'serv' in texto: return "Servicio"
+                return "Producto"
+                
+            df_inv['categoria_filt'] = df_inv['categoria'].apply(clasificar_cat)
 
             # --- TABLA DE PRODUCTOS MEJORADA ---
             st.markdown("#### 📦 Inventario de Productos")
@@ -154,12 +160,13 @@ with tab1:
             edit_p = st.data_editor(
                 df_solo_productos,
                 column_config={
-                    "id": None, "categoria": None, "categoria_filt": None,
+                    "id": None, "categoria_filt": None,
+                    "categoria": st.column_config.SelectboxColumn("Tipo", options=["Producto", "Servicio"]),
                     "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
                     "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
                     "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock"
                 },
-                column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
+                column_order=["categoria", "sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
                 hide_index=True, 
                 use_container_width=True, 
                 num_rows="dynamic",
@@ -194,12 +201,13 @@ with tab1:
                 edit_s = st.data_editor(
                     df_solo_servicios,
                     column_config={
-                        "id": None, "categoria": None, "categoria_filt": None,
+                        "id": None, "categoria_filt": None,
+                        "categoria": st.column_config.SelectboxColumn("Tipo", options=["Producto", "Servicio"]),
                         "sku": "Código", "nombre": "Descripción del Servicio",
                         "precio_base": st.column_config.NumberColumn("Base Calc. (€)", format="%.2f", disabled=True),
                         "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)"
                     },
-                    column_order=["sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
+                    column_order=["categoria", "sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
                     hide_index=True, 
                     use_container_width=True, 
                     num_rows="dynamic", # <--- PERMITE BORRAR FILAS DE SERVICIOS
