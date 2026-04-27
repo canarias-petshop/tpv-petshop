@@ -393,17 +393,19 @@ with tab2:
                 // 2. Lo codificamos para que pueda viajar por la URL
                 var htmlCodificado = encodeURIComponent(ticketHTML);
                 
-                // 3. Creamos el enlace mágico (nopreview = imprime directo sin preguntar)
-                var starURL = "starpassprnt://v1/print/nopreview?html=" + htmlCodificado;
-                // 3. Obtenemos la URL de tu TPV para que PassPRNT sepa dónde volver
-                var urlRetorno = encodeURIComponent(window.location.href);
+                // 3. Obtenemos la URL REAL de tu TPV saltando la 'caja invisible' (iframe) de Streamlit
+                var urlRetorno = "https://google.com"; // Retorno de emergencia para evitar error E002
+                try {{
+                    if (window.top.location.href && window.top.location.href !== "about:blank") {{
+                        urlRetorno = window.top.location.href;
+                    }}
+                }} catch(e) {{}}
                 
-                // 4. Lanzamos la App de Star
                 // 4. Creamos el enlace añadiendo el parámetro 'back' obligatorio
-                var starURL = "starpassprnt://v1/print/nopreview?back=" + urlRetorno + "&html=" + htmlCodificado;
+                var starURL = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
                 
-                // 5. Lanzamos la App de Star
-                window.location.href = starURL;
+                // 5. Lanzamos la App de Star desde la ventana principal
+                window.top.location.href = starURL;
             }}
             </script>
             
