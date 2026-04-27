@@ -983,25 +983,51 @@ with tab7:
     st.markdown("### 🚚 Gestión de Proveedores y Pagos")
     cp1, cp2 = st.columns([1, 2])
     with cp1:
+        st.markdown("#### ➕ Nuevo Proveedor")
         with st.form("n_prov_full", clear_on_submit=True):
+            st.markdown("**1. Información Fiscal y Contacto**")
             n_emp = st.text_input("Nombre Empresa *")
-            n_cif = st.text_input("CIF / NIF")
+            c_p1, c_p2 = st.columns(2)
+            with c_p1: n_cif = st.text_input("CIF / NIF")
+            with c_p2: n_tel = st.text_input("Teléfono Fijo")
+            
+            c_p3, c_p4 = st.columns(2)
+            with c_p3: n_mov = st.text_input("Móvil")
+            with c_p4: n_ema = st.text_input("Email")
+            
+            st.markdown("**2. Ubicación**")
             n_dir = st.text_input("Dirección")
-            n_tel = st.text_input("Teléfono")
-            n_ema = st.text_input("Email")
-            n_iban = st.text_input("Número de Cuenta (IBAN)")
+            c_p5, c_p6 = st.columns(2)
+            with c_p5: n_pob = st.text_input("Población")
+            with c_p6: n_pais = st.text_input("País", value="España")
+            
+            st.markdown("**3. Facturación y Banco**")
+            c_p7, c_p8 = st.columns(2)
+            with c_p7: n_iban = st.text_input("Número de Cuenta (IBAN)")
+            with c_p8: n_swift = st.text_input("SWIFT / BIC")
+            
             if st.form_submit_button("➕ Guardar Proveedor", use_container_width=True, type="primary"):
                 if n_emp:
+                    contacto_str = f"Tel: {n_tel} | Móvil: {n_mov} | Email: {n_ema} | Dir: {n_dir}, {n_pob} ({n_pais}) | IBAN: {n_iban} | SWIFT: {n_swift}"
                     client.table("proveedores").insert({
                         "nombre_empresa": n_emp,
                         "cif": n_cif,
-                        "contacto": f"Tel: {n_tel} | Email: {n_ema} | Dir: {n_dir} | IBAN: {n_iban}"
+                        "contacto": contacto_str
                     }).execute()
                     st.success("Guardado"); time.sleep(0.5); st.rerun()
     with cp2:
+        st.markdown("#### 📋 Directorio")
         res_p = client.table("proveedores").select("*").execute()
         if res_p.data:
-            st.dataframe(pd.DataFrame(res_p.data)[['nombre_empresa', 'contacto']], use_container_width=True, hide_index=True)
+            df_p = pd.DataFrame(res_p.data)
+            cols_to_show = ['nombre_empresa']
+            if 'contacto' in df_p.columns: cols_to_show.append('contacto')
+            
+            st.data_editor(
+                df_p[cols_to_show],
+                column_config={"nombre_empresa": "Empresa", "contacto": "Datos de Contacto"}, 
+                use_container_width=True, hide_index=True, height=450
+            )
 
 # ==========================================
 # --- TAB 8: FACTURACIÓN LEGAL Y STOCK ---
