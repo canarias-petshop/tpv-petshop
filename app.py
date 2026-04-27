@@ -780,7 +780,7 @@ with tab3:
                         client.table("citas").insert({"mascotas_id": m_id, "fecha_hora": f"{f_fecha} {f_hora}", "servicio": f_serv, "duracion_minutos": int(f_dur)}).execute()
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
-        sub_cli, sub_masc, sub_alertas = st.tabs(["👤 Directorio de Dueños", "🐾 Fichas de Mascotas", "🔔 Alertas y Recordatorios"])
+        sub_cli, sub_masc, sub_alertas, sub_encargos = st.tabs(["👤 Directorio de Dueños", "🐾 Fichas de Mascotas", "🔔 Alertas y Recordatorios", "🛍️ Encargos de Clientes"])
         
         with sub_cli:
             res_clientes = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).execute()
@@ -1035,6 +1035,55 @@ with tab3:
                     st.dataframe(df_alertas, use_container_width=True, hide_index=True, column_config={"WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Enviar WhatsApp")})
                 else:
                     st.success("✨ ¡Genial! Tienes la agenda al día. Ninguna mascota supera los días de alerta.")
+
+        with sub_encargos:
+            col_en1, col_en2 = st.columns([1, 2])
+            with col_en1:
+                with st.form("n_encargo", clear_on_submit=True):
+                    st.markdown("#### 📝 Registrar Encargo")
+                    e_cli = st.text_input("Nombre del Cliente *")
+                    e_tel = st.text_input("Teléfono")
+                    e_det = st.text_area("Detalle del Pedido (Producto, cantidad, etc.) *")
+                    if st.form_submit_button("Guardar Encargo", type="primary", use_container_width=True):
+                        if e_cli and e_det:
+                            try:
+                                client.table("encargos_clientes").insert({
+                                    "nombre_cliente": e_cli, "telefono": e_tel, "detalle_pedido": e_det
+                                }).execute()
+                                st.success("Encargo guardado."); time.sleep(0.5); st.rerun()
+                            except Exception as e:
+                                st.error("Error. ¿Ejecutaste el SQL para crear la tabla encargos_clientes?")
+            
+            with col_en2:
+                st.markdown("#### 📌 Encargos Pendientes")
+                try:
+                    res_e = client.table("encargos_clientes").select("*").order("created_at", desc=True).execute()
+                    if res_e.data:
+                        df_e = pd.DataFrame(res_e.data)
+                        df_e['Fecha'] = pd.to_datetime(df_e['created_at']).dt.strftime('%d/%m/%Y')
+                        
+                        hoy_date = pd.to_datetime('today')
+                        for idx, row in df_e.iterrows():
+                            dias = (hoy_date - pd.to_datetime(row['created_at']).dt.tz_localize(None)).days
+                            if dias >= 2 and row['estado'] == 'Pendiente':
+                                st.warning(f"⚠️ **RETRASO:** El encargo de {row['nombre_cliente']} lleva {dias} días pendiente.")
+                        
+                        df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'estado']]
+                        ed_e = st.data_editor(
+                            df_e_vista, hide_index=True, use_container_width=True, num_rows="dynamic", height=300,
+                            column_config={
+                                "id": None, "nombre_cliente": "Cliente", "telefono": "Tel.",
+                                "detalle_pedido": "Detalle", 
+                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido a Proveedor", "Recibido/Avisado", "Entregado"])
+                            }
+                        )
+                        if st.button("💾 Guardar Estados de Encargos"):
+                            for _, r in ed_e.iterrows():
+                                if pd.notna(r['id']):
+                                    client.table("encargos_clientes").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
+                            st.rerun()
+                    else: st.info("No hay encargos activos.")
+                except: st.warning("Por favor, ejecuta el código SQL para activar esta tabla.")
 
 # ==========================================
 # --- TAB 4: HISTORIAL (VERSIÓN CON CASILLA DE VER) ---
@@ -1480,8 +1529,8 @@ with tab6:
 # --- TAB 7: PROVEEDORES ---
 # ==========================================
 with tab7:
-    st.markdown("<h3 style='margin-top:-15px;'>📦 Pedidos a Proveedores y Encargos</h3>", unsafe_allow_html=True)
-    sub_prov, sub_encargos, sub_pedidos = st.tabs(["🚚 Directorio Proveedores", "🛍️ Encargos de Clientes", "📦 Hacer Pedido a Proveedor"])
+    st.markdown("<h3 style='margin-top:-15px;'>📦 Pedidos a Proveedores</h3>", unsafe_allow_html=True)
+    sub_prov, sub_pedidos = st.tabs(["🚚 Directorio Proveedores", "📦 Hacer Pedido a Proveedor"])
     
     with sub_prov:
         cp1, cp2 = st.columns([1, 2])
@@ -1504,55 +1553,6 @@ with tab7:
             res_p = client.table("proveedores").select("*").execute()
             if res_p.data:
                 st.dataframe(pd.DataFrame(res_p.data)[['nombre_empresa', 'contacto']], use_container_width=True, hide_index=True)
-
-    with sub_encargos:
-        col_en1, col_en2 = st.columns([1, 2])
-        with col_en1:
-            with st.form("n_encargo", clear_on_submit=True):
-                st.markdown("#### 📝 Registrar Encargo")
-                e_cli = st.text_input("Nombre del Cliente *")
-                e_tel = st.text_input("Teléfono")
-                e_det = st.text_area("Detalle del Pedido (Producto, cantidad, etc.) *")
-                if st.form_submit_button("Guardar Encargo", type="primary", use_container_width=True):
-                    if e_cli and e_det:
-                        try:
-                            client.table("encargos_clientes").insert({
-                                "nombre_cliente": e_cli, "telefono": e_tel, "detalle_pedido": e_det
-                            }).execute()
-                            st.success("Encargo guardado."); time.sleep(0.5); st.rerun()
-                        except Exception as e:
-                            st.error("Error. ¿Ejecutaste el SQL para crear la tabla encargos_clientes?")
-        
-        with col_en2:
-            st.markdown("#### 📌 Encargos Pendientes")
-            try:
-                res_e = client.table("encargos_clientes").select("*").order("created_at", desc=True).execute()
-                if res_e.data:
-                    df_e = pd.DataFrame(res_e.data)
-                    df_e['Fecha'] = pd.to_datetime(df_e['created_at']).dt.strftime('%d/%m/%Y')
-                    
-                    hoy_date = pd.to_datetime('today')
-                    for idx, row in df_e.iterrows():
-                        dias = (hoy_date - pd.to_datetime(row['created_at']).dt.tz_localize(None)).days
-                        if dias >= 2 and row['estado'] == 'Pendiente':
-                            st.warning(f"⚠️ **RETRASO:** El encargo de {row['nombre_cliente']} lleva {dias} días pendiente.")
-                    
-                    df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'estado']]
-                    ed_e = st.data_editor(
-                        df_e_vista, hide_index=True, use_container_width=True, num_rows="dynamic", height=300,
-                        column_config={
-                            "id": None, "nombre_cliente": "Cliente", "telefono": "Tel.",
-                            "detalle_pedido": "Detalle", 
-                            "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido a Proveedor", "Recibido/Avisado", "Entregado"])
-                        }
-                    )
-                    if st.button("💾 Guardar Estados de Encargos"):
-                        for _, r in ed_e.iterrows():
-                            if pd.notna(r['id']):
-                                client.table("encargos_clientes").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
-                        st.rerun()
-                else: st.info("No hay encargos activos.")
-            except: st.warning("Por favor, ejecuta el código SQL para activar esta tabla.")
 
     with sub_pedidos:
         st.markdown("#### 📦 Borrador de Pedidos a Proveedores")
