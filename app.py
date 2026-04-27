@@ -772,35 +772,41 @@ with tab3:
                         })
                         
                         df_mc_show.insert(0, "Ver Ficha", False)
-                        df_mc_show.insert(0, "Borrar", False)
-                        
-                        st.markdown("💡 *Edita los datos directamente. Marca '👁️ Ver Ficha' para abrir el historial y agendar.*")
+                        st.markdown("💡 *Edita los datos directamente. Para eliminar, selecciona la fila y pulsa 'Supr'. Marca **'👁️ Ver Ficha'** para abrir el historial y agendar.*")
                         ed_mc = st.data_editor(
                             df_mc_show, use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_mc_{c_id}",
                             column_config={
                                 "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
-                                "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
                                 "id": None, "Edad": st.column_config.TextColumn(disabled=True), "Duración Media": st.column_config.TextColumn(disabled=True)
                             }
                         )
                         
-                        filas_b_mc = ed_mc[ed_mc["Borrar"] == True]
-                        if not filas_b_mc.empty:
-                            if st.button("🚨 CONFIRMAR BORRADO DE MASCOTA(S)", type="primary", key=f"btn_del_mc_{c_id}"):
-                                for _, rb in filas_b_mc.iterrows():
-                                    client.table("mascotas").delete().eq("id", rb['id']).execute()
-                                st.success("Mascota(s) borrada(s)."); time.sleep(1); st.rerun()
-                                
                         if st.button("💾 Guardar Cambios en Mascotas de esta Familia", key=f"btn_save_mc_{c_id}"):
-                            df_update = ed_mc[(ed_mc["Borrar"] == False)]
-                            for _, ru in df_update.iterrows():
+                            # 1. Detectar si el usuario ha borrado filas con la papelera o Supr
+                            ids_actuales = ed_mc['id'].dropna().tolist()
+                            ids_orig = df_mc_show['id'].dropna().tolist()
+                            ids_a_borrar = [i for i in ids_orig if i not in ids_actuales]
+                            for id_del in ids_a_borrar:
+                                client.table("mascotas").delete().eq("id", id_del).execute()
+                                
+                            # 2. Actualizar mascotas existentes o insertar las nuevas
+                            for _, ru in ed_mc.iterrows():
                                 if pd.notna(ru['id']):
                                     client.table("mascotas").update({
                                         "nombre": str(ru['Nombre Mascota']), "especie": str(ru['Especie']),
                                         "raza": str(ru['Raza']), "fecha_nacimiento": str(ru['F. Nacimiento']),
                                         "observaciones": str(ru['Observaciones'])
                                     }).eq("id", ru['id']).execute()
-                            st.success("Datos actualizados."); time.sleep(0.5); st.rerun()
+                                else:
+                                    if pd.notna(ru['Nombre Mascota']) and str(ru['Nombre Mascota']).strip():
+                                        client.table("mascotas").insert({
+                                            "cliente_id": c_id, "nombre": str(ru['Nombre Mascota']),
+                                            "especie": str(ru['Especie']) if pd.notna(ru['Especie']) else "",
+                                            "raza": str(ru['Raza']) if pd.notna(ru['Raza']) else "",
+                                            "fecha_nacimiento": str(ru['F. Nacimiento']) if pd.notna(ru['F. Nacimiento']) else "",
+                                            "observaciones": str(ru['Observaciones']) if pd.notna(ru['Observaciones']) else ""
+                                        }).execute()
+                            st.success("Datos de la familia actualizados."); time.sleep(0.5); st.rerun()
                             
                         filas_ver_mc = ed_mc[ed_mc["Ver Ficha"] == True]
                         if not filas_ver_mc.empty:
