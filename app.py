@@ -605,6 +605,104 @@ with tab3:
             media = sum(duraciones) / len(duraciones)
             return f"{int(media)} min"
 
+        def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix):
+            """Renderiza la ficha clínica, el historial y el sistema inteligente de reservas."""
+            st.markdown(f"#### 📖 Ficha e Historial Clínico/Peluquería: **{m_nombre}**")
+            
+            historial = m_data.get('historial_trabajos')
+            if not isinstance(historial, list): historial = []
+            
+            df_hist = pd.DataFrame(historial)
+            for col in ["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]:
+                if col not in df_hist.columns: df_hist[col] = None
+                
+            df_hist = df_hist[["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]]
+            
+            df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%d/%m/%Y", errors="coerce")
+            df_hist["Duración (min)"] = pd.to_numeric(df_hist["Duración (min)", errors="coerce"])
+            df_hist["Importe (€)"] = pd.to_numeric(df_hist["Importe (€)"], errors="coerce")
+            
+            ed_hist = st.data_editor(
+                df_hist, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_hist_{prefix}_{m_id}",
+                column_config={
+                    "Fecha": st.column_config.DateColumn("Fecha (D/M/A)", format="DD/MM/YYYY"),
+                    "Trabajo / Servicio": st.column_config.TextColumn("Servicio Realizado"),
+                    "Duración (min)": st.column_config.NumberColumn("Duración (min)", min_value=0, step=5),
+                    "Importe (€)": st.column_config.NumberColumn("Importe Cobrado (€)", format="%.2f", min_value=0.0)
+                }
+            )
+            
+            if st.button(f"💾 Guardar Historial de {m_nombre}", type="primary", key=f"btn_hist_{prefix}_{m_id}"):
+                df_save = ed_hist.copy()
+                df_save['Fecha'] = pd.to_datetime(df_save['Fecha']).dt.strftime('%d/%m/%Y').fillna("")
+                df_save = df_save.fillna("")
+                client.table("mascotas").update({"historial_trabajos": df_save.to_dict(orient='records')}).eq("id", m_id).execute()
+                st.success("Historial actualizado correctamente."); time.sleep(0.5); st.rerun()
+                
+            st.markdown("---")
+            st.markdown(f"#### 📅 Agendar Cita Inteligente para **{m_nombre}**")
+            st.markdown("<p style='color: gray; font-size: 13px;'>El sistema calcula automáticamente los huecos libres (09:00 a 21:00) para la fecha y duración seleccionadas.</p>", unsafe_allow_html=True)
+            
+            c_cal1, c_cal2 = st.columns([1, 1])
+            with c_cal1: f_fecha = st.date_input("1. Selecciona la fecha de la cita:", value=date.today(), key=f"fcita_{prefix}_{m_id}")
+            with c_cal2: f_dur = st.number_input("2. Duración del servicio (minutos)", min_value=5, max_value=300, value=60, step=5, key=f"fdur_{prefix}_{m_id}")
+            
+            res_citas = client.table("citas").select("fecha_hora, duracion_minutos").like("fecha_hora", f"{f_fecha}%").execute()
+            citas_dia = res_citas.data if res_citas.data else []
+            
+            # --- CÁLCULO DE TRAMOS LIBRES CONTINUOS ---
+            bloques_libres = []
+            hora_actual = pd.to_datetime(f"{f_fecha} 09:00")
+            fin_jornada = pd.to_datetime(f"{f_fecha} 21:00")
+            
+            citas_ordenadas = []
+            for c in citas_dia:
+                dt_ini = pd.to_datetime(c['fecha_hora'])
+                dt_fin = dt_ini + pd.Timedelta(minutes=c.get('duracion_minutos', 60))
+                citas_ordenadas.append({"ini": dt_ini, "fin": dt_fin})
+            citas_ordenadas.sort(key=lambda x: x["ini"])
+            
+            for c in citas_ordenadas:
+                if hora_actual < c["ini"]:
+                    if (c["ini"] - hora_actual).total_seconds() / 60 >= f_dur:
+                        bloques_libres.append(f"{hora_actual.strftime('%H:%M')} a {c['ini'].strftime('%H:%M')}")
+                hora_actual = max(hora_actual, c["fin"])
+                
+            if hora_actual < fin_jornada and (fin_jornada - hora_actual).total_seconds() / 60 >= f_dur:
+                bloques_libres.append(f"{hora_actual.strftime('%H:%M')} a {fin_jornada.strftime('%H:%M')}")
+                
+            if bloques_libres:
+                st.success(f"🟢 **Tramos libres para {f_dur} min:** " + " | ".join(bloques_libres))
+            else:
+                st.error(f"🔴 No hay tramos continuos de {f_dur} minutos libres en este día.")
+
+            # --- CÁLCULO DE HUECOS SELECCIONABLES (Cada 5 min) ---
+            huecos = []
+            for h in range(9, 21):
+                for m in range(0, 60, 5):
+                    dt_ini = pd.to_datetime(f"{f_fecha} {h:02d}:{m:02d}")
+                    dt_fin = dt_ini + pd.Timedelta(minutes=f_dur)
+                    if dt_fin > pd.to_datetime(f"{f_fecha} 21:00"): continue
+                    
+                    solapa = False
+                    for c in citas_dia:
+                        c_ini = pd.to_datetime(c['fecha_hora'])
+                        c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos', 60))
+                        if dt_ini < c_fin and dt_fin > c_ini:
+                            solapa = True; break
+                    if not solapa: huecos.append(f"{h:02d}:{m:02d}")
+                    
+            if not huecos:
+                st.warning("⚠️ No hay horas de inicio disponibles este día para esa duración.")
+            else:
+                with st.form(f"form_cita_{prefix}_{m_id}", border=True):
+                    fc_1, fc_2 = st.columns([1, 2])
+                    with fc_1: f_hora = st.selectbox("3. Hora de inicio:", huecos)
+                    with fc_2: f_serv = st.selectbox("4. Servicio:", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
+                    if st.form_submit_button("➕ Confirmar Cita", type="primary", use_container_width=True):
+                        client.table("citas").insert({"mascotas_id": m_id, "fecha_hora": f"{f_fecha} {f_hora}", "servicio": f_serv, "duracion_minutos": int(f_dur)}).execute()
+                        st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
+
         sub_cli, sub_masc = st.tabs(["👤 Directorio de Dueños", "🐾 Fichas de Mascotas"])
         
         with sub_cli:
@@ -661,8 +759,10 @@ with tab3:
                         df_mc = pd.DataFrame(mascotas_lista)
                         if 'fecha_nacimiento' not in df_mc.columns: df_mc['fecha_nacimiento'] = ""
                         df_mc['Edad'] = df_mc['fecha_nacimiento'].apply(calcular_edad)
+                        if 'historial_trabajos' not in df_mc.columns: df_mc['historial_trabajos'] = [[] for _ in range(len(df_mc))]
+                        df_mc['Duración Media'] = df_mc['historial_trabajos'].apply(calcular_duracion_media)
                         
-                        cols_ok = ['nombre', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'observaciones']
+                        cols_ok = ['id', 'nombre', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'Duración Media', 'observaciones']
                         for col in cols_ok:
                             if col not in df_mc.columns: df_mc[col] = ""
                             
@@ -671,7 +771,43 @@ with tab3:
                             "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones"
                         })
                         
-                        st.dataframe(df_mc_show, use_container_width=True, hide_index=True)
+                        df_mc_show.insert(0, "Ver Ficha", False)
+                        df_mc_show.insert(0, "Borrar", False)
+                        
+                        st.markdown("💡 *Edita los datos directamente. Marca '👁️ Ver Ficha' para abrir el historial y agendar.*")
+                        ed_mc = st.data_editor(
+                            df_mc_show, use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_mc_{c_id}",
+                            column_config={
+                                "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
+                                "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
+                                "id": None, "Edad": st.column_config.TextColumn(disabled=True), "Duración Media": st.column_config.TextColumn(disabled=True)
+                            }
+                        )
+                        
+                        filas_b_mc = ed_mc[ed_mc["Borrar"] == True]
+                        if not filas_b_mc.empty:
+                            if st.button("🚨 CONFIRMAR BORRADO DE MASCOTA(S)", type="primary", key=f"btn_del_mc_{c_id}"):
+                                for _, rb in filas_b_mc.iterrows():
+                                    client.table("mascotas").delete().eq("id", rb['id']).execute()
+                                st.success("Mascota(s) borrada(s)."); time.sleep(1); st.rerun()
+                                
+                        if st.button("💾 Guardar Cambios en Mascotas de esta Familia", key=f"btn_save_mc_{c_id}"):
+                            df_update = ed_mc[(ed_mc["Borrar"] == False)]
+                            for _, ru in df_update.iterrows():
+                                if pd.notna(ru['id']):
+                                    client.table("mascotas").update({
+                                        "nombre": str(ru['Nombre Mascota']), "especie": str(ru['Especie']),
+                                        "raza": str(ru['Raza']), "fecha_nacimiento": str(ru['F. Nacimiento']),
+                                        "observaciones": str(ru['Observaciones'])
+                                    }).eq("id", ru['id']).execute()
+                            st.success("Datos actualizados."); time.sleep(0.5); st.rerun()
+                            
+                        filas_ver_mc = ed_mc[ed_mc["Ver Ficha"] == True]
+                        if not filas_ver_mc.empty:
+                            st.markdown("---")
+                            m_id_sel = filas_ver_mc.iloc[0]['id']
+                            m_data_sel = next(item for item in mascotas_lista if item["id"] == m_id_sel)
+                            mostrar_ficha_clinica(m_id_sel, m_data_sel['nombre'], m_data_sel, prefix="fam")
                     else:
                         st.info("Este cliente no tiene mascotas registradas.")
                         
@@ -749,62 +885,7 @@ with tab3:
                     m_id = filas_m_marcadas.iloc[0]['id']
                     m_data = df_m[df_m['id'] == m_id].iloc[0]
                     m_nombre = m_data['nombre']
-                    
-                    st.markdown(f"#### 📖 Ficha e Historial Clínico/Peluquería: **{m_nombre}**")
-                    
-                    historial = m_data.get('historial_trabajos')
-                    if not isinstance(historial, list): historial = []
-                    
-                    df_hist = pd.DataFrame(historial)
-                    for col in ["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]:
-                        if col not in df_hist.columns: df_hist[col] = None
-                        
-                    df_hist = df_hist[["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]]
-                    
-                    # Conversión explícita de tipos para evitar errores de compatibilidad en Streamlit
-                    df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%d/%m/%Y", errors="coerce")
-                    df_hist["Duración (min)"] = pd.to_numeric(df_hist["Duración (min)"], errors="coerce")
-                    df_hist["Importe (€)"] = pd.to_numeric(df_hist["Importe (€)"], errors="coerce")
-                    
-                    ed_hist = st.data_editor(
-                        df_hist,
-                        num_rows="dynamic",
-                        use_container_width=True,
-                        hide_index=True,
-                        key=f"ed_hist_{m_id}",
-                        column_config={
-                            "Fecha": st.column_config.DateColumn("Fecha (D/M/A)", format="DD/MM/YYYY"),
-                            "Trabajo / Servicio": st.column_config.TextColumn("Servicio Realizado"),
-                            "Duración (min)": st.column_config.NumberColumn("Duración (min)", min_value=0, step=5),
-                            "Importe (€)": st.column_config.NumberColumn("Importe Cobrado (€)", format="%.2f", min_value=0.0)
-                        }
-                    )
-                    
-                    if st.button(f"💾 Guardar Historial de {m_nombre}", type="primary"):
-                        df_save = ed_hist.copy()
-                        df_save['Fecha'] = pd.to_datetime(df_save['Fecha']).dt.strftime('%d/%m/%Y').fillna("")
-                        df_save = df_save.fillna("")
-                        nuevo_historial = df_save.to_dict(orient='records')
-                        
-                        client.table("mascotas").update({"historial_trabajos": nuevo_historial}).eq("id", m_id).execute()
-                        st.success("Historial actualizado correctamente."); time.sleep(0.5); st.rerun()
-                        
-                    st.markdown("---")
-                    st.markdown(f"#### 📅 Agendar Cita para **{m_nombre}**")
-                    with st.form(f"form_cita_{m_id}", border=True):
-                        fc1, fc2, fc3, fc4 = st.columns([1.5, 1, 1, 1.5])
-                        with fc1: f_fecha = st.date_input("Fecha de la cita")
-                        with fc2: f_hora = st.time_input("Hora inicio")
-                        with fc3: f_dur = st.number_input("Duración (min)", min_value=5, max_value=300, value=60, step=5)
-                        with fc4: f_serv = st.selectbox("Servicio", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
-                        
-                        if st.form_submit_button("➕ Guardar Cita", type="primary", use_container_width=True):
-                            fecha_hora_str = f"{f_fecha} {f_hora.strftime('%H:%M')}"
-                            client.table("citas").insert({
-                                "mascotas_id": m_id, "fecha_hora": fecha_hora_str, "servicio": f_serv, "duracion_minutos": int(f_dur)
-                            }).execute()
-                            st.success("¡Cita añadida a la agenda!"); time.sleep(1); st.rerun()
-                            
+                    mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix="ind")
             else: st.info("No hay mascotas registradas.")
 
 # ==========================================
@@ -1748,7 +1829,7 @@ with tab10:
                 mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None)
                 fecha_c = st.date_input("Fecha *")
                 hora_c = st.time_input("Hora de Inicio *")
-                duracion_c = st.number_input("Duración estimada (minutos) *", min_value=15, max_value=300, value=60, step=15)
+                duracion_c = st.number_input("Duración estimada (minutos) *", min_value=5, max_value=300, value=60, step=5)
                 servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
                 
                 if st.form_submit_button("Guardar Cita", type="primary", use_container_width=True):
