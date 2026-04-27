@@ -521,12 +521,31 @@ with tab2:
                 
                 # --- FIDELIZACIÓN ---
                 res_cli_puntos = client.table("clientes").select("id, nombre_dueno, puntos").execute()
-                opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} (Puntos: {c['puntos']})" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
+                opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} (Puntos: {c.get('puntos') or 0})" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
                 
                 c_desc, c_fid = st.columns(2)
                 with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=None, step=1)
                 with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli)
                 total_f = sub_antes * (1 - (desc_g or 0) / 100)
+                
+                # --- LÓGICA DE CANJEO DE PUNTOS ---
+                desc_puntos_eur = 0.0
+                puntos_a_descontar = 0
+                if "Ninguno" not in cliente_fidelidad:
+                    pts_str = cliente_fidelidad.split("(Puntos: ")[1].replace(")", "")
+                    puntos_disp = int(pts_str) if pts_str.isdigit() else 0
+                    if puntos_disp > 0:
+                        max_descuento_eur = total_f * 0.50
+                        max_puntos_permitidos = int(max_descuento_eur / 0.10)
+                        puntos_a_usar = min(puntos_disp, max_puntos_permitidos)
+                        eur_a_descontar = puntos_a_usar * 0.10
+                        if puntos_a_usar > 0:
+                            if st.checkbox(f"💳 Canjear {puntos_a_usar} puntos por -{eur_a_descontar:.2f}€ (Límite 50%)", value=False):
+                                desc_puntos_eur = eur_a_descontar
+                                puntos_a_descontar = puntos_a_usar
+                
+                total_f = total_f - desc_puntos_eur
+                if total_f < 0: total_f = 0.0
                 
                 st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
@@ -594,11 +613,13 @@ with tab2:
                             # ASIGNACIÓN DE PUNTOS
                             cliente_fidel_nombre = ""
                             puntos_ganados = 0
+                            nuevo_saldo = 0
                             if "Ninguno" not in cliente_fidelidad:
                                 cliente_fidel_nombre = cliente_fidelidad.split(" (Puntos:")[0]
                                 cliente_info = next(c for c in res_cli_puntos.data if c['nombre_dueno'] == cliente_fidel_nombre)
                                 puntos_ganados = int(total_f // 10) # 1 punto por cada 10€
-                                client.table("clientes").update({"puntos": cliente_info.get('puntos', 0) + puntos_ganados}).eq("id", cliente_info['id']).execute()
+                                nuevo_saldo = cliente_info.get('puntos', 0) - puntos_a_descontar + puntos_ganados
+                                client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cliente_info['id']).execute()
 
                             # INSERCIÓN CON COLUMNAS EXACTAS CONTABLES
                             client.table("ventas_historial").insert({
@@ -625,7 +646,8 @@ with tab2:
                             st.session_state.ticket_actual = {
                                 "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
                                 "productos": carrito_limpio, "total": total_f, "metodo": metodo_log,
-                                "cliente_fidel": cliente_fidel_nombre, "puntos_ganados": puntos_ganados
+                                "cliente_fidel": cliente_fidel_nombre, "puntos_ganados": puntos_ganados,
+                                "puntos_descontados": puntos_a_descontar, "nuevo_saldo": nuevo_saldo
                             }
                             st.session_state.carrito = []
                             st.rerun()
@@ -2413,4 +2435,4 @@ with tab10:
                 while len(citas_por_dia[dia]) < max_filas:
                     citas_por_dia[dia].append("")
             df_semana = pd.DataFrame(citas_por_dia)
-            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
