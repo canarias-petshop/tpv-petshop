@@ -395,8 +395,14 @@ with tab2:
                 
                 // 3. Creamos el enlace mágico (nopreview = imprime directo sin preguntar)
                 var starURL = "starpassprnt://v1/print/nopreview?html=" + htmlCodificado;
+                // 3. Obtenemos la URL de tu TPV para que PassPRNT sepa dónde volver
+                var urlRetorno = encodeURIComponent(window.location.href);
                 
                 // 4. Lanzamos la App de Star
+                // 4. Creamos el enlace añadiendo el parámetro 'back' obligatorio
+                var starURL = "starpassprnt://v1/print/nopreview?back=" + urlRetorno + "&html=" + htmlCodificado;
+                
+                // 5. Lanzamos la App de Star
                 window.location.href = starURL;
             }}
             </script>
