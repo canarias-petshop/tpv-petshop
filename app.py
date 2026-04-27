@@ -1903,12 +1903,9 @@ with tab10:
                 st.info("No hay citas agendadas en el sistema.")
                 
     with sub_diario:
-        st.markdown("#### 🕒 Cuadrante de Trabajo Diario (Intervalos de 15 min)")
         st.markdown("#### 🕒 Cuadrante de Trabajo Diario (Intervalos de 5 min)")
         dia_ver = st.date_input("Selecciona un día para ver los huecos libres:", value=date.today())
         
-        # Creamos una cuadrícula estricta de 15 en 15 minutos (09:00 a 20:45)
-        horas_trabajo = [f"{h:02d}:{m:02d}" for h in range(9, 21) for m in (0, 15, 30, 45)]
         # Creamos una cuadrícula estricta de 5 en 5 minutos (09:00 a 20:55)
         horas_trabajo = [f"{h:02d}:{m:02d}" for h in range(9, 21) for m in range(0, 60, 5)]
         df_cuadrante = pd.DataFrame({"Hora": horas_trabajo})
