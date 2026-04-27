@@ -382,6 +382,12 @@ with tab2:
                     </table>
                     <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
                     <div style="text-align: right; font-size: 14px;"><b>TOTAL: {t['total']:.2f}€</b></div>
+                    
+                    <div style="font-size: 10px; color: #000; margin-top: 15px; text-align: center;">
+                        <b>POLÍTICA DE DEVOLUCIÓN</b><br>
+                        Plazo de 14 días con ticket y<br>
+                        embalaje original en perfecto estado.
+                    </div>
                 </div>
             </div>
 
@@ -390,8 +396,12 @@ with tab2:
                 // 1. Obtenemos el diseño del ticket
                 var ticketHTML = document.getElementById('ticket-impresion').innerHTML;
                 
+                // 1.5. ENVOLVEMOS EL TICKET EN UN HTML COMPLETO PARA EVITAR ERROR 011
+                var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
+                
                 // 2. Lo codificamos para que pueda viajar por la URL
                 var htmlCodificado = encodeURIComponent(ticketHTML);
+                var htmlCodificado = encodeURIComponent(fullHTML);
                 
                 // 3. Obtenemos la URL REAL de tu TPV saltando la 'caja invisible' (iframe) de Streamlit
                 var urlRetorno = "https://google.com"; // Retorno de emergencia para evitar error E002
