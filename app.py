@@ -1052,20 +1052,45 @@ with tab3:
         with sub_encargos:
             col_en1, col_en2 = st.columns([1, 2])
             with col_en1:
+                st.markdown("#### 📝 Registrar Encargo")
                 with st.form("n_encargo", clear_on_submit=True):
-                    st.markdown("#### 📝 Registrar Encargo")
-                    e_cli = st.text_input("Nombre del Cliente *")
-                    e_tel = st.text_input("Teléfono")
-                    e_det = st.text_area("Detalle del Pedido (Producto, cantidad, etc.) *")
+                    opc_cli_enc = ["👤 Cliente no registrado (Escribir a mano)"]
+                    if res_clientes.data:
+                        opc_cli_enc += [f"{c['nombre_dueno']} | {c['telefono']}" for c in res_clientes.data]
+                    
+                    sel_cli_enc = st.selectbox("1. Buscar Cliente:", opc_cli_enc)
+                    
+                    st.markdown("<p style='font-size:12px; color:gray; margin:0;'>O rellenar si no está registrado:</p>", unsafe_allow_html=True)
+                    c_nom_man, c_tel_man = st.columns(2)
+                    with c_nom_man: e_cli_man = st.text_input("Nombre", key="e_cli_man")
+                    with c_tel_man: e_tel_man = st.text_input("Teléfono", key="e_tel_man")
+                    
+                    st.markdown("---")
+                    e_prod = st.text_input("2. Producto que pide *")
+                    e_cant = st.number_input("3. Cantidad *", min_value=1, value=1)
+                    e_obs = st.text_area("4. Observaciones")
+                    
                     if st.form_submit_button("Guardar Encargo", type="primary", use_container_width=True):
-                        if e_cli and e_det:
+                        # Determinar cliente
+                        if "Cliente no registrado" not in sel_cli_enc:
+                            final_cli = sel_cli_enc.split(" | ")[0]
+                            final_tel = sel_cli_enc.split(" | ")[1] if len(sel_cli_enc.split(" | ")) > 1 else ""
+                        else:
+                            final_cli = e_cli_man
+                            final_tel = e_tel_man
+                            
+                        if final_cli and e_prod:
                             try:
                                 client.table("encargos_clientes").insert({
-                                    "nombre_cliente": e_cli, "telefono": e_tel, "detalle_pedido": e_det
+                                    "nombre_cliente": final_cli, "telefono": final_tel, 
+                                    "detalle_pedido": f"{e_cant}x {e_prod}",
+                                    "notas": e_obs, "estado": "Pendiente"
                                 }).execute()
                                 st.success("Encargo guardado."); time.sleep(0.5); st.rerun()
                             except Exception as e:
-                                st.error("Error. ¿Ejecutaste el SQL para crear la tabla encargos_clientes?")
+                                st.error("Error al guardar en la base de datos.")
+                        else:
+                            st.warning("Debes indicar un cliente y el producto a pedir.")
             
             with col_en2:
                 st.markdown("#### 📌 Encargos Pendientes")
@@ -1074,29 +1099,32 @@ with tab3:
                     if res_e.data:
                         df_e = pd.DataFrame(res_e.data)
                         df_e['Fecha'] = pd.to_datetime(df_e['created_at']).dt.strftime('%d/%m/%Y')
+                        if 'notas' not in df_e.columns: df_e['notas'] = ""
                         
                         hoy_date = pd.to_datetime('today')
                         for idx, row in df_e.iterrows():
                             dias = (hoy_date - pd.to_datetime(row['created_at']).dt.tz_localize(None)).days
                             if dias >= 2 and row['estado'] == 'Pendiente':
-                                st.warning(f"⚠️ **RETRASO:** El encargo de {row['nombre_cliente']} lleva {dias} días pendiente.")
+                                st.warning(f"⚠️ **RETRASO:** El encargo de {row['nombre_cliente']} lleva {dias} días en estado Pendiente.")
                         
-                        df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'estado']]
+                        df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'notas', 'estado']]
                         ed_e = st.data_editor(
                             df_e_vista, hide_index=True, use_container_width=True, num_rows="dynamic", height=300,
                             column_config={
-                                "id": None, "nombre_cliente": "Cliente", "telefono": "Tel.",
-                                "detalle_pedido": "Detalle", 
-                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido a Proveedor", "Recibido/Avisado", "Entregado"])
+                                "id": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
+                                "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
+                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Entregado"])
                             }
                         )
-                        if st.button("💾 Guardar Estados de Encargos"):
+                        if st.button("💾 Guardar Cambios en Encargos"):
                             for _, r in ed_e.iterrows():
                                 if pd.notna(r['id']):
-                                    client.table("encargos_clientes").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
+                                    client.table("encargos_clientes").update({
+                                        "estado": str(r['estado']), "notas": str(r['notas'])
+                                    }).eq("id", r['id']).execute()
                             st.rerun()
                     else: st.info("No hay encargos activos.")
-                except: st.warning("Por favor, ejecuta el código SQL para activar esta tabla.")
+                except: st.warning("Por favor, revisa la conexión con la tabla encargos_clientes.")
 
 # ==========================================
 # --- TAB 4: HISTORIAL (VERSIÓN CON CASILLA DE VER) ---
