@@ -362,28 +362,28 @@ with tab2:
             </div>
 
             <div id="ticket-impresion">
-                <div style="text-align: center; font-family: monospace; width: 300px; font-size: 12px; color: black;">
-                    <b style="font-size: 16px;">ANIMALARIUM</b><br>
+                <div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
+                    <b style="font-size: 34px;">ANIMALARIUM</b><br>
                     Raquel Trujillo Hernández<br>
                     DNI: 78854854K<br>
                     C/ José Hernández Alfonso, 26<br>
                     38009 S/C de Tenerife
                     <br><br>
-                    <div style="text-align: left;">Fecha: {t['fecha']}</div>
-                    <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
-                    <table style="width: 100%; font-size: 12px; text-align: left;">
+                    <div style="text-align: left; font-size: 22px;">Fecha: {t['fecha']}</div>
+                    <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+                    <table style="width: 100%; font-size: 22px; text-align: left; font-weight: bold;">
             """
             
             # Bucle para meter los productos (No tocar la identación aquí)
             for p in t['productos']:
-                html_ticket += f"<tr><td>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right;'>{p['Subtotal']:.2f}€</td></tr>"
+                html_ticket += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
 
             html_ticket += f"""
                     </table>
-                    <hr style="border-top: 1px dashed #000; margin: 5px 0px;">
-                    <div style="text-align: right; font-size: 14px;"><b>TOTAL: {t['total']:.2f}€</b></div>
+                    <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+                    <div style="text-align: right; font-size: 28px;"><b>TOTAL: {t['total']:.2f}€</b></div>
                     
-                    <div style="font-size: 10px; color: #000; margin-top: 15px; text-align: center;">
+                    <div style="font-size: 18px; color: #000; margin-top: 30px; text-align: center;">
                         <b>POLÍTICA DE DEVOLUCIÓN</b><br>
                         Plazo de 14 días con ticket y<br>
                         embalaje original en perfecto estado.
@@ -400,21 +400,21 @@ with tab2:
                 var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
                 
                 // 2. Lo codificamos para que pueda viajar por la URL
-                var htmlCodificado = encodeURIComponent(ticketHTML);
                 var htmlCodificado = encodeURIComponent(fullHTML);
                 
-                // 3. Obtenemos la URL REAL de tu TPV saltando la 'caja invisible' (iframe) de Streamlit
+                // 3. Obtenemos la URL REAL de tu TPV usando un "ancla" (#) para evitar la recarga de Streamlit
                 var urlRetorno = "https://google.com"; // Retorno de emergencia para evitar error E002
                 try {{
                     if (window.top.location.href && window.top.location.href !== "about:blank") {{
-                        urlRetorno = window.top.location.href;
+                        var baseUrl = window.top.location.href.split('#')[0];
+                        urlRetorno = baseUrl + "#impreso";
                     }}
                 }} catch(e) {{}}
                 
                 // 4. Creamos el enlace añadiendo el parámetro 'back' obligatorio
                 var starURL = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
                 
-                // 5. Lanzamos la App de Star (usamos window.location porque el iframe bloquea window.top)
+                // 5. Lanzamos la App de Star
                 window.location.href = starURL;
             }}
             </script>
