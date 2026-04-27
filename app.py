@@ -703,7 +703,7 @@ with tab3:
                         client.table("citas").insert({"mascotas_id": m_id, "fecha_hora": f"{f_fecha} {f_hora}", "servicio": f_serv, "duracion_minutos": int(f_dur)}).execute()
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
-        sub_cli, sub_masc = st.tabs(["👤 Directorio de Dueños", "🐾 Fichas de Mascotas"])
+        sub_cli, sub_masc, sub_alertas = st.tabs(["👤 Directorio de Dueños", "🐾 Fichas de Mascotas", "🔔 Alertas y Recordatorios"])
         
         with sub_cli:
             res_clientes = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).execute()
@@ -893,6 +893,57 @@ with tab3:
                     m_nombre = m_data['nombre']
                     mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix="ind")
             else: st.info("No hay mascotas registradas.")
+
+        with sub_alertas:
+            st.markdown("#### 🔔 Alertas de Mantenimiento Inteligentes")
+            st.markdown("<p style='color:gray; font-size:14px;'>El sistema escanea el historial de las mascotas y te avisa de las que llevan tiempo sin venir, generándote un enlace directo para enviarles un WhatsApp pre-escrito con un solo toque.</p>", unsafe_allow_html=True)
+            
+            c_al1, c_al2 = st.columns([1, 2])
+            with c_al1:
+                dias_aviso = st.slider("Mostrar mascotas que no hayan venido en más de (días):", min_value=15, max_value=180, value=45, step=5)
+            
+            res_m_alertas = client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").execute()
+            
+            if res_m_alertas.data:
+                alertas = []
+                hoy_dt = pd.to_datetime('today')
+                
+                for m in res_m_alertas.data:
+                    hist = m.get('historial_trabajos', [])
+                    if isinstance(hist, list) and len(hist) > 0:
+                        try:
+                            fechas = [pd.to_datetime(h['Fecha'], format='%d/%m/%Y', errors='coerce') for h in hist if h.get('Fecha')]
+                            fechas = [f for f in fechas if pd.notna(f)]
+                            if fechas:
+                                ultima_visita = max(fechas)
+                                dias_transcurridos = (hoy_dt - ultima_visita).days
+                                
+                                if dias_transcurridos >= dias_aviso:
+                                    dueno = m['clientes']['nombre_dueno'] if m.get('clientes') else 'Dueño'
+                                    telefono = m['clientes']['telefono'] if m.get('clientes') else ''
+                                    
+                                    # Preparar el número para WhatsApp (+34 España)
+                                    tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
+                                    if tel_limpio and len(tel_limpio) == 9 and not tel_limpio.startswith('34'):
+                                        tel_limpio = '34' + tel_limpio
+                                        
+                                    # Mensaje de marketing amistoso
+                                    mensaje = f"¡Hola {dueno}! 🐾 Soy Raquel de Animalarium. Te escribo porque he visto en la ficha de {m['nombre']} que ya le toca su sesión de mantenimiento (hace {dias_transcurridos} días de su última visita). ¿Te gustaría que le busquemos un huequito en la agenda para estos días? ¡Un saludo! 🐶✂️"
+                                    url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje)}" if tel_limpio else None
+                                    
+                                    alertas.append({
+                                        "Mascota": m['nombre'], "Dueño": dueno,
+                                        "Última Visita": ultima_visita.strftime('%d/%m/%Y'),
+                                        "Días Sin Venir": dias_transcurridos, "WhatsApp": url_wa
+                                    })
+                        except Exception as e: pass
+                
+                if alertas:
+                    df_alertas = pd.DataFrame(alertas).sort_values(by="Días Sin Venir", ascending=False)
+                    st.warning(f"⚠️ Tienes **{len(alertas)}** clientes pendientes de contactar para mantenimiento.")
+                    st.dataframe(df_alertas, use_container_width=True, hide_index=True, column_config={"WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Enviar WhatsApp")})
+                else:
+                    st.success("✨ ¡Genial! Tienes la agenda al día. Ninguna mascota supera los días de alerta.")
 
 # ==========================================
 # --- TAB 4: HISTORIAL (VERSIÓN CON CASILLA DE VER) ---
