@@ -135,38 +135,50 @@ with tab1:
 
     with col_f:
         st.markdown("#### 📝 Alta de nuevo ítem")
+        cat_item = st.radio("Selecciona qué vas a registrar:", ["Producto", "Servicio"], horizontal=True)
+        
         with st.form("nuevo_p_separado", clear_on_submit=True, border=True):
-            nombre = st.text_input("Nombre del Producto/Servicio *")
-            c1, c2, c3 = st.columns(3)
+            nombre = st.text_input(f"Nombre del {cat_item} *")
+            c1, c2 = st.columns(2)
             with c1: sku = st.text_input("SKU (Interno) *")
-            with c2: cod_barras = st.text_input("Cód. Barras")
-            with c3: cat = st.selectbox("Categoría *", ["Producto", "Servicio"])
+            with c2: 
+                if cat_item == "Producto":
+                    cod_barras = st.text_input("Cód. Barras")
+                else:
+                    cod_barras = ""
             
-            c4, c5 = st.columns(2)
-            with c4: p_base = st.number_input("Base Compra (€)", min_value=0.0, format="%.2f", help="En servicios se autocalcula")
-            with c5: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
-            
-            c6, c7 = st.columns(2)
-            with c6: pvp = st.number_input("PVP Final con IGIC (€) *", min_value=0.0, format="%.2f")
-            with c7: stck = st.number_input("Stock Inicial", min_value=0)
-            
-            provs_sel = st.multiselect("Asociar Proveedores", list(dict_proveedores.keys()))
+            if cat_item == "Producto":
+                c4, c5 = st.columns(2)
+                with c4: p_base = st.number_input("Coste Compra (€)", min_value=0.0, format="%.2f")
+                with c5: igic_tipo = st.selectbox("IGIC Compra %", [7.00, 0.00, 3.00, 15.00])
+                
+                c6, c7 = st.columns(2)
+                with c6: pvp = st.number_input("PVP de Venta Público (€) *", min_value=0.0, format="%.2f")
+                with c7: stck = st.number_input("Stock Inicial", min_value=0)
+                provs_sel = st.multiselect("Asociar Proveedores", list(dict_proveedores.keys()))
+            else:
+                c4, c5 = st.columns(2)
+                with c4: pvp = st.number_input("Precio Cerrado del Servicio (€) *", min_value=0.0, format="%.2f")
+                with c5: igic_tipo = st.selectbox("IGIC % a aplicar", [7.00, 0.00, 3.00, 15.00])
+                p_base = 0.0
+                stck = 0
+                provs_sel = []
+                st.info("💡 El sistema desglosará automáticamente la Base Imponible y la cuota de IGIC en la tabla.")
             
             if st.form_submit_button("💾 REGISTRAR", use_container_width=True, type="primary"):
                 if nombre and sku:
-                    # Cálculo inverso para servicios (Extrae la base pura a partir del PVP final)
-                    if cat == "Servicio":
+                    if cat_item == "Servicio":
                         p_base_calc = pvp / (1 + (igic_tipo / 100))
                     else:
                         p_base_calc = p_base
 
                     res_ins = client.table("productos").insert({
-                        "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": cat,
+                        "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": cat_item,
                         "precio_base": p_base_calc, "igic_tipo": igic_tipo, 
-                        "stock_actual": stck if cat == "Producto" else 0, "precio_pvp": pvp
+                        "stock_actual": stck, "precio_pvp": pvp
                     }).execute()
-                    if res_ins.data and provs_sel:
-                        rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base} for p in provs_sel]
+                    if cat_item == "Producto" and res_ins.data and provs_sel:
+                        rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base_calc} for p in provs_sel]
                         client.table("productos_proveedores").insert(rels).execute()
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
@@ -216,8 +228,8 @@ with tab1:
                     column_config={
                         "id": None, "categoria": None, "categoria_filt": None,
                         "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
-                        "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
-                        "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock"
+                        "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f"),
+                        "igic_tipo": "IGIC Compra %", "precio_pvp": "PVP Venta (€)", "stock_actual": "Stock"
                     },
                     column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
                     hide_index=True, 
@@ -251,6 +263,9 @@ with tab1:
                 # --- TABLA DE SERVICIOS MEJORADA ---
                 st.markdown("#### ✂️ Catálogo de Servicios")
                 df_solo_servicios = df_inv[df_inv['categoria_filt'] == 'Servicio'].copy()
+                
+                # Añadimos la columna calculada de Cuota de IGIC para mostrar el desglose
+                df_solo_servicios['Cuota IGIC (€)'] = df_solo_servicios['precio_pvp'] - df_solo_servicios['precio_base']
 
                 # Habilitamos num_rows="dynamic" para que puedas borrar servicios
                 edit_s = st.data_editor(
@@ -258,10 +273,12 @@ with tab1:
                     column_config={
                         "id": None, "categoria": None, "categoria_filt": None,
                         "sku": "Código", "nombre": "Descripción del Servicio",
-                        "precio_base": st.column_config.NumberColumn("Base sin IGIC (€)", format="%.2f", disabled=True),
-                        "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)"
+                        "precio_base": st.column_config.NumberColumn("Base Real sin IGIC (€)", format="%.2f", disabled=True),
+                        "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[7.0, 0.0, 3.0, 15.0]),
+                        "Cuota IGIC (€)": st.column_config.NumberColumn("Cuota IGIC (€)", format="%.2f", disabled=True),
+                        "precio_pvp": st.column_config.NumberColumn("Precio Cerrado (PVP) (€)", format="%.2f")
                     },
-                    column_order=["sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
+                    column_order=["sku", "nombre", "precio_base", "igic_tipo", "Cuota IGIC (€)", "precio_pvp"],
                     hide_index=True, 
                     use_container_width=True, 
                     num_rows="dynamic", # <--- PERMITE BORRAR FILAS DE SERVICIOS
@@ -281,10 +298,15 @@ with tab1:
                     # 3. Actualizar o guardar los cambios en los servicios que quedan
                     for i, row in edit_s.iterrows():
                         if pd.notna(row['id']):
-                            datos_s = row.to_dict()
-                            # Quitamos la columna temporal para que Supabase no dé error
-                            if 'categoria_filt' in datos_s: del datos_s['categoria_filt']
-                            client.table("productos").update(datos_s).eq("id", row['id']).execute()
+                            # Recalculamos la base real de forma automática si cambiaste el PVP o el IGIC en la tabla
+                            nuevo_pvp = float(row['precio_pvp'])
+                            nuevo_igic = float(row['igic_tipo'])
+                            nueva_base = nuevo_pvp / (1 + (nuevo_igic / 100))
+                            
+                            client.table("productos").update({
+                                "sku": str(row['sku']), "nombre": str(row['nombre']),
+                                "precio_pvp": nuevo_pvp, "igic_tipo": nuevo_igic, "precio_base": nueva_base
+                            }).eq("id", row['id']).execute()
 
                     st.success("Catálogo de servicios actualizado")
                     st.rerun()
