@@ -314,8 +314,6 @@ with tab1:
 
                     st.success("Catálogo de servicios actualizado")
                     st.rerun()
-                else:
-                    st.info("No hay servicios registrados.")
             else:
                 st.info("Inventario vacío.")
 
