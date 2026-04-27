@@ -1608,24 +1608,88 @@ with tab7:
     with sub_prov:
         cp1, cp2 = st.columns([1, 2])
         with cp1:
+            st.markdown("#### ➕ Nuevo Proveedor")
             with st.form("n_prov_full", clear_on_submit=True):
                 n_emp = st.text_input("Nombre Empresa *")
                 n_cif = st.text_input("CIF / NIF")
-                n_dir = st.text_input("Dirección")
-                n_tel = st.text_input("Teléfono")
-                n_ema = st.text_input("Email")
-                n_iban = st.text_input("Número de Cuenta (IBAN)")
-                if st.form_submit_button("➕ Guardar Proveedor", use_container_width=True, type="primary"):
+                n_tel = st.text_input("Teléfono Principal")
+                n_ema = st.text_input("Email Principal")
+                if st.form_submit_button("Guardar Proveedor", use_container_width=True, type="primary"):
                     if n_emp:
                         client.table("proveedores").insert({
                             "nombre_empresa": n_emp, "cif": n_cif,
-                            "contacto": f"Tel: {n_tel} | Email: {n_ema} | Dir: {n_dir} | IBAN: {n_iban}"
+                            "telefono": n_tel, "email": n_ema
                         }).execute()
                         st.success("Guardado"); time.sleep(0.5); st.rerun()
         with cp2:
+            st.markdown("#### 📋 Directorio")
             res_p = client.table("proveedores").select("*").execute()
             if res_p.data:
-                st.dataframe(pd.DataFrame(res_p.data)[['nombre_empresa', 'contacto']], use_container_width=True, hide_index=True)
+                df_p = pd.DataFrame(res_p.data)
+                
+                # Aseguramos que las nuevas columnas existan en el DataFrame (por si no has corrido el SQL aún)
+                for col in ['telefono', 'email', 'direccion', 'persona_contacto', 'iban', 'notas', 'contacto']:
+                    if col not in df_p.columns: df_p[col] = ""
+                    
+                df_p_vista = df_p[['id', 'nombre_empresa', 'telefono', 'email']].copy()
+                df_p_vista.insert(0, "Ver Ficha", False)
+                
+                st.markdown("💡 *Marca **'👁️ Ver Ficha'** para acceder a todos los datos de contacto y facturación.*")
+                
+                ed_p = st.data_editor(
+                    df_p_vista, hide_index=True, use_container_width=True, key="ed_prov", height=200,
+                    column_config={
+                        "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
+                        "id": None, "nombre_empresa": "Empresa", "telefono": "Teléfono", "email": "Email"
+                    }
+                )
+                
+                if st.button("💾 Guardar Cambios Rápidos", type="primary"):
+                    for _, row in ed_p.iterrows():
+                        if pd.notna(row['id']):
+                            client.table("proveedores").update({
+                                "nombre_empresa": str(row['nombre_empresa']),
+                                "telefono": str(row['telefono']), "email": str(row['email'])
+                            }).eq("id", row['id']).execute()
+                    st.success("Directorio actualizado."); time.sleep(0.5); st.rerun()
+                    
+        # --- FICHA COMPLETA DEL PROVEEDOR ---
+        if 'res_p' in locals() and res_p.data:
+            filas_ver = ed_p[ed_p["Ver Ficha"] == True]
+            if not filas_ver.empty:
+                p_id = filas_ver.iloc[0]['id']
+                p_data = df_p[df_p['id'] == p_id].iloc[0]
+                
+                st.markdown("---")
+                st.markdown(f"#### 🏢 Ficha Completa: **{p_data['nombre_empresa']}**")
+                
+                # Mostrar datos antiguos si existen para que el usuario pueda copiarlos
+                if p_data.get('contacto') and str(p_data['contacto']).strip() and str(p_data['contacto']).strip() != "nan":
+                    st.caption(f"💾 *Información antigua registrada:* {p_data['contacto']}")
+                
+                with st.form(f"ficha_prov_{p_id}", border=True):
+                    cf1, cf2, cf3 = st.columns(3)
+                    with cf1: f_nom = st.text_input("Nombre Empresa", value=p_data.get('nombre_empresa',''))
+                    with cf2: f_cif = st.text_input("CIF / NIF", value=p_data.get('cif',''))
+                    with cf3: f_per = st.text_input("Persona de Contacto", value=p_data.get('persona_contacto',''))
+                    
+                    cf4, cf5 = st.columns(2)
+                    with cf4: f_tel = st.text_input("Teléfonos (Principal y adicionales)", value=p_data.get('telefono',''))
+                    with cf5: f_ema = st.text_input("Emails", value=p_data.get('email',''))
+                    
+                    f_dir = st.text_input("Dirección Completa", value=p_data.get('direccion',''))
+                    
+                    cf6, cf7 = st.columns(2)
+                    with cf6: f_iban = st.text_input("Número de Cuenta (IBAN)", value=p_data.get('iban',''))
+                    with cf7: f_not = st.text_input("Fax / Otras Notas", value=p_data.get('notas',''))
+                    
+                    if st.form_submit_button("💾 Guardar Ficha Completa", type="primary", use_container_width=True):
+                        client.table("proveedores").update({
+                            "nombre_empresa": f_nom, "cif": f_cif, "persona_contacto": f_per,
+                            "telefono": f_tel, "email": f_ema, "direccion": f_dir,
+                            "iban": f_iban, "notas": f_not, "contacto": "" # Borramos la línea antigua ya que se ha organizado
+                        }).eq("id", p_id).execute()
+                        st.success("Ficha del proveedor actualizada correctamente."); time.sleep(0.5); st.rerun()
 
     with sub_pedidos:
         st.markdown("#### 📦 Borrador de Pedidos a Proveedores")
