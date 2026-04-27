@@ -25,10 +25,16 @@ st.markdown("""
         input, select { font-size: 1.15rem !important; }
         .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: 5px !important; }
         
+        /* Igualamos la altura de las cajas de texto/números con los botones */
+        div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
+            min-height: 54px !important;
+        }
+
         /* 4. Botones grandes, gruesos y fáciles de pulsar con el dedo */
         .stButton > button {
-            min-height: 60px !important;
-            font-size: 1.2rem !important;
+            min-height: 54px !important;
+            height: 54px !important;
+            font-size: 1.15rem !important;
             font-weight: bold !important;
         }
 
