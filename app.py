@@ -780,7 +780,7 @@ with tab3:
                         client.table("citas").insert({"mascotas_id": m_id, "fecha_hora": f"{f_fecha} {f_hora}", "servicio": f_serv, "duracion_minutos": int(f_dur)}).execute()
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
-        sub_cli, sub_masc, sub_alertas, sub_encargos = st.tabs(["👤 Directorio de Dueños", "🐾 Fichas de Mascotas", "🔔 Alertas y Recordatorios", "🛍️ Encargos de Clientes"])
+        sub_cli, sub_masc, sub_alertas, sub_encargos = st.tabs(["👤 Directorio de Clientes", "🐾 Fichas de Mascotas", "🔔 Alertas y Recordatorios", "🛍️ Encargos de Clientes"])
         
         with sub_cli:
             res_clientes = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).execute()
@@ -801,7 +801,8 @@ with tab3:
                 b_cli = st.text_input("🔍 Buscar cliente (Nombre o Teléfono):", placeholder="Escribe para filtrar...", key="b_cli").strip().lower()
                 
                 if 'fecha_nacimiento' not in df_cli.columns: df_cli['fecha_nacimiento'] = ""
-                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'email', 'fecha_nacimiento']].copy()
+                df_cli['Tipo Cliente'] = df_cli['mascotas'].apply(lambda x: "🐾 Con mascota" if isinstance(x, list) and len(x) > 0 else "🛍️ Solo tienda")
+                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'email', 'fecha_nacimiento', 'Tipo Cliente']].copy()
                 
                 if b_cli:
                     df_cli_vista = df_cli_vista[
@@ -823,15 +824,16 @@ with tab3:
                     df_cli_vista,
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), 
-                        "id": None, "nombre_dueno": "Nombre Dueño", "telefono": "Tel.", 
+                        "id": None, "nombre_dueno": "Nombre Cliente", "telefono": "Tel.", 
                         "email": "Email", "fecha_nacimiento": "F. Nac",
                         "RGPD": st.column_config.CheckboxColumn("LOPD"),
-                        "Puntos": st.column_config.NumberColumn("🌟 Ptos")
+                        "Puntos": st.column_config.NumberColumn("🌟 Ptos"),
+                        "Tipo Cliente": st.column_config.TextColumn("Perfil", disabled=True)
                     },
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_clientes", height=250
                 )
-                if st.button("💾 Guardar Cambios en Dueños", type="primary"):
-                    ed_cli_clean = ed_cli.drop(columns=["Ver"])
+                if st.button("💾 Guardar Cambios en Clientes", type="primary"):
+                    ed_cli_clean = ed_cli.drop(columns=["Ver", "Tipo Cliente"])
                     ids_actuales = ed_cli_clean['id'].dropna().tolist()
                     ids_orig = df_cli_vista['id'].tolist()
                     for id_b in [i for i in ids_orig if i not in ids_actuales]: client.table("clientes").delete().eq("id", id_b).execute()
@@ -843,7 +845,7 @@ with tab3:
                                 "email": str(row['email']), "fecha_nacimiento": str(row['fecha_nacimiento']),
                                 "rgpd_consent": bool(row.get('RGPD', True)), "puntos": int(row.get('Puntos', 0))
                             }).eq("id", row['id']).execute()
-                    st.success("Directorio de dueños actualizado."); time.sleep(0.5); st.rerun()
+                st.success("Directorio de clientes actualizado."); time.sleep(0.5); st.rerun()
                     
                 st.markdown("---")
                 
@@ -854,7 +856,7 @@ with tab3:
                     c_data = df_cli[df_cli['id'] == c_id].iloc[0]
                     c_nombre = c_data['nombre_dueno']
                     
-                    st.markdown(f"#### 📖 Ficha de Dueño: **{c_nombre}**")
+                    st.markdown(f"#### 📖 Ficha de Cliente: **{c_nombre}**")
                     
                     mascotas_lista = c_data.get('mascotas', [])
                     if isinstance(mascotas_lista, list) and len(mascotas_lista) > 0:
@@ -919,7 +921,7 @@ with tab3:
                     else:
                         st.info("Este cliente no tiene mascotas registradas.")
                         
-            else: st.info("No hay dueños registrados.")
+            else: st.info("No hay clientes registrados.")
 
             st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
 
@@ -927,7 +929,7 @@ with tab3:
             dict_cli = {f"{c['nombre_dueno']} ({c['telefono']})": c['id'] for c in res_clientes.data} if res_clientes.data else {}
             
             with st.form("nueva_mascota_extra", clear_on_submit=True, border=False):
-                sel_cli = st.selectbox("Selecciona el dueño:", list(dict_cli.keys()))
+                sel_cli = st.selectbox("Selecciona el cliente:", list(dict_cli.keys()))
                 c_m1, c_m2, c_m3 = st.columns([1.5, 1, 1])
                 with c_m1: nx_nom = st.text_input("Nombre mascota", key="nx_nom")
                 with c_m2: nx_esp = st.selectbox("Especie", ["Perro", "Gato", "Ave", "Roedor", "Otro"], key="nx_esp")
