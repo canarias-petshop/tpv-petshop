@@ -149,16 +149,16 @@ with tab1:
             
             if cat_item == "Producto":
                 c4, c5 = st.columns(2, vertical_alignment="bottom")
-                with c4: p_base = st.number_input("Coste Compra (€)", min_value=0.0, format="%.2f")
+                with c4: p_base = st.number_input("Coste Compra (€)", min_value=0.0, format="%.2f", value=None)
                 with c5: igic_tipo = st.selectbox("IGIC Compra %", [7.00, 0.00, 3.00, 15.00])
                 
                 c6, c7 = st.columns(2, vertical_alignment="bottom")
-                with c6: pvp = st.number_input("PVP Público (€) *", min_value=0.0, format="%.2f")
-                with c7: stck = st.number_input("Stock Inicial", min_value=0)
+                with c6: pvp = st.number_input("PVP Público (€) *", min_value=0.0, format="%.2f", value=None)
+                with c7: stck = st.number_input("Stock Inicial", min_value=0, value=None)
                 provs_sel = st.multiselect("Asociar Proveedores", list(dict_proveedores.keys()))
             else:
                 c4, c5 = st.columns(2, vertical_alignment="bottom")
-                with c4: pvp = st.number_input("Precio Cerrado (€) *", min_value=0.0, format="%.2f")
+                with c4: pvp = st.number_input("Precio Cerrado (€) *", min_value=0.0, format="%.2f", value=None)
                 with c5: igic_tipo = st.selectbox("IGIC (%)", [7.00, 0.00, 3.00, 15.00])
                 p_base = 0.0
                 stck = 0
@@ -166,16 +166,20 @@ with tab1:
                 st.info("💡 El sistema desglosará automáticamente la Base Imponible y la cuota de IGIC en la tabla.")
             
             if st.form_submit_button("💾 REGISTRAR", use_container_width=True, type="primary"):
+                pvp_val = pvp if pvp is not None else 0.0
+                p_base_val = p_base if p_base is not None else 0.0
+                stck_val = stck if stck is not None else 0
+                
                 if nombre and sku:
                     if cat_item == "Servicio":
-                        p_base_calc = pvp / (1 + (igic_tipo / 100))
+                        p_base_calc = pvp_val / (1 + (igic_tipo / 100))
                     else:
-                        p_base_calc = p_base
+                        p_base_calc = p_base_val
 
                     res_ins = client.table("productos").insert({
                         "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": cat_item,
                         "precio_base": p_base_calc, "igic_tipo": igic_tipo, 
-                        "stock_actual": stck, "precio_pvp": pvp
+                        "stock_actual": stck_val, "precio_pvp": pvp_val
                     }).execute()
                     if cat_item == "Producto" and res_ins.data and provs_sel:
                         rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base_calc} for p in provs_sel]
@@ -332,7 +336,7 @@ with tab2:
         res_inv = client.table("productos").select("*").execute()
         df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
         
-        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>🔍 Buscar Producto</p>", unsafe_allow_html=True)
+        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>🔍 Buscar producto o servicio</p>", unsafe_allow_html=True)
         if not df_inv.empty:
             opciones = df_inv.apply(lambda x: f"{x['nombre']} | {x['precio_pvp']}€", axis=1).tolist()
             prod_sel = st.selectbox("s1", opciones, index=None, placeholder="Escribe para buscar...", label_visibility="collapsed", key="sb_n")
@@ -373,14 +377,14 @@ with tab2:
 
         st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>✍️ Artículo Manual</p>", unsafe_allow_html=True)
+        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>✍️ Artículo manual</p>", unsafe_allow_html=True)
         with st.form("f_man", clear_on_submit=True, border=False):
             cm1, cm2, cm3 = st.columns([1.3, 1, 1]) 
-            with cm1: m_nom = st.text_input("Producto", placeholder="Nombre...", label_visibility="visible")
-            with cm2: m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", label_visibility="visible")
+            with cm1: m_nom = st.text_input("Artículo", placeholder="Nombre...", label_visibility="visible")
+            with cm2: m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", value=None, label_visibility="visible")
             with cm3: m_can = st.number_input("Cant.", min_value=1, value=1, label_visibility="visible")
             if st.form_submit_button("➕ Añadir Manual al Carrito", use_container_width=True):
-                if m_nom and m_pre > 0:
+                if m_nom and m_pre is not None and m_pre >= 0:
                     st.session_state.carrito.append({
                         "Producto": m_nom, "Cantidad": m_can, "Precio": m_pre,
                         "Subtotal": m_can * float(m_pre), "IGIC": 0, "Manual": True
@@ -522,9 +526,9 @@ with tab2:
                 opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} (Puntos: {c['puntos']})" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
                 
                 c_desc, c_fid = st.columns(2)
-                with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=0, step=1)
+                with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=None, step=1)
                 with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli)
-                total_f = sub_antes * (1 - desc_g / 100)
+                total_f = sub_antes * (1 - (desc_g or 0) / 100)
                 
                 st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
@@ -535,28 +539,34 @@ with tab2:
                 if metodo == "Efectivo":
                     c_tot, c_ent, c_cam = st.columns([0.8, 1, 1])
                     with c_tot: st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
-                    with c_ent: entregado = st.number_input("Entregado €", min_value=0.0, value=float(total_f), format="%.2f")
+                    with c_ent: entregado = st.number_input("Entregado €", min_value=0.0, value=None, placeholder=f"{total_f:.2f}", format="%.2f")
                     with c_cam:
-                        cambio = entregado - total_f
+                        ent_val = entregado if entregado is not None else total_f
+                        cambio = ent_val - total_f
                         if cambio >= 0:
                             st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>CAMBIO</p><h3 style='margin:0; color:green;'>{cambio:.2f}€</h3>", unsafe_allow_html=True)
                             pagado_hoy = total_f
                             p_efectivo = total_f
                         else:
                             st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>DEUDA</p><h3 style='margin:0; color:orange;'>{-cambio:.2f}€</h3>", unsafe_allow_html=True)
-                            pagado_hoy = entregado; pendiente = -cambio
-                            p_efectivo = entregado
+                            pagado_hoy = ent_val; pendiente = -cambio
+                            p_efectivo = ent_val
 
                 elif metodo == "Mixto":
                     st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
                     cm1, cm2, cm3 = st.columns(3)
-                    with cm1: p_e = st.number_input("Efe.", min_value=0.0, value=0.0)
-                    with cm2: p_t = st.number_input("Tar.", min_value=0.0, value=0.0)
-                    with cm3: p_b = st.number_input("Biz.", min_value=0.0, value=0.0)
-                    pagado_hoy = p_e + p_t + p_b
-                    p_efectivo = p_e; p_tarjeta = p_t; p_bizum = p_b
+                    with cm1: p_e = st.number_input("Efe.", min_value=0.0, value=None)
+                    with cm2: p_t = st.number_input("Tar.", min_value=0.0, value=None)
+                    with cm3: p_b = st.number_input("Biz.", min_value=0.0, value=None)
+                    
+                    p_e_val = p_e or 0.0
+                    p_t_val = p_t or 0.0
+                    p_b_val = p_b or 0.0
+                    
+                    pagado_hoy = p_e_val + p_t_val + p_b_val
+                    p_efectivo = p_e_val; p_tarjeta = p_t_val; p_bizum = p_b_val
                     pendiente = total_f - pagado_hoy if pagado_hoy < total_f else 0.0
-                    metodo_log = f"Mixto (E:{p_e}|T:{p_t}|B:{p_b})"
+                    metodo_log = f"Mixto (E:{p_e_val}|T:{p_t_val}|B:{p_b_val})"
                     if pendiente > 0: st.warning(f"Pendiente: {pendiente:.2f}€")
                 
                 else:
@@ -1432,9 +1442,10 @@ with tab5:
         st.info("😴 La caja está actualmente CERRADA.")
         with st.form("abrir_caja", border=True):
             st.markdown("<h4 style='margin: 0 0 10px 0;'>🔓 Apertura de Turno</h4>", unsafe_allow_html=True)
-            fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=1.0)
+            fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=1.0, value=None)
             if st.form_submit_button("ABRIR CAJA AHORA", type="primary", use_container_width=True):
-                client.table("control_caja").insert({"fondo_inicial": float(fondo_ini), "estado": "Abierta"}).execute()
+                fondo_val = fondo_ini or 0.0
+                client.table("control_caja").insert({"fondo_inicial": float(fondo_val), "estado": "Abierta"}).execute()
                 st.success("¡Caja abierta!"); time.sleep(1); st.rerun()
     else:
         id_caja = caja_actual['id']
@@ -1455,10 +1466,10 @@ with tab5:
             with st.form("form_movimientos", clear_on_submit=True, border=True):
                 c_tipo, c_cant = st.columns([1, 1])
                 with c_tipo: tipo_mov = st.selectbox("Tipo", ["Retirada 🔻", "Ingreso 🔺"])
-                with c_cant: cant_mov = st.number_input("Euros €", min_value=0.01, step=1.0)
+                with c_cant: cant_mov = st.number_input("Euros €", min_value=0.01, step=1.0, value=None)
                 motivo_mov = st.text_input("Motivo", placeholder="Ej: Pago proveedor, cambio...")
                 if st.form_submit_button("Registrar Movimiento", use_container_width=True):
-                    if motivo_mov:
+                    if motivo_mov and cant_mov is not None:
                         tipo_limpio = "Retirada" if "Retirada" in tipo_mov else "Ingreso"
                         client.table("movimientos_caja").insert({"id_caja": id_caja, "tipo": tipo_limpio, "cantidad": float(cant_mov), "motivo": motivo_mov}).execute()
                         st.rerun()
@@ -1473,37 +1484,38 @@ with tab5:
             with st.container(border=True):
                 st.markdown("<p style='font-size: 11px; font-weight: bold; color: gray; margin:0;'>💵 BILLETES</p>", unsafe_allow_html=True)
                 cb1, cb2, cb3, cb4, cb5, cb6 = st.columns(6)
-                with cb1: b200 = st.number_input("200", 0, step=1, key="b200")
-                with cb2: b100 = st.number_input("100", 0, step=1, key="b100")
-                with cb3: b50 = st.number_input("50", 0, step=1, key="b50")
-                with cb4: b20 = st.number_input("20", 0, step=1, key="b20")
-                with cb5: b10 = st.number_input("10", 0, step=1, key="b10")
-                with cb6: b5 = st.number_input("5", 0, step=1, key="b5")
+                with cb1: b200 = st.number_input("200", 0, step=1, key="b200", value=None)
+                with cb2: b100 = st.number_input("100", 0, step=1, key="b100", value=None)
+                with cb3: b50 = st.number_input("50", 0, step=1, key="b50", value=None)
+                with cb4: b20 = st.number_input("20", 0, step=1, key="b20", value=None)
+                with cb5: b10 = st.number_input("10", 0, step=1, key="b10", value=None)
+                with cb6: b5 = st.number_input("5", 0, step=1, key="b5", value=None)
 
                 st.markdown("<p style='font-size: 11px; font-weight: bold; color: gray; margin:0; padding-top: 5px;'>🪙 MONEDAS</p>", unsafe_allow_html=True)
                 cm1, cm2, cm3, cm4, cm5, cm6, cm7, cm8 = st.columns(8)
-                with cm1: m2 = st.number_input("2€", 0, step=1, key="m2")
-                with cm2: m1 = st.number_input("1€", 0, step=1, key="m1")
-                with cm3: m50c = st.number_input("50¢", 0, step=1, key="m50c")
-                with cm4: m20c = st.number_input("20¢", 0, step=1, key="m20c")
-                with cm5: m10c = st.number_input("10¢", 0, step=1, key="m10c")
-                with cm6: m5c = st.number_input("5¢", 0, step=1, key="m5c")
-                with cm7: m2c = st.number_input("2¢", 0, step=1, key="m2c")
-                with cm8: m1c = st.number_input("1¢", 0, step=1, key="m1c")
+                with cm1: m2 = st.number_input("2€", 0, step=1, key="m2", value=None)
+                with cm2: m1 = st.number_input("1€", 0, step=1, key="m1", value=None)
+                with cm3: m50c = st.number_input("50¢", 0, step=1, key="m50c", value=None)
+                with cm4: m20c = st.number_input("20¢", 0, step=1, key="m20c", value=None)
+                with cm5: m10c = st.number_input("10¢", 0, step=1, key="m10c", value=None)
+                with cm6: m5c = st.number_input("5¢", 0, step=1, key="m5c", value=None)
+                with cm7: m2c = st.number_input("2¢", 0, step=1, key="m2c", value=None)
+                with cm8: m1c = st.number_input("1¢", 0, step=1, key="m1c", value=None)
                 
-                total_calc = (b200*200) + (b100*100) + (b50*50) + (b20*20) + (b10*10) + (b5*5) + \
-                             (m2*2) + (m1*1) + (m50c*0.50) + (m20c*0.20) + (m10c*0.10) + (m5c*0.05) + \
-                             (m2c*0.02) + (m1c*0.01)
+                total_calc = ((b200 or 0)*200) + ((b100 or 0)*100) + ((b50 or 0)*50) + ((b20 or 0)*20) + ((b10 or 0)*10) + ((b5 or 0)*5) + \
+                             ((m2 or 0)*2) + ((m1 or 0)*1) + ((m50c or 0)*0.50) + ((m20c or 0)*0.20) + ((m10c or 0)*0.10) + ((m5c or 0)*0.05) + \
+                             ((m2c or 0)*0.02) + ((m1c or 0)*0.01)
                 st.info(f"**Total Contado: {total_calc:.2f}€**")
 
             with st.form("form_cierre_final", border=True):
                 st.markdown("<p style='margin: 0 0 5px 0; font-weight: bold;'>🔒 Confirmar Cierre</p>", unsafe_allow_html=True)
                 
                 c_f1, c_f2 = st.columns([1, 1])
-                with c_f1: efectivo_final = st.number_input("Efectivo Final Real", min_value=0.0, value=float(total_calc), label_visibility="collapsed")
+                with c_f1: efectivo_final = st.number_input("Efectivo Final Real", min_value=0.0, value=None, placeholder=f"{total_calc:.2f}", label_visibility="collapsed")
                 with c_f2: submit_cierre = st.form_submit_button("CERRAR CAJA DEFINITIVA", type="primary", use_container_width=True)
                     
                 if submit_cierre:
+                    ef_val = efectivo_final if efectivo_final is not None else total_calc
                     ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0.0
                     retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
                     
@@ -1521,7 +1533,7 @@ with tab5:
                     # ----------------------------------------------------------------------
                         
                     efectivo_teorico_en_caja = fondo_actual + t_efe + ingresos - retiradas
-                    descuadre = efectivo_final - efectivo_teorico_en_caja
+                    descuadre = ef_val - efectivo_teorico_en_caja
                     
                     resumen_json = {
                         "Efectivo": round(t_efe, 2), "Tarjeta": round(t_tar, 2), "Bizum": round(t_biz, 2),
@@ -1530,7 +1542,7 @@ with tab5:
                     
                     client.table("control_caja").update({
                         "estado": "Cerrada", 
-                        "total_contado": float(efectivo_final), 
+                        "total_contado": float(ef_val), 
                         "descuadre": float(descuadre),
                         "resumen_pagos": resumen_json
                     }).eq("id", id_caja).execute()
@@ -1763,9 +1775,9 @@ with tab8:
             st.markdown("---")
             col_v1, col_v2 = st.columns([1, 2])
             with col_v1:
-                desc_g_v = st.number_input(" 🎁  Dto. Global (%)", 0.0, 100.0, 0.0, key="desc_v_alta")
+                desc_g_v = st.number_input(" 🎁  Dto. Global (%)", 0.0, 100.0, value=None, key="desc_v_alta")
             
-            total_v_final = suma_articulos_v * (1 - desc_g_v / 100)
+            total_v_final = suma_articulos_v * (1 - (desc_g_v or 0.0) / 100)
 
             with col_v2:
                 st.markdown(f"""
@@ -1858,8 +1870,8 @@ with tab8:
             t_base_c = df_c['Base Neta'].sum()
             t_igic_c = df_c['IGIC €'].sum()
             suma_articulos_c = df_c['Total Línea'].sum()
-            desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", 0.0, 100.0, 0.0)
-            total_con_pp = suma_articulos_c * (1 - desc_pp / 100)
+            desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", 0.0, 100.0, value=None)
+            total_con_pp = suma_articulos_c * (1 - (desc_pp or 0.0) / 100)
             
             st.markdown(f"""
             <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f; text-align: right;">
@@ -2015,11 +2027,11 @@ with tab9:
             with st.form("nuevo_gasto"):
                 st.markdown("#### Registrar Gasto Operativo")
                 concepto = st.text_input("Concepto (Luz, Alquiler, Material...)")
-                importe = st.number_input("Importe Total (€)", min_value=0.0)
+                importe = st.number_input("Importe Total (€)", min_value=0.0, value=None)
                 f_vence = st.date_input("Fecha de Vencimiento")
                 estado_g = st.selectbox("Estado", ["Pagado", "Pendiente"])
                 if st.form_submit_button("Guardar Gasto"):
-                    if importe > 0:
+                    if importe is not None and importe > 0:
                         client.table("compras").insert({
                             "tipo": "Gasto Operativo", "total": importe, 
                             "estado": estado_g, "fecha_vencimiento": str(f_vence)
