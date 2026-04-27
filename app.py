@@ -148,18 +148,18 @@ with tab1:
                     cod_barras = ""
             
             if cat_item == "Producto":
-                c4, c5 = st.columns(2)
+                c4, c5 = st.columns(2, vertical_alignment="bottom")
                 with c4: p_base = st.number_input("Coste Compra (€)", min_value=0.0, format="%.2f")
                 with c5: igic_tipo = st.selectbox("IGIC Compra %", [7.00, 0.00, 3.00, 15.00])
                 
-                c6, c7 = st.columns(2)
-                with c6: pvp = st.number_input("PVP de Venta Público (€) *", min_value=0.0, format="%.2f")
+                c6, c7 = st.columns(2, vertical_alignment="bottom")
+                with c6: pvp = st.number_input("PVP Público (€) *", min_value=0.0, format="%.2f")
                 with c7: stck = st.number_input("Stock Inicial", min_value=0)
                 provs_sel = st.multiselect("Asociar Proveedores", list(dict_proveedores.keys()))
             else:
-                c4, c5 = st.columns(2)
-                with c4: pvp = st.number_input("Precio Cerrado del Servicio (€) *", min_value=0.0, format="%.2f")
-                with c5: igic_tipo = st.selectbox("IGIC % a aplicar", [7.00, 0.00, 3.00, 15.00])
+                c4, c5 = st.columns(2, vertical_alignment="bottom")
+                with c4: pvp = st.number_input("Precio Cerrado (€) *", min_value=0.0, format="%.2f")
+                with c5: igic_tipo = st.selectbox("IGIC (%)", [7.00, 0.00, 3.00, 15.00])
                 p_base = 0.0
                 stck = 0
                 provs_sel = []
