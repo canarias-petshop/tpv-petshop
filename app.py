@@ -173,9 +173,17 @@ with tab1:
                 # --- 1. LIMPIEZA DE DATOS ---
                 df_inv['categoria_filt'] = df_inv['categoria'].fillna('Producto').astype(str).str.strip().str.capitalize()
 
+                df_solo_productos = df_inv[df_inv['categoria_filt'] == 'Producto'].copy()
+
+                # --- ALERTA DE STOCK BAJO ---
+                df_bajo_stock = df_solo_productos[df_solo_productos['stock_actual'] <= 2].sort_values(by="stock_actual")
+                if not df_bajo_stock.empty:
+                    st.warning(f"⚠️ **ATENCIÓN: Tienes {len(df_bajo_stock)} producto(s) bajo mínimos (2 unidades o menos).**")
+                    with st.expander("👀 Ver lista de productos para reponer"):
+                        st.dataframe(df_bajo_stock[['sku', 'nombre', 'stock_actual']], hide_index=True, use_container_width=True)
+
                 # --- TABLA DE PRODUCTOS MEJORADA ---
                 st.markdown("#### 📦 Inventario de Productos")
-                df_solo_productos = df_inv[df_inv['categoria_filt'] == 'Producto'].copy()
 
                 # Ahora permitimos borrar filas con num_rows="dynamic"
                 edit_p = st.data_editor(
