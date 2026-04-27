@@ -143,20 +143,26 @@ with tab1:
             with c3: cat = st.selectbox("Categoría *", ["Producto", "Servicio"])
             
             c4, c5 = st.columns(2)
-            with c4: p_base = st.number_input("Base Compra (€)", min_value=0.0, format="%.2f")
+            with c4: p_base = st.number_input("Base Compra (€)", min_value=0.0, format="%.2f", help="En servicios se autocalcula")
             with c5: igic_tipo = st.selectbox("IGIC %", [7.00, 0.00, 3.00, 15.00])
             
             c6, c7 = st.columns(2)
-            with c6: pvp = st.number_input("PVP Venta (€)", min_value=0.0, format="%.2f")
+            with c6: pvp = st.number_input("PVP Final con IGIC (€) *", min_value=0.0, format="%.2f")
             with c7: stck = st.number_input("Stock Inicial", min_value=0)
             
             provs_sel = st.multiselect("Asociar Proveedores", list(dict_proveedores.keys()))
             
             if st.form_submit_button("💾 REGISTRAR", use_container_width=True, type="primary"):
                 if nombre and sku:
+                    # Cálculo inverso para servicios (Extrae la base pura a partir del PVP final)
+                    if cat == "Servicio":
+                        p_base_calc = pvp / (1 + (igic_tipo / 100))
+                    else:
+                        p_base_calc = p_base
+
                     res_ins = client.table("productos").insert({
                         "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": cat,
-                        "precio_base": p_base, "igic_tipo": igic_tipo, 
+                        "precio_base": p_base_calc, "igic_tipo": igic_tipo, 
                         "stock_actual": stck if cat == "Producto" else 0, "precio_pvp": pvp
                     }).execute()
                     if res_ins.data and provs_sel:
@@ -233,7 +239,7 @@ with tab1:
                     column_config={
                         "id": None, "categoria": None, "categoria_filt": None,
                         "sku": "Código", "nombre": "Descripción del Servicio",
-                        "precio_base": st.column_config.NumberColumn("Base (€)", format="%.2f"),
+                        "precio_base": st.column_config.NumberColumn("Base sin IGIC (€)", format="%.2f", disabled=True),
                         "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)"
                     },
                     column_order=["sku", "nombre", "precio_base", "igic_tipo", "precio_pvp"],
@@ -578,9 +584,10 @@ with tab3:
             c_tel = st.text_input("Teléfono")
             c_ema = st.text_input("Email")
             c_nac = st.date_input("F. Nacimiento", value=None)
+            c_rgpd = st.checkbox("📝 Acepta LOPD/RGPD (Envío info y promos)", value=True)
             
             st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-            st.markdown("<p style='margin: 0; font-size: 13px; color: gray;'>🐾 Añadir mascota principal (Opcional)</p>", unsafe_allow_html=True)
+            st.markdown("<p style='margin: 0; font-size: 13px; color: gray;'>🐾 Añadir mascota (Deja en blanco si es solo cliente de tienda)</p>", unsafe_allow_html=True)
             
             m_nom = st.text_input("Nombre de la mascota")
             cm1, cm2, cm3 = st.columns(3)
@@ -592,7 +599,8 @@ with tab3:
             if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
                 if c_nom:
                     res_cli = client.table("clientes").insert({
-                        "nombre_dueno": c_nom, "telefono": c_tel, "email": c_ema, "fecha_nacimiento": str(c_nac) if c_nac else ""
+                        "nombre_dueno": c_nom, "telefono": c_tel, "email": c_ema, "fecha_nacimiento": str(c_nac) if c_nac else "",
+                        "rgpd_consent": c_rgpd, "puntos": 0
                     }).execute()
 
                     if res_cli.data and m_nom:
@@ -749,12 +757,25 @@ with tab3:
                         df_cli_vista['telefono'].astype(str).str.contains(b_cli, na=False)
                     ]
                 
+                # Aseguramos columnas nuevas por si acaban de ejecutarse en SQL
+                if 'rgpd_consent' not in df_cli.columns: df_cli['rgpd_consent'] = True
+                if 'puntos' not in df_cli.columns: df_cli['puntos'] = 0
+                
+                df_cli_vista['RGPD'] = df_cli['rgpd_consent']
+                df_cli_vista['Puntos'] = df_cli['puntos']
+
                 df_cli_vista.insert(0, "Ver", False)
                 st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir la ficha del cliente y ver sus mascotas.*")
                 
                 ed_cli = st.data_editor(
                     df_cli_vista,
-                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "nombre_dueno": "Nombre Dueño", "telefono": "Teléfono", "email": "Email", "fecha_nacimiento": "F. Nacimiento"},
+                    column_config={
+                        "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), 
+                        "id": None, "nombre_dueno": "Nombre Dueño", "telefono": "Tel.", 
+                        "email": "Email", "fecha_nacimiento": "F. Nac",
+                        "RGPD": st.column_config.CheckboxColumn("LOPD"),
+                        "Puntos": st.column_config.NumberColumn("🌟 Ptos")
+                    },
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_clientes", height=250
                 )
                 if st.button("💾 Guardar Cambios en Dueños", type="primary"):
@@ -767,7 +788,8 @@ with tab3:
                         if pd.notna(row['id']):
                             client.table("clientes").update({
                                 "nombre_dueno": str(row['nombre_dueno']), "telefono": str(row['telefono']),
-                                "email": str(row['email']), "fecha_nacimiento": str(row['fecha_nacimiento'])
+                                "email": str(row['email']), "fecha_nacimiento": str(row['fecha_nacimiento']),
+                                "rgpd_consent": bool(row.get('RGPD', True)), "puntos": int(row.get('Puntos', 0))
                             }).eq("id", row['id']).execute()
                     st.success("Directorio de dueños actualizado."); time.sleep(0.5); st.rerun()
                     
@@ -1417,28 +1439,112 @@ with tab6:
 # --- TAB 7: PROVEEDORES ---
 # ==========================================
 with tab7:
-    st.markdown("### 🚚 Gestión de Proveedores y Pagos")
-    cp1, cp2 = st.columns([1, 2])
-    with cp1:
-        with st.form("n_prov_full", clear_on_submit=True):
-            n_emp = st.text_input("Nombre Empresa *")
-            n_cif = st.text_input("CIF / NIF")
-            n_dir = st.text_input("Dirección")
-            n_tel = st.text_input("Teléfono")
-            n_ema = st.text_input("Email")
-            n_iban = st.text_input("Número de Cuenta (IBAN)")
-            if st.form_submit_button("➕ Guardar Proveedor", use_container_width=True, type="primary"):
-                if n_emp:
-                    client.table("proveedores").insert({
-                        "nombre_empresa": n_emp,
-                        "cif": n_cif,
-                        "contacto": f"Tel: {n_tel} | Email: {n_ema} | Dir: {n_dir} | IBAN: {n_iban}"
-                    }).execute()
-                    st.success("Guardado"); time.sleep(0.5); st.rerun()
-    with cp2:
-        res_p = client.table("proveedores").select("*").execute()
-        if res_p.data:
-            st.dataframe(pd.DataFrame(res_p.data)[['nombre_empresa', 'contacto']], use_container_width=True, hide_index=True)
+    st.markdown("<h3 style='margin-top:-15px;'>📦 Pedidos a Proveedores y Encargos</h3>", unsafe_allow_html=True)
+    sub_prov, sub_encargos, sub_pedidos = st.tabs(["🚚 Directorio Proveedores", "🛍️ Encargos de Clientes", "📦 Hacer Pedido a Proveedor"])
+    
+    with sub_prov:
+        cp1, cp2 = st.columns([1, 2])
+        with cp1:
+            with st.form("n_prov_full", clear_on_submit=True):
+                n_emp = st.text_input("Nombre Empresa *")
+                n_cif = st.text_input("CIF / NIF")
+                n_dir = st.text_input("Dirección")
+                n_tel = st.text_input("Teléfono")
+                n_ema = st.text_input("Email")
+                n_iban = st.text_input("Número de Cuenta (IBAN)")
+                if st.form_submit_button("➕ Guardar Proveedor", use_container_width=True, type="primary"):
+                    if n_emp:
+                        client.table("proveedores").insert({
+                            "nombre_empresa": n_emp, "cif": n_cif,
+                            "contacto": f"Tel: {n_tel} | Email: {n_ema} | Dir: {n_dir} | IBAN: {n_iban}"
+                        }).execute()
+                        st.success("Guardado"); time.sleep(0.5); st.rerun()
+        with cp2:
+            res_p = client.table("proveedores").select("*").execute()
+            if res_p.data:
+                st.dataframe(pd.DataFrame(res_p.data)[['nombre_empresa', 'contacto']], use_container_width=True, hide_index=True)
+
+    with sub_encargos:
+        col_en1, col_en2 = st.columns([1, 2])
+        with col_en1:
+            with st.form("n_encargo", clear_on_submit=True):
+                st.markdown("#### 📝 Registrar Encargo")
+                e_cli = st.text_input("Nombre del Cliente *")
+                e_tel = st.text_input("Teléfono")
+                e_det = st.text_area("Detalle del Pedido (Producto, cantidad, etc.) *")
+                if st.form_submit_button("Guardar Encargo", type="primary", use_container_width=True):
+                    if e_cli and e_det:
+                        try:
+                            client.table("encargos_clientes").insert({
+                                "nombre_cliente": e_cli, "telefono": e_tel, "detalle_pedido": e_det
+                            }).execute()
+                            st.success("Encargo guardado."); time.sleep(0.5); st.rerun()
+                        except Exception as e:
+                            st.error("Error. ¿Ejecutaste el SQL para crear la tabla encargos_clientes?")
+        
+        with col_en2:
+            st.markdown("#### 📌 Encargos Pendientes")
+            try:
+                res_e = client.table("encargos_clientes").select("*").order("created_at", desc=True).execute()
+                if res_e.data:
+                    df_e = pd.DataFrame(res_e.data)
+                    df_e['Fecha'] = pd.to_datetime(df_e['created_at']).dt.strftime('%d/%m/%Y')
+                    
+                    hoy_date = pd.to_datetime('today')
+                    for idx, row in df_e.iterrows():
+                        dias = (hoy_date - pd.to_datetime(row['created_at']).dt.tz_localize(None)).days
+                        if dias >= 2 and row['estado'] == 'Pendiente':
+                            st.warning(f"⚠️ **RETRASO:** El encargo de {row['nombre_cliente']} lleva {dias} días pendiente.")
+                    
+                    df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'estado']]
+                    ed_e = st.data_editor(
+                        df_e_vista, hide_index=True, use_container_width=True, num_rows="dynamic", height=300,
+                        column_config={
+                            "id": None, "nombre_cliente": "Cliente", "telefono": "Tel.",
+                            "detalle_pedido": "Detalle", 
+                            "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido a Proveedor", "Recibido/Avisado", "Entregado"])
+                        }
+                    )
+                    if st.button("💾 Guardar Estados de Encargos"):
+                        for _, r in ed_e.iterrows():
+                            if pd.notna(r['id']):
+                                client.table("encargos_clientes").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
+                        st.rerun()
+                else: st.info("No hay encargos activos.")
+            except: st.warning("Por favor, ejecuta el código SQL para activar esta tabla.")
+
+    with sub_pedidos:
+        st.markdown("#### 📦 Borrador de Pedidos a Proveedores")
+        st.info("💡 **Sistema de Pedidos en Fase Beta**: Aquí puedes empezar a guardar borradores. En la próxima actualización vincularemos esto directamente a los botones de 'Bajo Mínimos' del inventario.")
+        try:
+            res_provs_p = client.table("proveedores").select("id, nombre_empresa").execute()
+            dict_pp = {p['nombre_empresa']: p['id'] for p in res_provs_p.data} if res_provs_p.data else {}
+            
+            cp_a, cp_b = st.columns([1, 2])
+            with cp_a:
+                sel_prov_ped = st.selectbox("Selecciona Proveedor para abrir pedido", list(dict_pp.keys()))
+                if st.button("Crear Nuevo Borrador", use_container_width=True):
+                    client.table("pedidos_proveedores").insert({"proveedor_id": dict_pp[sel_prov_ped], "estado": "Borrador", "productos": []}).execute()
+                    st.rerun()
+                    
+            with cp_b:
+                res_ped = client.table("pedidos_proveedores").select("*, proveedores(nombre_empresa)").order("created_at", desc=True).execute()
+                if res_ped.data:
+                    df_ped = pd.DataFrame(res_ped.data)
+                    df_ped['Proveedor'] = df_ped['proveedores'].apply(lambda x: x.get('nombre_empresa', ''))
+                    df_ped['Fecha'] = pd.to_datetime(df_ped['created_at']).dt.strftime('%d/%m/%Y')
+                    
+                    ed_ped = st.data_editor(
+                        df_ped[['id', 'Fecha', 'Proveedor', 'estado']],
+                        hide_index=True, use_container_width=True,
+                        column_config={"id": None, "estado": st.column_config.SelectboxColumn("Estado", options=["Borrador", "Enviado", "Recibido"])}
+                    )
+                    if st.button("💾 Guardar Estados de Pedidos"):
+                        for _, r in ed_ped.iterrows():
+                            client.table("pedidos_proveedores").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
+                        st.rerun()
+        except:
+            pass
 
 # ==========================================
 # --- TAB 8: FACTURACIÓN LEGAL Y STOCK ---
