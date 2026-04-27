@@ -647,7 +647,7 @@ with tab3:
             with c_cal1: f_fecha = st.date_input("1. Selecciona la fecha de la cita:", value=date.today(), key=f"fcita_{prefix}_{m_id}")
             with c_cal2: f_dur = st.number_input("2. Duración del servicio (minutos)", min_value=5, max_value=300, value=60, step=5, key=f"fdur_{prefix}_{m_id}")
             
-            res_citas = client.table("citas").select("fecha_hora, duracion_minutos").like("fecha_hora", f"{f_fecha}%").execute()
+            res_citas = client.table("citas").select("fecha_hora, duracion_minutos").gte("fecha_hora", f"{f_fecha} 00:00:00").lte("fecha_hora", f"{f_fecha} 23:59:59").execute()
             citas_dia = res_citas.data if res_citas.data else []
             
             # --- CÁLCULO DE TRAMOS LIBRES CONTINUOS ---
