@@ -787,6 +787,17 @@ with tab3:
             if res_clientes.data:
                 df_cli = pd.DataFrame(res_clientes.data)
                 
+                # --- MÉTRICAS DE CLIENTES ---
+                total_clientes = len(df_cli)
+                clientes_con_mascota = sum(1 for c in res_clientes.data if c.get('mascotas') and len(c['mascotas']) > 0)
+                clientes_sin_mascota = total_clientes - clientes_con_mascota
+                
+                c_met1, c_met2, c_met3 = st.columns(3)
+                with c_met1: st.metric("👥 Total Clientes", total_clientes)
+                with c_met2: st.metric("🐾 Con Mascota", clientes_con_mascota)
+                with c_met3: st.metric("🛍️ Solo Tienda", clientes_sin_mascota)
+                st.markdown("<hr style='margin: 5px 0px 15px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+
                 b_cli = st.text_input("🔍 Buscar cliente (Nombre o Teléfono):", placeholder="Escribe para filtrar...", key="b_cli").strip().lower()
                 
                 if 'fecha_nacimiento' not in df_cli.columns: df_cli['fecha_nacimiento'] = ""
