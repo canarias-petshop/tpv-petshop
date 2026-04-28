@@ -152,9 +152,11 @@ with tab1:
                 with c4: p_base = st.number_input("Coste Compra (€)", min_value=0.0, format="%.2f", value=None)
                 with c5: igic_tipo = st.selectbox("IGIC Compra %", [7.00, 0.00, 3.00, 15.00])
                 
-                c6, c7 = st.columns(2, vertical_alignment="bottom")
+                c6, c7, c8, c9 = st.columns(4, vertical_alignment="bottom")
                 with c6: pvp = st.number_input("PVP Público (€) *", min_value=0.0, format="%.2f", value=None)
                 with c7: stck = st.number_input("Stock Inicial", min_value=0, value=None)
+                with c8: s_min = st.number_input("Avisar si quedan:", min_value=0, value=2)
+                with c9: c_rep = st.number_input("Cant. a pedir:", min_value=1, value=5)
                 provs_sel = st.multiselect("Asociar Proveedores", list(dict_proveedores.keys()))
             else:
                 c4, c5 = st.columns(2, vertical_alignment="bottom")
@@ -178,8 +180,9 @@ with tab1:
 
                     res_ins = client.table("productos").insert({
                         "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": cat_item,
-                        "precio_base": p_base_calc, "igic_tipo": igic_tipo, 
-                        "stock_actual": stck_val, "precio_pvp": pvp_val
+                        "precio_base": p_base_calc, "igic_tipo": igic_tipo, "stock_actual": stck_val, 
+                        "precio_pvp": pvp_val, "stock_minimo": s_min if cat_item == "Producto" else 0,
+                        "cantidad_reponer": c_rep if cat_item == "Producto" else 0
                     }).execute()
                     if cat_item == "Producto" and res_ins.data and provs_sel:
                         rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base_calc} for p in provs_sel]
@@ -197,12 +200,48 @@ with tab1:
 
                 df_solo_productos = df_inv[df_inv['categoria_filt'] == 'Producto'].copy()
 
+                # Asegurar columnas por si hay productos antiguos
+                if 'stock_minimo' not in df_solo_productos.columns: df_solo_productos['stock_minimo'] = 2
+                if 'cantidad_reponer' not in df_solo_productos.columns: df_solo_productos['cantidad_reponer'] = 5
+
                 # --- ALERTA DE STOCK BAJO ---
-                df_bajo_stock = df_solo_productos[df_solo_productos['stock_actual'] <= 2].sort_values(by="stock_actual")
+                df_bajo_stock = df_solo_productos[df_solo_productos['stock_actual'] <= df_solo_productos['stock_minimo']].sort_values(by="stock_actual")
                 if not df_bajo_stock.empty:
-                    st.warning(f"⚠️ **ATENCIÓN: Tienes {len(df_bajo_stock)} producto(s) bajo mínimos (2 unidades o menos).**")
-                    with st.expander("👀 Ver lista de productos para reponer"):
-                        st.dataframe(df_bajo_stock[['sku', 'nombre', 'stock_actual']], hide_index=True, use_container_width=True)
+                    st.warning(f"⚠️ **ATENCIÓN: Tienes {len(df_bajo_stock)} producto(s) por debajo de su stock mínimo.**")
+                    
+                    if st.button("🚀 AUTO-DISTRIBUIR A BORRADORES (Generación Inteligente)", type="primary", use_container_width=True):
+                        # 1. Encontrar qué proveedor vende cada cosa
+                        res_rels = client.table("productos_proveedores").select("producto_id, proveedor_id").execute()
+                        mapa_provs = {r['producto_id']: r['proveedor_id'] for r in res_rels.data} if res_rels.data else {}
+                        
+                        pedidos_creados = 0
+                        pedidos_a_crear = {}
+                        # 2. Agrupar por proveedor
+                        for _, row in df_bajo_stock.iterrows():
+                            prov_id = mapa_provs.get(row['id'])
+                            if prov_id:
+                                if prov_id not in pedidos_a_crear: pedidos_a_crear[prov_id] = []
+                                pedidos_a_crear[prov_id].append({"Producto": row['nombre'], "Cantidad": int(row['cantidad_reponer'])})
+                                
+                        # 3. Mandar a borradores
+                        if pedidos_a_crear:
+                            for p_id, prods in pedidos_a_crear.items():
+                                res_b = client.table("pedidos_proveedores").select("id, productos").eq("proveedor_id", p_id).eq("estado", "Borrador").execute()
+                                if res_b.data: # Si ya hay borrador, actualizamos
+                                    draft_id = res_b.data[0]['id']
+                                    prods_act = res_b.data[0].get('productos', [])
+                                    nombres_act = [p.get('Producto') for p in prods_act]
+                                    for np in prods:
+                                        if np['Producto'] not in nombres_act: prods_act.append(np)
+                                    client.table("pedidos_proveedores").update({"productos": prods_act}).eq("id", draft_id).execute()
+                                else: # Si no hay, creamos uno nuevo
+                                    client.table("pedidos_proveedores").insert({"proveedor_id": p_id, "estado": "Borrador", "productos": prods}).execute()
+                            st.success("✅ ¡Borradores generados automáticamente! Ve a la Pestaña 7 (Proveedores) para revisarlos y enviarlos.")
+                        else:
+                            st.error("❌ No se pudo automatizar: Ninguno de los productos bajo mínimos tiene un proveedor asociado.")
+
+                    with st.expander("👀 Ver lista manual de reposición"):
+                        st.dataframe(df_bajo_stock[['sku', 'nombre', 'stock_actual', 'stock_minimo', 'cantidad_reponer']], hide_index=True, use_container_width=True)
                         
                         # --- INTEGRACIÓN CON PEDIDOS A PROVEEDORES ---
                         res_borradores = client.table("pedidos_proveedores").select("id, proveedores(nombre_empresa)").eq("estado", "Borrador").execute()
@@ -233,9 +272,11 @@ with tab1:
                         "id": None, "categoria": None, "categoria_filt": None,
                         "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
                         "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f"),
-                        "igic_tipo": "IGIC Compra %", "precio_pvp": "PVP Venta (€)", "stock_actual": "Stock"
+                        "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock",
+                        "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
+                        "cantidad_reponer": st.column_config.NumberColumn("Reponer Ud", step=1)
                     },
-                    column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual"],
+                    column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "stock_minimo", "cantidad_reponer"],
                     hide_index=True, 
                     use_container_width=True, 
                     num_rows="dynamic", # <--- ESTO PERMITE BORRAR FILAS
@@ -1638,14 +1679,15 @@ with tab7:
                 with c_np5: n_pob = st.text_input("Población")
                 with c_np6: n_pais = st.text_input("País", value="España - Islas Canarias")
                 
+                n_frec = st.text_input("Días de Reparto", placeholder="Ej: Todos los días, Los martes, Bajo demanda...", value="Bajo demanda")
+                
                 if st.form_submit_button("Guardar Proveedor", use_container_width=True, type="primary"):
                     if n_emp:
                         client.table("proveedores").insert({
                             "nombre_empresa": n_emp, "cif": n_cif,
                             "telefono": n_tel, "movil": n_mov, "email": n_ema,
                             "direccion": n_dir, "poblacion": n_pob, "pais": n_pais,
-                            "codigo_pais": "ES_CANARY" if "Canarias" in n_pais else "ES",
-                            "idioma": "Español"
+                            "frecuencia_reparto": n_frec
                         }).execute()
                         st.success("Guardado"); time.sleep(0.5); st.rerun()
         with cp2:
@@ -1667,7 +1709,8 @@ with tab7:
                     df_p_vista, hide_index=True, use_container_width=True, key="ed_prov", height=250,
                     column_config={
                         "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
-                        "id": None, "nombre_empresa": "Empresa", "telefono": "Teléfono Fijo", "movil": "Móvil", "email": "Email"
+                        "id": None, "nombre_empresa": "Empresa", "frecuencia_reparto": "Días Reparto", 
+                        "telefono": "Teléfono", "email": "Email"
                     }
                 )
                 
@@ -1676,7 +1719,7 @@ with tab7:
                         if pd.notna(row['id']):
                             client.table("proveedores").update({
                                 "nombre_empresa": str(row['nombre_empresa']),
-                                "telefono": str(row['telefono']), "movil": str(row['movil']), "email": str(row['email'])
+                                "telefono": str(row['telefono']), "frecuencia_reparto": str(row['frecuencia_reparto']), "email": str(row['email'])
                             }).eq("id", row['id']).execute()
                     st.success("Directorio actualizado."); time.sleep(0.5); st.rerun()
                     
@@ -1714,10 +1757,11 @@ with tab7:
                     with cf8: f_cp = st.text_input("Código Postal", value=p_data.get('codigo_postal',''))
                     with cf9: f_prov = st.text_input("Provincia", value=p_data.get('provincia',''))
                     
-                    cf10, cf11, cf12 = st.columns(3)
+                    cf10, cf11, cf12, cf16 = st.columns(4)
                     with cf10: f_pais = st.text_input("País", value=p_data.get('pais',''))
-                    with cf11: f_cod_pais = st.text_input("Código País", value=p_data.get('codigo_pais',''))
+                    with cf11: f_cod_pais = st.text_input("Cód. País", value=p_data.get('codigo_pais',''))
                     with cf12: f_idioma = st.text_input("Idioma", value=p_data.get('idioma',''))
+                    with cf16: f_frec = st.text_input("Días de Reparto", value=p_data.get('frecuencia_reparto','Bajo demanda'))
                     
                     st.markdown("**3. Facturación y Notas**")
                     cf13, cf14, cf15 = st.columns([1, 1.5, 1])
@@ -1733,7 +1777,7 @@ with tab7:
                                 "nombre_empresa": f_nom, "cif": f_cif, "persona_contacto": f_per,
                                 "telefono": f_tel, "movil": f_mov, "email": f_ema, "direccion": f_dir,
                                 "poblacion": f_pob, "codigo_postal": f_cp, "provincia": f_prov,
-                                "pais": f_pais, "codigo_pais": f_cod_pais, "idioma": f_idioma,
+                                "pais": f_pais, "frecuencia_reparto": f_frec,
                                 "forma_pago": f_fpago, "iban": f_iban, "swift": f_swift, "notas": f_not, 
                                 "contacto": "" # Borramos la línea antigua ya que se ha organizado
                             }).eq("id", p_id).execute()
@@ -1743,9 +1787,9 @@ with tab7:
 
     with sub_pedidos:
         st.markdown("#### 📦 Borrador de Pedidos a Proveedores")
-        st.info("💡 **Sistema de Pedidos en Fase Beta**: Aquí puedes empezar a guardar borradores. En la próxima actualización vincularemos esto directamente a los botones de 'Bajo Mínimos' del inventario.")
+        st.info("💡 **SISTEMA AUTOMÁTICO ACTIVO:** Cuando pulsas 'Auto-Distribuir' en la Pestaña 1, los productos viajan directamente aquí. Una vez cambies el estado del borrador a 'Enviado', el sistema creará un borrador nuevo la próxima vez que falte stock.")
         try:
-            res_provs_p = client.table("proveedores").select("id, nombre_empresa").execute()
+            res_provs_p = client.table("proveedores").select("id, nombre_empresa, frecuencia_reparto").execute()
             dict_pp = {p['nombre_empresa']: p['id'] for p in res_provs_p.data} if res_provs_p.data else {}
             
             cp_a, cp_b = st.columns([1, 2])
@@ -1756,13 +1800,14 @@ with tab7:
                     st.rerun()
                     
             with cp_b:
-                res_ped = client.table("pedidos_proveedores").select("*, proveedores(nombre_empresa)").order("created_at", desc=True).execute()
+                res_ped = client.table("pedidos_proveedores").select("*, proveedores(nombre_empresa, frecuencia_reparto)").order("created_at", desc=True).execute()
                 if res_ped.data:
                     df_ped = pd.DataFrame(res_ped.data)
                     df_ped['Proveedor'] = df_ped['proveedores'].apply(lambda x: x.get('nombre_empresa', ''))
+                    df_ped['Reparto'] = df_ped['proveedores'].apply(lambda x: x.get('frecuencia_reparto', 'Bajo demanda'))
                     df_ped['Fecha'] = pd.to_datetime(df_ped['created_at']).dt.strftime('%d/%m/%Y')
                     
-                    df_ped_vista = df_ped[['id', 'Fecha', 'Proveedor', 'estado']].copy()
+                    df_ped_vista = df_ped[['id', 'Fecha', 'Proveedor', 'Reparto', 'estado']].copy()
                     df_ped_vista.insert(0, "Borrar", False)
                     df_ped_vista.insert(0, "Ver/Editar", False)
                     
@@ -1772,6 +1817,7 @@ with tab7:
                         column_config={
                             "Ver/Editar": st.column_config.CheckboxColumn("👁️ Ver"),
                             "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"),
+                            "Reparto": st.column_config.TextColumn("Días Envío", disabled=True),
                             "id": None, "estado": st.column_config.SelectboxColumn("Estado", options=["Borrador", "Enviado", "Recibido"])
                         }
                     )
