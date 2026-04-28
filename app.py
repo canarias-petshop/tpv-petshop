@@ -604,12 +604,6 @@ with tab2:
                         carrito_limpio = json.loads(edited_df.to_json(orient='records'))
                         
                         try:
-                            # --- MÓDULO VERI*FACTU: CÁLCULO DE HASH ---
-                            fecha_emision = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                            res_h = client.table("ventas_historial").select("hash_actual").order("id", desc=True).limit(1).execute()
-                            h_ant = res_h.data[0]['hash_actual'] if res_h.data and res_h.data[0].get('hash_actual') else ""
-                            h_act = generar_hash_verifactu("TICKET", fecha_emision, float(total_f), h_ant)
-                            
                             # ASIGNACIÓN DE PUNTOS
                             cliente_fidel_nombre = ""
                             puntos_ganados = 0
@@ -629,11 +623,7 @@ with tab2:
                                 "estado": "Completado" if pendiente == 0 else "Deuda",
                                 "pago_efectivo": float(p_efectivo),
                                 "pago_tarjeta": float(p_tarjeta),
-                                "pago_bizum": float(p_bizum),
-                                "hash_anterior": h_ant,
-                                "hash_actual": h_act,
-                                "qr_verifactu": "",
-                                "estado_hacienda": "Pendiente"
+                                "pago_bizum": float(p_bizum)
                             }).execute()
                             
                             for i in carrito_limpio:
@@ -1773,6 +1763,7 @@ with tab7:
                     df_ped['Fecha'] = pd.to_datetime(df_ped['created_at']).dt.strftime('%d/%m/%Y')
                     
                     df_ped_vista = df_ped[['id', 'Fecha', 'Proveedor', 'estado']].copy()
+                    df_ped_vista.insert(0, "Borrar", False)
                     df_ped_vista.insert(0, "Ver/Editar", False)
                     
                     ed_ped = st.data_editor(
@@ -1780,16 +1771,28 @@ with tab7:
                         hide_index=True, use_container_width=True,
                         column_config={
                             "Ver/Editar": st.column_config.CheckboxColumn("👁️ Ver"),
+                            "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"),
                             "id": None, "estado": st.column_config.SelectboxColumn("Estado", options=["Borrador", "Enviado", "Recibido"])
                         }
                     )
+                    
+                    # --- LÓGICA DE BORRADO ---
+                    filas_borrar = ed_ped[ed_ped["Borrar"] == True]
+                    if not filas_borrar.empty:
+                        st.error(f"⚠️ Has marcado {len(filas_borrar)} pedido(s) para eliminar.")
+                        if st.button("🚨 CONFIRMAR ELIMINACIÓN", type="primary", use_container_width=True):
+                            for idx, row in filas_borrar.iterrows():
+                                client.table("pedidos_proveedores").delete().eq("id", row['id']).execute()
+                            st.success("Pedido(s) eliminado(s) correctamente."); time.sleep(1); st.rerun()
+                            
                     if st.button("💾 Guardar Estados de Pedidos"):
-                        for _, r in ed_ped.iterrows():
+                        filas_validas = ed_ped[ed_ped["Borrar"] == False]
+                        for _, r in filas_validas.iterrows():
                             client.table("pedidos_proveedores").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
                         st.rerun()
                         
                     # Mostrar detalle del pedido marcado
-                    filas_ped = ed_ped[ed_ped["Ver/Editar"] == True]
+                    filas_ped = ed_ped[(ed_ped["Ver/Editar"] == True) & (ed_ped["Borrar"] == False)]
                     if not filas_ped.empty:
                         st.markdown("---")
                         ped_id = filas_ped.iloc[0]['id']
@@ -1913,19 +1916,9 @@ with tab8:
                 if sel_c:
                     c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
                     
-                    # --- MÓDULO VERI*FACTU: CÁLCULO DE HASH ---
-                    fecha_emision_fac = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                    res_hf = client.table("facturas").select("hash_actual").order("id", desc=True).limit(1).execute()
-                    h_ant_f = res_hf.data[0]['hash_actual'] if res_hf.data and res_hf.data[0].get('hash_actual') else ""
-                    h_act_f = generar_hash_verifactu("FACTURA", fecha_emision_fac, float(total_v_final), h_ant_f)
-                    
                     client.table("facturas").insert({
                         "cliente_id": c_id, "total_neto": float(total_v_final), "total_igic": 0.0, "total_final": float(total_v_final),
-                        "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp,
-                        "hash_anterior": h_ant_f,
-                        "hash_actual": h_act_f,
-                        "qr_verifactu": "",
-                        "estado_hacienda": "Pendiente"
+                        "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
                     }).execute()
                     for i in st.session_state.factura_v_temp:
                         res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
@@ -2034,26 +2027,45 @@ with tab8:
                 df_vista = df_fac[['id', 'numero_factura', 'total_final', 'Cliente', 'forma_pago']].copy()
                 
                 # 🚨 LEY ANTIFRAUDE (VERI*FACTU): Prohibido borrar facturas emitidas
+                df_vista.insert(0, "Borrar", False)
                 df_vista.insert(0, "Ver", False)
                 
                 ed_fac = st.data_editor(
                     df_vista, hide_index=True, use_container_width=True, key="ed_h_f", 
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver"), 
+                        "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"), 
                         "id": None
                     }
                 )
+                
+                # 1. SISTEMA DE BORRADO DIRECTO DESDE LA TABLA
+                filas_borrar_v = ed_fac[ed_fac["Borrar"] == True]
+                if not filas_borrar_v.empty:
+                    st.error(f"⚠️ Has marcado {len(filas_borrar_v)} factura(s) para eliminar. El stock de los artículos se devolverá automáticamente a la tienda.")
+                    if st.button("🚨 CONFIRMAR ELIMINACIÓN DE FACTURA(S)", type="primary", use_container_width=True):
+                        for idx, row in filas_borrar_v.iterrows():
+                            f_id = row['id']
+                            f_data = df_fac[df_fac['id'] == f_id].iloc[0]
+                            # Devolver stock
+                            for p in f_data.get('productos', []):
+                                res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
+                            # Eliminar registro
+                            client.table("facturas").delete().eq("id", f_id).execute()
+                        st.success("Factura(s) eliminada(s) correctamente."); time.sleep(1); st.rerun()
                 
                 st.markdown("---")
                 
                 # 2. SISTEMA DE GUARDADO DE CABECERA (Forma de pago)
                 if st.button(" 💾  Guardar Cambios en Forma de Pago"):
-                    for idx, row in ed_fac.iterrows():
+                    filas_validas = ed_fac[ed_fac["Borrar"] == False]
+                    for idx, row in filas_validas.iterrows():
                         client.table("facturas").update({"forma_pago": str(row['forma_pago'])}).eq("id", row['id']).execute()
                     st.success("Formas de pago actualizadas."); time.sleep(0.5); st.rerun()
 
                 # 3. SISTEMA DE DESGLOSE
-                filas = ed_fac[(ed_fac["Ver"] == True)]
+                filas = ed_fac[(ed_fac["Ver"] == True) & (ed_fac["Borrar"] == False)]
                 if not filas.empty:
                     f_id = filas.iloc[0]['id']
                     f_data = df_fac[df_fac['id'] == f_id].iloc[0]
