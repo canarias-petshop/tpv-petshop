@@ -198,7 +198,7 @@ with tab1:
                 def extraer_proveedores(rels):
                     if isinstance(rels, list) and len(rels) > 0:
                         nombres = [r.get('proveedores', {}).get('nombre_empresa', '') for r in rels if isinstance(r, dict) and r.get('proveedores')]
-                        return ", ".join(filter(None, nombres))
+                        return nombres[0] if nombres else "---"
                     return "---"
                     
                 if 'productos_proveedores' in df_inv.columns:
@@ -282,7 +282,7 @@ with tab1:
                     column_config={
                         "id": None, "categoria": None, "categoria_filt": None, "productos_proveedores": None,
                         "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
-                        "Proveedor": st.column_config.TextColumn("Proveedor", disabled=True),
+                        "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
                         "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f"),
                         "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock",
                         "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
@@ -309,9 +309,20 @@ with tab1:
                     for i, row in edit_p.iterrows():
                         if pd.notna(row['id']): # Solo actualizamos si el producto ya existía
                             datos = row.to_dict()
+                            
+                            # --- Gestión del proveedor ---
+                            prov_nombre = datos.get('Proveedor', '---')
+                            
                             for col_eliminar in ['categoria_filt', 'Proveedor', 'productos_proveedores']:
                                 if col_eliminar in datos: del datos[col_eliminar]
                             client.table("productos").update(datos).eq("id", row['id']).execute()
+                            
+                            # Actualizar la relación principal del proveedor
+                            client.table("productos_proveedores").delete().eq("producto_id", row['id']).execute()
+                            if prov_nombre != "---" and prov_nombre in dict_proveedores:
+                                client.table("productos_proveedores").insert({
+                                    "producto_id": row['id'], "proveedor_id": dict_proveedores[prov_nombre], "precio_coste": float(datos.get('precio_base', 0.0))
+                                }).execute()
 
                     st.success("Inventario sincronizado correctamente")
                     st.rerun() # Recargamos para ver los cambios [cite: 9]
