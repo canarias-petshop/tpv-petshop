@@ -603,15 +603,71 @@ with tab3:
 
         if res_clientes.data:
             df_cli = pd.DataFrame(res_clientes.data)
+            
             def formatear_mascotas(lista_mascotas):
                 if isinstance(lista_mascotas, list) and len(lista_mascotas) > 0:
                     return ", ".join([f"{m['nombre']} ({m['especie']})" for m in lista_mascotas])
                 return "Sin mascotas"
 
             df_cli['Mascotas Registradas'] = df_cli['mascotas'].apply(formatear_mascotas)
-            st.dataframe(df_cli[['nombre_dueno', 'telefono', 'email', 'puntos', 'Mascotas Registradas']],
-                         column_config={"puntos": st.column_config.NumberColumn("Puntos VIP", format="%d")},
-                         use_container_width=True, hide_index=True, height=250)
+            df_cli['Segmento'] = df_cli['mascotas'].apply(lambda x: "Peluquería 🐾" if isinstance(x, list) and len(x) > 0 else "Tienda 🛒")
+
+            # --- MÉTRICAS DE MARKETING ---
+            tot_cli = len(df_cli)
+            tot_pelu = len(df_cli[df_cli['Segmento'] == "Peluquería 🐾"])
+            tot_tien = len(df_cli[df_cli['Segmento'] == "Tienda 🛒"])
+            
+            cm1, cm2, cm3 = st.columns(3)
+            cm1.metric("Total Clientes", tot_cli)
+            cm2.metric("Peluquería / Clínica", tot_pelu)
+            cm3.metric("Solo Tienda", tot_tien)
+            
+            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+            st.markdown("💡 *Haz doble clic en una celda para editar (Nombres, Tel, Email, Puntos). Selecciona una fila y presiona 'Suprimir' para borrarla.*")
+
+            # --- TABLA EDITABLE ---
+            df_vista = df_cli[['id', 'Segmento', 'nombre_dueno', 'telefono', 'email', 'puntos', 'Mascotas Registradas']].copy()
+            
+            edited_cli = st.data_editor(
+                df_vista,
+                column_config={
+                    "id": None,
+                    "Segmento": st.column_config.TextColumn("Perfil", disabled=True),
+                    "nombre_dueno": "Nombre Dueño",
+                    "telefono": "Teléfono",
+                    "email": "Email",
+                    "puntos": st.column_config.NumberColumn("Puntos VIP", format="%d"),
+                    "Mascotas Registradas": st.column_config.TextColumn("Mascotas", disabled=True)
+                },
+                use_container_width=True, hide_index=True, height=250, num_rows="dynamic", key="ed_cli_crm"
+            )
+
+            if st.button("💾 Guardar Cambios en Clientes", type="primary"):
+                # 1. Borrados
+                ids_actuales = edited_cli['id'].dropna().tolist()
+                ids_originales = df_vista['id'].tolist()
+                ids_a_borrar = [id_orig for id_orig in ids_originales if id_orig not in ids_actuales]
+
+                for id_del in ids_a_borrar:
+                    client.table("clientes").delete().eq("id", id_del).execute()
+
+                # 2. Ediciones
+                for i, row in edited_cli.iterrows():
+                    if pd.notna(row['id']):
+                        orig_row = df_vista[df_vista['id'] == row['id']].iloc[0]
+                        if (str(row['nombre_dueno']) != str(orig_row['nombre_dueno']) or
+                            str(row['telefono']) != str(orig_row['telefono']) or
+                            str(row['email']) != str(orig_row['email']) or
+                            str(row['puntos']) != str(orig_row['puntos'])):
+                            
+                            client.table("clientes").update({
+                                "nombre_dueno": str(row['nombre_dueno']),
+                                "telefono": str(row['telefono']) if pd.notna(row['telefono']) else "",
+                                "email": str(row['email']) if pd.notna(row['email']) else "",
+                                "puntos": int(row['puntos']) if pd.notna(row['puntos']) else 0
+                            }).eq("id", row['id']).execute()
+
+                st.success("Directorio de clientes sincronizado"); time.sleep(0.8); st.rerun()
 
             st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
 
