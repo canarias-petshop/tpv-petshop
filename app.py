@@ -1704,6 +1704,7 @@ with tab7:
                 with c_np6: n_pais = st.text_input("País", value="España - Islas Canarias")
                 
                 n_frec = st.text_input("Días de Reparto", placeholder="Ej: Todos los días, Los martes, Bajo demanda...", value="Bajo demanda")
+                n_hora = st.text_input("Hora límite de pedido", placeholder="Ej: 14:00, 20:00, Sin límite...", value="Sin límite")
                 
                 if st.form_submit_button("Guardar Proveedor", use_container_width=True, type="primary"):
                     if n_emp:
@@ -1711,7 +1712,7 @@ with tab7:
                             "nombre_empresa": n_emp, "cif": n_cif,
                             "telefono": n_tel, "movil": n_mov, "email": n_ema,
                             "direccion": n_dir, "poblacion": n_pob, "pais": n_pais,
-                            "frecuencia_reparto": n_frec
+                            "frecuencia_reparto": n_frec, "hora_limite": n_hora
                         }).execute()
                         st.success("Guardado"); time.sleep(0.5); st.rerun()
         with cp2:
@@ -1743,7 +1744,7 @@ with tab7:
                         if pd.notna(row['id']):
                             client.table("proveedores").update({
                                 "nombre_empresa": str(row['nombre_empresa']),
-                                "telefono": str(row['telefono']), "frecuencia_reparto": str(row['frecuencia_reparto']), "email": str(row['email'])
+                                "telefono": str(row['telefono']), "frecuencia_reparto": str(row['frecuencia_reparto']), "hora_limite": str(row['hora_limite']), "email": str(row['email'])
                             }).eq("id", row['id']).execute()
                     st.success("Directorio actualizado."); time.sleep(0.5); st.rerun()
                     
@@ -1781,11 +1782,12 @@ with tab7:
                     with cf8: f_cp = st.text_input("Código Postal", value=p_data.get('codigo_postal',''))
                     with cf9: f_prov = st.text_input("Provincia", value=p_data.get('provincia',''))
                     
-                    cf10, cf11, cf12, cf16 = st.columns(4)
+                    cf10, cf11, cf12, cf16, cf17 = st.columns(5)
                     with cf10: f_pais = st.text_input("País", value=p_data.get('pais',''))
                     with cf11: f_cod_pais = st.text_input("Cód. País", value=p_data.get('codigo_pais',''))
                     with cf12: f_idioma = st.text_input("Idioma", value=p_data.get('idioma',''))
                     with cf16: f_frec = st.text_input("Días de Reparto", value=p_data.get('frecuencia_reparto','Bajo demanda'))
+                    with cf17: f_hora = st.text_input("Hora Límite", value=p_data.get('hora_limite','Sin límite'))
                     
                     st.markdown("**3. Facturación y Notas**")
                     cf13, cf14, cf15 = st.columns([1, 1.5, 1])
@@ -1801,7 +1803,7 @@ with tab7:
                                 "nombre_empresa": f_nom, "cif": f_cif, "persona_contacto": f_per,
                                 "telefono": f_tel, "movil": f_mov, "email": f_ema, "direccion": f_dir,
                                 "poblacion": f_pob, "codigo_postal": f_cp, "provincia": f_prov,
-                                "pais": f_pais, "frecuencia_reparto": f_frec,
+                                "pais": f_pais, "frecuencia_reparto": f_frec, "hora_limite": f_hora,
                                 "forma_pago": f_fpago, "iban": f_iban, "swift": f_swift, "notas": f_not, 
                                 "contacto": "" # Borramos la línea antigua ya que se ha organizado
                             }).eq("id", p_id).execute()
@@ -1824,14 +1826,15 @@ with tab7:
                     st.rerun()
                     
             with cp_b:
-                res_ped = client.table("pedidos_proveedores").select("*, proveedores(nombre_empresa, frecuencia_reparto)").order("created_at", desc=True).execute()
+                res_ped = client.table("pedidos_proveedores").select("*, proveedores(nombre_empresa, frecuencia_reparto, hora_limite, email)").order("created_at", desc=True).execute()
                 if res_ped.data:
                     df_ped = pd.DataFrame(res_ped.data)
                     df_ped['Proveedor'] = df_ped['proveedores'].apply(lambda x: x.get('nombre_empresa', ''))
                     df_ped['Reparto'] = df_ped['proveedores'].apply(lambda x: x.get('frecuencia_reparto', 'Bajo demanda'))
+                    df_ped['Corte'] = df_ped['proveedores'].apply(lambda x: x.get('hora_limite', 'Sin límite'))
                     df_ped['Fecha'] = pd.to_datetime(df_ped['created_at']).dt.strftime('%d/%m/%Y')
                     
-                    df_ped_vista = df_ped[['id', 'Fecha', 'Proveedor', 'Reparto', 'estado']].copy()
+                    df_ped_vista = df_ped[['id', 'Fecha', 'Proveedor', 'Reparto', 'Corte', 'estado']].copy()
                     df_ped_vista.insert(0, "Borrar", False)
                     df_ped_vista.insert(0, "Ver/Editar", False)
                     
@@ -1842,6 +1845,7 @@ with tab7:
                             "Ver/Editar": st.column_config.CheckboxColumn("👁️ Ver"),
                             "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"),
                             "Reparto": st.column_config.TextColumn("Días Envío", disabled=True),
+                            "Corte": st.column_config.TextColumn("Hora Límite", disabled=True),
                             "id": None, "estado": st.column_config.SelectboxColumn("Estado", options=["Borrador", "Enviado", "Recibido"])
                         }
                     )
@@ -1879,11 +1883,22 @@ with tab7:
                             column_config={"Producto": st.column_config.TextColumn("Producto a pedir"), "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1)}
                         )
                         
-                        if st.button("💾 Guardar Cambios del Borrador", type="primary"):
-                            df_clean = ed_prods_ped.dropna(subset=['Producto'])
-                            df_clean = df_clean[df_clean['Producto'].astype(str).str.strip() != ""]
-                            client.table("pedidos_proveedores").update({"productos": json.loads(df_clean.to_json(orient='records'))}).eq("id", ped_id).execute()
-                            st.success("Borrador actualizado"); time.sleep(0.5); st.rerun()
+                        c_pbtn1, c_pbtn2 = st.columns(2)
+                        with c_pbtn1:
+                            if st.button("💾 Guardar Cambios del Borrador", type="primary", use_container_width=True):
+                                df_clean = ed_prods_ped.dropna(subset=['Producto'])
+                                df_clean = df_clean[df_clean['Producto'].astype(str).str.strip() != ""]
+                                client.table("pedidos_proveedores").update({"productos": json.loads(df_clean.to_json(orient='records'))}).eq("id", ped_id).execute()
+                                st.success("Borrador actualizado"); time.sleep(0.5); st.rerun()
+                        with c_pbtn2:
+                            df_clean_email = ed_prods_ped.dropna(subset=['Producto'])
+                            df_clean_email = df_clean_email[df_clean_email['Producto'].astype(str).str.strip() != ""]
+                            texto_pedido = f"Hola,\\n\\nAdjunto nuestro pedido a {ped_data['Proveedor']}:\\n\\n"
+                            for _, r_ped in df_clean_email.iterrows():
+                                texto_pedido += f"- {r_ped['Cantidad']}x {r_ped['Producto']}\\n"
+                            texto_pedido += "\\nGracias,\\nAnimalarium"
+                            prov_email = ped_data.get('proveedores', {}).get('email', '') if isinstance(ped_data.get('proveedores'), dict) else ''
+                            st.markdown(f"<a href='mailto:{prov_email}?subject=Pedido Animalarium&body={urllib.parse.quote(texto_pedido)}' target='_blank'><button style='width:100%; padding:11px; background-color:#005275; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;'>✉️ Generar Email</button></a>", unsafe_allow_html=True)
                             
                         st.markdown("---")
                         st.markdown("##### ➕ Añadir Artículo Manual (Fuera de catálogo / Encargos especiales)")
@@ -2023,6 +2038,7 @@ with tab8:
     with sub_registrar:
         if 'compra_temp' not in st.session_state: st.session_state.compra_temp = []
         if 'llave_busqueda_c' not in st.session_state: st.session_state.llave_busqueda_c = 0
+        if 'pedido_vinculado' not in st.session_state: st.session_state.pedido_vinculado = None
             
         c_c1, c_c2, c_c3 = st.columns(3)
         with c_c1: n_fac = st.text_input("Nº Factura Proveedor", key="fac_prov_n")
@@ -2038,6 +2054,30 @@ with tab8:
                     if n_emp_new: client.table("proveedores").insert({"nombre_empresa": n_emp_new, "cif": n_cif_new}).execute(); st.rerun()
                         
         st.markdown("---")
+        
+        with st.expander("📥 Cargar desde Pedido a Proveedor (Automatización)", expanded=False):
+            res_pedidos_p = client.table("pedidos_proveedores").select("id, estado, proveedores(nombre_empresa)").in_("estado", ["Borrador", "Enviado"]).execute()
+            if res_pedidos_p.data:
+                opc_ped = {f"Pedido #{p['id']} - {p['proveedores']['nombre_empresa']} ({p['estado']})": p['id'] for p in res_pedidos_p.data if p.get('proveedores')}
+                p_sel_str = st.selectbox("Selecciona un pedido pendiente:", [""] + list(opc_ped.keys()))
+                if st.button("⬇️ Cargar Artículos del Pedido"):
+                    if p_sel_str:
+                        ped_id = opc_ped[p_sel_str]
+                        st.session_state.pedido_vinculado = ped_id
+                        ped_data = client.table("pedidos_proveedores").select("productos").eq("id", ped_id).execute().data[0]
+                        st.session_state.compra_temp = []
+                        for art in ped_data.get('productos', []):
+                            res_match = client.table("productos").select("id, sku, nombre, precio_base, igic_tipo").eq("nombre", art['Producto']).execute()
+                            if res_match.data:
+                                item = res_match.data[0]
+                                st.session_state.compra_temp.append({
+                                    "id": str(item['id']), "Código": item['sku'], "Descripción": item['nombre'],
+                                    "Cantidad": art['Cantidad'], "Base Ud": float(item['precio_base']), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0
+                                })
+                        st.success("Artículos cargados en la tabla inferior."); time.sleep(1); st.rerun()
+            else:
+                st.info("No hay pedidos pendientes.")
+
         if not df_inv.empty:
             opciones_inv = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist()
             prod_buscado = st.selectbox("Buscar producto:", opciones_inv, index=None, key=f"sel_c_doc_{st.session_state.llave_busqueda_c}")
@@ -2095,8 +2135,20 @@ with tab8:
                     }).execute()
                     for i in st.session_state.compra_temp:
                         res_s = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
-                        if res_s.data: client.table("productos").update({"stock_actual": (res_s.data[0]['stock_actual'] or 0) + i['Cantidad']}).eq("id", i['id']).execute()
-                    st.session_state.compra_temp = []; st.success("Compra archivada."); time.sleep(1); st.rerun()
+                        if res_s.data: 
+                            # Actualizamos stock y el PRECIO DE COSTE general
+                            client.table("productos").update({
+                                "stock_actual": (res_s.data[0]['stock_actual'] or 0) + i['Cantidad'],
+                                "precio_base": float(i['Base Ud'])
+                            }).eq("id", i['id']).execute()
+                            # Actualizamos el precio de coste del proveedor específico
+                            client.table("productos_proveedores").update({"precio_coste": float(i['Base Ud'])}).eq("producto_id", i['id']).eq("proveedor_id", p_id).execute()
+                    
+                    if st.session_state.pedido_vinculado:
+                        client.table("pedidos_proveedores").update({"estado": "Recibido"}).eq("id", st.session_state.pedido_vinculado).execute()
+                        st.session_state.pedido_vinculado = None
+                        
+                    st.session_state.compra_temp = []; st.success("Compra archivada y precios actualizados."); time.sleep(1); st.rerun()
 
     # ==========================================
     # SUB-TAB 3: ARCHIVO Y GESTIÓN (EDICIÓN Y BORRADO DIRECTO)
