@@ -712,8 +712,8 @@ with tab3:
                                 edit_hist = st.data_editor(
                                     df_hist, 
                                     column_config={
-                                        "Fecha": st.column_config.TextColumn("Día", width="small", placeholder="DD/MM/YYYY"),
-                                        "Servicio": st.column_config.TextColumn("Trabajo Realizado", placeholder="Ej: Baño y corte comercial..."),
+                                        "Fecha": st.column_config.TextColumn("Día", width="small", help="Formato: DD/MM/YYYY"),
+                                        "Servicio": st.column_config.TextColumn("Trabajo Realizado", help="Ej: Baño y corte comercial..."),
                                         "Duración (min)": st.column_config.NumberColumn("Minutos", min_value=0, step=5, width="small")
                                     },
                                     num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_h_{m_id}", height=140
