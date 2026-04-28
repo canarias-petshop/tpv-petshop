@@ -601,28 +601,6 @@ with tab3:
                         st.success("Cliente guardado correctamente"); time.sleep(0.5); st.rerun()
                     else:
                         st.warning("El nombre del dueño es obligatorio.")
-                        
-        if res_clientes.data:
-            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-            with st.container(border=True):
-                st.markdown("#### ➕ Añadir Mascota a Cliente Existente")
-                dict_cli = {f"{c['nombre_dueno']} ({c.get('telefono','')})": c['id'] for c in res_clientes.data}
-                
-                with st.form("nueva_mascota_extra", clear_on_submit=True, border=False):
-                    sel_cli = st.selectbox("Selecciona el dueño:", list(dict_cli.keys()))
-                    nx_nom = st.text_input("Nombre mascota")
-                    c_m1, c_m2 = st.columns(2)
-                    with c_m1: nx_esp = st.selectbox("Especie", ["Perro", "Gato", "Ave", "Roedor", "Otro"])
-                    with c_m2: nx_raz = st.text_input("Raza")
-                    
-                    if st.form_submit_button("Añadir Mascota", use_container_width=True):
-                        if nx_nom and sel_cli:
-                            client.table("mascotas").insert({
-                                "cliente_id": dict_cli[sel_cli], "nombre": nx_nom, "especie": nx_esp, "raza": nx_raz
-                            }).execute()
-                            st.success("Mascota añadida a la familia"); time.sleep(0.5); st.rerun()
-                        else:
-                            st.warning("Falta el nombre de la mascota.")
 
     with col_c2:
         st.markdown("#### 📋 Directorio de Clientes")
@@ -707,6 +685,21 @@ with tab3:
                 with st.container(border=True):
                     st.markdown(f"<h3 style='color: #005275; margin-top: 0px; margin-bottom: 15px;'>🗂️ Ficha Clínica y Estética: {c_nombre}</h3>", unsafe_allow_html=True)
                     
+                    with st.expander("➕ Registrar nueva mascota para este cliente"):
+                        with st.form(f"nueva_mascota_{c_id}", clear_on_submit=True, border=False):
+                            c_n1, c_n2, c_n3 = st.columns([2, 1, 1])
+                            with c_n1: nx_nom = st.text_input("Nombre de la mascota *")
+                            with c_n2: nx_esp = st.selectbox("Especie", ["Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"])
+                            with c_n3: nx_raz = st.text_input("Raza")
+                            if st.form_submit_button("💾 Guardar Mascota", type="primary"):
+                                if nx_nom:
+                                    client.table("mascotas").insert({
+                                        "cliente_id": c_id, "nombre": nx_nom, "especie": nx_esp, "raza": nx_raz
+                                    }).execute()
+                                    st.success("Mascota añadida a la familia."); time.sleep(0.5); st.rerun()
+                                else:
+                                    st.error("El nombre de la mascota es obligatorio.")
+
                     res_m = client.table("mascotas").select("*").eq("cliente_id", c_id).execute()
                     if res_m.data:
                         tabs_mascotas = st.tabs([f"🐾 {m['nombre']}" for m in res_m.data])
