@@ -196,6 +196,9 @@ with tab1:
                 # --- TABLA DE SERVICIOS MEJORADA ---
                 st.markdown("#### ✂️ Catálogo de Servicios")
                 df_solo_servicios = df_inv[df_inv['categoria_filt'] == 'Servicio'].copy()
+                
+                if df_solo_servicios.empty:
+                    st.info("📭 No tienes servicios aquí. Si los importaste, búscalo en la tabla de Productos de arriba, cambia la columna 'Tipo' a 'Servicio' y dale a Guardar.")
 
                 # Habilitamos num_rows="dynamic" para que puedas borrar servicios
                 edit_s = st.data_editor(
@@ -239,8 +242,6 @@ with tab1:
 
                     st.success("Catálogo de servicios actualizado")
                     st.rerun()
-                else:
-                    st.info("No hay servicios registrados.")
             else:
                 st.info("Inventario vacío.")
 
