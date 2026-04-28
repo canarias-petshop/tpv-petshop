@@ -1959,10 +1959,10 @@ with tab8:
                 if st.form_submit_button("Crear Cliente"):
                     if n_n and n_c: client.table("clientes").insert({"nombre_dueno": n_n, "cif": n_c}).execute(); st.rerun()
         
-        st.markdown("####  📦  Añadir Artículos")
+        st.markdown("####  📦  Añadir Artículos a la Venta")
         if not df_inv.empty:
             opciones_v = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist()
-            prod_v = st.selectbox("Buscar producto:", opciones_v, index=None, key=f"search_v_alta_{st.session_state.llave_busqueda_v}", placeholder="Escribe para filtrar...")
+            prod_v = st.selectbox("🔍 Buscar producto en almacén:", opciones_v, index=None, key=f"search_v_alta_{st.session_state.llave_busqueda_v}", placeholder="Escribe para filtrar...")
             
             if prod_v:
                 sku_v = prod_v.split(" | SKU: ")[1]
@@ -1973,6 +1973,44 @@ with tab8:
                 })
                 st.session_state.llave_busqueda_v += 1 
                 st.rerun()
+                
+        with st.expander("✨ ¿Artículo manual o nuevo producto?"):
+            with st.form("form_nuevo_art_venta", clear_on_submit=True):
+                st.markdown("<p style='font-size:13px; color:gray;'>Añade un artículo manual a la factura. Si dejas marcada la casilla, también se guardará permanentemente en el Inventario.</p>", unsafe_allow_html=True)
+                col_m1, col_m2 = st.columns(2)
+                with col_m1: m_nom = st.text_input("Nombre del Artículo *")
+                with col_m2: m_sku = st.text_input("SKU / Ref (Opcional si no se guarda)")
+                
+                col_m3, col_m4, col_m5 = st.columns(3)
+                with col_m3: m_pvp = st.number_input("Precio Venta Público (€) *", min_value=0.0, format="%.2f")
+                with col_m4: m_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
+                with col_m5: m_cant = st.number_input("Cantidad a facturar", min_value=1, value=1)
+                
+                add_to_stock = st.checkbox("💾 Guardar permanentemente en Inventario", value=True)
+                
+                if st.form_submit_button("➕ Añadir a la Factura", type="primary", use_container_width=True):
+                    if m_nom and m_pvp >= 0:
+                        nuevo_id = "0"
+                        if add_to_stock:
+                            if not m_sku:
+                                st.warning("⚠️ Para guardarlo en el inventario necesitas ponerle un SKU / Ref.")
+                            else:
+                                m_base = m_pvp / (1 + (m_igic / 100))
+                                res_new = client.table("productos").insert({
+                                    "nombre": m_nom, "sku": m_sku, "precio_base": m_base, "igic_tipo": m_igic, 
+                                    "precio_pvp": m_pvp, "categoria": "Producto", "stock_actual": 0, "stock_minimo": 2, "cantidad_reponer": 5
+                                }).execute()
+                                if res_new.data:
+                                    nuevo_id = str(res_new.data[0]['id'])
+                        
+                        if not add_to_stock or (add_to_stock and m_sku):
+                            st.session_state.factura_v_temp.append({
+                                "id": str(nuevo_id), "Código": m_sku if m_sku else "---", "Descripción": m_nom,
+                                "Cantidad": m_cant, "Precio Venta": m_pvp, "Desc %": 0.0
+                            })
+                            st.success("Artículo añadido a la factura."); time.sleep(0.5); st.rerun()
+                    else:
+                        st.error("El nombre y el precio de venta son obligatorios.")
         
         if st.session_state.factura_v_temp:
             # Parche anti-fantasmas
@@ -2026,8 +2064,9 @@ with tab8:
                         "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
                     }).execute()
                     for i in st.session_state.factura_v_temp:
-                        res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
-                        if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
+                        if str(i.get('id', '0')) != '0' and str(i.get('id')) != 'None':
+                            res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                            if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
                     st.session_state.factura_v_temp = []; st.success("Factura guardada correctamente."); time.sleep(1); st.rerun()
                 else:
                     st.error("Debes seleccionar un cliente para emitir la factura.")
@@ -2239,8 +2278,9 @@ with tab8:
                             f_data = df_fac[df_fac['id'] == f_id].iloc[0]
                             # Devolver stock
                             for p in f_data.get('productos', []):
-                                res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
-                                if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
+                                if str(p.get('id', '0')) != '0' and str(p.get('id')) != 'None':
+                                    res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                    if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
                             # Eliminar registro
                             client.table("facturas").delete().eq("id", f_id).execute()
                         st.success("Factura(s) eliminada(s) correctamente."); time.sleep(1); st.rerun()
