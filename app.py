@@ -1879,9 +1879,29 @@ with tab7:
                             column_config={"Producto": st.column_config.TextColumn("Producto a pedir"), "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1)}
                         )
                         
-                        if st.button("💾 Guardar Productos del Borrador"):
-                            client.table("pedidos_proveedores").update({"productos": json.loads(ed_prods_ped.to_json(orient='records'))}).eq("id", ped_id).execute()
-                            st.success("Borrador actualizado"); st.rerun()
+                        if st.button("💾 Guardar Cambios del Borrador", type="primary"):
+                            df_clean = ed_prods_ped.dropna(subset=['Producto'])
+                            df_clean = df_clean[df_clean['Producto'].astype(str).str.strip() != ""]
+                            client.table("pedidos_proveedores").update({"productos": json.loads(df_clean.to_json(orient='records'))}).eq("id", ped_id).execute()
+                            st.success("Borrador actualizado"); time.sleep(0.5); st.rerun()
+                            
+                        st.markdown("---")
+                        st.markdown("##### ➕ Añadir Artículo Manual (Fuera de catálogo / Encargos especiales)")
+                        with st.form(f"add_manual_ped_{ped_id}", clear_on_submit=True, border=False):
+                            cm1, cm2, cm3 = st.columns([2, 1, 1])
+                            with cm1: m_prod = st.text_input("Nombre del producto manual", placeholder="Ej: Correa extensible roja...")
+                            with cm2: m_cant = st.number_input("Cantidad", min_value=1, value=1)
+                            with cm3: 
+                                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                                submit_manual = st.form_submit_button("Añadir al Pedido", use_container_width=True)
+                            
+                            if submit_manual:
+                                if m_prod:
+                                    lista_prods_ped.append({"Producto": m_prod, "Cantidad": m_cant})
+                                    client.table("pedidos_proveedores").update({"productos": lista_prods_ped}).eq("id", ped_id).execute()
+                                    st.success("Artículo añadido."); time.sleep(0.5); st.rerun()
+                                else:
+                                    st.warning("Escribe el nombre del producto.")
         except:
             pass
 
