@@ -562,45 +562,70 @@ with tab2:
 # ==========================================
 with tab3:
     st.markdown("<h3 style='margin-bottom: 5px;'>👥 Gestión de Clientes y Mascotas</h3>", unsafe_allow_html=True)
-    col_c1, col_c2 = st.columns([1.2, 2.5])
+    
+    # Cargar clientes al principio para usarlo en ambas columnas
+    res_clientes = client.table("clientes").select("id, nombre_dueno, telefono, email, puntos, mascotas(nombre, especie)").order("created_at", desc=True).execute()
+    
+    col_c1, col_c2 = st.columns([1.2, 2.8], gap="large")
 
     with col_c1:
-        st.markdown("#### 👤 Nuevo Cliente")
-        with st.form("nuevo_cliente", clear_on_submit=True):
-            c_nom = st.text_input("Nombre y Apellidos *")
-            c_tel = st.text_input("Teléfono")
-            c_ema = st.text_input("Email")
-            
-            st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-            st.markdown("<p style='margin: 0; font-size: 13px; color: gray;'>🐾 Añadir mascota principal (Opcional)</p>", unsafe_allow_html=True)
-            
-            m_nom = st.text_input("Nombre de la mascota")
-            cm1, cm2 = st.columns(2)
-            with cm1: m_esp = st.selectbox("Especie", ["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"])
-            with cm2: m_raz = st.text_input("Raza")
-            m_obs = st.text_input("Observaciones (Alergias, carácter...)")
+        with st.container(border=True):
+            st.markdown("#### 👤 Nuevo Cliente")
+            with st.form("nuevo_cliente", clear_on_submit=True, border=False):
+                c_nom = st.text_input("Nombre y Apellidos *")
+                c_tel = st.text_input("Teléfono")
+                c_ema = st.text_input("Email")
+                
+                st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+                st.markdown("<p style='margin: 0; font-size: 13px; color: gray;'>🐾 Añadir mascota principal (Opcional)</p>", unsafe_allow_html=True)
+                
+                m_nom = st.text_input("Nombre de la mascota")
+                cm1, cm2 = st.columns(2)
+                with cm1: m_esp = st.selectbox("Especie", ["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"])
+                with cm2: m_raz = st.text_input("Raza")
+                m_obs = st.text_input("Observaciones (Alergias, carácter...)")
 
-            if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
-                if c_nom:
-                    res_cli = client.table("clientes").insert({
-                        "nombre_dueno": c_nom, "telefono": c_tel, "email": c_ema
-                    }).execute()
-
-                    if res_cli.data and m_nom:
-                        cli_id = res_cli.data[0]['id']
-                        client.table("mascotas").insert({
-                            "cliente_id": cli_id, "nombre": m_nom, "especie": m_esp, 
-                            "raza": m_raz, "observaciones": m_obs
+                if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
+                    if c_nom:
+                        res_cli = client.table("clientes").insert({
+                            "nombre_dueno": c_nom, "telefono": c_tel, "email": c_ema
                         }).execute()
 
-                    st.success("Cliente guardado correctamente"); time.sleep(0.5); st.rerun()
-                else:
-                    st.warning("El nombre del dueño es obligatorio.")
+                        if res_cli.data and m_nom:
+                            cli_id = res_cli.data[0]['id']
+                            client.table("mascotas").insert({
+                                "cliente_id": cli_id, "nombre": m_nom, "especie": m_esp, 
+                                "raza": m_raz, "observaciones": m_obs
+                            }).execute()
+
+                        st.success("Cliente guardado correctamente"); time.sleep(0.5); st.rerun()
+                    else:
+                        st.warning("El nombre del dueño es obligatorio.")
+                        
+        if res_clientes.data:
+            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown("#### ➕ Añadir Mascota a Cliente Existente")
+                dict_cli = {f"{c['nombre_dueno']} ({c.get('telefono','')})": c['id'] for c in res_clientes.data}
+                
+                with st.form("nueva_mascota_extra", clear_on_submit=True, border=False):
+                    sel_cli = st.selectbox("Selecciona el dueño:", list(dict_cli.keys()))
+                    nx_nom = st.text_input("Nombre mascota")
+                    c_m1, c_m2 = st.columns(2)
+                    with c_m1: nx_esp = st.selectbox("Especie", ["Perro", "Gato", "Ave", "Roedor", "Otro"])
+                    with c_m2: nx_raz = st.text_input("Raza")
+                    
+                    if st.form_submit_button("Añadir Mascota", use_container_width=True):
+                        if nx_nom and sel_cli:
+                            client.table("mascotas").insert({
+                                "cliente_id": dict_cli[sel_cli], "nombre": nx_nom, "especie": nx_esp, "raza": nx_raz
+                            }).execute()
+                            st.success("Mascota añadida a la familia"); time.sleep(0.5); st.rerun()
+                        else:
+                            st.warning("Falta el nombre de la mascota.")
 
     with col_c2:
         st.markdown("#### 📋 Directorio de Clientes")
-        res_clientes = client.table("clientes").select("id, nombre_dueno, telefono, email, puntos, mascotas(nombre, especie)").order("created_at", desc=True).execute()
-
         if res_clientes.data:
             df_cli = pd.DataFrame(res_clientes.data)
             
@@ -623,7 +648,7 @@ with tab3:
             cm3.metric("Solo Tienda", tot_tien)
             
             st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-            st.markdown("💡 *Haz doble clic en una celda para editar (Nombres, Tel, Email, Puntos). Selecciona una fila y presiona 'Suprimir' para borrarla.*")
+            st.markdown("💡 *Haz doble clic en una celda para editar. Selecciona una fila y presiona 'Suprimir' para borrarla.*")
 
             # --- TABLA EDITABLE ---
             df_vista = df_cli[['id', 'Segmento', 'nombre_dueno', 'telefono', 'email', 'puntos', 'Mascotas Registradas']].copy()
@@ -671,8 +696,6 @@ with tab3:
 
                 st.success("Directorio de clientes sincronizado"); time.sleep(0.8); st.rerun()
 
-            st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
-
             # --- FICHA CLÍNICA / ESTÉTICA DE MASCOTAS ---
             filas_marcadas = edited_cli[edited_cli["Ver Ficha"] == True]
             
@@ -680,90 +703,72 @@ with tab3:
                 c_id = filas_marcadas.iloc[0]['id']
                 c_nombre = filas_marcadas.iloc[0]['nombre_dueno']
                 
-                st.markdown(f"<h3 style='color: #005275; margin-top: -10px;'>🗂️ Ficha Clínica y Estética: {c_nombre}</h3>", unsafe_allow_html=True)
-                
-                res_m = client.table("mascotas").select("*").eq("cliente_id", c_id).execute()
-                if res_m.data:
-                    tabs_mascotas = st.tabs([f"🐾 {m['nombre']}" for m in res_m.data])
+                st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+                with st.container(border=True):
+                    st.markdown(f"<h3 style='color: #005275; margin-top: 0px; margin-bottom: 15px;'>🗂️ Ficha Clínica y Estética: {c_nombre}</h3>", unsafe_allow_html=True)
                     
-                    for idx, m_data in enumerate(res_m.data):
-                        with tabs_mascotas[idx]:
-                            m_id = m_data['id']
-                            col_m1, col_m2 = st.columns([1, 1.5], gap="large")
-                            
-                            with col_m1:
-                                st.markdown("#### 📝 Perfil y Salud")
-                                nacimiento = st.text_input("Edad o Fecha de Nacimiento", value=m_data.get('fecha_nacimiento') or '', key=f"fn_{m_id}")
-                                raza = st.text_input("Raza", value=m_data.get('raza') or '', key=f"rz_{m_id}")
-                                obs = st.text_area("Alergias, Carácter y Observaciones", value=m_data.get('observaciones') or '', height=140, key=f"obs_{m_id}")
+                    res_m = client.table("mascotas").select("*").eq("cliente_id", c_id).execute()
+                    if res_m.data:
+                        tabs_mascotas = st.tabs([f"🐾 {m['nombre']}" for m in res_m.data])
+                        
+                        for idx, m_data in enumerate(res_m.data):
+                            with tabs_mascotas[idx]:
+                                m_id = m_data['id']
+                                col_m1, col_m2 = st.columns([1, 1.5], gap="large")
                                 
-                                if st.button("💾 Guardar Perfil", key=f"btn_per_{m_id}", use_container_width=True):
-                                    client.table("mascotas").update({"fecha_nacimiento": nacimiento, "raza": raza, "observaciones": obs}).eq("id", m_id).execute()
-                                    st.success("Perfil actualizado"); time.sleep(0.5); st.rerun()
+                                with col_m1:
+                                    st.markdown("#### 📝 Perfil y Salud")
+                                    nacimiento = st.text_input("Edad o Nacimiento", value=m_data.get('fecha_nacimiento') or '', key=f"fn_{m_id}")
+                                    raza = st.text_input("Raza", value=m_data.get('raza') or '', key=f"rz_{m_id}")
+                                    obs = st.text_area("Alergias y Observaciones", value=m_data.get('observaciones') or '', height=140, key=f"obs_{m_id}")
                                     
-                            with col_m2:
-                                st.markdown("#### ✂️ Historial y Tiempos de Peluquería")
-                                historial = m_data.get('historial_trabajos', [])
-                                if not isinstance(historial, list): historial = []
-                                df_hist = pd.DataFrame(historial)
-                                if 'Fecha' not in df_hist.columns:
-                                    df_hist = pd.DataFrame([{"Fecha": "", "Servicio": "", "Duración (min)": 60}])
-                                    
-                                edit_hist = st.data_editor(
-                                    df_hist, 
-                                    column_config={
-                                        "Fecha": st.column_config.TextColumn("Día", width="small", help="Formato: DD/MM/YYYY"),
-                                        "Servicio": st.column_config.TextColumn("Trabajo Realizado", help="Ej: Baño y corte comercial..."),
-                                        "Duración (min)": st.column_config.NumberColumn("Minutos", min_value=0, step=5, width="small")
-                                    },
-                                    num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_h_{m_id}", height=140
-                                )
-                                
-                                # Cálculo de la Media
-                                media_min = 60
-                                if 'Duración (min)' in edit_hist.columns:
-                                    tiempos = pd.to_numeric(edit_hist['Duración (min)'], errors='coerce').dropna()
-                                    if not tiempos.empty: media_min = int(tiempos.mean())
+                                    if st.button("💾 Guardar Perfil", key=f"btn_per_{m_id}", use_container_width=True):
+                                        client.table("mascotas").update({"fecha_nacimiento": nacimiento, "raza": raza, "observaciones": obs}).eq("id", m_id).execute()
+                                        st.success("Perfil actualizado"); time.sleep(0.5); st.rerun()
                                         
-                                st.info(f"⏱️ **Tiempo medio estimado para {m_data['nombre']}:** {media_min} min.")
-                                
-                                c_btn1, c_btn2 = st.columns(2)
-                                with c_btn1:
-                                    if st.button("💾 Guardar Historial", key=f"sv_h_{m_id}", use_container_width=True):
-                                        nuevo_h = json.loads(edit_hist.to_json(orient='records'))
-                                        client.table("mascotas").update({"historial_trabajos": nuevo_h}).eq("id", m_id).execute()
-                                        st.success("Historial guardado"); time.sleep(0.5); st.rerun()
-                                with c_btn2:
-                                    with st.popover("📅 Agendar Próxima Cita", use_container_width=True):
-                                        f_cita = st.date_input("Día", key=f"fc_{m_id}")
-                                        h_cita = st.time_input("Hora", key=f"hc_{m_id}")
-                                        s_cita = st.selectbox("Servicio", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"], key=f"sc_{m_id}")
-                                        dur_cita = st.number_input("Bloquear minutos", value=media_min, step=5, key=f"dc_{m_id}")
-                                        if st.button("Reservar Hueco", key=f"bk_c_{m_id}", type="primary"):
-                                            client.table("citas").insert({"mascotas_id": m_id, "fecha_hora": f"{f_cita} {h_cita}", "servicio": s_cita, "duracion_minutos": int(dur_cita)}).execute()
-                                            st.success("¡Guardada en la Agenda!")
-                else:
-                    st.info(f"El cliente {c_nombre} no tiene mascotas registradas.")
-                st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
-
-            st.markdown("#### ➕ Añadir otra mascota a un cliente")
-            dict_cli = {f"{c['nombre_dueno']} ({c['telefono']})": c['id'] for c in res_clientes.data}
-            
-            with st.form("nueva_mascota_extra", clear_on_submit=True, border=False):
-                sel_cli = st.selectbox("Selecciona el dueño:", list(dict_cli.keys()))
-                c_m1, c_m2, c_m3 = st.columns([1.5, 1, 1])
-                with c_m1: nx_nom = st.text_input("Nombre mascota", key="nx_nom")
-                with c_m2: nx_esp = st.selectbox("Especie", ["Perro", "Gato", "Ave", "Roedor", "Otro"], key="nx_esp")
-                with c_m3: nx_raz = st.text_input("Raza", key="nx_raz")
-                
-                if st.form_submit_button("Añadir Mascota", use_container_width=True):
-                    if nx_nom and sel_cli:
-                        client.table("mascotas").insert({
-                            "cliente_id": dict_cli[sel_cli], "nombre": nx_nom, "especie": nx_esp, "raza": nx_raz
-                        }).execute()
-                        st.success("Mascota añadida a la familia"); time.sleep(0.5); st.rerun()
+                                with col_m2:
+                                    st.markdown("#### ✂️ Historial y Tiempos de Peluquería")
+                                    historial = m_data.get('historial_trabajos', [])
+                                    if not isinstance(historial, list): historial = []
+                                    df_hist = pd.DataFrame(historial)
+                                    if 'Fecha' not in df_hist.columns:
+                                        df_hist = pd.DataFrame([{"Fecha": "", "Servicio": "", "Duración (min)": 60}])
+                                        
+                                    edit_hist = st.data_editor(
+                                        df_hist, 
+                                        column_config={
+                                            "Fecha": st.column_config.TextColumn("Día", width="small", help="Formato: DD/MM/YYYY"),
+                                            "Servicio": st.column_config.TextColumn("Trabajo Realizado", help="Ej: Baño y corte comercial..."),
+                                            "Duración (min)": st.column_config.NumberColumn("Minutos", min_value=0, step=5, width="small")
+                                        },
+                                        num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_h_{m_id}", height=140
+                                    )
+                                    
+                                    # Cálculo de la Media
+                                    media_min = 60
+                                    if 'Duración (min)' in edit_hist.columns:
+                                        tiempos = pd.to_numeric(edit_hist['Duración (min)'], errors='coerce').dropna()
+                                        if not tiempos.empty: media_min = int(tiempos.mean())
+                                            
+                                    st.info(f"⏱️ **Tiempo medio para {m_data['nombre']}:** {media_min} min.")
+                                    
+                                    c_btn1, c_btn2 = st.columns(2)
+                                    with c_btn1:
+                                        if st.button("💾 Guardar Historial", key=f"sv_h_{m_id}", use_container_width=True):
+                                            nuevo_h = json.loads(edit_hist.to_json(orient='records'))
+                                            client.table("mascotas").update({"historial_trabajos": nuevo_h}).eq("id", m_id).execute()
+                                            st.success("Historial guardado"); time.sleep(0.5); st.rerun()
+                                    with c_btn2:
+                                        with st.popover("📅 Agendar Cita", use_container_width=True):
+                                            f_cita = st.date_input("Día", key=f"fc_{m_id}")
+                                            h_cita = st.time_input("Hora", key=f"hc_{m_id}")
+                                            s_cita = st.selectbox("Servicio", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"], key=f"sc_{m_id}")
+                                            dur_cita = st.number_input("Bloquear min", value=media_min, step=5, key=f"dc_{m_id}")
+                                            if st.button("Reservar Hueco", key=f"bk_c_{m_id}", type="primary"):
+                                                client.table("citas").insert({"mascotas_id": m_id, "fecha_hora": f"{f_cita} {h_cita}", "servicio": s_cita, "duracion_minutos": int(dur_cita)}).execute()
+                                                st.success("¡Guardada en la Agenda!")
                     else:
-                        st.warning("Falta el nombre de la mascota.")
+                        st.info(f"El cliente {c_nombre} no tiene mascotas registradas.")
         else:
             st.info("📭 Aún no tienes clientes registrados. ¡Empieza a añadir fichas a la izquierda!")        
 
