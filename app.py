@@ -2078,9 +2078,11 @@ with tab8:
             else:
                 st.info("No hay pedidos pendientes.")
 
+        st.markdown("####  📦  Añadir Artículos a la Compra")
+        
         if not df_inv.empty:
             opciones_inv = df_inv.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']}", axis=1).tolist()
-            prod_buscado = st.selectbox("Buscar producto:", opciones_inv, index=None, key=f"sel_c_doc_{st.session_state.llave_busqueda_c}")
+            prod_buscado = st.selectbox("🔍 Buscar producto en almacén:", opciones_inv, index=None, key=f"sel_c_doc_{st.session_state.llave_busqueda_c}", placeholder="Escribe para filtrar...")
             if prod_buscado:
                 sku_extraido = prod_buscado.split(" | SKU: ")[1]
                 item = df_inv[df_inv['sku'] == sku_extraido].iloc[0]
@@ -2089,6 +2091,51 @@ with tab8:
                     "Cantidad": 1, "Base Ud": float(item['precio_base']), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0
                 })
                 st.session_state.llave_busqueda_c += 1; st.rerun()
+
+        with st.expander("✨ ¿Artículo manual o nuevo producto?"):
+            with st.form("form_nuevo_art_compra", clear_on_submit=True):
+                st.markdown("<p style='font-size:13px; color:gray;'>Añade un artículo manual a la factura. Si dejas marcada la casilla, también se guardará permanentemente en el Inventario.</p>", unsafe_allow_html=True)
+                col_m1, col_m2 = st.columns(2)
+                with col_m1: m_nom = st.text_input("Nombre del Artículo *")
+                with col_m2: m_sku = st.text_input("SKU / Ref (Opcional si no se guarda)")
+                
+                col_m3, col_m4, col_m5 = st.columns(3)
+                with col_m3: m_base = st.number_input("Precio Base Compra (€) *", min_value=0.0, format="%.2f")
+                with col_m4: m_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
+                with col_m5: m_cant = st.number_input("Cantidad a registrar", min_value=1, value=1)
+                
+                col_m6, col_m7 = st.columns(2)
+                with col_m6: m_pvp = st.number_input("PVP Venta Público (€) (Solo si se guarda)", min_value=0.0, format="%.2f")
+                with col_m7:
+                    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                    add_to_stock = st.checkbox("💾 Guardar permanentemente en Inventario", value=True)
+                
+                if st.form_submit_button("➕ Añadir a la Compra", type="primary", use_container_width=True):
+                    if m_nom and m_base >= 0:
+                        nuevo_id = "0"
+                        if add_to_stock:
+                            if not m_sku:
+                                st.warning("⚠️ Para guardarlo en el inventario necesitas ponerle un SKU / Ref.")
+                            else:
+                                res_new = client.table("productos").insert({
+                                    "nombre": m_nom, "sku": m_sku, "precio_base": m_base, "igic_tipo": m_igic, 
+                                    "precio_pvp": m_pvp, "categoria": "Producto", "stock_actual": 0, "stock_minimo": 2, "cantidad_reponer": 5
+                                }).execute()
+                                if res_new.data:
+                                    nuevo_id = str(res_new.data[0]['id'])
+                                    if sel_p:
+                                        try:
+                                            p_id_sel = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
+                                            client.table("productos_proveedores").insert({"producto_id": int(nuevo_id), "proveedor_id": p_id_sel, "precio_coste": float(m_base)}).execute()
+                                        except: pass
+                        if not add_to_stock or (add_to_stock and m_sku):
+                            st.session_state.compra_temp.append({
+                                "id": str(nuevo_id), "Código": m_sku if m_sku else "---", "Descripción": m_nom,
+                                "Cantidad": m_cant, "Base Ud": m_base, "IGIC %": m_igic, "Desc %": 0.0
+                            })
+                            st.success("Artículo añadido a la factura."); time.sleep(0.5); st.rerun()
+                    else:
+                        st.error("El nombre y el precio base son obligatorios.")
 
         if st.session_state.compra_temp:
             df_c = pd.DataFrame(st.session_state.compra_temp)
@@ -2134,15 +2181,16 @@ with tab8:
                         "productos": st.session_state.compra_temp
                     }).execute()
                     for i in st.session_state.compra_temp:
-                        res_s = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
-                        if res_s.data: 
-                            # Actualizamos stock y el PRECIO DE COSTE general
-                            client.table("productos").update({
-                                "stock_actual": (res_s.data[0]['stock_actual'] or 0) + i['Cantidad'],
-                                "precio_base": float(i['Base Ud'])
-                            }).eq("id", i['id']).execute()
-                            # Actualizamos el precio de coste del proveedor específico
-                            client.table("productos_proveedores").update({"precio_coste": float(i['Base Ud'])}).eq("producto_id", i['id']).eq("proveedor_id", p_id).execute()
+                        if str(i.get('id', '0')) != '0' and str(i.get('id')) != 'None':
+                            res_s = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                            if res_s.data: 
+                                # Actualizamos stock y el PRECIO DE COSTE general
+                                client.table("productos").update({
+                                    "stock_actual": (res_s.data[0]['stock_actual'] or 0) + i['Cantidad'],
+                                    "precio_base": float(i['Base Ud'])
+                                }).eq("id", i['id']).execute()
+                                # Actualizamos el precio de coste del proveedor específico
+                                client.table("productos_proveedores").update({"precio_coste": float(i['Base Ud'])}).eq("producto_id", i['id']).eq("proveedor_id", p_id).execute()
                     
                     if st.session_state.pedido_vinculado:
                         client.table("pedidos_proveedores").update({"estado": "Recibido"}).eq("id", st.session_state.pedido_vinculado).execute()
