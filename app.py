@@ -190,10 +190,21 @@ with tab1:
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
-            res_prod = client.table("productos").select("*").order("nombre").execute()
+            res_prod = client.table("productos").select("*, productos_proveedores(proveedores(nombre_empresa))").order("nombre").execute()
             
             if res_prod.data:
                 df_inv = pd.DataFrame(res_prod.data)
+                
+                def extraer_proveedores(rels):
+                    if isinstance(rels, list) and len(rels) > 0:
+                        nombres = [r.get('proveedores', {}).get('nombre_empresa', '') for r in rels if isinstance(r, dict) and r.get('proveedores')]
+                        return ", ".join(filter(None, nombres))
+                    return "---"
+                    
+                if 'productos_proveedores' in df_inv.columns:
+                    df_inv['Proveedor'] = df_inv['productos_proveedores'].apply(extraer_proveedores)
+                else:
+                    df_inv['Proveedor'] = "---"
                 
                 # --- 1. LIMPIEZA DE DATOS ---
                 df_inv['categoria_filt'] = df_inv['categoria'].fillna('Producto').astype(str).str.strip().str.capitalize()
@@ -269,14 +280,15 @@ with tab1:
                 edit_p = st.data_editor(
                     df_solo_productos,
                     column_config={
-                        "id": None, "categoria": None, "categoria_filt": None,
+                        "id": None, "categoria": None, "categoria_filt": None, "productos_proveedores": None,
                         "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
+                        "Proveedor": st.column_config.TextColumn("Proveedor", disabled=True),
                         "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f"),
                         "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock",
                         "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
                         "cantidad_reponer": st.column_config.NumberColumn("Reponer Ud", step=1)
                     },
-                    column_order=["sku", "codigo_barras", "nombre", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "stock_minimo", "cantidad_reponer"],
+                    column_order=["sku", "codigo_barras", "nombre", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "stock_minimo", "cantidad_reponer"],
                     hide_index=True, 
                     use_container_width=True, 
                     num_rows="dynamic", # <--- ESTO PERMITE BORRAR FILAS
@@ -297,7 +309,8 @@ with tab1:
                     for i, row in edit_p.iterrows():
                         if pd.notna(row['id']): # Solo actualizamos si el producto ya existía
                             datos = row.to_dict()
-                            if 'categoria_filt' in datos: del datos['categoria_filt']
+                            for col_eliminar in ['categoria_filt', 'Proveedor', 'productos_proveedores']:
+                                if col_eliminar in datos: del datos[col_eliminar]
                             client.table("productos").update(datos).eq("id", row['id']).execute()
 
                     st.success("Inventario sincronizado correctamente")
