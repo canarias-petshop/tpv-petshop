@@ -1405,8 +1405,10 @@ with tab4:
                                   delta=f"-{(suma_articulos - total_final_calculado):.2f}€" if nuevo_desc_global > 0 else None)
 
                     # 3. BOTONES DE ACCIÓN
+                    c1, c2, c3 = st.columns(3)
                     c1, c2 = st.columns(2)
                     with c1:
+                        if st.button(f"💾 Guardar Todo", use_container_width=True, type="primary"):
                         if st.button(f"💾 Guardar Todo (Productos + Descuento)", use_container_width=True, type="primary"):
                             nuevo_json = json.loads(edit_prods.to_json(orient='records'))
                             
@@ -1416,6 +1418,7 @@ with tab4:
                                 "descuento_global": float(nuevo_desc_global),
                                 "total": float(total_final_calculado)
                             }).eq("id", int(t_id)).execute()
+                            st.success(f"Ticket #{t_id} actualizado."); time.sleep(0.8); st.rerun()
                             
                             st.success(f"Ticket #{t_id} actualizado correctamente.")
                             time.sleep(0.8)
@@ -1431,6 +1434,66 @@ with tab4:
                                         if res_p.data:
                                             client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
                                 client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_id)).execute()
+                                st.success("Venta anulada."); time.sleep(0.8); st.rerun()
+                                
+                    with c3:
+                        try:
+                            fecha_t_print = pd.to_datetime(t_info['created_at']).strftime('%d/%m/%Y %H:%M')
+                        except:
+                            fecha_t_print = "Fecha desconocida"
+                            
+                        html_reprint = f"""
+                        <!DOCTYPE html><html><head><meta charset='utf-8'>
+                        <style>
+                            body {{ margin: 0; padding: 0; font-family: sans-serif; text-align: center; }}
+                            .btn-print {{ padding: 12px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; }}
+                            #ticket-impresion-re {{ display: none; }}
+                        </style>
+                        </head><body>
+                        <button class="btn-print" onclick="reimprimirConStar()">🖨️ IMPRIMIR COPIA TICKET</button>
+                        <div id="ticket-impresion-re">
+                            <div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
+                                <b style="font-size: 34px;">ANIMALARIUM</b><br>
+                                Raquel Trujillo Hernández<br>DNI: 78854854K<br>C/ José Hernández Alfonso, 26<br>38009 S/C de Tenerife<br><br>
+                                <div style="text-align: left; font-size: 22px;">Fecha: {fecha_t_print}<br>COPIA DE TICKET #{t_id}</div>
+                                <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+                                <table style="width: 100%; font-size: 22px; text-align: left; font-weight: bold;">
+                        """
+                        for p in prods:
+                            desc_item = p.get('Desc %', 0.0)
+                            if desc_item > 0:
+                                html_reprint += f"<tr><td style='padding-bottom: 0px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 0px;'>{p['Subtotal']:.2f}€</td></tr>"
+                                html_reprint += f"<tr><td colspan='2' style='font-size: 16px; padding-bottom: 5px; color: #555;'>  ↳ Dto. {desc_item}% aplicado</td></tr>"
+                            else:
+                                html_reprint += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
+                        html_reprint += f"""
+                                </table>
+                                <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+                        """
+                        desc_g_re = float(t_info.get('descuento_global', 0.0))
+                        if desc_g_re > 0:
+                            subt_re = total_final_calculado / (1 - desc_g_re / 100) if (1 - desc_g_re / 100) > 0 else total_final_calculado
+                            html_reprint += f"<div style='text-align: right; font-size: 22px;'>Subtotal: {subt_re:.2f}€</div>"
+                            html_reprint += f"<div style='text-align: right; font-size: 22px;'><b>Dto. Global: -{desc_g_re}%</b></div>"
+                        
+                        html_reprint += f"""
+                                <div style="text-align: right; font-size: 28px;"><b>TOTAL: {total_final_calculado:.2f}€</b></div>
+                                <div style="font-size: 18px; color: #000; margin-top: 30px; text-align: center;"><b>POLÍTICA DE DEVOLUCIÓN</b><br>Plazo de 14 días con ticket y<br>embalaje original en perfecto estado.</div>
+                            </div>
+                        </div>
+                        <script>
+                        function reimprimirConStar() {{
+                            var ticketHTML = document.getElementById('ticket-impresion-re').innerHTML;
+                            var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
+                            var htmlCodificado = encodeURIComponent(fullHTML);
+                            var urlRetorno = "https://google.com";
+                            try {{ if (window.top.location.href && window.top.location.href !== "about:blank") {{ urlRetorno = window.top.location.href.split('#')[0] + "#impreso"; }} }} catch(e) {{}}
+                            window.location.href = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
+                        }}
+                        </script>
+                        </body></html>
+                        """
+                        components.html(html_reprint, height=55)
                                 st.success("Venta anulada y stock devuelto."); time.sleep(0.8); st.rerun()
                 else:
                     st.info("Este ticket no tiene productos registrados.")
@@ -1548,6 +1611,66 @@ with tab5:
 
     if not caja_actual:
         st.info("😴 La caja está actualmente CERRADA.")
+        
+        try:
+            res_ult_caja = client.table("control_caja").select("*").eq("estado", "Cerrada").order("id", desc=True).limit(1).execute()
+            if res_ult_caja.data:
+                ult_caja = res_ult_caja.data[0]
+                resumen = ult_caja.get('resumen_pagos', {})
+                if not resumen: resumen = {"Efectivo": 0, "Tarjeta": 0, "Bizum": 0, "Ingresos": 0, "Retiradas": 0}
+                f_apertura = pd.to_datetime(ult_caja['created_at']).strftime('%d/%m/%Y %H:%M')
+                
+                st.markdown(f"#### 🖨️ Último Cierre de Caja Registrado (Apertura: {f_apertura})")
+                
+                html_cierre_ult = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                <style>
+                    @media screen {{
+                        #ticket-z {{ display: block; border: 1px solid #ccc; padding: 15px; margin-top: 15px; background-color: #fffaf0; width: 300px; margin-left: auto; margin-right: auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
+                        .btn-print-z {{ background-color: #005275; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; font-weight: bold; cursor: pointer; margin-bottom: 15px; }}
+                    }}
+                    @media print {{
+                        #btn-area {{ display: none; }}
+                        #ticket-z {{ display: block; font-family: monospace; font-size: 12px; width: 300px; color: black; }}
+                    }}
+                </style>
+                </head>
+                <body>
+                    <div id="btn-area">
+                        <button class="btn-print-z" onclick="window.print()">🖨️ IMPRIMIR ÚLTIMO CIERRE Z</button>
+                    </div>
+                    <div id="ticket-z">
+                        <div style="text-align: center; font-weight: bold; font-size: 16px;">CIERRE DE CAJA Z</div>
+                        <div style="text-align: center;">ANIMALARIUM</div>
+                        <hr style="border-top: 1px dashed black;">
+                        Apertura: {f_apertura}<br>
+                        Fondo Inicial: {ult_caja['fondo_inicial']:.2f} €<br>
+                        <hr style="border-top: 1px dashed black;">
+                        <b>VENTAS POR MÉTODO:</b><br>
+                        Efectivo: {resumen.get('Efectivo', 0):.2f} €<br>
+                        Tarjeta (Caixa): {resumen.get('Tarjeta Caixa', 0):.2f} €<br>
+                        Tarjeta (C.Siete): {resumen.get('Tarjeta Caja Siete', 0):.2f} €<br>
+                        Bizum: {resumen.get('Bizum', 0):.2f} €<br>
+                        <hr style="border-top: 1px dashed black;">
+                        <b>MOVIMIENTOS DE CAJA:</b><br>
+                        Ingresos Extra: +{resumen.get('Ingresos', 0):.2f} €<br>
+                        Retiradas/Pagos: -{resumen.get('Retiradas', 0):.2f} €<br>
+                        <hr style="border-top: 1px dashed black;">
+                        <b>RESULTADO DEL ARQUEO:</b><br>
+                        Efectivo Contado: {ult_caja['total_contado']:.2f} €<br>
+                        <b>DESCUADRE: {ult_caja['descuadre']:.2f} €</b><br>
+                        <hr style="border-top: 1px dashed black;">
+                        <div style="text-align: center;">Firma Responsable</div>
+                        <br><br><br>
+                    </div>
+                </body>
+                </html>
+                """
+                components.html(html_cierre_ult, height=550)
+        except: pass
+        
         with st.form("abrir_caja", border=True):
             st.markdown("<h4 style='margin: 0 0 10px 0;'>🔓 Apertura de Turno</h4>", unsafe_allow_html=True)
             fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=1.0, value=None)
@@ -1629,8 +1752,11 @@ with tab5:
                     
                     # --- NUEVO CÁLCULO DE CIERRE (Suma los pagos reales de tus columnas) ---
                     res_ventas = client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado").gte("created_at", fecha_ap_str).execute()
+                    res_ventas = client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado, metodo_pago").gte("created_at", fecha_ap_str).execute()
 
                     t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
+                    t_tar_caixa = 0.0; t_tar_cajasiete = 0.0
+                    
                     if res_ventas.data:
                         for v in res_ventas.data:
                             # Solo sumamos el dinero si el ticket no ha sido devuelto
@@ -1638,6 +1764,18 @@ with tab5:
                                 t_efe += float(v.get('pago_efectivo') or 0.0)
                                 t_tar += float(v.get('pago_tarjeta') or 0.0)
                                 t_biz += float(v.get('pago_bizum') or 0.0)
+                                
+                                val_tarjeta = float(v.get('pago_tarjeta') or 0.0)
+                                t_tar += val_tarjeta
+                                
+                                mp = v.get('metodo_pago', '')
+                                if 'Caixa' in mp:
+                                    t_tar_caixa += val_tarjeta
+                                elif 'Caja Siete' in mp:
+                                    t_tar_cajasiete += val_tarjeta
+                                else:
+                                    # Por defecto si hay tarjetas previas sin especificar
+                                    t_tar_caixa += val_tarjeta
                     # ----------------------------------------------------------------------
                         
                     efectivo_teorico_en_caja = fondo_actual + t_efe + ingresos - retiradas
@@ -1645,6 +1783,9 @@ with tab5:
                     
                     resumen_json = {
                         "Efectivo": round(t_efe, 2), "Tarjeta": round(t_tar, 2), "Bizum": round(t_biz, 2),
+                        "Efectivo": round(t_efe, 2), "Tarjeta": round(t_tar, 2), 
+                        "Tarjeta Caixa": round(t_tar_caixa, 2), "Tarjeta Caja Siete": round(t_tar_cajasiete, 2),
+                        "Bizum": round(t_biz, 2),
                         "Ingresos": round(ingresos, 2), "Retiradas": round(retiradas, 2)
                     }
                     
@@ -2800,6 +2941,741 @@ with tab10:
 
         # Diccionario para agrupar citas por columna (día)
         citas_por_dia = {dia: [] for dia in nombres_dias_col}
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+        if res_citas.data:
+            for cita in res_citas.data:
+                try:
+                    dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if start_of_week <= dt_start.date() <= end_of_week:
+                        duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
+                        dt_end = dt_start + timedelta(minutes=duracion)
+                        
+                        col_dia = dt_start.strftime('%A\n%d/%m')
+                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        
+                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        citas_por_dia[col_dia].append((dt_start, texto_cita))
+                except Exception: pass
+        
+        # Ordenar cronológicamente y preparar para la tabla
+        max_filas = 0
+        for dia in nombres_dias_col:
+            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
+            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
+            if len(citas_por_dia[dia]) > max_filas:
+                max_filas = len(citas_por_dia[dia])
+                
+        if max_filas == 0:
+            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
+            st.info("Semana completamente libre. No hay citas agendadas.")
+        else:
+            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
+            for dia in nombres_dias_col:
+                while len(citas_por_dia[dia]) < max_filas:
+                    citas_por_dia[dia].append("")
+            df_semana = pd.DataFrame(citas_por_dia)
+            st.dataframe(df_semana, use_container_width=True, hide_index=True)
 
         if res_citas.data:
             for cita in res_citas.data:
