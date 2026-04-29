@@ -499,11 +499,25 @@ with tab2:
             
             # Bucle para meter los productos (No tocar la identación aquí)
             for p in t['productos']:
-                html_ticket += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
+                desc_item = p.get('Desc %', 0.0)
+                if desc_item > 0:
+                    html_ticket += f"<tr><td style='padding-bottom: 0px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 0px;'>{p['Subtotal']:.2f}€</td></tr>"
+                    html_ticket += f"<tr><td colspan='2' style='font-size: 16px; padding-bottom: 5px; color: #555;'>  ↳ Dto. {desc_item}% aplicado</td></tr>"
+                else:
+                    html_ticket += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
 
             html_ticket += f"""
                     </table>
                     <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+            """
+            
+            desc_global = t.get('descuento_global', 0.0)
+            if desc_global > 0:
+                subtotal_sin_desc = t['total'] / (1 - desc_global / 100) if (1 - desc_global / 100) > 0 else t['total']
+                html_ticket += f"<div style='text-align: right; font-size: 22px;'>Subtotal: {subtotal_sin_desc:.2f}€</div>"
+                html_ticket += f"<div style='text-align: right; font-size: 22px;'><b>Dto. Global: -{desc_global}%</b></div>"
+
+            html_ticket += f"""
                     <div style="text-align: right; font-size: 28px;"><b>TOTAL: {t['total']:.2f}€</b></div>
 """
             if t.get('cliente_fidel'):
@@ -705,7 +719,8 @@ with tab2:
                                 "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
                                 "productos": carrito_limpio, "total": total_f, "metodo": metodo_log,
                                 "cliente_fidel": cliente_fidel_nombre, "puntos_ganados": puntos_ganados,
-                                "puntos_descontados": puntos_a_descontar, "nuevo_saldo": nuevo_saldo
+                                "puntos_descontados": puntos_a_descontar, "nuevo_saldo": nuevo_saldo,
+                                "descuento_global": desc_g_val
                             }
                             st.session_state.carrito = []
                             st.rerun()
@@ -1436,12 +1451,27 @@ with tab4:
             if res_cajas.data:
                 df_c = pd.DataFrame(res_cajas.data)
                 df_c['Fecha Apertura'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y %H:%M')
-                df_c_vista = df_c[['id', 'Fecha Apertura', 'fondo_inicial', 'total_contado', 'descuadre']]
-                df_c_vista.columns = ['Turno Nº', 'Apertura', 'Fondo Inicial (€)', 'Efectivo Final (€)', 'Descuadre (€)']
-                st.dataframe(df_c_vista, use_container_width=True, hide_index=True, height=200)
+                df_c_vista = df_c[['id', 'Fecha Apertura', 'fondo_inicial', 'total_contado', 'descuadre']].copy()
+                df_c_vista.insert(0, "Seleccionar", False)
                 
+                st.markdown("💡 *Marca la casilla **'🖨️ Seleccionar'** para ver el desglose e imprimir el Cierre Z.*")
+                
+                ed_c = st.data_editor(
+                    df_c_vista,
+                    column_config={
+                        "Seleccionar": st.column_config.CheckboxColumn("🖨️ Seleccionar", default=False),
+                        "id": None,
+                        "Fecha Apertura": "Apertura",
+                        "fondo_inicial": st.column_config.NumberColumn("Fondo Inicial (€)", format="%.2f"),
+                        "total_contado": st.column_config.NumberColumn("Efectivo Final (€)", format="%.2f"),
+                        "descuadre": st.column_config.NumberColumn("Descuadre (€)", format="%.2f")
+                    },
+                    hide_index=True, use_container_width=True, height=200
+                )
+
                 st.markdown("#### 🖨️ Desglose e Impresión de Cierre")
-                turno_sel = st.selectbox("Selecciona un Turno para ver su desglose e imprimir el Ticket Z:", [None] + df_c['id'].tolist())
+                filas_sel = ed_c[ed_c["Seleccionar"] == True]
+                turno_sel = filas_sel.iloc[0]['id'] if not filas_sel.empty else None
                 
                 if turno_sel:
                     caja_seleccionada = df_c[df_c['id'] == turno_sel].iloc[0]
