@@ -1406,9 +1406,7 @@ with tab4:
 
                     # 3. BOTONES DE ACCIÓN
                     c1, c2, c3 = st.columns(3)
-                    c1, c2 = st.columns(2)
                     with c1:
-                        if st.button(f"💾 Guardar Todo", use_container_width=True, type="primary"):
                         if st.button(f"💾 Guardar Todo (Productos + Descuento)", use_container_width=True, type="primary"):
                             nuevo_json = json.loads(edit_prods.to_json(orient='records'))
                             
@@ -1418,8 +1416,6 @@ with tab4:
                                 "descuento_global": float(nuevo_desc_global),
                                 "total": float(total_final_calculado)
                             }).eq("id", int(t_id)).execute()
-                            st.success(f"Ticket #{t_id} actualizado."); time.sleep(0.8); st.rerun()
-                            
                             st.success(f"Ticket #{t_id} actualizado correctamente.")
                             time.sleep(0.8)
                             st.rerun()
@@ -1751,7 +1747,6 @@ with tab5:
                     retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
                     
                     # --- NUEVO CÁLCULO DE CIERRE (Suma los pagos reales de tus columnas) ---
-                    res_ventas = client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado").gte("created_at", fecha_ap_str).execute()
                     res_ventas = client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado, metodo_pago").gte("created_at", fecha_ap_str).execute()
 
                     t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
@@ -1782,7 +1777,6 @@ with tab5:
                     descuadre = ef_val - efectivo_teorico_en_caja
                     
                     resumen_json = {
-                        "Efectivo": round(t_efe, 2), "Tarjeta": round(t_tar, 2), "Bizum": round(t_biz, 2),
                         "Efectivo": round(t_efe, 2), "Tarjeta": round(t_tar, 2), 
                         "Tarjeta Caixa": round(t_tar_caixa, 2), "Tarjeta Caja Siete": round(t_tar_cajasiete, 2),
                         "Bizum": round(t_biz, 2),
