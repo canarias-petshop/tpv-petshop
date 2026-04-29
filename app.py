@@ -8,6 +8,7 @@ import urllib.parse
 import streamlit.components.v1 as components
 import re
 import hashlib
+import io
 
 # --- 1. CONFIGURACIÓN Y ESTILO ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
@@ -2477,14 +2478,39 @@ with tab9:
         if not df_ventas_unificadas.empty:
             df_ventas_unificadas['Fecha_dt'] = pd.to_datetime(df_ventas_unificadas['Fecha'], format='%d/%m/%Y')
             df_ventas_unificadas = df_ventas_unificadas.sort_values(by="Fecha_dt").drop(columns=['Fecha_dt'])
+            
+        # --- FUNCIÓN MÁGICA PARA CREAR EXCEL CON FORMATO ---
+        def generar_excel_formateado(df, nombre_hoja="Datos"):
+            output = io.BytesIO()
+            writer = pd.ExcelWriter(output, engine='xlsxwriter')
+            df.to_excel(writer, index=False, sheet_name=nombre_hoja)
+            
+            workbook = writer.book
+            worksheet = writer.sheets[nombre_hoja]
+            
+            # Brocha de pintura: formatos (Color corporativo, texto blanco, bordes y centrado)
+            formato_cabecera = workbook.add_format({
+                'bg_color': '#005275', 'font_color': 'white', 'bold': True,
+                'border': 1, 'text_wrap': True, 'align': 'center', 'valign': 'vcenter'
+            })
+            formato_celda = workbook.add_format({'border': 1, 'valign': 'vcenter'})
+            
+            # Aplicar bordes a las celdas y auto-ajustar el ancho de las columnas
+            for col_num, value in enumerate(df.columns.values):
+                worksheet.write(0, col_num, value, formato_cabecera)
+                max_len = max([len(str(value))] + [len(str(x)) for x in df[value].dropna()]) + 2
+                worksheet.set_column(col_num, col_num, max_len, formato_celda)
+                
+            writer.close()
+            return output.getvalue()
 
         c_down1, c_down2, c_down3 = st.columns(3)
         
         with c_down1:
             st.info("💶 INFORME GLOBAL DE VENTAS (TICKETS + FACTURAS)")
             if not df_ventas_unificadas.empty:
-                csv_unificado = df_ventas_unificadas.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Descargar Ventas Totales", csv_unificado, f"Ventas_Totales_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+                excel_unificado = generar_excel_formateado(df_ventas_unificadas, "Ventas Totales")
+                st.download_button("📥 Descargar Ventas Totales", excel_unificado, f"Ventas_Totales_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 st.markdown(f"*Total Ventas: {df_ventas_unificadas['Importe Total (€)'].sum():.2f}€*")
             else:
                 st.write("Sin ventas en este periodo.")
@@ -2496,8 +2522,8 @@ with tab9:
                 df_f['Fecha'] = pd.to_datetime(df_f['created_at']).dt.strftime('%d/%m/%Y')
                 df_f['Cliente'] = df_f['clientes'].apply(lambda x: x['nombre_dueno'] if isinstance(x, dict) else "N/A")
                 df_asesor_f = df_f[['numero_factura', 'Fecha', 'Cliente', 'total_final', 'forma_pago']]
-                csv_f = df_asesor_f.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Descargar Solo Facturas", csv_f, f"Solo_Facturas_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+                excel_f = generar_excel_formateado(df_asesor_f, "Facturas Emitidas")
+                st.download_button("📥 Descargar Solo Facturas", excel_f, f"Solo_Facturas_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             else:
                 st.write("Sin facturas emitidas.")
 
@@ -2506,10 +2532,11 @@ with tab9:
             if res_c_inf.data:
                 df_c = pd.DataFrame(res_c_inf.data)
                 df_c['Fecha'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y')
+                df_c['Categoría Contable'] = df_c['tipo'].apply(lambda x: "Gasto Externo / Suministros" if x == "Gasto Operativo" else "Compra de Material (Proveedor)")
                 df_c['Proveedor_Gasto'] = df_c['proveedores'].apply(lambda x: f"{x['nombre_empresa']} ({x['cif']})" if isinstance(x, dict) else "Gasto General")
-                df_asesor_c = df_c[['id', 'Fecha', 'tipo', 'Proveedor_Gasto', 'total', 'estado']]
-                csv_c = df_asesor_c.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Descargar Compras/Gastos", csv_c, f"Gastos_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+                df_asesor_c = df_c[['id', 'Fecha', 'Categoría Contable', 'tipo', 'Proveedor_Gasto', 'total', 'estado']]
+                excel_c = generar_excel_formateado(df_asesor_c, "Gastos y Compras")
+                st.download_button("📥 Descargar Compras/Gastos", excel_c, f"Gastos_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             else:
                 st.write("Sin compras o gastos en estas fechas.")
 
