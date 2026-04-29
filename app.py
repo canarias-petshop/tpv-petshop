@@ -2477,15 +2477,19 @@ with tab9:
         if not df_ventas_unificadas.empty:
             df_ventas_unificadas['Fecha_dt'] = pd.to_datetime(df_ventas_unificadas['Fecha'], format='%d/%m/%Y')
             df_ventas_unificadas = df_ventas_unificadas.sort_values(by="Fecha_dt").drop(columns=['Fecha_dt'])
+            
+            # Formato profesional para Excel
+            suma_ventas_totales = df_ventas_unificadas['Importe Total (€)'].sum()
+            df_ventas_unificadas['Importe Total (€)'] = df_ventas_unificadas['Importe Total (€)'].apply(lambda x: f"{x:.2f}".replace('.', ','))
 
         c_down1, c_down2, c_down3 = st.columns(3)
         
         with c_down1:
             st.info("💶 INFORME GLOBAL DE VENTAS (TICKETS + FACTURAS)")
             if not df_ventas_unificadas.empty:
-                csv_unificado = df_ventas_unificadas.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Descargar Ventas Totales", csv_unificado, f"Ventas_Totales_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
-                st.markdown(f"*Total Ventas: {df_ventas_unificadas['Importe Total (€)'].sum():.2f}€*")
+                csv_unificado = df_ventas_unificadas.to_csv(index=False, sep=';').encode('utf-8-sig')
+                st.download_button("📥 Descargar Ventas Totales", csv_unificado, f"Ventas_Totales_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv", help="Excel automático")
+                st.markdown(f"*Total Ventas: {suma_ventas_totales:.2f}€*")
             else:
                 st.write("Sin ventas en este periodo.")
 
@@ -2495,9 +2499,12 @@ with tab9:
                 df_f = pd.DataFrame(res_f_inf.data)
                 df_f['Fecha'] = pd.to_datetime(df_f['created_at']).dt.strftime('%d/%m/%Y')
                 df_f['Cliente'] = df_f['clientes'].apply(lambda x: x['nombre_dueno'] if isinstance(x, dict) else "N/A")
-                df_asesor_f = df_f[['numero_factura', 'Fecha', 'Cliente', 'total_final', 'forma_pago']]
-                csv_f = df_asesor_f.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Descargar Solo Facturas", csv_f, f"Solo_Facturas_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+                
+                df_asesor_f = df_f[['numero_factura', 'Fecha', 'Cliente', 'total_final', 'forma_pago']].rename(columns={'numero_factura': 'Nº Factura', 'total_final': 'Importe Total (€)', 'forma_pago': 'Método de Pago'})
+                df_asesor_f['Importe Total (€)'] = df_asesor_f['Importe Total (€)'].apply(lambda x: f"{float(x or 0):.2f}".replace('.', ','))
+                
+                csv_f = df_asesor_f.to_csv(index=False, sep=';').encode('utf-8-sig')
+                st.download_button("📥 Descargar Solo Facturas", csv_f, f"Solo_Facturas_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv", help="Excel automático")
             else:
                 st.write("Sin facturas emitidas.")
 
@@ -2506,10 +2513,19 @@ with tab9:
             if res_c_inf.data:
                 df_c = pd.DataFrame(res_c_inf.data)
                 df_c['Fecha'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y')
-                df_c['Proveedor_Gasto'] = df_c['proveedores'].apply(lambda x: f"{x['nombre_empresa']} ({x['cif']})" if isinstance(x, dict) else "Gasto General")
-                df_asesor_c = df_c[['id', 'Fecha', 'tipo', 'Proveedor_Gasto', 'total', 'estado']]
-                csv_c = df_asesor_c.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Descargar Compras/Gastos", csv_c, f"Gastos_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+                
+                def clasificar_gasto(tipo):
+                    if str(tipo) == "Gasto Operativo": return "Otros Gastos Externos / Suministros"
+                    else: return "Compra de Material (Proveedor)"
+                
+                df_c['Categoría Contable'] = df_c['tipo'].apply(clasificar_gasto)
+                df_c['Proveedor / Entidad'] = df_c['proveedores'].apply(lambda x: f"{x['nombre_empresa']} ({x.get('cif','')})" if isinstance(x, dict) else "Gasto General / Ticket")
+                df_c['Importe (€)'] = df_c['total'].apply(lambda x: f"{float(x or 0):.2f}".replace('.', ','))
+                
+                df_asesor_c = df_c[['id', 'Fecha', 'Categoría Contable', 'Proveedor / Entidad', 'tipo', 'estado', 'Importe (€)']].rename(columns={'id': 'ID Registro', 'tipo': 'Ref. Documento / Factura', 'estado': 'Estado Pago'})
+                
+                csv_c = df_asesor_c.to_csv(index=False, sep=';').encode('utf-8-sig')
+                st.download_button("📥 Descargar Compras/Gastos", csv_c, f"Gastos_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv", help="Excel automático")
             else:
                 st.write("Sin compras o gastos en estas fechas.")
 
