@@ -2596,9 +2596,15 @@ with tab9:
                     if c.get('productos') and cat_contable == "Factura de Proveedor (Mercancía)":
                         try:
                             df_p = pd.DataFrame(c['productos'])
-                            if not df_p.empty and 'Base Neta' in df_p.columns and 'IGIC €' in df_p.columns:
-                                base_b = df_p['Base Neta'].sum()
-                                igic_b = df_p['IGIC €'].sum()
+                            if not df_p.empty and 'Base Ud' in df_p.columns and 'Cantidad' in df_p.columns:
+                                if 'Desc %' not in df_p.columns: df_p['Desc %'] = 0.0
+                                if 'IGIC %' not in df_p.columns: df_p['IGIC %'] = 0.0
+                                
+                                base_neta_calc = (pd.to_numeric(df_p['Base Ud']) * pd.to_numeric(df_p['Cantidad'])) * (1 - pd.to_numeric(df_p['Desc %'])/100)
+                                igic_eur_calc = base_neta_calc * (pd.to_numeric(df_p['IGIC %'])/100)
+                                
+                                base_b = base_neta_calc.sum()
+                                igic_b = igic_eur_calc.sum()
                                 ratio = float(c['total']) / (base_b + igic_b) if (base_b + igic_b) > 0 else 1
                                 base_c = round(base_b * ratio, 2)
                                 igic_c = round(igic_b * ratio, 2)
