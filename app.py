@@ -591,7 +591,9 @@ with tab2:
                 c_desc, c_fid = st.columns(2)
                 with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=None, step=1)
                 with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli)
-                total_f = sub_antes * (1 - (desc_g or 0) / 100)
+                
+                desc_g_val = float(desc_g or 0.0)
+                total_f = sub_antes * (1 - desc_g_val / 100)
                 
                 # --- LÓGICA DE CANJEO DE PUNTOS ---
                 desc_puntos_eur = 0.0
@@ -621,29 +623,29 @@ with tab2:
                 if metodo == "Efectivo":
                     c_tot, c_ent, c_cam = st.columns([0.8, 1, 1])
                     with c_tot: st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
-                    with c_ent: entregado = st.number_input("Entregado €", min_value=0.0, value=None, placeholder=f"{total_f:.2f}", format="%.2f")
+                    with c_ent: entregado = st.number_input("Entregado € (Intro)", min_value=0.0, value=float(total_f), format="%.2f")
                     with c_cam:
-                        ent_val = entregado if entregado is not None else total_f
+                        ent_val = float(entregado)
                         cambio = ent_val - total_f
                         if cambio >= 0:
-                            st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>CAMBIO</p><h3 style='margin:0; color:green;'>{cambio:.2f}€</h3>", unsafe_allow_html=True)
+                            st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>CAMBIO AL CLIENTE</p><h3 style='margin:0; color:green;'>{cambio:.2f}€</h3>", unsafe_allow_html=True)
                             pagado_hoy = total_f
                             p_efectivo = total_f
                         else:
-                            st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>DEUDA</p><h3 style='margin:0; color:orange;'>{-cambio:.2f}€</h3>", unsafe_allow_html=True)
+                            st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>DEUDA PENDIENTE</p><h3 style='margin:0; color:orange;'>{-cambio:.2f}€</h3>", unsafe_allow_html=True)
                             pagado_hoy = ent_val; pendiente = -cambio
                             p_efectivo = ent_val
 
                 elif metodo == "Mixto":
                     st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
                     cm1, cm2, cm3 = st.columns(3)
-                    with cm1: p_e = st.number_input("Efe.", min_value=0.0, value=None)
-                    with cm2: p_t = st.number_input("Tar.", min_value=0.0, value=None)
-                    with cm3: p_b = st.number_input("Biz.", min_value=0.0, value=None)
+                    with cm1: p_e = st.number_input("Efe. (Intro)", min_value=0.0, value=None)
+                    with cm2: p_t = st.number_input("Tar. (Intro)", min_value=0.0, value=None)
+                    with cm3: p_b = st.number_input("Biz. (Intro)", min_value=0.0, value=None)
                     
-                    p_e_val = p_e or 0.0
-                    p_t_val = p_t or 0.0
-                    p_b_val = p_b or 0.0
+                    p_e_val = float(p_e or 0.0)
+                    p_t_val = float(p_t or 0.0)
+                    p_b_val = float(p_b or 0.0)
                     
                     pagado_hoy = p_e_val + p_t_val + p_b_val
                     p_efectivo = p_e_val; p_tarjeta = p_t_val; p_bizum = p_b_val
@@ -684,7 +686,7 @@ with tab2:
                             client.table("ventas_historial").insert({
                                 "total": float(total_f), "pagado": float(pagado_hoy), "pendiente": float(pendiente),
                                 "metodo_pago": str(metodo_log), "cliente_deuda": str(nombre_deudor),
-                                "descuento_global": float(desc_g), "productos": carrito_limpio, 
+                                "descuento_global": float(desc_g_val), "productos": carrito_limpio, 
                                 "estado": "Completado" if pendiente == 0 else "Deuda",
                                 "pago_efectivo": float(p_efectivo),
                                 "pago_tarjeta": float(p_tarjeta),
@@ -2061,7 +2063,7 @@ with tab8:
                     
                     client.table("facturas").insert({
                         "cliente_id": c_id, "total_neto": float(total_v_final), "total_igic": 0.0, "total_final": float(total_v_final),
-                        "descuento_global": float(desc_g_v), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
+                        "descuento_global": float(desc_g_v or 0.0), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
                     }).execute()
                     for i in st.session_state.factura_v_temp:
                         if str(i.get('id', '0')) != '0' and str(i.get('id')) != 'None':
@@ -2215,7 +2217,7 @@ with tab8:
                 if sel_p and n_fac:
                     p_id = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
                     client.table("compras").insert({
-                        "proveedor_id": p_id, "total": float(total_con_pp), "descuento_pp": float(desc_pp),
+                        "proveedor_id": p_id, "total": float(total_con_pp), "descuento_pp": float(desc_pp or 0.0),
                         "estado": "Recibido", "tipo": f"Factura: {n_fac}", "fecha_vencimiento": str(f_ven),
                         "productos": st.session_state.compra_temp
                     }).execute()
