@@ -2204,11 +2204,13 @@ with tab8:
             t_igic_c = df_c['IGIC €'].sum()
             suma_articulos_c = df_c['Total Línea'].sum()
             desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", 0.0, 100.0, value=None)
-            total_con_pp = suma_articulos_c * (1 - (desc_pp or 0.0) / 100)
+            
+            desc_pp_val = float(desc_pp or 0.0)
+            total_con_pp = suma_articulos_c * (1 - desc_pp_val / 100)
             
             st.markdown(f"""
             <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f; text-align: right;">
-            <p style="margin:0;">Base: {t_base_c * (1-desc_pp/100):.2f}€ | IGIC: {t_igic_c * (1-desc_pp/100):.2f}€</p>
+            <p style="margin:0;">Base: {t_base_c * (1-desc_pp_val/100):.2f}€ | IGIC: {t_igic_c * (1-desc_pp_val/100):.2f}€</p>
             <h2 style="margin:0; color: #d32f2f;">TOTAL COMPRA: {total_con_pp:.2f}€</h2>
             </div>
             """, unsafe_allow_html=True)
