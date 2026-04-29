@@ -1636,9 +1636,7 @@ with tab6:
     
     try:
         res_ventas = client.table("ventas_historial").select("created_at, total, estado").execute()
-        res_fac = client.table("facturas").select("created_at, total_final").execute()
         res_movs = client.table("movimientos_caja").select("created_at, tipo, cantidad").execute()
-        res_compras = client.table("compras").select("created_at, total, tipo").execute()
         
         total_ventas = 0.0
         total_gastos = 0.0
@@ -1649,28 +1647,15 @@ with tab6:
             df_v = pd.DataFrame(res_ventas.data)
             df_v = df_v[df_v['estado'] != 'DEVUELTO']
             if not df_v.empty:
-                total_ventas += df_v['total'].sum()
+                total_ventas = df_v['total'].sum()
                 df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.date
-                
-        if res_fac.data:
-            df_f = pd.DataFrame(res_fac.data)
-            if not df_f.empty:
-                total_ventas += df_f['total_final'].sum()
-                df_f['Fecha'] = pd.to_datetime(df_f['created_at']).dt.date
-                df_f.rename(columns={'total_final': 'total'}, inplace=True)
-                df_v = pd.concat([df_v, df_f])
         
         if res_movs.data:
             df_m = pd.DataFrame(res_movs.data)
             df_m_gastos = df_m[df_m['tipo'] == 'Retirada']
             if not df_m_gastos.empty:
-                total_gastos += df_m_gastos['cantidad'].sum()
+                total_gastos = df_m_gastos['cantidad'].sum()
                 df_m['Fecha'] = pd.to_datetime(df_m['created_at']).dt.date
-                
-        if res_compras.data:
-            df_c = pd.DataFrame(res_compras.data)
-            if not df_c.empty:
-                total_gastos += df_c['total'].sum()
 
         balance_neto = total_ventas - total_gastos
 
@@ -2331,7 +2316,7 @@ with tab8:
                     st.markdown(f"#### 📝 Editando Factura {f_data['numero_factura']}")
                     ed_ph = st.data_editor(prods, hide_index=True, use_container_width=True, num_rows="dynamic", key=f"ed_v_{f_id}", column_config={"id": None, "Base Ud": None, "IGIC %": None, "Base Neta": None, "IGIC €": None})
                     
-                    new_total = ed_ph['Total Línea'].sum() * (1 - st.number_input("Dto. Global (%)", 0.0, 100.0, float(f_data.get('descuento_global') or 0.0), key=f"dg_{f_id}")/100)
+                    new_total = ed_ph['Total Línea'].sum() * (1 - st.number_input("Dto. Global (%)", 0.0, 100.0, float(f_data.get('descuento_global',0)), key=f"dg_{f_id}")/100)
                     st.metric("NUEVO TOTAL FACTURA", f"{new_total:.2f} €")
                     
                     if st.button("💾 SINCRONIZAR CAMBIOS DE ESTA FACTURA"):
@@ -2452,29 +2437,6 @@ with tab9:
         st.markdown(f"<p style='color: gray; font-size: 13px;'>Filtrando datos entre el <b>{f_desde_inf.strftime('%d/%m/%Y')}</b> y el <b>{f_hasta_inf.strftime('%d/%m/%Y')}</b>.</p>", unsafe_allow_html=True)
         st.markdown("---")
         
-        # --- FUNCIÓN PARA GENERAR EXCEL CON FORMATO PROFESIONAL ---
-        def generar_excel_profesional(df, titulo_hoja):
-            output = io.BytesIO()
-            writer = pd.ExcelWriter(output, engine='xlsxwriter')
-            df.to_excel(writer, index=False, sheet_name=titulo_hoja)
-            workbook = writer.book
-            worksheet = writer.sheets[titulo_hoja]
-            
-            # Formato de la cabecera (Fondo azul, texto blanco, negrita)
-            formato_cabecera = workbook.add_format({
-                'bold': True, 'font_color': 'white', 'bg_color': '#005275',
-                'border': 1, 'valign': 'vcenter', 'align': 'center'
-            })
-            # Formato de las celdas normales (Con bordes finos)
-            formato_celda = workbook.add_format({'border': 1, 'valign': 'vcenter'})
-            
-            for col_num, value in enumerate(df.columns.values):
-                worksheet.write(0, col_num, value, formato_cabecera)
-                ancho = max(df[value].astype(str).map(len).max(), len(str(value))) + 4
-                worksheet.set_column(col_num, col_num, ancho, formato_celda)
-            writer.close()
-            return output.getvalue()
-
         fecha_inicio_q = f"{f_desde_inf}T00:00:00"
         fecha_fin_q = f"{f_hasta_inf}T23:59:59"
 
@@ -2515,19 +2477,15 @@ with tab9:
         if not df_ventas_unificadas.empty:
             df_ventas_unificadas['Fecha_dt'] = pd.to_datetime(df_ventas_unificadas['Fecha'], format='%d/%m/%Y')
             df_ventas_unificadas = df_ventas_unificadas.sort_values(by="Fecha_dt").drop(columns=['Fecha_dt'])
-            
-            # Formato profesional para Excel
-            suma_ventas_totales = df_ventas_unificadas['Importe Total (€)'].sum()
-            df_ventas_unificadas['Importe Total (€)'] = df_ventas_unificadas['Importe Total (€)'].apply(lambda x: f"{float(x or 0):.2f}".replace('.', ','))
 
         c_down1, c_down2, c_down3 = st.columns(3)
         
         with c_down1:
             st.info("💶 INFORME GLOBAL DE VENTAS (TICKETS + FACTURAS)")
             if not df_ventas_unificadas.empty:
-                excel_unificado = generar_excel_profesional(df_ventas_unificadas, "Ventas Totales")
-                st.download_button("📥 Descargar Ventas Totales", excel_unificado, f"Ventas_Totales_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", help="Excel con formato profesional")
-                st.markdown(f"*Total Ventas: {suma_ventas_totales:.2f}€*")
+                csv_unificado = df_ventas_unificadas.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Descargar Ventas Totales", csv_unificado, f"Ventas_Totales_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
+                st.markdown(f"*Total Ventas: {df_ventas_unificadas['Importe Total (€)'].sum():.2f}€*")
             else:
                 st.write("Sin ventas en este periodo.")
 
@@ -2537,12 +2495,9 @@ with tab9:
                 df_f = pd.DataFrame(res_f_inf.data)
                 df_f['Fecha'] = pd.to_datetime(df_f['created_at']).dt.strftime('%d/%m/%Y')
                 df_f['Cliente'] = df_f['clientes'].apply(lambda x: x['nombre_dueno'] if isinstance(x, dict) else "N/A")
-                
-                df_asesor_f = df_f[['numero_factura', 'Fecha', 'Cliente', 'total_final', 'forma_pago']].rename(columns={'numero_factura': 'Nº Factura', 'total_final': 'Importe Total (€)', 'forma_pago': 'Método de Pago'})
-                df_asesor_f['Importe Total (€)'] = df_asesor_f['Importe Total (€)'].apply(lambda x: f"{float(x or 0):.2f}".replace('.', ','))
-                
-                excel_f = generar_excel_profesional(df_asesor_f, "Solo Facturas")
-                st.download_button("📥 Descargar Solo Facturas", excel_f, f"Solo_Facturas_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", help="Excel con formato profesional")
+                df_asesor_f = df_f[['numero_factura', 'Fecha', 'Cliente', 'total_final', 'forma_pago']]
+                csv_f = df_asesor_f.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Descargar Solo Facturas", csv_f, f"Solo_Facturas_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
             else:
                 st.write("Sin facturas emitidas.")
 
@@ -2551,19 +2506,10 @@ with tab9:
             if res_c_inf.data:
                 df_c = pd.DataFrame(res_c_inf.data)
                 df_c['Fecha'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y')
-                
-                def clasificar_gasto(tipo):
-                    if str(tipo) == "Gasto Operativo": return "Otros Gastos Externos / Suministros"
-                    else: return "Compra de Material (Proveedor)"
-                
-                df_c['Categoría Contable'] = df_c['tipo'].apply(clasificar_gasto)
-                df_c['Proveedor / Entidad'] = df_c['proveedores'].apply(lambda x: f"{x['nombre_empresa']} ({x.get('cif','')})" if isinstance(x, dict) else "Gasto General / Ticket")
-                df_c['Importe (€)'] = df_c['total'].apply(lambda x: f"{float(x or 0):.2f}".replace('.', ','))
-                
-                df_asesor_c = df_c[['id', 'Fecha', 'Categoría Contable', 'Proveedor / Entidad', 'tipo', 'estado', 'Importe (€)']].rename(columns={'id': 'ID Registro', 'tipo': 'Ref. Documento / Factura', 'estado': 'Estado Pago'})
-                
-                excel_c = generar_excel_profesional(df_asesor_c, "Compras y Gastos")
-                st.download_button("📥 Descargar Compras/Gastos", excel_c, f"Gastos_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", help="Excel con formato profesional")
+                df_c['Proveedor_Gasto'] = df_c['proveedores'].apply(lambda x: f"{x['nombre_empresa']} ({x['cif']})" if isinstance(x, dict) else "Gasto General")
+                df_asesor_c = df_c[['id', 'Fecha', 'tipo', 'Proveedor_Gasto', 'total', 'estado']]
+                csv_c = df_asesor_c.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Descargar Compras/Gastos", csv_c, f"Gastos_{f_desde_inf}_al_{f_hasta_inf}.csv", "text/csv")
             else:
                 st.write("Sin compras o gastos en estas fechas.")
 
