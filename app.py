@@ -2108,12 +2108,12 @@ with tab8:
                         ped_data = client.table("pedidos_proveedores").select("productos").eq("id", ped_id).execute().data[0]
                         st.session_state.compra_temp = []
                         for art in ped_data.get('productos', []):
-                            res_match = client.table("productos").select("id, sku, nombre, precio_base, igic_tipo").eq("nombre", art['Producto']).execute()
+                            res_match = client.table("productos").select("id, sku, nombre, precio_base, igic_tipo, precio_pvp").eq("nombre", art['Producto']).execute()
                             if res_match.data:
                                 item = res_match.data[0]
                                 st.session_state.compra_temp.append({
                                     "id": str(item['id']), "Código": item['sku'], "Descripción": item['nombre'],
-                                    "Cantidad": art['Cantidad'], "Base Ud": float(item['precio_base']), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0
+                                    "Cantidad": art['Cantidad'], "Base Ud": float(item['precio_base']), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0, "PVP (€)": float(item.get('precio_pvp', 0.0))
                                 })
                         st.success("Artículos cargados en la tabla inferior."); time.sleep(1); st.rerun()
             else:
@@ -2129,7 +2129,7 @@ with tab8:
                 item = df_inv[df_inv['sku'] == sku_extraido].iloc[0]
                 st.session_state.compra_temp.append({
                     "id": str(item['id']), "Código": item['sku'], "Descripción": item['nombre'],
-                    "Cantidad": 1, "Base Ud": float(item['precio_base']), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0
+                    "Cantidad": 1, "Base Ud": float(item['precio_base']), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0, "PVP (€)": float(item.get('precio_pvp', 0.0))
                 })
                 st.session_state.llave_busqueda_c += 1; st.rerun()
 
@@ -2172,13 +2172,17 @@ with tab8:
                         
                         st.session_state.compra_temp.append({
                             "id": str(nuevo_id), "Código": m_sku if m_sku else "---", "Descripción": m_nom,
-                            "Cantidad": m_cant, "Base Ud": float(m_base_val), "IGIC %": float(m_igic), "Desc %": 0.0
+                            "Cantidad": m_cant, "Base Ud": float(m_base_val), "IGIC %": float(m_igic), "Desc %": 0.0, "PVP (€)": float(m_pvp_val)
                         })
                         st.success("Artículo añadido a la factura."); time.sleep(0.5); st.rerun()
                     else:
                         st.error("El nombre y el precio base son obligatorios.")
 
         if st.session_state.compra_temp:
+            # Protección por si hay carritos guardados antes de esta actualización
+            for x in st.session_state.compra_temp:
+                if 'PVP (€)' not in x: x['PVP (€)'] = 0.0
+                
             df_c = pd.DataFrame(st.session_state.compra_temp)
             df_c['Coste Ud'] = (df_c['Base Ud'] * (1 + df_c['IGIC %']/100)).round(2)
             df_c['Base Neta'] = (df_c['Base Ud'] * df_c['Cantidad']) * (1 - df_c['Desc %']/100)
@@ -2191,12 +2195,13 @@ with tab8:
                     "id": None, "Base Neta": None, "IGIC €": None,
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
+                    "PVP (€)": st.column_config.NumberColumn("PVP Público (€)", format="%.2f"),
                     "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True),
                     "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True)
                 }
             )
             
-            nuevos_datos = df_c_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %']].to_dict('records')
+            nuevos_datos = df_c_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %', 'PVP (€)']].to_dict('records')
             if nuevos_datos != st.session_state.compra_temp:
                 st.session_state.compra_temp = nuevos_datos; st.rerun()
                 
@@ -2227,10 +2232,11 @@ with tab8:
                         if str(i.get('id', '0')) != '0' and str(i.get('id')) != 'None':
                             res_s = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
                             if res_s.data: 
-                                # Actualizamos stock y el PRECIO DE COSTE general
+                                # Actualizamos stock, el PRECIO DE COSTE general y el PVP PÚBLICO
                                 client.table("productos").update({
                                     "stock_actual": (res_s.data[0]['stock_actual'] or 0) + i['Cantidad'],
-                                    "precio_base": float(i['Base Ud'])
+                                    "precio_base": float(i['Base Ud']),
+                                    "precio_pvp": float(i.get('PVP (€)', 0.0))
                                 }).eq("id", i['id']).execute()
                                 # Actualizamos el precio de coste del proveedor específico
                                 client.table("productos_proveedores").update({"precio_coste": float(i['Base Ud'])}).eq("producto_id", i['id']).eq("proveedor_id", p_id).execute()
