@@ -116,11 +116,11 @@ with c_logo:
 with c_titulo:
     st.markdown("<h1 style='margin: 0; padding: 0; font-size: 1.8rem; line-height: 1;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
 
-# DEFINICIÓN CORRECTA DE LAS 11 PESTAÑAS
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
+# DEFINICIÓN CORRECTA DE LAS 10 PESTAÑAS
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
     "📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", 
     "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores", "📑 Facturación",
-    "📊 Contabilidad", "📅 Agenda", "🏦 Bancos"
+    "📊 Contabilidad", "📅 Agenda"
 ])
 
 # ==========================================
@@ -1483,8 +1483,8 @@ with tab4:
                             var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
                             var htmlCodificado = encodeURIComponent(fullHTML);
                             var urlRetorno = "https://google.com";
-                            try {{ if (window.top.location.href && window.top.location.href !== "about:blank") {{ urlRetorno = window.top.location.href; }} }} catch(e) {{}}
-                            window.top.location.href = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
+                            try {{ if (window.top.location.href && window.top.location.href !== "about:blank") {{ urlRetorno = window.top.location.href.split('#')[0] + "#impreso"; }} }} catch(e) {{}}
+                            window.location.href = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
                         }}
                         </script>
                         </body></html>
@@ -2092,11 +2092,10 @@ with tab7:
 with tab8:
     st.markdown("<h3 style='margin-top: -15px;'> 📑  Gestión Integral de Facturación</h3>", unsafe_allow_html=True)
 
-    sub_emitir, sub_registrar, sub_archivo, sub_pagos = st.tabs([
+    sub_emitir, sub_registrar, sub_archivo = st.tabs([
         " 🧾  Emitir Factura (Venta)", 
         " 📥  Registrar Compra (Proveedor)", 
-        " 📂  Archivo de Documentos",
-        " 💸  Pagos Pendientes"
+        " 📂  Archivo de Documentos"
     ])
     
     res_inv = client.table("productos").select("*").execute()
@@ -2390,8 +2389,6 @@ with tab8:
                     p_id = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
                     client.table("compras").insert({
                         "proveedor_id": p_id, "total": float(total_con_pp), "descuento_pp": float(desc_pp or 0.0),
-                        "estado": estado_compra, "tipo": f"Factura: {n_fac}", "fecha_vencimiento": str(f_ven),
-                        "metodo_pago": metodo_pago_compra,
                         "estado": "Recibido", "tipo": f"Factura: {n_fac}", "fecha_vencimiento": str(f_ven),
                         "productos": st.session_state.compra_temp
                     }).execute()
@@ -2554,6 +2551,66 @@ with tab8:
                         client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(new_total)}).eq("id", c_id).execute()
                         st.success("Compra actualizada."); st.rerun()
 
+    # ==========================================
+    # SUB-TAB 4: PAGOS PENDIENTES Y ALERTAS UNIFICADAS
+    # ==========================================
+    with sub_pagos:
+        st.markdown("#### 🚨 Calendario Unificado de Pagos Pendientes")
+        st.info("Aquí aparecen todas las facturas de proveedores y gastos fijos/variables marcados como 'Pendiente'. El sistema te alerta con colores si se acerca o pasa la fecha de vencimiento.")
+        
+        res_pendientes = client.table("compras").select("id, tipo, total, fecha_vencimiento, estado, metodo_pago, proveedores(nombre_empresa)").eq("estado", "Pendiente").order("fecha_vencimiento", desc=False).execute()
+        
+        if res_pendientes.data:
+            df_pend = pd.DataFrame(res_pendientes.data)
+            df_pend['Proveedor / Concepto'] = df_pend.apply(lambda x: x['proveedores']['nombre_empresa'] if isinstance(x.get('proveedores'), dict) else x['tipo'], axis=1)
+            
+            hoy_date = date.today()
+            def calcular_estado_vencimiento(fecha_vencimiento):
+                try:
+                    dias = (pd.to_datetime(fecha_vencimiento).date() - hoy_date).days
+                    if dias < 0: return f"🔴 VENCIDO hace {abs(dias)} días"
+                    elif dias <= 3: return f"🟠 Vence en {dias} días"
+                    else: return f"🟢 Al día (En {dias} días)"
+                except:
+                    return "⚪ Fecha inválida"
+
+            df_pend['Alerta'] = df_pend['fecha_vencimiento'].apply(calcular_estado_vencimiento)
+            
+            df_pend_vista = df_pend[['id', 'Alerta', 'Proveedor / Concepto', 'total', 'fecha_vencimiento', 'metodo_pago', 'estado']].copy()
+            
+            ed_pend = st.data_editor(
+                df_pend_vista,
+                hide_index=True, use_container_width=True, height=400,
+                column_config={
+                    "id": None,
+                    "Alerta": st.column_config.TextColumn("Estado Vencimiento", disabled=True),
+                    "Proveedor / Concepto": st.column_config.TextColumn("Proveedor / Concepto", disabled=True),
+                    "total": st.column_config.NumberColumn("Importe (€)", format="%.2f", disabled=True),
+                    "fecha_vencimiento": st.column_config.TextColumn("Fecha Tope", disabled=True),
+                    "metodo_pago": st.column_config.SelectboxColumn("Método Programado", options=["Transferencia", "Domiciliación / Recibo", "Tarjeta Banco", "Efectivo"]),
+                    "estado": st.column_config.SelectboxColumn("Confirmar Pago", options=["Pendiente", "Pagado"])
+                }
+            )
+            
+            if st.button("💾 Guardar Confirmaciones de Pago", type="primary"):
+                cambios = 0
+                for idx, row in ed_pend.iterrows():
+                    orig_estado = df_pend_vista.iloc[idx]['estado']
+                    orig_metodo = df_pend_vista.iloc[idx]['metodo_pago']
+                    
+                    if row['estado'] != orig_estado or row['metodo_pago'] != orig_metodo:
+                        client.table("compras").update({
+                            "estado": str(row['estado']),
+                            "metodo_pago": str(row['metodo_pago'])
+                        }).eq("id", row['id']).execute()
+                        cambios += 1
+                if cambios > 0:
+                    st.success(f"¡Perfecto! Has actualizado {cambios} pago(s)."); time.sleep(1); st.rerun()
+                else:
+                    st.info("No se han detectado cambios.")
+        else:
+            st.success("🎉 ¡No tienes ningún pago pendiente! Todo está al día y pagado.")
+
 # ==========================================
 # --- TAB 9: CONTABILIDAD E INFORMES PARA ASESORÍA ---
 # ==========================================
@@ -2567,38 +2624,21 @@ with tab9:
         with col_g1:
             with st.form("nuevo_gasto"):
                 st.markdown("#### Registrar Gasto o Nómina")
-            with st.form("nuevo_gasto", border=True):
-                st.markdown("#### 💸 Registrar Gasto Operativo")
                 categoria_gasto = st.selectbox("Categoría Contable", [
                     "Gastos de compra (Limpieza, consumibles...)",
                     "Gastos fijos y variables (Alquileres, seguros, luz, agua...)",
                     "Personal y autónomos (Nóminas, SS...)"
-                    "Gasto Fijo (Alquiler, Seguros, Gestoría...)",
-                    "Gasto Variable (Luz, Agua, Internet, Limpieza...)",
-                    "Personal y Autónomos (Nóminas, SS...)",
-                    "Otros Gastos"
                 ])
                 concepto = st.text_input("Concepto / Proveedor detallado")
                 importe = st.number_input("Importe Total (€)", min_value=0.0, value=None)
                 f_vence = st.date_input("Fecha de Vencimiento")
                 estado_g = st.selectbox("Estado", ["Pagado", "Pendiente"])
-                concepto = st.text_input("Concepto / Entidad detallada *", placeholder="Ej: Recibo Endesa")
-                importe = st.number_input("Importe Total (€) *", min_value=0.0, value=None)
                 
                 if st.form_submit_button("Guardar Gasto"):
-                c_g_1, c_g_2 = st.columns(2)
-                with c_g_1: f_vence = st.date_input("Fecha Vencimiento/Cargo")
-                with c_g_2: estado_g = st.selectbox("Estado", ["Pagado", "Pendiente"], help="Si es un recibo domiciliado futuro, ponlo 'Pendiente'")
-                
-                metodo_pago_g = st.selectbox("Método de Pago", ["Domiciliación / Recibo", "Transferencia", "Tarjeta Banco", "Efectivo"])
-                
-                if st.form_submit_button("💾 Guardar Gasto", type="primary", use_container_width=True):
                     if importe is not None and importe > 0 and concepto:
                         client.table("compras").insert({
                             "tipo": f"{categoria_gasto} | {concepto}", "total": float(importe), 
                             "estado": estado_g, "fecha_vencimiento": str(f_vence)
-                            "estado": estado_g, "fecha_vencimiento": str(f_vence),
-                            "metodo_pago": metodo_pago_g
                         }).execute()
                         st.success("Gasto registrado exitosamente."); st.rerun()
                     else:
@@ -2616,8 +2656,6 @@ with tab9:
                     st.markdown(f"<p class='{clase}'>⚠️ {nombre} - {c['total']}€ (Vence en {dias} días: {c['fecha_vencimiento']})</p>", unsafe_allow_html=True)
             else:
                 st.info("No hay facturas ni gastos pendientes. ¡Todo al día!")
-            st.markdown("#### 💡 Gestión Unificada de Pagos")
-            st.info("¡Hemos movido todas las alertas a un calendario unificado! \n\nVe a la pestaña **📑 Facturación > 💸 Pagos Pendientes** para revisar de un vistazo tanto las facturas de proveedores como estos gastos, ver sus vencimientos, cambiar métodos de pago y marcarlos como pagados cuando se realicen.")
 
     with sec_informes:
         st.markdown("#### 📥 Selector de Fechas Personalizado")
