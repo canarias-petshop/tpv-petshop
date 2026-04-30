@@ -1483,8 +1483,8 @@ with tab4:
                             var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
                             var htmlCodificado = encodeURIComponent(fullHTML);
                             var urlRetorno = "https://google.com";
-                            try {{ if (window.top.location.href && window.top.location.href !== "about:blank") {{ urlRetorno = window.top.location.href.split('#')[0] + "#impreso"; }} }} catch(e) {{}}
-                            window.location.href = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
+                            try {{ if (window.top.location.href && window.top.location.href !== "about:blank") {{ urlRetorno = window.top.location.href; }} }} catch(e) {{}}
+                            window.top.location.href = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
                         }}
                         </script>
                         </body></html>
