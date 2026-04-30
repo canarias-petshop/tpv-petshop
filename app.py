@@ -116,11 +116,11 @@ with c_logo:
 with c_titulo:
     st.markdown("<h1 style='margin: 0; padding: 0; font-size: 1.8rem; line-height: 1;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
 
-# DEFINICIÓN CORRECTA DE LAS 10 PESTAÑAS
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+# DEFINICIÓN CORRECTA DE LAS 11 PESTAÑAS
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
     "📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", 
     "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores", "📑 Facturación",
-    "📊 Contabilidad", "📅 Agenda"
+    "📊 Contabilidad", "📅 Agenda", "🏦 Bancos"
 ])
 
 # ==========================================
@@ -3102,12 +3102,4 @@ with tab11:
             else:
                 st.info("Aún no has registrado ninguna cuenta bancaria.")
         except:
-            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
-            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
-            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
-            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
-        except:
-            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
-            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
-            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
-            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
+            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla 'cuentas_bancarias' en la base de datos.")
