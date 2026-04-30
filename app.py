@@ -2552,6 +2552,60 @@ with tab8:
                         client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(new_total)}).eq("id", c_id).execute()
                         st.success("Compra actualizada."); st.rerun()
 
+    # ==========================================
+    # SUB-TAB 4: PAGOS PENDIENTES
+    # ==========================================
+    with sub_pagos:
+        st.markdown("#### 💸 Control de Pagos Pendientes (Deudas a Proveedores)")
+        st.info("💡 Aquí aparecen todas las compras que no han sido marcadas como 'Pagado'. Puedes saldarlas descontando el dinero de tus cuentas bancarias.")
+        
+        # Buscar compras que no sean "Pagado"
+        res_deudas = client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
+        if res_deudas.data:
+            df_deudas = pd.DataFrame(res_deudas.data)
+            df_deudas['Proveedor'] = df_deudas['proveedores'].apply(lambda x: x['nombre_empresa'] if x else 'Desconocido')
+            df_deudas['Fecha'] = pd.to_datetime(df_deudas['created_at']).dt.strftime('%d/%m/%Y')
+            
+            st.markdown(f"<h3 style='color: #d32f2f;'>Deuda Total Acumulada: {df_deudas['total'].sum():.2f} €</h3>", unsafe_allow_html=True)
+            
+            # Crear vista con checkbox para seleccionar las facturas a pagar
+            df_vista_p = df_deudas[['id', 'Fecha', 'tipo', 'Proveedor', 'total']].copy()
+            df_vista_p.insert(0, "Pagar", False)
+            
+            ed_deudas = st.data_editor(
+                df_vista_p, hide_index=True, use_container_width=True, key="ed_deudas",
+                column_config={"Pagar": st.column_config.CheckboxColumn("Pagar Ahora"), "id": None, "tipo": "Documento", "total": st.column_config.NumberColumn("Total (€)", format="%.2f")}
+            )
+            
+            filas_pagar = ed_deudas[ed_deudas["Pagar"] == True]
+            if not filas_pagar.empty:
+                total_a_pagar = filas_pagar['total'].sum()
+                st.markdown("---")
+                st.markdown(f"**Has seleccionado {len(filas_pagar)} factura(s) por un total de <span style='color: #005275; font-size: 1.2em;'>{total_a_pagar:.2f} €</span>**", unsafe_allow_html=True)
+                
+                # Cargar bancos
+                res_b = client.table("cuentas_bancarias").select("*").execute()
+                if res_b.data:
+                    opciones_bancos = {f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)": b['id'] for b in res_b.data}
+                    sel_banco = st.selectbox("💳 Selecciona la cuenta origen del pago:", [""] + list(opciones_bancos.keys()))
+                    
+                    if sel_banco and st.button("✅ Confirmar Pago y Restar del Banco", type="primary", use_container_width=True):
+                        banco_id = opciones_bancos[sel_banco]
+                        # 1. Restar del banco
+                        banco_data = [b for b in res_b.data if b['id'] == banco_id][0]
+                        nuevo_saldo = banco_data['saldo_actual'] - total_a_pagar
+                        client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo}).eq("id", banco_id).execute()
+                        
+                        # 2. Actualizar estado de las compras
+                        for _, row in filas_pagar.iterrows():
+                            client.table("compras").update({"estado": "Pagado"}).eq("id", row['id']).execute()
+                            
+                        st.success(f"¡Pago de {total_a_pagar:.2f} € registrado! Saldo de la cuenta actualizado."); time.sleep(1.5); st.rerun()
+                else:
+                    st.warning("⚠️ No hay cuentas bancarias registradas. Añade una en la pestaña 'Bancos' (11) primero.")
+        else:
+            st.success("¡Genial! No tienes deudas pendientes con proveedores.")
+
 # ==========================================
 # --- TAB 9: CONTABILIDAD E INFORMES PARA ASESORÍA ---
 # ==========================================
@@ -3025,3 +3079,56 @@ with tab11:
                 st.info("Aún no has registrado ninguna cuenta bancaria.")
         except:
             st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
+
+    st.markdown("---")
+    st.markdown("#### 🔄 Transferencias Internas")
+    st.info("Mueve dinero entre tus cuentas bancarias o ingresa efectivo sobrante de la caja.")
+    
+    try:
+        res_b = client.table("cuentas_bancarias").select("*").execute()
+        lista_bancos = res_b.data if res_b.data else []
+        opciones_origen = ["Caja Fuerte (Efectivo)"] + [f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)" for b in lista_bancos]
+        opciones_destino = [f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)" for b in lista_bancos]
+        
+        with st.form("form_transferencia", border=True):
+            col_t1, col_t2, col_t3 = st.columns(3)
+            with col_t1: ori_sel = st.selectbox("Origen del Dinero 📤", opciones_origen)
+            with col_t2: des_sel = st.selectbox("Destino del Dinero 📥", opciones_destino)
+            with col_t3: cant_trans = st.number_input("Cantidad a transferir (€) *", min_value=0.01, step=10.0, value=None)
+            
+            if st.form_submit_button("🚀 Realizar Transferencia", type="primary", use_container_width=True):
+                if cant_trans and ori_sel != des_sel:
+                    # 1. Procesar Origen
+                    if "Caja Fuerte" in ori_sel:
+                        # Comprobar si hay caja abierta
+                        res_caja = client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+                        if res_caja.data:
+                            id_caja_abierta = res_caja.data[0]['id']
+                            client.table("movimientos_caja").insert({
+                                "id_caja": id_caja_abierta, "tipo": "Retirada", "cantidad": float(cant_trans), 
+                                "motivo": f"Ingreso a banco: {des_sel.split(' (')[0]}"
+                            }).execute()
+                        else:
+                            st.warning("⚠️ La caja fuerte está cerrada. El dinero se sumará al banco, pero no se restará del arqueo actual porque no hay turno abierto.")
+                    else:
+                        # Es un banco, restar saldo
+                        nombre_banco_ori = ori_sel.split(" (")[0].replace("🏦 ", "")
+                        banco_ori = next((b for b in lista_bancos if b['nombre_banco'] == nombre_banco_ori), None)
+                        if banco_ori:
+                            nuevo_saldo_ori = banco_ori['saldo_actual'] - cant_trans
+                            client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo_ori}).eq("id", banco_ori['id']).execute()
+                    
+                    # 2. Procesar Destino
+                    nombre_banco_des = des_sel.split(" (")[0].replace("🏦 ", "")
+                    banco_des = next((b for b in lista_bancos if b['nombre_banco'] == nombre_banco_des), None)
+                    if banco_des:
+                        nuevo_saldo_des = banco_des['saldo_actual'] + cant_trans
+                        client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo_des}).eq("id", banco_des['id']).execute()
+                        
+                    st.success(f"Transferencia de {cant_trans:.2f} € completada con éxito."); time.sleep(1.5); st.rerun()
+                elif ori_sel == des_sel:
+                    st.error("El origen y el destino no pueden ser el mismo.")
+                else:
+                    st.warning("Introduce una cantidad válida.")
+    except Exception as e:
+        st.error(f"Error al cargar módulo de transferencias: {e}")
