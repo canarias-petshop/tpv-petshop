@@ -2390,6 +2390,8 @@ with tab8:
                     p_id = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
                     client.table("compras").insert({
                         "proveedor_id": p_id, "total": float(total_con_pp), "descuento_pp": float(desc_pp or 0.0),
+                        "estado": estado_compra, "tipo": f"Factura: {n_fac}", "fecha_vencimiento": str(f_ven),
+                        "metodo_pago": metodo_pago_compra,
                         "estado": "Recibido", "tipo": f"Factura: {n_fac}", "fecha_vencimiento": str(f_ven),
                         "productos": st.session_state.compra_temp
                     }).execute()
@@ -2565,21 +2567,38 @@ with tab9:
         with col_g1:
             with st.form("nuevo_gasto"):
                 st.markdown("#### Registrar Gasto o Nómina")
+            with st.form("nuevo_gasto", border=True):
+                st.markdown("#### 💸 Registrar Gasto Operativo")
                 categoria_gasto = st.selectbox("Categoría Contable", [
                     "Gastos de compra (Limpieza, consumibles...)",
                     "Gastos fijos y variables (Alquileres, seguros, luz, agua...)",
                     "Personal y autónomos (Nóminas, SS...)"
+                    "Gasto Fijo (Alquiler, Seguros, Gestoría...)",
+                    "Gasto Variable (Luz, Agua, Internet, Limpieza...)",
+                    "Personal y Autónomos (Nóminas, SS...)",
+                    "Otros Gastos"
                 ])
                 concepto = st.text_input("Concepto / Proveedor detallado")
                 importe = st.number_input("Importe Total (€)", min_value=0.0, value=None)
                 f_vence = st.date_input("Fecha de Vencimiento")
                 estado_g = st.selectbox("Estado", ["Pagado", "Pendiente"])
+                concepto = st.text_input("Concepto / Entidad detallada *", placeholder="Ej: Recibo Endesa")
+                importe = st.number_input("Importe Total (€) *", min_value=0.0, value=None)
                 
                 if st.form_submit_button("Guardar Gasto"):
+                c_g_1, c_g_2 = st.columns(2)
+                with c_g_1: f_vence = st.date_input("Fecha Vencimiento/Cargo")
+                with c_g_2: estado_g = st.selectbox("Estado", ["Pagado", "Pendiente"], help="Si es un recibo domiciliado futuro, ponlo 'Pendiente'")
+                
+                metodo_pago_g = st.selectbox("Método de Pago", ["Domiciliación / Recibo", "Transferencia", "Tarjeta Banco", "Efectivo"])
+                
+                if st.form_submit_button("💾 Guardar Gasto", type="primary", use_container_width=True):
                     if importe is not None and importe > 0 and concepto:
                         client.table("compras").insert({
                             "tipo": f"{categoria_gasto} | {concepto}", "total": float(importe), 
                             "estado": estado_g, "fecha_vencimiento": str(f_vence)
+                            "estado": estado_g, "fecha_vencimiento": str(f_vence),
+                            "metodo_pago": metodo_pago_g
                         }).execute()
                         st.success("Gasto registrado exitosamente."); st.rerun()
                     else:
@@ -2597,6 +2616,8 @@ with tab9:
                     st.markdown(f"<p class='{clase}'>⚠️ {nombre} - {c['total']}€ (Vence en {dias} días: {c['fecha_vencimiento']})</p>", unsafe_allow_html=True)
             else:
                 st.info("No hay facturas ni gastos pendientes. ¡Todo al día!")
+            st.markdown("#### 💡 Gestión Unificada de Pagos")
+            st.info("¡Hemos movido todas las alertas a un calendario unificado! \n\nVe a la pestaña **📑 Facturación > 💸 Pagos Pendientes** para revisar de un vistazo tanto las facturas de proveedores como estos gastos, ver sus vencimientos, cambiar métodos de pago y marcarlos como pagados cuando se realicen.")
 
     with sec_informes:
         st.markdown("#### 📥 Selector de Fechas Personalizado")
