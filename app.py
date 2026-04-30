@@ -2251,6 +2251,7 @@ with tab8:
         with c_c2: f_fac = st.date_input("Fecha Factura", key="fac_prov_f")
         with c_c3: f_ven = st.date_input("Vencimiento", key="fac_prov_v")
         
+        # 1. Seleccionamos el proveedor primero para extraer sus condiciones
         with st.expander(" 🚚  Seleccionar / Crear Proveedor", expanded=True):
             p_opc = df_prov['nombre_empresa'].tolist() if not df_prov.empty else []
             sel_p = st.selectbox("Selecciona el Proveedor:", p_opc, index=None, placeholder="Escribe el nombre del proveedor...")
@@ -2258,6 +2259,21 @@ with tab8:
                 np1, np2 = st.columns(2); n_emp_new = np1.text_input("Nombre Empresa*"); n_cif_new = np2.text_input("CIF")
                 if st.form_submit_button("➕ Crear Nuevo Proveedor"):
                     if n_emp_new: client.table("proveedores").insert({"nombre_empresa": n_emp_new, "cif": n_cif_new}).execute(); st.rerun()
+
+        # 2. Cálculo inteligente de vencimiento
+        dias_pago = 0
+        if sel_p and not df_prov.empty:
+            try: dias_pago = int(df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0].get('dias_pago', 0))
+            except: pass
+            
+        c_c1, c_c2, c_c3 = st.columns(3)
+        with c_c1: n_fac = st.text_input("Nº Factura Proveedor", key="fac_prov_n")
+        with c_c2: f_fac = st.date_input("Fecha Factura", key="fac_prov_f")
+        with c_c3: f_ven = st.date_input("Vencimiento Auto.", value=f_fac + timedelta(days=dias_pago), key="fac_prov_v")
+        
+        c_c4, c_c5 = st.columns(2)
+        with c_c4: est_compra = st.selectbox("Estado de Pago", ["Pendiente", "Pagado"], key="fac_prov_est")
+        with c_c5: met_compra = st.selectbox("Método de Pago", ["Transferencia", "Domiciliación / Recibo", "Tarjeta Banco", "Efectivo", "Bizum"], key="fac_prov_met")
                         
         st.markdown("---")
         
@@ -2633,13 +2649,15 @@ with tab9:
                 concepto = st.text_input("Concepto / Proveedor detallado")
                 importe = st.number_input("Importe Total (€)", min_value=0.0, value=None)
                 f_vence = st.date_input("Fecha de Vencimiento")
-                estado_g = st.selectbox("Estado", ["Pagado", "Pendiente"])
+                c_g1, c_g2 = st.columns(2)
+                with c_g1: estado_g = st.selectbox("Estado", ["Pagado", "Pendiente"])
+                with c_g2: metodo_g = st.selectbox("Método de Pago", ["Transferencia", "Domiciliación / Recibo", "Tarjeta Banco", "Efectivo"])
                 
                 if st.form_submit_button("Guardar Gasto"):
                     if importe is not None and importe > 0 and concepto:
                         client.table("compras").insert({
                             "tipo": f"{categoria_gasto} | {concepto}", "total": float(importe), 
-                            "estado": estado_g, "fecha_vencimiento": str(f_vence)
+                            "estado": estado_g, "metodo_pago": metodo_g, "fecha_vencimiento": str(f_vence)
                         }).execute()
                         st.success("Gasto registrado exitosamente."); st.rerun()
                     else:
@@ -3083,6 +3101,11 @@ with tab11:
                     st.success("Datos bancarios actualizados."); time.sleep(0.5); st.rerun()
             else:
                 st.info("Aún no has registrado ninguna cuenta bancaria.")
+        except:
+            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
+            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
+            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
+            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
         except:
             st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
             st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
