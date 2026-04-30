@@ -2092,10 +2092,11 @@ with tab7:
 with tab8:
     st.markdown("<h3 style='margin-top: -15px;'> 📑  Gestión Integral de Facturación</h3>", unsafe_allow_html=True)
 
-    sub_emitir, sub_registrar, sub_archivo = st.tabs([
+    sub_emitir, sub_registrar, sub_archivo, sub_pagos = st.tabs([
         " 🧾  Emitir Factura (Venta)", 
         " 📥  Registrar Compra (Proveedor)", 
-        " 📂  Archivo de Documentos"
+        " 📂  Archivo de Documentos",
+        " 🚨  Pagos Pendientes"
     ])
     
     res_inv = client.table("productos").select("*").execute()
@@ -3083,4 +3084,7 @@ with tab11:
             else:
                 st.info("Aún no has registrado ninguna cuenta bancaria.")
         except:
+            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
+            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
+            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
             st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
