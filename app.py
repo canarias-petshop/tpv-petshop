@@ -2556,28 +2556,52 @@ with tab8:
     # SUB-TAB 4: PAGOS PENDIENTES
     # ==========================================
     with sub_pagos:
-        st.markdown("#### 💸 Control de Pagos Pendientes (Deudas a Proveedores)")
-        st.info("💡 Aquí aparecen todas las compras que no han sido marcadas como 'Pagado'. Puedes saldarlas descontando el dinero de tus cuentas bancarias.")
+        st.markdown("#### 💸 Control de Pagos Pendientes (Deudas a Proveedores y Gastos)")
+        st.info("💡 Aquí aparecen todas las compras y gastos que no han sido marcados como 'Pagado'. Puedes saldarlos descontando el dinero de tus bancos o directamente desde la caja fuerte.")
         
         # Buscar compras que no sean "Pagado"
         res_deudas = client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
         if res_deudas.data:
             df_deudas = pd.DataFrame(res_deudas.data)
-            df_deudas['Proveedor'] = df_deudas['proveedores'].apply(lambda x: x['nombre_empresa'] if x else 'Desconocido')
-            df_deudas['Fecha'] = pd.to_datetime(df_deudas['created_at']).dt.strftime('%d/%m/%Y')
+            df_deudas['Proveedor'] = df_deudas['proveedores'].apply(lambda x: x['nombre_empresa'] if x and isinstance(x, dict) else 'Gasto / Nómina')
+            df_deudas['Fecha Vencimiento'] = pd.to_datetime(df_deudas['fecha_vencimiento'], errors='coerce')
+            
+            hoy_date = pd.Timestamp(date.today())
+            
+            # Calcular estado de vencimiento
+            def calc_estado_venc(fecha):
+                if pd.isna(fecha): return "⚪ Sin fecha"
+                dias = (fecha - hoy_date).days
+                if dias < 0: return f"🔴 CADUCADO (hace {abs(dias)} días)"
+                elif dias <= 3: return f"⚠️ Vence pronto (en {dias} días)"
+                else: return f"🟢 En plazo (en {dias} días)"
+
+            df_deudas['Estado Vencimiento'] = df_deudas['Fecha Vencimiento'].apply(calc_estado_venc)
+            df_deudas['Vence'] = df_deudas['Fecha Vencimiento'].dt.strftime('%d/%m/%Y').fillna('-')
             
             st.markdown(f"<h3 style='color: #d32f2f;'>Deuda Total Acumulada: {df_deudas['total'].sum():.2f} €</h3>", unsafe_allow_html=True)
             
             # Crear vista con checkbox para seleccionar las facturas a pagar
-            df_vista_p = df_deudas[['id', 'Fecha', 'tipo', 'Proveedor', 'total']].copy()
+            df_vista_p = df_deudas[['id', 'tipo', 'Proveedor', 'total', 'Vence', 'Estado Vencimiento']].copy()
             df_vista_p.insert(0, "Pagar", False)
             
+            # Ordenar para que los caducados salgan arriba
+            df_vista_p = df_vista_p.sort_values(by='Estado Vencimiento', ascending=False)
+            
+            def highlight_vencidos(val):
+                if isinstance(val, str):
+                    if 'CADUCADO' in val: return 'color: red; font-weight: bold'
+                    elif 'Vence pronto' in val: return 'color: orange; font-weight: bold'
+                    elif 'En plazo' in val: return 'color: green'
+                return ''
+
             ed_deudas = st.data_editor(
-                df_vista_p, hide_index=True, use_container_width=True, key="ed_deudas",
+                df_vista_p.style.map(highlight_vencidos, subset=['Estado Vencimiento']), 
+                hide_index=True, use_container_width=True, key="ed_deudas",
                 column_config={"Pagar": st.column_config.CheckboxColumn("Pagar Ahora"), "id": None, "tipo": "Documento", "total": st.column_config.NumberColumn("Total (€)", format="%.2f")}
             )
             
-            filas_pagar = ed_deudas[ed_deudas["Pagar"] == True]
+            filas_pagar = df_vista_p[ed_deudas["Pagar"] == True] # Recuperar del dataframe original guiado por la edición
             if not filas_pagar.empty:
                 total_a_pagar = filas_pagar['total'].sum()
                 st.markdown("---")
@@ -2585,26 +2609,48 @@ with tab8:
                 
                 # Cargar bancos
                 res_b = client.table("cuentas_bancarias").select("*").execute()
+                opciones_pago = ["💵 Caja Fuerte (Efectivo de la tienda)"]
+                mapa_bancos = {}
                 if res_b.data:
-                    opciones_bancos = {f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)": b['id'] for b in res_b.data}
-                    sel_banco = st.selectbox("💳 Selecciona la cuenta origen del pago:", [""] + list(opciones_bancos.keys()))
+                    for b in res_b.data:
+                        etiqueta = f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)"
+                        opciones_pago.append(etiqueta)
+                        mapa_bancos[etiqueta] = b['id']
+
+                sel_origen = st.selectbox("💳 Selecciona el origen de los fondos para el pago:", [""] + opciones_pago)
+                
+                if sel_origen and st.button("✅ Confirmar Pago", type="primary", use_container_width=True):
+                    # Nombres de proveedores para el motivo de la caja
+                    nombres_pagados = ", ".join(filas_pagar['Proveedor'].unique()[:2])
+                    if len(filas_pagar['Proveedor'].unique()) > 2: nombres_pagados += " y otros..."
                     
-                    if sel_banco and st.button("✅ Confirmar Pago y Restar del Banco", type="primary", use_container_width=True):
-                        banco_id = opciones_bancos[sel_banco]
-                        # 1. Restar del banco
+                    pago_exitoso = False
+                    
+                    if "Caja Fuerte" in sel_origen:
+                        res_caja = client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+                        if res_caja.data:
+                            id_caja = res_caja.data[0]['id']
+                            client.table("movimientos_caja").insert({
+                                "id_caja": id_caja, "tipo": "Retirada", "cantidad": float(total_a_pagar), 
+                                "motivo": f"Pago de facturas/gastos: {nombres_pagados}"
+                            }).execute()
+                            pago_exitoso = True
+                        else:
+                            st.error("⚠️ No puedes pagar con la caja porque no hay ningún turno abierto. Abre la caja primero en la pestaña 5.")
+                    else:
+                        banco_id = mapa_bancos[sel_origen]
                         banco_data = [b for b in res_b.data if b['id'] == banco_id][0]
                         nuevo_saldo = banco_data['saldo_actual'] - total_a_pagar
                         client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo}).eq("id", banco_id).execute()
+                        pago_exitoso = True
                         
-                        # 2. Actualizar estado de las compras
+                    if pago_exitoso:
+                        # Actualizar estado de las compras
                         for _, row in filas_pagar.iterrows():
                             client.table("compras").update({"estado": "Pagado"}).eq("id", row['id']).execute()
-                            
-                        st.success(f"¡Pago de {total_a_pagar:.2f} € registrado! Saldo de la cuenta actualizado."); time.sleep(1.5); st.rerun()
-                else:
-                    st.warning("⚠️ No hay cuentas bancarias registradas. Añade una en la pestaña 'Bancos' (11) primero.")
+                        st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!"); time.sleep(1.5); st.rerun()
         else:
-            st.success("¡Genial! No tienes deudas pendientes con proveedores.")
+            st.success("¡Genial! No tienes deudas pendientes.")
 
 # ==========================================
 # --- TAB 9: CONTABILIDAD E INFORMES PARA ASESORÍA ---
