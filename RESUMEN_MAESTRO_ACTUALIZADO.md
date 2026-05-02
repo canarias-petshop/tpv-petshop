@@ -67,17 +67,18 @@ El sistema cuenta con **11 módulos principales 100% operativos** en el código 
 - Gestión de IBAN, titulares y control en tiempo real del saldo y liquidez disponible.
 - **Transferencias Internas:** Movimiento de dinero entre cuentas bancarias o ingreso de efectivo sobrante desde la Caja Fuerte a la cuenta del banco (actualizando el saldo bancario y retirando de la caja si hay turno activo).
 
-## 3. Estado Actual del Desarrollo (Hito C Completado)
+## 3. Estado Actual del Desarrollo (Hito C Completado y UI Optimizada)
 El Hito C relacionado con la Contabilidad de Gestión y Tesorería se da por cerrado con éxito. Las últimas características clave integradas son:
 - **Gestión de Bancos y Transferencias** (Pestaña 11).
 - **Pago de Deudas** integrando las opciones de usar saldo de bancos o saldo en caja (Pestaña 8, Sub-Pestaña 4).
 - **Conexión transparente de hardware de impresión** evitando bloqueos o apertura de múltiples pestañas en el navegador de la tablet.
+- **Optimización UI/UX para Tablet (ÚLTIMO PUNTO SEGURO):** Se inyectó CSS personalizado en `app.py` para reducir márgenes (`padding-top: 0.5rem`), agrandar botones (`min-height: 48px`) y mejorar la legibilidad en pantallas táctiles. **Este es el punto oficial de restauración en el Timeline (Control de Versiones) en caso de fallos estructurales.**
 
 ## 4. Próximos Pasos y Hoja de Ruta (Roadmap Estratégico)
 
 **A Corto Plazo (Hito D - Optimización y Flexibilidad):**
-- **Refactorización flexible:** Mejorar la organización del código (`app.py`) permitiendo un entorno de pruebas ágil donde se puedan borrar y añadir funcionalidades sin que el sistema colapse.
-- **Mejora UI/UX:** Optimizar CSS y limpieza visual (tamaños de botones, reducir márgenes excesivos) dentro de los límites de Streamlit para una mejor experiencia táctil.
+- **Refactorización Arquitectónica (TAREA PENDIENTE INMEDIATA):** Actualmente `app.py` contiene toda la lógica. Se debe realizar una división en módulos creando físicamente la carpeta `modulos/` (con `caja.py`, `facturacion.py`, etc.) para blindar la lógica financiera.
+  - *Nota de Registro:* Hubo un intento de automatizar este proceso que generó desincronización en VS Code (archivos "fantasma" o cambios *untracked* sin limpieza real de `app.py`). Esta tarea debe retomarse paso a paso, verificando visualmente la creación de cada archivo.
 
 **A Medio Plazo (Obligación Legal - Próximo Año):**
 - **Integración Verifactu:** Conexión obligatoria con Hacienda para cumplir con la normativa legal española (las tablas de la base de datos ya están preparadas para ello).

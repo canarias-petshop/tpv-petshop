@@ -16,34 +16,39 @@ st.set_page_config(page_title="Animalarium TPV", layout="wide")
 st.markdown("""
     <style>
         /* 1. Ajuste del contenedor para aprovechar el ancho sin aplastar */
-        .block-container { padding-top: 2rem !important; padding-bottom: 2rem !important; max-width: 98% !important; }
+        .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; max-width: 98% !important; }
         
         /* 2. Textos y etiquetas más legibles en tablet */
-        p, .stMarkdown, div[data-testid="stMarkdownContainer"] { font-size: 1.1rem !important; }
-        label { font-size: 1.15rem !important; font-weight: 500 !important; }
+        p, .stMarkdown, div[data-testid="stMarkdownContainer"] { font-size: 1.05rem !important; }
+        label { font-size: 1.1rem !important; font-weight: 500 !important; margin-bottom: 2px !important; }
         
         /* 3. Cuadros de texto y números más grandes para escribir fácil */
-        input, select { font-size: 1.15rem !important; }
-        .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: 5px !important; }
+        input, select { font-size: 1.1rem !important; padding: 8px !important; }
+        .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: 0px !important; }
         
-        /* 4. Botones grandes, gruesos y fáciles de pulsar con el dedo */
+        /* 4. Botones: tamaño adecuado para uso táctil sin ser excesivos */
         .stButton > button {
-            min-height: 60px !important;
-            font-size: 1.2rem !important;
+            min-height: 48px !important;
+            font-size: 1.1rem !important;
             font-weight: bold !important;
+            padding: 0.25rem 0.5rem !important;
         }
 
-        /* 5. Pestañas principales más grandes */
+        /* 5. Pestañas principales ajustadas */
         button[data-baseweb="tab"] {
-            font-size: 1.15rem !important;
-            padding-top: 15px !important;
-            padding-bottom: 15px !important;
+            font-size: 1.1rem !important;
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
         }
         
         /* 6. Espaciado entre columnas (quitamos el estrechamiento) */
-        [data-testid="column"] { padding: 0 12px !important; }
+        [data-testid="column"] { padding: 0 8px !important; }
+
+        /* 7. Reducir el gap o hueco vertical entre elementos de Streamlit */
+        div[data-testid="stVerticalBlock"] > div { gap: 0.5rem !important; }
+        div.element-container { margin-bottom: 0.2rem !important; }
         
-        /* Ocultar Streamlit */
+        /* Ocultar elementos de Streamlit */
         [data-testid="stHeader"], [data-testid="stFooter"], footer, 
         [data-testid="stAppDeployButton"], .stDeployButton, 
         [data-testid="stToolbar"], #st-viewer-badge, [data-testid="viewerBadge"] 
@@ -116,11 +121,11 @@ with c_logo:
 with c_titulo:
     st.markdown("<h1 style='margin: 0; padding: 0; font-size: 1.8rem; line-height: 1;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
 
-# DEFINICIÓN CORRECTA DE LAS 10 PESTAÑAS
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+# DEFINICIÓN CORRECTA DE LAS 11 PESTAÑAS
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
     "📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", 
     "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores", "📑 Facturación",
-    "📊 Contabilidad", "📅 Agenda"
+    "📊 Contabilidad", "📅 Agenda", "🏦 Bancos"
 ])
 
 # ==========================================
@@ -1483,8 +1488,8 @@ with tab4:
                             var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
                             var htmlCodificado = encodeURIComponent(fullHTML);
                             var urlRetorno = "https://google.com";
-                            try {{ if (window.top.location.href && window.top.location.href !== "about:blank") {{ urlRetorno = window.top.location.href.split('#')[0] + "#impreso"; }} }} catch(e) {{}}
-                            window.location.href = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
+                            try {{ if (window.top.location.href && window.top.location.href !== "about:blank") {{ urlRetorno = window.top.location.href; }} }} catch(e) {{}}
+                            window.top.location.href = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
                         }}
                         </script>
                         </body></html>
@@ -2092,10 +2097,11 @@ with tab7:
 with tab8:
     st.markdown("<h3 style='margin-top: -15px;'> 📑  Gestión Integral de Facturación</h3>", unsafe_allow_html=True)
 
-    sub_emitir, sub_registrar, sub_archivo = st.tabs([
+    sub_emitir, sub_registrar, sub_archivo, sub_pagos = st.tabs([
         " 🧾  Emitir Factura (Venta)", 
         " 📥  Registrar Compra (Proveedor)", 
-        " 📂  Archivo de Documentos"
+        " 📂  Archivo de Documentos",
+        " 💸  Pagos Pendientes"
     ])
     
     res_inv = client.table("productos").select("*").execute()
@@ -2551,6 +2557,106 @@ with tab8:
                         client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(new_total)}).eq("id", c_id).execute()
                         st.success("Compra actualizada."); st.rerun()
 
+    # ==========================================
+    # SUB-TAB 4: PAGOS PENDIENTES
+    # ==========================================
+    with sub_pagos:
+        st.markdown("#### 💸 Control de Pagos Pendientes (Deudas a Proveedores y Gastos)")
+        st.info("💡 Aquí aparecen todas las compras y gastos que no han sido marcados como 'Pagado'. Puedes saldarlos descontando el dinero de tus bancos o directamente desde la caja fuerte.")
+        
+        # Buscar compras que no sean "Pagado"
+        res_deudas = client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
+        if res_deudas.data:
+            df_deudas = pd.DataFrame(res_deudas.data)
+            df_deudas['Proveedor'] = df_deudas['proveedores'].apply(lambda x: x['nombre_empresa'] if x and isinstance(x, dict) else 'Gasto / Nómina')
+            df_deudas['Fecha Vencimiento'] = pd.to_datetime(df_deudas['fecha_vencimiento'], errors='coerce')
+            
+            hoy_date = pd.Timestamp(date.today())
+            
+            # Calcular estado de vencimiento
+            def calc_estado_venc(fecha):
+                if pd.isna(fecha): return "⚪ Sin fecha"
+                dias = (fecha - hoy_date).days
+                if dias < 0: return f"🔴 CADUCADO (hace {abs(dias)} días)"
+                elif dias <= 3: return f"⚠️ Vence pronto (en {dias} días)"
+                else: return f"🟢 En plazo (en {dias} días)"
+
+            df_deudas['Estado Vencimiento'] = df_deudas['Fecha Vencimiento'].apply(calc_estado_venc)
+            df_deudas['Vence'] = df_deudas['Fecha Vencimiento'].dt.strftime('%d/%m/%Y').fillna('-')
+            
+            st.markdown(f"<h3 style='color: #d32f2f;'>Deuda Total Acumulada: {df_deudas['total'].sum():.2f} €</h3>", unsafe_allow_html=True)
+            
+            # Crear vista con checkbox para seleccionar las facturas a pagar
+            df_vista_p = df_deudas[['id', 'tipo', 'Proveedor', 'total', 'Vence', 'Estado Vencimiento']].copy()
+            df_vista_p.insert(0, "Pagar", False)
+            
+            # Ordenar para que los caducados salgan arriba
+            df_vista_p = df_vista_p.sort_values(by='Estado Vencimiento', ascending=False)
+            
+            def highlight_vencidos(val):
+                if isinstance(val, str):
+                    if 'CADUCADO' in val: return 'color: red; font-weight: bold'
+                    elif 'Vence pronto' in val: return 'color: orange; font-weight: bold'
+                    elif 'En plazo' in val: return 'color: green'
+                return ''
+
+            ed_deudas = st.data_editor(
+                df_vista_p.style.map(highlight_vencidos, subset=['Estado Vencimiento']), 
+                hide_index=True, use_container_width=True, key="ed_deudas",
+                column_config={"Pagar": st.column_config.CheckboxColumn("Pagar Ahora"), "id": None, "tipo": "Documento", "total": st.column_config.NumberColumn("Total (€)", format="%.2f")}
+            )
+            
+            filas_pagar = df_vista_p[ed_deudas["Pagar"] == True] # Recuperar del dataframe original guiado por la edición
+            if not filas_pagar.empty:
+                total_a_pagar = filas_pagar['total'].sum()
+                st.markdown("---")
+                st.markdown(f"**Has seleccionado {len(filas_pagar)} factura(s) por un total de <span style='color: #005275; font-size: 1.2em;'>{total_a_pagar:.2f} €</span>**", unsafe_allow_html=True)
+                
+                # Cargar bancos
+                res_b = client.table("cuentas_bancarias").select("*").execute()
+                opciones_pago = ["💵 Caja Fuerte (Efectivo de la tienda)"]
+                mapa_bancos = {}
+                if res_b.data:
+                    for b in res_b.data:
+                        etiqueta = f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)"
+                        opciones_pago.append(etiqueta)
+                        mapa_bancos[etiqueta] = b['id']
+
+                sel_origen = st.selectbox("💳 Selecciona el origen de los fondos para el pago:", [""] + opciones_pago)
+                
+                if sel_origen and st.button("✅ Confirmar Pago", type="primary", use_container_width=True):
+                    # Nombres de proveedores para el motivo de la caja
+                    nombres_pagados = ", ".join(filas_pagar['Proveedor'].unique()[:2])
+                    if len(filas_pagar['Proveedor'].unique()) > 2: nombres_pagados += " y otros..."
+                    
+                    pago_exitoso = False
+                    
+                    if "Caja Fuerte" in sel_origen:
+                        res_caja = client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+                        if res_caja.data:
+                            id_caja = res_caja.data[0]['id']
+                            client.table("movimientos_caja").insert({
+                                "id_caja": id_caja, "tipo": "Retirada", "cantidad": float(total_a_pagar), 
+                                "motivo": f"Pago de facturas/gastos: {nombres_pagados}"
+                            }).execute()
+                            pago_exitoso = True
+                        else:
+                            st.error("⚠️ No puedes pagar con la caja porque no hay ningún turno abierto. Abre la caja primero en la pestaña 5.")
+                    else:
+                        banco_id = mapa_bancos[sel_origen]
+                        banco_data = [b for b in res_b.data if b['id'] == banco_id][0]
+                        nuevo_saldo = banco_data['saldo_actual'] - total_a_pagar
+                        client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo}).eq("id", banco_id).execute()
+                        pago_exitoso = True
+                        
+                    if pago_exitoso:
+                        # Actualizar estado de las compras
+                        for _, row in filas_pagar.iterrows():
+                            client.table("compras").update({"estado": "Pagado"}).eq("id", row['id']).execute()
+                        st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!"); time.sleep(1.5); st.rerun()
+        else:
+            st.success("¡Genial! No tienes deudas pendientes.")
+
 # ==========================================
 # --- TAB 9: CONTABILIDAD E INFORMES PARA ASESORÍA ---
 # ==========================================
@@ -2968,3 +3074,112 @@ with tab10:
                     citas_por_dia[dia].append("")
             df_semana = pd.DataFrame(citas_por_dia)
             st.dataframe(df_semana, use_container_width=True, hide_index=True)
+
+# ==========================================
+# --- TAB 11: BANCOS Y TESORERÍA ---
+# ==========================================
+with tab11:
+    st.markdown("<h3 style='margin-top: -15px;'>🏦 Cuentas Bancarias y Tesorería</h3>", unsafe_allow_html=True)
+    st.info("💡 En este módulo puedes registrar las cuentas bancarias de la empresa, añadir su IBAN y controlar su saldo en tiempo real.")
+    
+    col_b1, col_b2 = st.columns([1, 2], gap="large")
+    
+    with col_b1:
+        st.markdown("#### ➕ Añadir Cuenta Bancaria")
+        with st.form("nueva_cuenta_banco", clear_on_submit=True, border=True):
+            b_nom = st.text_input("Nombre del Banco *", placeholder="Ej: CaixaBank, Caja Siete...")
+            b_titular = st.text_input("Titular de la cuenta")
+            b_iban = st.text_input("IBAN")
+            b_saldo = st.number_input("Saldo Actual Real (€)", value=0.0, format="%.2f")
+            
+            if st.form_submit_button("💾 Guardar Cuenta", use_container_width=True, type="primary"):
+                if b_nom:
+                    try:
+                        client.table("cuentas_bancarias").insert({
+                            "nombre_banco": b_nom, "titular": b_titular,
+                            "iban": b_iban, "saldo_actual": float(b_saldo)
+                        }).execute()
+                        st.success("Cuenta registrada correctamente."); time.sleep(0.5); st.rerun()
+                    except Exception as e:
+                        st.error("⚠️ Asegúrate de haber ejecutado el código SQL para crear la tabla 'cuentas_bancarias' en Supabase.")
+                else:
+                    st.warning("El nombre del banco es obligatorio.")
+                    
+    with col_b2:
+        st.markdown("#### 💳 Tus Cuentas Registradas")
+        try:
+            res_bancos = client.table("cuentas_bancarias").select("*").order("id").execute()
+            if res_bancos.data:
+                df_bancos = pd.DataFrame(res_bancos.data)
+                
+                saldo_total = df_bancos['saldo_actual'].sum()
+                st.markdown(f"<div style='background-color: #e8f4f8; padding: 15px; border-radius: 10px; border-left: 5px solid #005275; margin-bottom: 15px;'><h3 style='margin:0; color: #005275;'>Saldo Total Consolidado: {saldo_total:.2f}€</h3></div>", unsafe_allow_html=True)
+                
+                st.markdown("💡 *Puedes editar directamente el titular, el IBAN o ajustar el Saldo Actual si lo necesitas.*")
+                ed_bancos = st.data_editor(
+                    df_bancos[['id', 'nombre_banco', 'titular', 'iban', 'saldo_actual']],
+                    hide_index=True, use_container_width=True,
+                    column_config={"id": None, "nombre_banco": "Banco", "titular": "Titular", "iban": "IBAN", "saldo_actual": st.column_config.NumberColumn("Saldo Actual (€)", format="%.2f")}
+                )
+                
+                if st.button("💾 Guardar Cambios en las Cuentas", type="primary"):
+                    for _, row in ed_bancos.iterrows():
+                        client.table("cuentas_bancarias").update({"nombre_banco": str(row['nombre_banco']), "titular": str(row['titular']), "iban": str(row['iban']), "saldo_actual": float(row['saldo_actual'])}).eq("id", row['id']).execute()
+                    st.success("Datos bancarios actualizados."); time.sleep(0.5); st.rerun()
+            else:
+                st.info("Aún no has registrado ninguna cuenta bancaria.")
+        except:
+            st.info("🔧 Las cuentas se mostrarán aquí una vez hayas creado la tabla en la base de datos.")
+
+    st.markdown("---")
+    st.markdown("#### 🔄 Transferencias Internas")
+    st.info("Mueve dinero entre tus cuentas bancarias o ingresa efectivo sobrante de la caja.")
+    
+    try:
+        res_b = client.table("cuentas_bancarias").select("*").execute()
+        lista_bancos = res_b.data if res_b.data else []
+        opciones_origen = ["Caja Fuerte (Efectivo)"] + [f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)" for b in lista_bancos]
+        opciones_destino = [f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)" for b in lista_bancos]
+        
+        with st.form("form_transferencia", border=True):
+            col_t1, col_t2, col_t3 = st.columns(3)
+            with col_t1: ori_sel = st.selectbox("Origen del Dinero 📤", opciones_origen)
+            with col_t2: des_sel = st.selectbox("Destino del Dinero 📥", opciones_destino)
+            with col_t3: cant_trans = st.number_input("Cantidad a transferir (€) *", min_value=0.01, step=10.0, value=None)
+            
+            if st.form_submit_button("🚀 Realizar Transferencia", type="primary", use_container_width=True):
+                if cant_trans and ori_sel != des_sel:
+                    # 1. Procesar Origen
+                    if "Caja Fuerte" in ori_sel:
+                        # Comprobar si hay caja abierta
+                        res_caja = client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+                        if res_caja.data:
+                            id_caja_abierta = res_caja.data[0]['id']
+                            client.table("movimientos_caja").insert({
+                                "id_caja": id_caja_abierta, "tipo": "Retirada", "cantidad": float(cant_trans), 
+                                "motivo": f"Ingreso a banco: {des_sel.split(' (')[0]}"
+                            }).execute()
+                        else:
+                            st.warning("⚠️ La caja fuerte está cerrada. El dinero se sumará al banco, pero no se restará del arqueo actual porque no hay turno abierto.")
+                    else:
+                        # Es un banco, restar saldo
+                        nombre_banco_ori = ori_sel.split(" (")[0].replace("🏦 ", "")
+                        banco_ori = next((b for b in lista_bancos if b['nombre_banco'] == nombre_banco_ori), None)
+                        if banco_ori:
+                            nuevo_saldo_ori = banco_ori['saldo_actual'] - cant_trans
+                            client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo_ori}).eq("id", banco_ori['id']).execute()
+                    
+                    # 2. Procesar Destino
+                    nombre_banco_des = des_sel.split(" (")[0].replace("🏦 ", "")
+                    banco_des = next((b for b in lista_bancos if b['nombre_banco'] == nombre_banco_des), None)
+                    if banco_des:
+                        nuevo_saldo_des = banco_des['saldo_actual'] + cant_trans
+                        client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo_des}).eq("id", banco_des['id']).execute()
+                        
+                    st.success(f"Transferencia de {cant_trans:.2f} € completada con éxito."); time.sleep(1.5); st.rerun()
+                elif ori_sel == des_sel:
+                    st.error("El origen y el destino no pueden ser el mismo.")
+                else:
+                    st.warning("Introduce una cantidad válida.")
+    except Exception as e:
+        st.error(f"Error al cargar módulo de transferencias: {e}")
