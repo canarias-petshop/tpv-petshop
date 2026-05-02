@@ -73,12 +73,14 @@ El Hito C relacionado con la Contabilidad de Gestión y Tesorería se da por cer
 - **Pago de Deudas** integrando las opciones de usar saldo de bancos o saldo en caja (Pestaña 8, Sub-Pestaña 4).
 - **Conexión transparente de hardware de impresión** evitando bloqueos o apertura de múltiples pestañas en el navegador de la tablet.
 - **Optimización UI/UX para Tablet (ÚLTIMO PUNTO SEGURO):** Se inyectó CSS personalizado en `app.py` para reducir márgenes (`padding-top: 0.5rem`), agrandar botones (`min-height: 48px`) y mejorar la legibilidad en pantallas táctiles. **Este es el punto oficial de restauración en el Timeline (Control de Versiones) en caso de fallos estructurales.**
+- **Inicio de Refactorización Modular (Hito D):** Se ha extraído exitosamente la Pestaña 5 (Control de Caja Fuerte) al módulo independiente `caja.py`, el cual está importado y funcionando correctamente en `app.py`.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Roadmap Estratégico)
 
 **A Corto Plazo (Hito D - Optimización y Flexibilidad):**
-- **Refactorización Arquitectónica (TAREA PENDIENTE INMEDIATA):** Actualmente `app.py` contiene toda la lógica. Se debe realizar una división en módulos creando físicamente la carpeta `modulos/` (con `caja.py`, `facturacion.py`, etc.) para blindar la lógica financiera.
-  - *Nota de Registro:* Hubo un intento de automatizar este proceso que generó desincronización en VS Code (archivos "fantasma" o cambios *untracked* sin limpieza real de `app.py`). Esta tarea debe retomarse paso a paso, verificando visualmente la creación de cada archivo.
+- **Refactorización Arquitectónica (EN PROGRESO):** Desacoplar la lógica de `app.py` hacia archivos modulares independientes.
+  - *Progreso Actual:* `caja.py` e `inventario.py` completados y vinculados exitosamente.
+  - *Siguientes módulos a extraer:* Continuar paso a paso con las demás pestañas de alto peso (por ejemplo, `facturacion.py`, `crm.py`), verificando que cada paso mantiene la estabilidad del sistema antes de pasar al siguiente.
 
 **A Medio Plazo (Obligación Legal - Próximo Año):**
 - **Integración Verifactu:** Conexión obligatoria con Hacienda para cumplir con la normativa legal española (las tablas de la base de datos ya están preparadas para ello).
