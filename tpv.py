@@ -28,7 +28,7 @@ def render_pestana_tpv(client):
     col_busqueda, col_carrito = st.columns([1, 1.4], gap="small")
     
     with col_busqueda:
-        res_inv = client.table("productos").select("*").execute()
+        res_inv = client.table("productos").select("id, nombre, precio_pvp, stock_actual, sku, igic_tipo").execute()
         df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
         
         st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>🔍 Buscar producto o servicio</p>", unsafe_allow_html=True)

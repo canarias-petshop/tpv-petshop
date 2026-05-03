@@ -14,7 +14,7 @@ def render_pestana_caja(client):
         st.info("😴 La caja está actualmente CERRADA.")
         
         try:
-            res_ult_caja = client.table("control_caja").select("*").eq("estado", "Cerrada").order("id", desc=True).limit(1).execute()
+            res_ult_caja = client.table("control_caja").select("id, created_at, fondo_inicial, total_contado, descuadre, resumen_pagos").eq("estado", "Cerrada").order("id", desc=True).limit(1).execute()
             if res_ult_caja.data:
                 ult_caja = res_ult_caja.data[0]
                 resumen = ult_caja.get('resumen_pagos', {})
@@ -106,7 +106,7 @@ def render_pestana_caja(client):
                         client.table("movimientos_caja").insert({"id_caja": id_caja, "tipo": tipo_limpio, "cantidad": float(cant_mov), "motivo": motivo_mov}).execute()
                         st.rerun()
             
-            res_movs = client.table("movimientos_caja").select("*").eq("id_caja", id_caja).execute()
+            res_movs = client.table("movimientos_caja").select("id, created_at, tipo, cantidad, motivo").eq("id_caja", id_caja).execute()
             if res_movs.data:
                 df_m = pd.DataFrame(res_movs.data)[['tipo', 'cantidad', 'motivo']]
                 df_m['tipo'] = df_m['tipo'].apply(lambda x: '🔻' if x == 'Retirada' else '🔺')

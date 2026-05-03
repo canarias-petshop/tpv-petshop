@@ -73,14 +73,13 @@ El Hito C relacionado con la Contabilidad de Gestión y Tesorería se da por cer
 - **Pago de Deudas** integrando las opciones de usar saldo de bancos o saldo en caja (Pestaña 8, Sub-Pestaña 4).
 - **Conexión transparente de hardware de impresión** evitando bloqueos o apertura de múltiples pestañas en el navegador de la tablet.
 - **Optimización UI/UX para Tablet (ÚLTIMO PUNTO SEGURO):** Se inyectó CSS personalizado en `app.py` para reducir márgenes (`padding-top: 0.5rem`), agrandar botones (`min-height: 48px`) y mejorar la legibilidad en pantallas táctiles. **Este es el punto oficial de restauración en el Timeline (Control de Versiones) en caso de fallos estructurales.**
-- **Progreso de Refactorización Modular (Hito D):** Ya se han extraído exitosamente múltiples módulos pesados (`inventario.py`, `crm.py`, `historial.py`, `caja.py` y `facturacion.py`). Todos están importados y funcionando correctamente dentro de `app.py`.
+- **Refactorización Modular (Hito D Completado):** Se han extraído exitosamente los 11 módulos funcionales a archivos independientes (`inventario.py`, `tpv.py`, `crm.py`, `historial.py`, `caja.py`, `estadisticas.py`, `proveedores.py`, `facturacion.py`, `contabilidad.py`, `agenda.py` y `bancos.py`). Todos están importados y funcionando correctamente dentro de un `app.py` completamente limpio y simplificado, que ahora actúa únicamente como enrutador principal.
+- **Data Trimming y Rendimiento (Completado):** Se reemplazaron todas las peticiones masivas a Supabase (`select("*")`) por selecciones estrictas de columnas en los 11 módulos. Esto ha reducido drásticamente el tamaño del JSON de descarga, acelerando la navegación entre pestañas en la tablet.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Roadmap Estratégico)
 
-**A Corto Plazo (Hito D - Optimización y Flexibilidad):**
-- **Refactorización Arquitectónica (EN PROGRESO):** Desacoplar el resto de la lógica de `app.py` hacia archivos modulares independientes.
-  - *Progreso Actual:* 5 módulos principales separados con éxito (`caja`, `inventario`, `crm`, `historial` y `facturacion`).
-  - *Siguientes módulos a extraer:* TPV (Terminal de Caja - Pestaña 2), Proveedores (Pestaña 7), Contabilidad (Pestaña 9), Agenda (Pestaña 10) y Bancos (Pestaña 11).
+**A Corto Plazo (Optimización Post-Refactorización):**
+- **Testeo Integral y Corrección de Bugs:** Validar que la interconexión entre todos los módulos ya separados funcione sin fallos de estado (ej. variables en `st.session_state` entre el TPV, el Inventario y la Facturación).
 
 **A Medio Plazo (Obligación Legal - Próximo Año):**
 - **Integración Verifactu:** Conexión obligatoria con Hacienda para cumplir con la normativa legal española (las tablas de la base de datos ya están preparadas para ello).

@@ -396,7 +396,7 @@ def render_pestana_crm(client):
             with c_al1:
                 dias_aviso = st.slider("Mostrar mascotas que no hayan venido en más de (días):", min_value=15, max_value=180, value=45, step=5)
             
-            res_m_alertas = client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").execute()
+            res_m_alertas = client.table("mascotas").select("id, nombre, historial_trabajos, clientes(nombre_dueno, telefono)").execute()
             
             if res_m_alertas.data:
                 alertas = []
@@ -485,7 +485,7 @@ def render_pestana_crm(client):
             with col_en2:
                 st.markdown("#### 📌 Encargos Pendientes")
                 try:
-                    res_e = client.table("encargos_clientes").select("*").order("created_at", desc=True).execute()
+                    res_e = client.table("encargos_clientes").select("id, created_at, nombre_cliente, telefono, detalle_pedido, notas, estado").order("created_at", desc=True).execute()
                     if res_e.data:
                         df_e = pd.DataFrame(res_e.data)
                         df_e['Fecha'] = pd.to_datetime(df_e['created_at']).dt.strftime('%d/%m/%Y')

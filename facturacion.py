@@ -14,11 +14,11 @@ def render_pestana_facturacion(client):
         " 💸  Pagos Pendientes"
     ])
     
-    res_inv = client.table("productos").select("*").execute()
+    res_inv = client.table("productos").select("id, sku, nombre, precio_base, igic_tipo, precio_pvp, stock_actual").execute()
     df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
-    res_cli = client.table("clientes").select("*").execute()
+    res_cli = client.table("clientes").select("id, nombre_dueno, cif").execute()
     df_cli = pd.DataFrame(res_cli.data) if res_cli.data else pd.DataFrame()
-    res_prov = client.table("proveedores").select("*").execute()
+    res_prov = client.table("proveedores").select("id, nombre_empresa, cif").execute()
     df_prov = pd.DataFrame(res_prov.data) if res_prov.data else pd.DataFrame()
 
     # ==========================================
@@ -523,7 +523,7 @@ def render_pestana_facturacion(client):
                 st.markdown(f"**Has seleccionado {len(filas_pagar)} factura(s) por un total de <span style='color: #005275; font-size: 1.2em;'>{total_a_pagar:.2f} €</span>**", unsafe_allow_html=True)
                 
                 # Cargar bancos
-                res_b = client.table("cuentas_bancarias").select("*").execute()
+                res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
                 opciones_pago = ["💵 Caja Fuerte (Efectivo de la tienda)"]
                 mapa_bancos = {}
                 if res_b.data:

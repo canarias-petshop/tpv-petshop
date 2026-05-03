@@ -72,7 +72,6 @@ st.markdown("""
 # --- 2. MEMORIA DE LA SESIÓN ---
 if 'carrito' not in st.session_state: st.session_state['carrito'] = []
 if 'acceso_concedido' not in st.session_state: st.session_state.acceso_concedido = False
-if 'ticket_html' not in st.session_state: st.session_state['ticket_html'] = None
 if 'ticket_actual' not in st.session_state: st.session_state.ticket_actual = None
 
 # --- 3. SEGURIDAD (CANDADO) ---

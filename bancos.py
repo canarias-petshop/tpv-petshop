@@ -32,7 +32,7 @@ def render_pestana_bancos(client):
     with col_b2:
         st.markdown("#### 💳 Tus Cuentas Registradas")
         try:
-            res_bancos = client.table("cuentas_bancarias").select("*").order("id").execute()
+            res_bancos = client.table("cuentas_bancarias").select("id, nombre_banco, titular, iban, saldo_actual").order("id").execute()
             if res_bancos.data:
                 df_bancos = pd.DataFrame(res_bancos.data)
                 
@@ -60,7 +60,7 @@ def render_pestana_bancos(client):
     st.info("Mueve dinero entre tus cuentas bancarias o ingresa efectivo sobrante de la caja.")
     
     try:
-        res_b = client.table("cuentas_bancarias").select("*").execute()
+        res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
         lista_bancos = res_b.data if res_b.data else []
         opciones_origen = ["Caja Fuerte (Efectivo)"] + [f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)" for b in lista_bancos]
         opciones_destino = [f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)" for b in lista_bancos]
