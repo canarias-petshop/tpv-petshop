@@ -73,16 +73,27 @@ st.markdown("""
 if 'carrito' not in st.session_state: st.session_state['carrito'] = []
 if 'acceso_concedido' not in st.session_state: st.session_state.acceso_concedido = False
 if 'ticket_actual' not in st.session_state: st.session_state.ticket_actual = None
+if 'rol' not in st.session_state: st.session_state.rol = None
 
 # --- 3. SEGURIDAD (CANDADO) ---
+# --- 3. SEGURIDAD (CANDADO Y ROLES) ---
 if not st.session_state.acceso_concedido:
     st.header("🔒 Acceso Restringido - Animalarium")
     col_c1, col_c2, col_c3 = st.columns([1,2,1])
     with col_c2:
-        clave = st.text_input("Contraseña de tienda:", type="password")
+        clave = st.text_input("Contraseña de acceso:", type="password")
         if st.button("Entrar", use_container_width=True):
-            if clave == st.secrets["password"]:
+            # Recuperamos las contraseñas de los secretos (con fallback temporal por si no lo has actualizado)
+            pass_admin = st.secrets.get("password_admin", st.secrets.get("password", ""))
+            pass_emp = st.secrets.get("password_empleado", "empleado123")
+            
+            if clave == pass_admin:
                 st.session_state.acceso_concedido = True
+                st.session_state.rol = "Admin"
+                st.rerun()
+            elif clave == pass_emp:
+                st.session_state.acceso_concedido = True
+                st.session_state.rol = "Empleado"
                 st.rerun()
             else: st.error("Incorrecta")
     st.stop()
@@ -118,83 +129,48 @@ def init_supabase() -> SyncPostgrestClient:
 client = init_supabase()
 
 # --- CABECERA COMPACTA ---
-c_logo, c_titulo = st.columns([0.08, 0.92], vertical_alignment="center")
+c_logo, c_titulo, c_rol = st.columns([0.08, 0.82, 0.10], vertical_alignment="center")
 with c_logo:
     try: st.image("LOGO.jpg", width=60)
     except: st.markdown("<h2 style='margin:0; padding:0;'>🐾</h2>", unsafe_allow_html=True)
 with c_titulo:
     st.markdown("<h1 style='margin: 0; padding: 0; font-size: 1.8rem; line-height: 1;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
+with c_rol:
+    st.markdown(f"<div style='text-align:right; font-weight:bold; color:#005275; font-size:14px;'>👤 {st.session_state.rol}</div>", unsafe_allow_html=True)
+    if st.button("Salir", key="btn_logout", use_container_width=True):
+        st.session_state.acceso_concedido = False
+        st.session_state.rol = None
+        st.rerun()
 
-# DEFINICIÓN CORRECTA DE LAS 11 PESTAÑAS
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
+# --- DEFINICIÓN DINÁMICA DE PESTAÑAS SEGÚN ROL ---
+nombres_pestanas = [
     "📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", 
     "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores", "📑 Facturación",
-    "📊 Contabilidad", "📅 Agenda", "🏦 Bancos"
-])
+    "📅 Agenda"
+]
 
-# ==========================================
-# --- TAB 1: INVENTARIO Y SERVICIOS ---
-# ==========================================
-with tab1:
-    render_pestana_inventario(client)
+# Si es Administrador, inyectamos las pestañas sensibles
+if st.session_state.rol == "Admin":
+    nombres_pestanas.insert(8, "📊 Contabilidad")
+    nombres_pestanas.append("🏦 Bancos")
 
-# ==========================================
-# --- TAB 2: CAJA Y TERMINAL DE VENTA ---
-# ==========================================
-with tab2:
-    render_pestana_tpv(client)
+tabs = st.tabs(nombres_pestanas)
 
+# Renderizamos las pestañas comunes (las primeras 8 siempre son las mismas)
+with tabs[0]: render_pestana_inventario(client)
+with tabs[1]: render_pestana_tpv(client)
+with tabs[2]: render_pestana_crm(client)
+with tabs[3]: render_pestana_historial(client)
+with tabs[4]: render_pestana_caja(client)
+with tabs[5]: render_pestana_estadisticas(client)
+with tabs[6]: render_pestana_proveedores(client)
+with tabs[7]: render_pestana_facturacion(client)
 
-# ==========================================
-# --- TAB 3: CLIENTES Y MASCOTAS (CRM) ---
-# ==========================================
-with tab3:
-    render_pestana_crm(client)
-
-# ==========================================
-# --- TAB 4: HISTORIAL (VERSIÓN CON CASILLA DE VER) ---
-# ==========================================
-with tab4:
-    render_pestana_historial(client)
-
-# ==========================================
-# --- TAB 5: CONTROL DE CAJA FUERTE ---
-# ==========================================
-with tab5:
-    render_pestana_caja(client)
-
-# ==========================================
-# --- TAB 6: ESTADÍSTICAS ---
-# ==========================================
-with tab6:
-    render_pestana_estadisticas(client)
-
-# ==========================================
-# --- TAB 7: PROVEEDORES ---
-# ==========================================
-with tab7:
-    render_pestana_proveedores(client)
-
-# ==========================================
-# --- TAB 8: FACTURACIÓN LEGAL Y STOCK ---
-# ==========================================
-with tab8:
-    render_pestana_facturacion(client)
-
-# ==========================================
-# --- TAB 9: CONTABILIDAD E INFORMES PARA ASESORÍA ---
-# ==========================================
-with tab9:
-    render_pestana_contabilidad(client)
-
-# ==========================================
-# --- TAB 10: AGENDA Y CITAS ---
-# ==========================================
-with tab10:
-    render_pestana_agenda(client)
-
-# ==========================================
-# --- TAB 11: BANCOS Y TESORERÍA ---
-# ==========================================
-with tab11:
-    render_pestana_bancos(client)
+# Las últimas pestañas cambian de posición/existencia según el rol
+if st.session_state.rol == "Admin":
+    with tabs[8]: render_pestana_contabilidad(client)
+    with tabs[9]: render_pestana_agenda(client)
+    with tabs[10]: render_pestana_bancos(client)
+else:
+    # El empleado no tiene Contabilidad ni Bancos, por lo que la pestaña 8 ahora es Agenda
+    with tabs[8]: render_pestana_agenda(client)
