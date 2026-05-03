@@ -83,30 +83,34 @@ if not st.session_state.acceso_concedido:
     st.stop()
 
 # --- 4. CONEXIÓN A SUPABASE ---
-try:
-    # Limpieza extrema por si se han colado espacios, comillas o rutas duplicadas en la nube
-    raw_url = st.secrets['url'].strip().strip('"').strip("'").rstrip('/')
-    if raw_url.endswith('/rest/v1'):
-        api_url = raw_url
-    else:
-        api_url = f"{raw_url}/rest/v1"
-        
-    api_key = st.secrets['key'].strip().strip('"').strip("'")
+def init_supabase() -> SyncPostgrestClient:
+    try:
+        # Limpieza extrema por si se han colado espacios, comillas o rutas duplicadas en la nube
+        raw_url = st.secrets['url'].strip().strip('"').strip("'").rstrip('/')
+        if raw_url.endswith('/rest/v1'):
+            api_url = raw_url
+        else:
+            api_url = f"{raw_url}/rest/v1"
+            
+        api_key = st.secrets['key'].strip().strip('"').strip("'")
 
-    client = SyncPostgrestClient(
-        api_url, 
-        headers={"apikey": api_key, "Authorization": f"Bearer {api_key}"}
-    )
-    # Test de conexión rápido para atrapar fallos de credenciales o tablas faltantes
-    client.table("proveedores").select("id").limit(1).execute()
-except Exception as e:
-    st.error("🚨 **Error de Conexión a la Base de Datos**")
-    if "relation" in str(e) and "does not exist" in str(e):
-        st.error("🛠️ **Diagnóstico:** Tu app se conectó a Supabase, pero la tabla no existe. Parece que la base de datos está vacía.")
-        st.info("💡 **Solución:** Entra en tu panel de Supabase, ve a 'SQL Editor' y ejecuta el código para crear las tablas del proyecto.")
-    else:
-        st.error(f"Detalle técnico: {e}")
-    st.stop()
+        cliente = SyncPostgrestClient(
+            api_url, 
+            headers={"apikey": api_key, "Authorization": f"Bearer {api_key}"}
+        )
+        # Test de conexión rápido para atrapar fallos de credenciales o tablas faltantes
+        cliente.table("proveedores").select("id").limit(1).execute()
+        return cliente
+    except Exception as e:
+        st.error("🚨 **Error de Conexión a la Base de Datos**")
+        if "relation" in str(e) and "does not exist" in str(e):
+            st.error("🛠️ **Diagnóstico:** Tu app se conectó a Supabase, pero la tabla no existe. Parece que la base de datos está vacía.")
+            st.info("💡 **Solución:** Entra en tu panel de Supabase, ve a 'SQL Editor' y ejecuta el código para crear las tablas del proyecto.")
+        else:
+            st.error(f"Detalle técnico: {e}")
+        st.stop()
+
+client = init_supabase()
 
 # --- CABECERA COMPACTA ---
 c_logo, c_titulo = st.columns([0.08, 0.92], vertical_alignment="center")
@@ -593,6 +597,8 @@ with tab7:
         with cp2:
             st.markdown("#### 📋 Directorio")
             res_p = client.table("proveedores").select("*").execute()
+            df_p = None
+            ed_p = None
             if res_p.data:
                 df_p = pd.DataFrame(res_p.data)
                 
@@ -624,7 +630,7 @@ with tab7:
                     st.success("Directorio actualizado."); time.sleep(0.5); st.rerun()
                     
         # --- FICHA COMPLETA DEL PROVEEDOR ---
-        if 'res_p' in locals() and res_p.data:
+        if df_p is not None and ed_p is not None:
             filas_ver = ed_p[ed_p["Ver Ficha"] == True]
             if not filas_ver.empty:
                 p_id = filas_ver.iloc[0]['id']
