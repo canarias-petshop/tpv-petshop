@@ -79,8 +79,8 @@ El Hito C relacionado con la Contabilidad de Gestión y Tesorería se da por cer
 
 **A Corto Plazo (Hito D - Optimización y Flexibilidad):**
 - **Refactorización Arquitectónica (EN PROGRESO):** Desacoplar la lógica de `app.py` hacia archivos modulares independientes.
-  - *Progreso Actual:* `caja.py` e `inventario.py` completados y vinculados exitosamente.
-  - *Siguientes módulos a extraer:* Continuar paso a paso con las demás pestañas de alto peso (por ejemplo, `facturacion.py`, `crm.py`), verificando que cada paso mantiene la estabilidad del sistema antes de pasar al siguiente.
+  - *Progreso Actual:* `caja.py`, `inventario.py` y `crm.py` completados y vinculados exitosamente.
+  - *Siguientes módulos a extraer:* Continuar paso a paso con las demás pestañas de alto peso (por ejemplo, `facturacion.py`, `historial.py`), verificando que cada paso mantiene la estabilidad del sistema antes de pasar al siguiente.
 
 **A Medio Plazo (Obligación Legal - Próximo Año):**
 - **Integración Verifactu:** Conexión obligatoria con Hacienda para cumplir con la normativa legal española (las tablas de la base de datos ya están preparadas para ello).
