@@ -204,8 +204,8 @@ with tab2:
     with col_carrito:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         
-        if st.session_state.get('ticket_actual'):
-            t = st.session_state.ticket_actual
+        t = st.session_state.get('ticket_actual')
+        if t:
             st.success("✅ Venta realizada con éxito")
             
            # --- TICKET PARA STAR MICRONICS PASS-PRNT ---
@@ -252,7 +252,7 @@ with tab2:
                 else:
                     html_ticket += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
 
-            html_ticket += f"""
+            html_ticket += """
                     </table>
                     <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
             """
@@ -269,7 +269,7 @@ with tab2:
             if t.get('cliente_fidel'):
                 html_ticket += f"<div style='font-size:18px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {t['cliente_fidel']}</b><br>Has ganado +{t['puntos_ganados']} puntos hoy!</div>"
 
-            html_ticket += f"""
+            html_ticket += """
                     
                     <div style="font-size: 18px; color: #000; margin-top: 30px; text-align: center;">
                         <b>POLÍTICA DE DEVOLUCIÓN</b><br>
@@ -1244,7 +1244,7 @@ with tab11:
                             "iban": b_iban, "saldo_actual": float(b_saldo)
                         }).execute()
                         st.success("Cuenta registrada correctamente."); time.sleep(0.5); st.rerun()
-                    except Exception as e:
+                    except Exception:
                         st.error("⚠️ Asegúrate de haber ejecutado el código SQL para crear la tabla 'cuentas_bancarias' en Supabase.")
                 else:
                     st.warning("El nombre del banco es obligatorio.")
