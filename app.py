@@ -6,8 +6,6 @@ import time
 import json
 import urllib.parse
 import streamlit.components.v1 as components
-import re
-import hashlib
 import io
 from caja import render_pestana_caja
 from inventario import render_pestana_inventario
@@ -107,14 +105,6 @@ except Exception as e:
     else:
         st.error(f"Detalle técnico: {e}")
     st.stop()
-
-# --- 4.5. MÓDULO DE SEGURIDAD VERI*FACTU ---
-def generar_hash_verifactu(tipo_doc, fecha, importe_total, hash_anterior):
-    """Genera el hash SHA-256 encadenado según directrices de la normativa."""
-    hash_ant = hash_anterior if hash_anterior else ""
-    cadena = f"{tipo_doc}|{fecha}|{importe_total:.2f}|{hash_ant}"
-    huella = hashlib.sha256(cadena.encode('utf-8')).hexdigest()
-    return huella.upper()
 
 # --- CABECERA COMPACTA ---
 c_logo, c_titulo = st.columns([0.08, 0.92], vertical_alignment="center")
@@ -1584,7 +1574,7 @@ with tab8:
                 # 2. SISTEMA DE GUARDADO DE CABECERA (Estado)
                 if st.button(" 💾  Guardar Cambios en Estado/Referencia"):
                     filas_validas = ed_comp[ed_comp["Borrar"] == False]
-                    for idx, row in filas_validas.iterrows():
+                    for _, row in filas_validas.iterrows():
                         client.table("compras").update({"estado": str(row['estado']), "tipo": str(row['tipo'])}).eq("id", row['id']).execute()
                     st.success("Cabeceras actualizadas."); time.sleep(0.5); st.rerun()
 
