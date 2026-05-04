@@ -12,11 +12,13 @@ def render_pestana_caja(client):
 
     if not caja_actual:
         st.info("😴 La caja está actualmente CERRADA.")
+        ultimo_fondo_sugerido = 0.0
         
         try:
             res_ult_caja = client.table("control_caja").select("id, created_at, fondo_inicial, total_contado, descuadre, resumen_pagos").eq("estado", "Cerrada").order("id", desc=True).limit(1).execute()
             if res_ult_caja.data:
                 ult_caja = res_ult_caja.data[0]
+                ultimo_fondo_sugerido = float(ult_caja.get('total_contado') or 0.0)
                 resumen = ult_caja.get('resumen_pagos', {})
                 if not resumen: resumen = {"Efectivo": 0, "Tarjeta": 0, "Bizum": 0, "Ingresos": 0, "Retiradas": 0}
                 f_apertura = pd.to_datetime(ult_caja['created_at']).strftime('%d/%m/%Y %H:%M')
@@ -74,7 +76,8 @@ def render_pestana_caja(client):
         
         with st.form("abrir_caja", border=True):
             st.markdown("<h4 style='margin: 0 0 10px 0;'>🔓 Apertura de Turno</h4>", unsafe_allow_html=True)
-            fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=1.0, value=None)
+            st.info(f"💡 **Fondo Automático:** Según el último arqueo, en la caja deben quedar **{ultimo_fondo_sugerido:.2f}€**.")
+            fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=1.0, value=ultimo_fondo_sugerido)
             if st.form_submit_button("ABRIR CAJA AHORA", type="primary", use_container_width=True):
                 fondo_val = fondo_ini or 0.0
                 client.table("control_caja").insert({"fondo_inicial": float(fondo_val), "estado": "Abierta"}).execute()
@@ -100,10 +103,28 @@ def render_pestana_caja(client):
                 with c_tipo: tipo_mov = st.selectbox("Tipo", ["Retirada 🔻", "Ingreso 🔺"])
                 with c_cant: cant_mov = st.number_input("Euros €", min_value=0.01, step=1.0, value=None)
                 motivo_mov = st.text_input("Motivo", placeholder="Ej: Pago proveedor, cambio...")
+                
+                conta_opt = st.selectbox("¿Enviar a Contabilidad? (Solo retiradas)", [
+                    "No (Solo movimiento de caja interno)", 
+                    "Sí, como Gasto (Limpieza, consumibles...)", 
+                    "Sí, como Pago a Proveedor (Mercancía)"
+                ])
+                
                 if st.form_submit_button("Registrar Movimiento", use_container_width=True):
                     if motivo_mov and cant_mov is not None:
                         tipo_limpio = "Retirada" if "Retirada" in tipo_mov else "Ingreso"
                         client.table("movimientos_caja").insert({"id_caja": id_caja, "tipo": tipo_limpio, "cantidad": float(cant_mov), "motivo": motivo_mov}).execute()
+                        
+                        if tipo_limpio == "Retirada" and "Sí" in conta_opt:
+                            from datetime import date
+                            cat = "Gastos de compra" if "Gasto" in conta_opt else "Factura de Proveedor"
+                            client.table("compras").insert({
+                                "tipo": f"{cat} (Desde Caja) | {motivo_mov}",
+                                "total": float(cant_mov),
+                                "estado": "Pagado",
+                                "fecha_vencimiento": str(date.today())
+                            }).execute()
+                            
                         st.rerun()
             
             res_movs = client.table("movimientos_caja").select("id, created_at, tipo, cantidad, motivo").eq("id_caja", id_caja).execute()
