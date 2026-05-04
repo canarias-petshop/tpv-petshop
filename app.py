@@ -19,6 +19,7 @@ from agenda import render_pestana_agenda
 from proveedores import render_pestana_proveedores
 from contabilidad import render_pestana_contabilidad
 from personal import render_pestana_personal
+from manual import render_pestana_manual
 
 # --- 1. CONFIGURACIÓN Y ESTILO ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
@@ -148,7 +149,7 @@ with c_rol:
 nombres_pestanas = [
     "📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", 
     "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores", "📑 Facturación",
-    "📅 Agenda", "⏱️ Personal"
+    "📅 Agenda", "⏱️ Personal", "📖 Ayuda"
 ]
 
 # Si es Administrador, inyectamos las pestañas sensibles
@@ -173,8 +174,10 @@ if st.session_state.rol == "Admin":
     with tabs[8]: render_pestana_contabilidad(client)
     with tabs[9]: render_pestana_agenda(client)
     with tabs[10]: render_pestana_personal(client)
-    with tabs[11]: render_pestana_bancos(client)
+    with tabs[11]: render_pestana_manual()
+    with tabs[12]: render_pestana_bancos(client)
 else:
     # El empleado no tiene Contabilidad ni Bancos, por lo que la pestaña 8 ahora es Agenda
     with tabs[8]: render_pestana_agenda(client)
     with tabs[9]: render_pestana_personal(client)
+    with tabs[10]: render_pestana_manual()
