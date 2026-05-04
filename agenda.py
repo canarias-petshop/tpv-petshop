@@ -33,109 +33,100 @@ def render_pestana_agenda(client):
                 st.markdown("#### ➕ Nueva Cita")
                 mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None)
                 
-                # 1. Calcular duración media inteligente y peluquero preferido
-                duracion_sugerida = 60
-                pref_emp = "Cualquiera"
+                pref_actual = "Cualquiera"
+                dur_media = 60
                 if mascota_sel:
-                    m_id = dict_mascotas[mascota_sel]
-                    res_m_hist = client.table("mascotas").select("historial_trabajos, observaciones").eq("id", m_id).execute()
-                    if res_m_hist.data:
-                        hist = res_m_hist.data[0].get("historial_trabajos", [])
-                        if isinstance(hist, list) and hist:
-                            duraciones = [t.get('Duración (min)') for t in hist if isinstance(t, dict) and isinstance(t.get('Duración (min)'), (int, float))]
-                            if duraciones: duracion_sugerida = int(sum(duraciones) / len(duraciones))
-                            
-                        obs = str(res_m_hist.data[0].get("observaciones", ""))
+                    m_id_sel = dict_mascotas[mascota_sel]
+                    res_m_info = client.table("mascotas").select("observaciones, historial_trabajos").eq("id", m_id_sel).execute()
+                    if res_m_info.data:
+                        obs = res_m_info.data[0].get('observaciones', '')
                         import re
-                        m_pref = re.search(r'\[Pref:\s*(.*?)\]', obs)
-                        if m_pref and m_pref.group(1) in empleados_lista:
-                            pref_emp = m_pref.group(1)
-
-                fecha_c = st.date_input("Fecha *")
-                f_emp = st.selectbox("Peluquera/o:", ["Cualquiera"] + empleados_lista, index=(["Cualquiera"] + empleados_lista).index(pref_emp))
-                duracion_c = st.number_input("Duración estimada (minutos) *", min_value=5, max_value=300, value=duracion_sugerida, step=5)
+                        m_pref = re.search(r'\[Pref:\s*(.*?)\]', str(obs))
+                        if m_pref: pref_actual = m_pref.group(1)
+                        
+                        historial = res_m_info.data[0].get('historial_trabajos', [])
+                        duraciones = [t['Duración (min)'] for t in historial if isinstance(t, dict) and isinstance(t.get('Duración (min)'), (int, float))]
+                        if duraciones: dur_media = int(sum(duraciones) / len(duraciones))
+                        
+                fecha_c = st.date_input("Fecha *", value=date.today())
+                duracion_c = st.number_input("Duración estimada (minutos) *", min_value=5, max_value=300, value=dur_media, step=5)
+                
+                opciones_emp = ["Cualquiera"] + empleados_lista
+                def_index = opciones_emp.index(pref_actual) if pref_actual in opciones_emp else 0
+                f_emp = st.selectbox("Peluquera/o Preferido:", opciones_emp, index=def_index)
+                
+                # Buscador inteligente de huecos cruzado con el preferido
+                res_turnos = client.table("personal_cuadrantes").select("empleado_id, turno, personal_empleados(nombre)").eq("fecha", str(fecha_c)).execute()
+                turnos_dict = {}
+                if res_turnos.data:
+                    for t in res_turnos.data:
+                        if t.get('personal_empleados'): turnos_dict[t['personal_empleados']['nombre']] = t['turno'].lower()
+                            
+                empleados_a_revisar = [f_emp] if f_emp != "Cualquiera" else empleados_lista
+                huecos_obj = []
+                
+                res_citas = client.table("citas").select("fecha_hora, duracion_minutos, servicio").gte("fecha_hora", f"{fecha_c} 00:00:00").lte("fecha_hora", f"{fecha_c} 23:59:59").execute()
+                citas_dia = res_citas.data if res_citas.data else []
+                
+                for emp_nombre in empleados_a_revisar:
+                    turno_str = turnos_dict.get(emp_nombre, "")
+                    if not turno_str or "libre" in turno_str or "vacaciones" in turno_str: continue
+                        
+                    import re
+                    times = re.findall(r'(\d{1,2}:\d{2})', turno_str)
+                    if len(times) >= 2:
+                        h_ini = pd.to_datetime(f"{fecha_c} {times[0]}")
+                        h_fin = pd.to_datetime(f"{fecha_c} {times[1]}")
+                    else:
+                        h_ini = pd.to_datetime(f"{fecha_c} 09:00")
+                        h_fin = pd.to_datetime(f"{fecha_c} 21:00")
+                        
+                    for h in range(0, 24):
+                        for m in range(0, 60, 5):
+                            dt_ini = pd.to_datetime(f"{fecha_c} {h:02d}:{m:02d}")
+                            if dt_ini < h_ini: continue
+                            dt_fin = dt_ini + pd.Timedelta(minutes=duracion_c)
+                            if dt_fin > h_fin: continue
+                            
+                            solapa = False
+                            for c in citas_dia:
+                                c_ini = pd.to_datetime(c['fecha_hora'])
+                                c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
+                                if dt_ini < c_fin and dt_fin > c_ini:
+                                    s = c.get('servicio', '')
+                                    if f"({emp_nombre})" in s or "(" not in s:
+                                        solapa = True; break
+                            if not solapa: huecos_obj.append({"dt": dt_ini, "hora": f"{h:02d}:{m:02d}", "emp": emp_nombre})
+                
+                huecos_obj.sort(key=lambda x: x["dt"])
+                huecos_formateados = [f"{x['hora']} (Con {x['emp']})" for x in huecos_obj]
+                huecos_formateados.append("Asignación Manual")
+                
+                if len(huecos_formateados) == 1: st.warning("No hay huecos disponibles en el cuadrante.")
+                f_hora_sel = st.selectbox("Hora recomendada:", huecos_formateados)
+                    
+                hora_manual = None
+                if f_hora_sel == "Asignación Manual": hora_manual = st.time_input("Hora de Inicio *")
+                
                 servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
                 
-                # 2. BUSCADOR INTELIGENTE DE HUECOS
-                huecos_disponibles = []
-                
-                if fecha_c:
-                    res_cuad = client.table("personal_cuadrantes").select("empleado_id, turno, personal_empleados(nombre)").eq("fecha", fecha_c.isoformat()).execute()
-                    res_citas_dia = client.table("citas").select("fecha_hora, duracion_minutos, servicio").like("fecha_hora", f"{fecha_c}%").execute()
-                    
-                    citas_por_emp = {"Cualquiera": []}
-                    if res_citas_dia.data:
-                        for c in res_citas_dia.data:
-                            emp_cita = "Cualquiera"
-                            if "(" in c['servicio'] and c['servicio'].endswith(")"):
-                                emp_cita = c['servicio'].split("(")[-1].replace(")", "").strip()
+                if st.button("Guardar Cita", type="primary", use_container_width=True):
+                    if mascota_sel:
+                        if f_hora_sel == "Asignación Manual":
+                            hora_final_str = hora_manual.strftime('%H:%M')
+                            emp_final = f_emp if f_emp != "Cualquiera" else ""
+                        else:
+                            hora_final_str = f_hora_sel.split(" (")[0]
+                            emp_final = f_hora_sel.split("(Con ")[1].replace(")", "")
                             
-                            c_dt = pd.to_datetime(c['fecha_hora'])
-                            c_dur = c.get('duracion_minutos', 60)
-                            c_end = c_dt + pd.Timedelta(minutes=c_dur)
-                            if emp_cita not in citas_por_emp: citas_por_emp[emp_cita] = []
-                            citas_por_emp[emp_cita].append((c_dt, c_end))
-
-                    empleados_dia = []
-                    if res_cuad.data:
-                        for cuad in res_cuad.data:
-                            emp_nombre = cuad.get('personal_empleados', {}).get('nombre')
-                            turno_str = cuad.get('turno', '')
-                            try:
-                                t_parts = turno_str.split("-")
-                                if len(t_parts) == 2:
-                                    h_ini = pd.to_datetime(f"{fecha_c} {t_parts[0].strip()}")
-                                    h_fin = pd.to_datetime(f"{fecha_c} {t_parts[1].strip()}")
-                                    if h_ini < h_fin:
-                                        empleados_dia.append({"nombre": emp_nombre, "inicio": h_ini, "fin": h_fin})
-                            except: pass
-
-                    emps_a_revisar = empleados_dia if f_emp == "Cualquiera" else [e for e in empleados_dia if e['nombre'] == f_emp]
-                    
-                    for emp in emps_a_revisar:
-                        curr_t = emp['inicio']
-                        while curr_t + pd.Timedelta(minutes=duracion_c) <= emp['fin']:
-                            end_t = curr_t + pd.Timedelta(minutes=duracion_c)
-                            solapa = False
-                            citas_colision = citas_por_emp.get(emp['nombre'], []) + citas_por_emp.get('Cualquiera', [])
-                            for c_ini, c_fin in citas_colision:
-                                if (curr_t < c_fin) and (end_t > c_ini):
-                                    solapa = True
-                                    break
-                            if not solapa:
-                                huecos_disponibles.append(f"{curr_t.strftime('%H:%M')} (Con {emp['nombre']})")
-                            curr_t += pd.Timedelta(minutes=15) # Saltos de 15 min
-                
-                # 3. SELECTOR FINAL Y GUARDADO
-                if not huecos_disponibles:
-                    st.warning("⚠️ No hay huecos automáticos que encajen (quizás no haya turno o estén ocupadas). Usa la asignación manual.")
-                    hora_c = st.time_input("Asignación Manual de Hora *")
-                    hora_final_str = hora_c.strftime('%H:%M') if hora_c else ""
-                    emp_final = f_emp
-                else:
-                    hueco_sel = st.selectbox("🎯 Huecos Inteligentes Recomendados (Duración exacta):", ["Asignación Manual"] + huecos_disponibles)
-                    if hueco_sel == "Asignación Manual":
-                        hora_c = st.time_input("Asignación Manual de Hora *")
-                        hora_final_str = hora_c.strftime('%H:%M') if hora_c else ""
-                        emp_final = f_emp
-                    else:
-                        hora_final_str = hueco_sel.split(" (Con ")[0]
-                        emp_final = hueco_sel.split(" (Con ")[1].replace(")", "")
-                        
-                if st.button("💾 Guardar Cita", type="primary", use_container_width=True):
-                    if mascota_sel and hora_final_str:
+                        servicio_final = f"{servicio_sel} ({emp_final})" if emp_final else servicio_sel
                         fecha_hora_str = f"{fecha_c} {hora_final_str}"
-                        servicio_final = servicio_sel if emp_final == "Cualquiera" else f"{servicio_sel} ({emp_final})"
                         client.table("citas").insert({
-                            "mascotas_id": dict_mascotas[mascota_sel],
-                            "fecha_hora": fecha_hora_str,
-                            "servicio": servicio_final,
-                            "duracion_minutos": int(duracion_c)
+                            "mascotas_id": dict_mascotas[mascota_sel], "fecha_hora": fecha_hora_str,
+                            "servicio": servicio_final, "duracion_minutos": int(duracion_c)
                         }).execute()
-                        st.success("Cita agendada.")
-                        time.sleep(1); st.rerun()
-                    else:
-                        st.error("Debes seleccionar una mascota y asignar una hora.")
+                        st.success("Cita agendada."); time.sleep(1); st.rerun()
+                    else: st.error("Debes seleccionar una mascota.")
 
         with c_agenda2:
             st.markdown("#### 🗓️ Directorio de Citas (Editable)")
