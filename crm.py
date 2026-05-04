@@ -135,12 +135,6 @@ def render_pestana_crm(client):
             with c_cal1: f_fecha = st.date_input("1. Fecha de cita:", value=date.today(), key=f"fcita_{prefix}_{m_id}")
             with c_cal2: f_dur = st.number_input("2. Duración (min)", min_value=5, max_value=300, value=60, step=5, key=f"fdur_{prefix}_{m_id}")
             
-            # Cargar lista de empleados
-            try:
-                emp_res = client.table("personal_empleados").select("id, nombre").eq("activo", True).execute()
-                empleados_lista = [e['nombre'] for e in emp_res.data] if emp_res.data else []
-            except: empleados_lista = []
-            
             pref_actual = get_pref(m_data.get('observaciones', ''))
             opciones_emp = ["Cualquiera"] + empleados_lista
             def_index = opciones_emp.index(pref_actual) if pref_actual in opciones_emp else 0
