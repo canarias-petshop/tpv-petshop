@@ -22,8 +22,8 @@ El sistema cuenta con **12 módulos principales 100% operativos** en el código 
 - Impresión térmica directa a Star Micronics sin recargar la página ni abrir pestañas infinitas (solución vía JavaScript con `window.top.location.href`).
 
 👥 **3. Clientes y Mascotas (CRM)**
-- Fichas de familias y mascotas con cálculo de edad automático.
-- Historial clínico y de peluquería (con cálculo de tiempo medio por servicio).
+- Fichas de familias y mascotas con cálculo de edad automático y asignación de **Peluquero/a Preferido**.
+- Historial clínico y de peluquería con cálculo de tiempo medio por servicio y registro del empleado ("Realizado por") para trazabilidad.
 - Alertas de Mantenimiento: Sistema que detecta mascotas que llevan mucho tiempo sin venir y genera un enlace para enviarles un WhatsApp de recordatorio con un solo clic.
 
 📜 **4. Historial Operativo**
@@ -58,7 +58,8 @@ El sistema cuenta con **12 módulos principales 100% operativos** en el código 
 - Alertas de vencimientos pendientes.
 
 📅 **10. Agenda y Citas (Inteligente)**
-- Gestor de citas vinculado a las fichas de las mascotas.
+- Gestor de citas vinculado a las fichas de las mascotas y cruzado con los horarios de los empleados.
+- Asignación de peluquero/a a la cita: El sistema lee el cuadrante de turnos del empleado seleccionado para ese día y solo muestra como disponibles los huecos que caen dentro de su franja horaria trabajada (bloqueando las citas en sus días libres o vacaciones).
 - Cuadrante diario interactivo con vista de bloques de 5 minutos.
 - Cuadrante semanal en formato "tarjetas" visuales.
 
