@@ -61,6 +61,7 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 📅 **10. Agenda y Citas (Inteligente)**
 - Gestor de citas vinculado a las fichas de las mascotas y cruzado con los horarios de los empleados.
 - **Buscador Inteligente de Huecos:** Al seleccionar una mascota, calcula su duración media basada en su historial, lee los cuadrantes de las empleadas en tiempo real y ofrece los tramos libres exactos. Permite que ambas empleadas trabajen en paralelo sugiriendo los huecos de ambas a la misma hora si están disponibles.
+- **Filtro por Peluquero/a Preferido:** Si el cliente tiene un profesional asignado en su ficha, el sistema detecta automáticamente su preferencia y limita la sugerencia de huecos exclusivamente al horario de esa persona concreta.
 - Cuadrante diario interactivo con vista de bloques de 5 minutos.
 - Cuadrante semanal en formato "tarjetas" visuales.
 
@@ -89,12 +90,11 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Data Trimming y Rendimiento (Completado):** Se reemplazaron todas las peticiones masivas a Supabase (`select("*")`) por selecciones estrictas de columnas en los 12 módulos. Esto ha reducido drásticamente el tamaño del JSON de descarga, acelerando la navegación entre pestañas en la tablet.
 - **Sistema de Roles y Seguridad (Completado):** Se implementó inicio de sesión dual (Admin / Empleado). El sistema construye las pestañas dinámicamente, ocultando por completo los módulos sensibles (Contabilidad y Bancos) al personal no autorizado, pero manteniendo visibles Estadísticas y Facturación para el aprendizaje de los empleados.
 - **Testeo y Automatización Funcional (Completado):** Se han conectado lógicamente varios módulos para evitar trabajos dobles: El saldo final de caja es el fondo inicial del día siguiente, los gastos de caja viajan solos a Contabilidad y la Agenda bloquea las citas si se marcan vacaciones en el Cuadrante Visual.
-- **Cierre Z Dinámico y Buscador Inteligente en Agenda (Completado):** Implementación de la selección dinámica de la cuenta receptora para los pagos con tarjeta en el TPV y la sugerencia cruzada de huecos en la Agenda de citas.
+- **Cierre Z Dinámico y Agenda Inteligente Total (Completado):** Implementación de la selección dinámica de la cuenta receptora para los pagos con tarjeta en el TPV y la sugerencia cruzada de huecos en la Agenda de citas, integrando el filtro automático del Peluquero/a preferido en tiempo real.
 
 ## 4. Próximos Pasos y Hoja de Ruta
 
 **A Corto Plazo (Optimización Post-Refactorización):**
-- **Filtro estricto por Peluquero/a Preferido en Agenda (PENDIENTE):** Adaptar el buscador inteligente para que, si un cliente prefiere a una empleada en concreto (marcado en su ficha médica), el sistema limite la búsqueda de huecos exclusivamente a esa profesional. En caso contrario, ofrecer los huecos de la plantilla al completo.
 - **Testeo en Entorno Real:** Validar la aplicación durante el día a día en tienda para corregir pequeños detalles de experiencia de usuario en las tabletas (por ejemplo, detalle del cálculo de IGIC en la Facturación).
 
 **A Medio Plazo (Obligación Legal - Próximo Año):**
