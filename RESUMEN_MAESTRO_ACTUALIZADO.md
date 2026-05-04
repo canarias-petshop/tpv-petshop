@@ -7,8 +7,8 @@
 - **Backend (Base de Datos):** Supabase (PostgreSQL en la nube).
 - **Hardware Integrado:** Lector de códigos de barras de pistola e integración nativa con impresoras térmicas Star Micronics (vía protocolo PassPRNT).
 
-## 2. Módulos Completados (12 Pestañas Funcionales)
-El sistema cuenta con **12 módulos principales 100% operativos** en el código (`app.py`):
+## 2. Módulos Completados (13 Pestañas Funcionales)
+El sistema cuenta con **13 módulos principales 100% operativos** en el código (`app.py`):
 
 📦 **1. Inventario y Servicios**
 - Separación inteligente entre "Productos" (con control de stock) y "Servicios" (peluquería, veterinaria).
@@ -33,9 +33,9 @@ El sistema cuenta con **12 módulos principales 100% operativos** en el código 
 - Reimpresión de tickets antiguos.
 
 💰 **5. Control de Caja Fuerte**
-- Apertura y cierre de turnos.
+- Apertura de turnos con sugerencia automática del Fondo Inicial basada en el arqueo del día anterior.
 - Calculadora visual de monedas y billetes para el arqueo.
-- Registro de entradas y salidas manuales.
+- Registro de entradas y salidas manuales, con envío automatizado a Contabilidad al registrar gastos de tienda.
 - Generación e impresión del Cierre Z desglosando tarjetas por datáfono (Caixa / Caja Siete).
 
 📈 **6. Estadísticas**
@@ -53,7 +53,7 @@ El sistema cuenta con **12 módulos principales 100% operativos** en el código 
 - *Sub-4 Pagos Pendientes:* Control para deudas a proveedores y gastos, con la capacidad de pagar seleccionando múltiples facturas y descontando el importe del saldo de un Banco o de la Caja Fuerte (dejando constancia en el movimiento de caja si hay turno abierto).
 
 📊 **9. Contabilidad e Informes para Asesoría**
-- Registro de gastos manuales (nóminas, luz, agua).
+- Registro de gastos manuales (nóminas, luz, agua) y recepción automática de gastos menores derivados directamente desde la Caja Fuerte por los empleados.
 - Generador nativo de archivos Excel (.xlsx) profesionales para la asesoría, con filas de totales, colores y formato moneda pre-configurado.
 - Alertas de vencimientos pendientes.
 
@@ -70,11 +70,16 @@ El sistema cuenta con **12 módulos principales 100% operativos** en el código 
 
 ⏱️ **12. Personal y Control de Horario**
 - Fichaje rápido de entrada/salida para empleados mediante PIN de 4 dígitos.
-- Visualización de cuadrante semanal de turnos para los empleados.
-- **Panel de Administrador:** Gestión de la plantilla, asignación de turnos rotativos y registro histórico de horas trabajadas para la confección de nóminas.
+- Visualización de cuadrante de trabajo apilado por semanas (sin scroll horizontal).
+- **Panel de Administrador:** Gestión de la plantilla, Editor Visual Masivo de Cuadrantes (tipo Excel para planificar el mes completo en segundos) y registro histórico de horas trabajadas para nóminas.
 
-## 3. Estado Actual del Desarrollo (Hito C Completado y UI Optimizada)
-El Hito C relacionado con la Contabilidad de Gestión y Tesorería se da por cerrado con éxito. Las últimas características clave integradas son:
+📖 **13. Ayuda y Procedimientos (NUEVO)**
+- Manuales de usuario interactivos (Empleados y Administrador) integrados directamente en la aplicación.
+- Buscador inteligente en tiempo real que pliega y despliega las secciones relevantes según el término buscado.
+- Privacidad automatizada: Los empleados solo ven su propio manual operativo, mientras que el Administrador tiene acceso a los manuales gerenciales completos.
+
+## 3. Estado Actual del Desarrollo (UI Optimizada y Automatizaciones Completadas)
+Los hitos de refactorización y conexión inteligente entre módulos se dan por cerrados. Las últimas características clave integradas son:
 - **Gestión de Bancos y Transferencias** (Pestaña 11).
 - **Pago de Deudas** integrando las opciones de usar saldo de bancos o saldo en caja (Pestaña 8, Sub-Pestaña 4).
 - **Conexión transparente de hardware de impresión** evitando bloqueos o apertura de múltiples pestañas en el navegador de la tablet.
@@ -82,11 +87,12 @@ El Hito C relacionado con la Contabilidad de Gestión y Tesorería se da por cer
 - **Refactorización Modular (Hito D Completado):** Se han extraído exitosamente los 12 módulos funcionales a archivos independientes (`inventario.py`, `tpv.py`, `crm.py`, `historial.py`, `caja.py`, `estadisticas.py`, `proveedores.py`, `facturacion.py`, `contabilidad.py`, `agenda.py`, `bancos.py` y `personal.py`). Todos están importados y funcionando correctamente dentro de un `app.py` completamente limpio y simplificado, que ahora actúa únicamente como enrutador principal.
 - **Data Trimming y Rendimiento (Completado):** Se reemplazaron todas las peticiones masivas a Supabase (`select("*")`) por selecciones estrictas de columnas en los 12 módulos. Esto ha reducido drásticamente el tamaño del JSON de descarga, acelerando la navegación entre pestañas en la tablet.
 - **Sistema de Roles y Seguridad (Completado):** Se implementó inicio de sesión dual (Admin / Empleado). El sistema construye las pestañas dinámicamente, ocultando por completo los módulos sensibles (Contabilidad y Bancos) al personal no autorizado, pero manteniendo visibles Estadísticas y Facturación para el aprendizaje de los empleados.
+- **Testeo y Automatización Funcional (Completado):** Se han conectado lógicamente varios módulos para evitar trabajos dobles: El saldo final de caja es el fondo inicial del día siguiente, los gastos de caja viajan solos a Contabilidad y la Agenda bloquea las citas si se marcan vacaciones en el Cuadrante Visual.
 
-## 4. Próximos Pasos y Hoja de Ruta (Roadmap Estratégico)
+## 4. Próximos Pasos y Hoja de Ruta
 
 **A Corto Plazo (Optimización Post-Refactorización):**
-- **Testeo Integral y Corrección de Bugs:** Validar que la interconexión entre todos los módulos ya separados funcione sin fallos de estado (ej. variables en `st.session_state` entre el TPV, el Inventario y la Facturación).
+- **Testeo en Entorno Real:** Validar la aplicación durante el día a día en tienda para corregir pequeños detalles de experiencia de usuario en las tabletas (por ejemplo, detalle del cálculo de IGIC en la Facturación).
 
 **A Medio Plazo (Obligación Legal - Próximo Año):**
 - **Integración Verifactu:** Conexión obligatoria con Hacienda para cumplir con la normativa legal española (las tablas de la base de datos ya están preparadas para ello).
