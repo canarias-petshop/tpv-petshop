@@ -53,8 +53,7 @@ def render_pestana_caja(client):
                         <hr style="border-top: 1px dashed black;">
                         <b>VENTAS POR MÉTODO:</b><br>
                         Efectivo: {resumen.get('Efectivo', 0):.2f} €<br>
-                        Tarjeta (Caixa): {resumen.get('Tarjeta Caixa', 0):.2f} €<br>
-                        Tarjeta (C.Siete): {resumen.get('Tarjeta Caja Siete', 0):.2f} €<br>
+                        {''.join([f"Tarjeta ({k.replace('Tarjeta ', '')}): {v:.2f} €<br>" for k, v in resumen.items() if k.startswith('Tarjeta ') and k != 'Tarjeta']) if any(k.startswith('Tarjeta ') and k != 'Tarjeta' for k in resumen) else f"Tarjeta: {resumen.get('Tarjeta', 0):.2f} €<br>"}
                         Bizum: {resumen.get('Bizum', 0):.2f} €<br>
                         <hr style="border-top: 1px dashed black;">
                         <b>MOVIMIENTOS DE CAJA:</b><br>
@@ -173,7 +172,8 @@ def render_pestana_caja(client):
                     retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
                     
                     res_ventas = client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado, metodo_pago").gte("created_at", fecha_ap_str).execute()
-                    t_efe = 0.0; t_tar = 0.0; t_biz = 0.0; t_tar_caixa = 0.0; t_tar_cajasiete = 0.0
+                    t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
+                    tarjetas_por_banco = {}
                     
                     if res_ventas.data:
                         for v in res_ventas.data:
@@ -183,18 +183,28 @@ def render_pestana_caja(client):
                                 val_tarjeta = float(v.get('pago_tarjeta') or 0.0)
                                 t_tar += val_tarjeta
                                 mp = v.get('metodo_pago', '')
-                                if 'Caixa' in mp: t_tar_caixa += val_tarjeta
-                                elif 'Caja Siete' in mp: t_tar_cajasiete += val_tarjeta
-                                else: t_tar_caixa += val_tarjeta
+                                
+                                if val_tarjeta > 0:
+                                    banco_nombre = "Desconocido"
+                                    if mp.startswith("Tarjeta (") and mp.endswith(")"):
+                                        banco_nombre = mp[9:-1]
+                                    elif "Mixto" in mp and " - " in mp and "|B:" in mp:
+                                        try: banco_nombre = mp.split(" - ")[1].split("|")[0]
+                                        except: banco_nombre = "Desconocido"
+                                    elif "Caixa" in mp: banco_nombre = "Caixa"
+                                    elif "Caja Siete" in mp: banco_nombre = "Caja Siete"
+                                        
+                                    tarjetas_por_banco[banco_nombre] = tarjetas_por_banco.get(banco_nombre, 0.0) + val_tarjeta
                         
                     efectivo_teorico_en_caja = fondo_actual + t_efe + ingresos - retiradas
                     descuadre = ef_val - efectivo_teorico_en_caja
                     
                     resumen_json = {
                         "Efectivo": round(t_efe, 2), "Tarjeta": round(t_tar, 2), 
-                        "Tarjeta Caixa": round(t_tar_caixa, 2), "Tarjeta Caja Siete": round(t_tar_cajasiete, 2),
                         "Bizum": round(t_biz, 2), "Ingresos": round(ingresos, 2), "Retiradas": round(retiradas, 2)
                     }
+                    for b, cant in tarjetas_por_banco.items():
+                        resumen_json[f"Tarjeta {b}"] = round(cant, 2)
                     
                     client.table("control_caja").update({
                         "estado": "Cerrada", "total_contado": float(ef_val), "descuadre": float(descuadre), "resumen_pagos": resumen_json

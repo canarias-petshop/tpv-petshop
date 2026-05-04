@@ -296,6 +296,23 @@ def render_pestana_tpv(client):
                     if metodo == "Tarjeta": p_tarjeta = total_f
                     if metodo == "Bizum": p_bizum = total_f
 
+                banco_sel_nombre = ""
+                banco_sel_id = None
+                banco_sel_saldo = 0.0
+                if p_tarjeta > 0:
+                    res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+                    if res_b.data:
+                        opciones_bancos = {b['nombre_banco']: (b['id'], b['saldo_actual']) for b in res_b.data}
+                        if opciones_bancos:
+                            st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
+                            banco_sel_nombre = st.selectbox("🏦 Datáfono / Banco de destino", list(opciones_bancos.keys()))
+                            banco_sel_id, banco_sel_saldo = opciones_bancos[banco_sel_nombre]
+                            
+                            if metodo == "Tarjeta":
+                                metodo_log = f"Tarjeta ({banco_sel_nombre})"
+                            elif metodo == "Mixto":
+                                metodo_log = f"Mixto (E:{p_efectivo}|T:{p_tarjeta} - {banco_sel_nombre}|B:{p_bizum})"
+
                 nombre_deudor = ""
                 if pendiente > 0:
                     nombre_deudor = st.text_input("👤 Nombre para la deuda:", placeholder="¿Quién debe?")
@@ -329,6 +346,9 @@ def render_pestana_tpv(client):
                                 "pago_tarjeta": float(p_tarjeta),
                                 "pago_bizum": float(p_bizum)
                             }).execute()
+                            
+                            if banco_sel_id and p_tarjeta > 0:
+                                client.table("cuentas_bancarias").update({"saldo_actual": float(banco_sel_saldo + p_tarjeta)}).eq("id", banco_sel_id).execute()
                             
                             for i in carrito_limpio:
                                 if not i.get('Manual', False) and 'id' in i:
