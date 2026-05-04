@@ -110,65 +110,101 @@ def render_pestana_crm(client):
             st.markdown(f"#### 📅 Agendar Cita Inteligente para **{m_nombre}**")
             st.markdown("<p style='color: gray; font-size: 13px;'>El sistema calcula automáticamente los huecos libres (09:00 a 21:00) para la fecha y duración seleccionadas.</p>", unsafe_allow_html=True)
             
-            c_cal1, c_cal2 = st.columns([1, 1])
-            with c_cal1: f_fecha = st.date_input("1. Selecciona la fecha de la cita:", value=date.today(), key=f"fcita_{prefix}_{m_id}")
-            with c_cal2: f_dur = st.number_input("2. Duración del servicio (minutos)", min_value=5, max_value=300, value=60, step=5, key=f"fdur_{prefix}_{m_id}")
+            c_cal1, c_cal2, c_cal3 = st.columns([1, 1, 1])
+            with c_cal1: f_fecha = st.date_input("1. Fecha de cita:", value=date.today(), key=f"fcita_{prefix}_{m_id}")
+            with c_cal2: f_dur = st.number_input("2. Duración (min)", min_value=5, max_value=300, value=60, step=5, key=f"fdur_{prefix}_{m_id}")
+            
+            # Cargar lista de empleados
+            try:
+                emp_res = client.table("personal_empleados").select("id, nombre").eq("activo", True).execute()
+                empleados_lista = [e['nombre'] for e in emp_res.data] if emp_res.data else []
+            except: empleados_lista = []
+            
+            with c_cal3: f_emp = st.selectbox("3. Peluquera/o:", ["Cualquiera"] + empleados_lista, key=f"femp_{prefix}_{m_id}")
+            
+            # Validar turno del empleado seleccionado
+            hora_inicio_jornada = "09:00"
+            hora_fin_jornada = "21:00"
+            es_dia_libre = False
+
+            if f_emp != "Cualquiera" and emp_res.data:
+                emp_id_sel = next((e['id'] for e in emp_res.data if e['nombre'] == f_emp), None)
+                if emp_id_sel:
+                    try:
+                        res_turno = client.table("personal_cuadrantes").select("turno").eq("empleado_id", emp_id_sel).eq("fecha", str(f_fecha)).execute()
+                        if res_turno.data:
+                            turno_str = res_turno.data[0]['turno'].lower()
+                            if "libre" in turno_str or "vacaciones" in turno_str:
+                                es_dia_libre = True
+                            else:
+                                import re
+                                times = re.findall(r'(\d{1,2}:\d{2})', turno_str)
+                                if len(times) >= 2:
+                                    hora_inicio_jornada = times[0]
+                                    hora_fin_jornada = times[1]
+                    except: pass
             
             res_citas = client.table("citas").select("fecha_hora, duracion_minutos").gte("fecha_hora", f"{f_fecha} 00:00:00").lte("fecha_hora", f"{f_fecha} 23:59:59").execute()
             citas_dia = res_citas.data if res_citas.data else []
             
-            # --- CÁLCULO DE TRAMOS LIBRES CONTINUOS ---
-            bloques_libres = []
-            hora_actual = pd.to_datetime(f"{f_fecha} 09:00")
-            fin_jornada = pd.to_datetime(f"{f_fecha} 21:00")
-            
-            citas_ordenadas = []
-            for c in citas_dia:
-                dt_ini = pd.to_datetime(c['fecha_hora'])
-                dt_fin = dt_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
-                citas_ordenadas.append({"ini": dt_ini, "fin": dt_fin})
-            citas_ordenadas.sort(key=lambda x: x["ini"])
-            
-            for c in citas_ordenadas:
-                if hora_actual < c["ini"]:
-                    if (c["ini"] - hora_actual).total_seconds() / 60 >= f_dur:
-                        bloques_libres.append(f"{hora_actual.strftime('%H:%M')} a {c['ini'].strftime('%H:%M')}")
-                hora_actual = max(hora_actual, c["fin"])
-                
-            if hora_actual < fin_jornada and (fin_jornada - hora_actual).total_seconds() / 60 >= f_dur:
-                bloques_libres.append(f"{hora_actual.strftime('%H:%M')} a {fin_jornada.strftime('%H:%M')}")
-                
-            if bloques_libres:
-                st.success(f"🟢 **Tramos libres para {f_dur} min:** " + " | ".join(bloques_libres))
+            if es_dia_libre:
+                st.error(f"🔴 {f_emp} tiene el día libre o vacaciones en esta fecha. No se pueden agendar citas.")
             else:
-                st.error(f"🔴 No hay tramos continuos de {f_dur} minutos libres en este día.")
-
-            # --- CÁLCULO DE HUECOS SELECCIONABLES (Cada 5 min) ---
-            huecos = []
-            for h in range(9, 21):
-                for m in range(0, 60, 5):
-                    dt_ini = pd.to_datetime(f"{f_fecha} {h:02d}:{m:02d}")
-                    dt_fin = dt_ini + pd.Timedelta(minutes=f_dur)
-                    if dt_fin > pd.to_datetime(f"{f_fecha} 21:00"): continue
+                # --- CÁLCULO DE TRAMOS LIBRES CONTINUOS ---
+                bloques_libres = []
+                hora_actual = pd.to_datetime(f"{f_fecha} {hora_inicio_jornada}")
+                fin_jornada = pd.to_datetime(f"{f_fecha} {hora_fin_jornada}")
+                
+                citas_ordenadas = []
+                for c in citas_dia:
+                    dt_ini = pd.to_datetime(c['fecha_hora'])
+                    dt_fin = dt_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
+                    citas_ordenadas.append({"ini": dt_ini, "fin": dt_fin})
+                citas_ordenadas.sort(key=lambda x: x["ini"])
+                
+                for c in citas_ordenadas:
+                    if hora_actual < c["ini"]:
+                        if (c["ini"] - hora_actual).total_seconds() / 60 >= f_dur:
+                            bloques_libres.append(f"{hora_actual.strftime('%H:%M')} a {c['ini'].strftime('%H:%M')}")
+                    hora_actual = max(hora_actual, c["fin"])
                     
-                    solapa = False
-                    for c in citas_dia:
-                        c_ini = pd.to_datetime(c['fecha_hora'])
-                        c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
-                        if dt_ini < c_fin and dt_fin > c_ini:
-                            solapa = True; break
-                    if not solapa: huecos.append(f"{h:02d}:{m:02d}")
+                if hora_actual < fin_jornada and (fin_jornada - hora_actual).total_seconds() / 60 >= f_dur:
+                    bloques_libres.append(f"{hora_actual.strftime('%H:%M')} a {fin_jornada.strftime('%H:%M')}")
                     
-            if not huecos:
-                st.warning("⚠️ No hay horas de inicio disponibles este día para esa duración.")
-            else:
-                with st.form(f"form_cita_{prefix}_{m_id}", border=True):
-                    fc_1, fc_2 = st.columns([1, 2])
-                    with fc_1: f_hora = st.selectbox("3. Hora de inicio:", huecos)
-                    with fc_2: f_serv = st.selectbox("4. Servicio:", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
-                    if st.form_submit_button("➕ Confirmar Cita", type="primary", use_container_width=True):
-                        client.table("citas").insert({"mascotas_id": m_id, "fecha_hora": f"{f_fecha} {f_hora}", "servicio": f_serv, "duracion_minutos": int(f_dur)}).execute()
-                        st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
+                if bloques_libres:
+                    st.success(f"🟢 **Tramos libres para {f_dur} min (Horario: {hora_inicio_jornada} - {hora_fin_jornada}):** " + " | ".join(bloques_libres))
+                else:
+                    st.error(f"🔴 No hay tramos continuos de {f_dur} minutos libres en este horario.")
+    
+                # --- CÁLCULO DE HUECOS SELECCIONABLES (Cada 5 min) ---
+                huecos = []
+                for h in range(0, 24):
+                    for m in range(0, 60, 5):
+                        dt_ini = pd.to_datetime(f"{f_fecha} {h:02d}:{m:02d}")
+                        if dt_ini < pd.to_datetime(f"{f_fecha} {hora_inicio_jornada}"): continue
+                        
+                        dt_fin = dt_ini + pd.Timedelta(minutes=f_dur)
+                        if dt_fin > pd.to_datetime(f"{f_fecha} {hora_fin_jornada}"): continue
+                        
+                        solapa = False
+                        for c in citas_dia:
+                            c_ini = pd.to_datetime(c['fecha_hora'])
+                            c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
+                            if dt_ini < c_fin and dt_fin > c_ini:
+                                solapa = True; break
+                        if not solapa: huecos.append(f"{h:02d}:{m:02d}")
+                        
+                if not huecos:
+                    st.warning("⚠️ No hay horas de inicio disponibles este día para esa duración.")
+                else:
+                    with st.form(f"form_cita_{prefix}_{m_id}", border=True):
+                        fc_1, fc_2 = st.columns([1, 2])
+                        with fc_1: f_hora = st.selectbox("4. Hora de inicio:", huecos)
+                        with fc_2: f_serv = st.selectbox("5. Servicio:", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
+                        if st.form_submit_button("➕ Confirmar Cita", type="primary", use_container_width=True):
+                            servicio_final = f_serv if f_emp == "Cualquiera" else f"{f_serv} ({f_emp})"
+                            client.table("citas").insert({"mascotas_id": m_id, "fecha_hora": f"{f_fecha} {f_hora}", "servicio": servicio_final, "duracion_minutos": int(f_dur)}).execute()
+                            st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
         sub_cli, sub_masc, sub_alertas, sub_encargos = st.tabs(["👤 Directorio de Clientes", "🐾 Fichas de Mascotas", "🔔 Alertas y Recordatorios", "🛍️ Encargos de Clientes"])
         
