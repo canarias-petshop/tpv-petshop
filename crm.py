@@ -6,6 +6,13 @@ import urllib.parse
 
 def render_pestana_crm(client):
     st.markdown("<h3 style='margin-bottom: 5px;'>👥 Gestión de Clientes y Mascotas</h3>", unsafe_allow_html=True)
+    
+    try:
+        emp_res = client.table("personal_empleados").select("id, nombre").eq("activo", True).execute()
+        empleados_lista = [e['nombre'] for e in emp_res.data] if emp_res.data else []
+    except:
+        empleados_lista = []
+
     col_c1, col_c2 = st.columns([1.2, 2.5])
 
     with col_c1:
@@ -25,7 +32,10 @@ def render_pestana_crm(client):
             with cm1: m_esp = st.selectbox("Especie", ["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"])
             with cm2: m_raz = st.text_input("Raza")
             with cm3: m_nac = st.date_input("Nac. Mascota", value=None)
-            m_obs = st.text_input("Observaciones (Alergias, carácter...)")
+            
+            c_obs1, c_obs2 = st.columns([2, 1])
+            with c_obs1: m_obs = st.text_input("Observaciones (Alergias, carácter...)")
+            with c_obs2: m_pref = st.selectbox("Peluquero/a Preferido", ["Cualquiera"] + empleados_lista)
 
             if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
                 if c_nom:
@@ -36,9 +46,10 @@ def render_pestana_crm(client):
 
                     if res_cli.data and m_nom:
                         cli_id = res_cli.data[0]['id']
+                        final_obs = f"[Pref: {m_pref}] {m_obs}".strip() if m_pref != "Cualquiera" else m_obs
                         client.table("mascotas").insert({
                             "cliente_id": cli_id, "nombre": m_nom, "especie": m_esp, 
-                            "raza": m_raz, "observaciones": m_obs, "fecha_nacimiento": str(m_nac) if m_nac else ""
+                            "raza": m_raz, "observaciones": final_obs, "fecha_nacimiento": str(m_nac) if m_nac else ""
                         }).execute()
 
                     st.success("Cliente guardado correctamente"); time.sleep(0.5); st.rerun()
@@ -58,6 +69,15 @@ def render_pestana_crm(client):
                     return f"{meses} meses"
                 return f"{anios} años"
             except: return ""
+
+        def get_pref(obs):
+            import re
+            m = re.search(r'\[Pref:\s*(.*?)\]', str(obs))
+            return m.group(1) if m else "Cualquiera"
+
+        def strip_pref(obs):
+            import re
+            return re.sub(r'\[Pref:\s*.*?\]\s*', '', str(obs)).strip()
 
         def calcular_duracion_media(historial):
             """Calcula la duración media de los servicios a partir del historial JSON."""
@@ -80,10 +100,10 @@ def render_pestana_crm(client):
             if not isinstance(historial, list): historial = []
             
             df_hist = pd.DataFrame(historial)
-            for col in ["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]:
-                if col not in df_hist.columns: df_hist[col] = None
+            for col in ["Fecha", "Trabajo / Servicio", "Peluquera/o", "Duración (min)", "Importe (€)"]:
+                if col not in df_hist.columns: df_hist[col] = "" if col == "Peluquera/o" else None
                 
-            df_hist = df_hist[["Fecha", "Trabajo / Servicio", "Duración (min)", "Importe (€)"]]
+            df_hist = df_hist[["Fecha", "Trabajo / Servicio", "Peluquera/o", "Duración (min)", "Importe (€)"]]
             
             df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%d/%m/%Y", errors="coerce")
             df_hist["Duración (min)"] = pd.to_numeric(df_hist["Duración (min)"], errors="coerce")
@@ -94,6 +114,7 @@ def render_pestana_crm(client):
                 column_config={
                     "Fecha": st.column_config.DateColumn("Fecha (D/M/A)", format="DD/MM/YYYY"),
                     "Trabajo / Servicio": st.column_config.TextColumn("Servicio Realizado"),
+                    "Peluquera/o": st.column_config.SelectboxColumn("Realizado por", options=[""] + empleados_lista),
                     "Duración (min)": st.column_config.NumberColumn("Duración (min)", min_value=0, step=5),
                     "Importe (€)": st.column_config.NumberColumn("Importe Cobrado (€)", format="%.2f", min_value=0.0)
                 }
@@ -296,6 +317,10 @@ def render_pestana_crm(client):
                         for col in cols_ok:
                             if col not in df_mc.columns: df_mc[col] = ""
                             
+                        df_mc['Pref'] = df_mc['observaciones'].apply(get_pref)
+                        df_mc['observaciones'] = df_mc['observaciones'].apply(strip_pref)
+                        cols_ok.insert(7, 'Pref')
+                            
                         df_mc_show = df_mc[cols_ok].rename(columns={
                             "nombre": "Nombre Mascota", "especie": "Especie", "raza": "Raza", 
                             "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones"
@@ -307,6 +332,7 @@ def render_pestana_crm(client):
                             df_mc_show, use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_mc_{c_id}",
                             column_config={
                                 "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
+                                "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista),
                                 "id": None, "Edad": st.column_config.TextColumn(disabled=True), "Duración Media": st.column_config.TextColumn(disabled=True)
                             }
                         )
@@ -321,11 +347,12 @@ def render_pestana_crm(client):
                                 
                             # 2. Actualizar mascotas existentes o insertar las nuevas
                             for _, ru in ed_mc.iterrows():
+                                final_obs_edit = f"[Pref: {ru['Pref']}] {ru['Observaciones']}".strip() if pd.notna(ru.get('Pref')) and str(ru.get('Pref')) != "Cualquiera" else str(ru['Observaciones'])
                                 if pd.notna(ru['id']):
                                     client.table("mascotas").update({
                                         "nombre": str(ru['Nombre Mascota']), "especie": str(ru['Especie']),
                                         "raza": str(ru['Raza']), "fecha_nacimiento": str(ru['F. Nacimiento']),
-                                        "observaciones": str(ru['Observaciones'])
+                                        "observaciones": final_obs_edit
                                     }).eq("id", ru['id']).execute()
                                 else:
                                     if pd.notna(ru['Nombre Mascota']) and str(ru['Nombre Mascota']).strip():
@@ -334,7 +361,7 @@ def render_pestana_crm(client):
                                             "especie": str(ru['Especie']) if pd.notna(ru['Especie']) else "",
                                             "raza": str(ru['Raza']) if pd.notna(ru['Raza']) else "",
                                             "fecha_nacimiento": str(ru['F. Nacimiento']) if pd.notna(ru['F. Nacimiento']) else "",
-                                            "observaciones": str(ru['Observaciones']) if pd.notna(ru['Observaciones']) else ""
+                                            "observaciones": final_obs_edit
                                         }).execute()
                             st.success("Datos de la familia actualizados."); time.sleep(0.5); st.rerun()
                             
@@ -360,11 +387,13 @@ def render_pestana_crm(client):
                 with c_m1: nx_nom = st.text_input("Nombre mascota", key="nx_nom")
                 with c_m2: nx_esp = st.selectbox("Especie", ["Perro", "Gato", "Ave", "Roedor", "Otro"], key="nx_esp")
                 with c_m3: nx_raz = st.text_input("Raza", key="nx_raz")
+                nx_pref = st.selectbox("Peluquero/a Preferido", ["Cualquiera"] + empleados_lista, key="nx_pref")
                 
                 if st.form_submit_button("Añadir Mascota", use_container_width=True):
                     if nx_nom and sel_cli:
+                        final_obs_extra = f"[Pref: {nx_pref}]" if nx_pref != "Cualquiera" else ""
                         client.table("mascotas").insert({
-                            "cliente_id": dict_cli[sel_cli], "nombre": nx_nom, "especie": nx_esp, "raza": nx_raz
+                            "cliente_id": dict_cli[sel_cli], "nombre": nx_nom, "especie": nx_esp, "raza": nx_raz, "observaciones": final_obs_extra
                         }).execute()
                         st.success("Mascota añadida a la familia"); time.sleep(0.5); st.rerun()
                     else:
@@ -384,7 +413,11 @@ def render_pestana_crm(client):
                     df_m['historial_trabajos'] = [[] for _ in range(len(df_m))]
                 df_m['Duración Media'] = df_m['historial_trabajos'].apply(calcular_duracion_media)
                 
-                df_m_vista = df_m[['id', 'nombre', 'Dueño', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'Duración Media', 'observaciones']].copy()
+                if 'observaciones' not in df_m.columns: df_m['observaciones'] = ""
+                df_m['Pref'] = df_m['observaciones'].apply(get_pref)
+                df_m['observaciones'] = df_m['observaciones'].apply(strip_pref)
+                
+                df_m_vista = df_m[['id', 'nombre', 'Dueño', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'Duración Media', 'Pref', 'observaciones']].copy()
                 
                 if b_masc:
                     df_m_vista = df_m_vista[df_m_vista['nombre'].str.lower().str.contains(b_masc, na=False)]
@@ -395,7 +428,7 @@ def render_pestana_crm(client):
                 
                 ed_m = st.data_editor(
                     df_m_vista,
-                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "Dueño": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
+                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "Dueño": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_mascotas", height=400
                 )
                 if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
@@ -406,10 +439,11 @@ def render_pestana_crm(client):
                     
                     for _, row in ed_m_clean.iterrows():
                         if pd.notna(row['id']):
+                            final_obs_edit = f"[Pref: {row['Pref']}] {row['observaciones']}".strip() if pd.notna(row.get('Pref')) and str(row.get('Pref')) != "Cualquiera" else str(row['observaciones'])
                             client.table("mascotas").update({
                                 "nombre": str(row['nombre']), "especie": str(row['especie']),
                                 "raza": str(row['raza']), "fecha_nacimiento": str(row['fecha_nacimiento']),
-                                "observaciones": str(row['observaciones'])
+                                "observaciones": final_obs_edit
                             }).eq("id", row['id']).execute()
                     st.success("Fichas de mascotas actualizadas."); time.sleep(0.5); st.rerun()
                     
