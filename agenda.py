@@ -31,7 +31,19 @@ def render_pestana_agenda(client):
             
             with st.container(border=True):
                 st.markdown("#### ➕ Nueva Cita")
-                mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None)
+                
+                crear_rapido = st.toggle("🐾 Mascota no registrada (Crear ficha rápida)")
+                mascota_sel = None
+                n_mascota, n_cliente, n_tel = "", "", ""
+                
+                if crear_rapido:
+                    st.markdown("<p style='font-size: 13px; color: gray; margin-top:-10px;'>Se creará una ficha básica automáticamente en Clientes.</p>", unsafe_allow_html=True)
+                    c_nx1, c_nx2, c_nx3 = st.columns([1.5, 1.5, 1])
+                    with c_nx1: n_mascota = st.text_input("Nombre Mascota *")
+                    with c_nx2: n_cliente = st.text_input("Dueño *")
+                    with c_nx3: n_tel = st.text_input("Teléfono")
+                else:
+                    mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None)
                 
                 pref_actual = "Cualquiera"
                 dur_media = 60
@@ -65,8 +77,8 @@ def render_pestana_agenda(client):
                 empleados_a_revisar = [f_emp] if f_emp != "Cualquiera" else empleados_lista
                 huecos_obj = []
                 
-                res_citas = client.table("citas").select("fecha_hora, duracion_minutos, servicio").gte("fecha_hora", f"{fecha_c} 00:00:00").lte("fecha_hora", f"{fecha_c} 23:59:59").execute()
-                citas_dia = res_citas.data if res_citas.data else []
+                res_citas_dia = client.table("citas").select("fecha_hora, duracion_minutos, servicio").gte("fecha_hora", f"{fecha_c} 00:00:00").lte("fecha_hora", f"{fecha_c} 23:59:59").execute()
+                citas_dia = res_citas_dia.data if res_citas_dia.data else []
                 
                 for emp_nombre in empleados_a_revisar:
                     turno_str = turnos_dict.get(emp_nombre, "")
@@ -111,7 +123,27 @@ def render_pestana_agenda(client):
                 servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
                 
                 if st.button("Guardar Cita", type="primary", use_container_width=True):
-                    if mascota_sel:
+                    m_id_final = None
+                    
+                    if crear_rapido:
+                        if n_mascota and n_cliente:
+                            res_cli = client.table("clientes").insert({
+                                "nombre_dueno": n_cliente, "telefono": n_tel, "puntos": 0
+                            }).execute()
+                            if res_cli.data:
+                                res_m = client.table("mascotas").insert({
+                                    "cliente_id": res_cli.data[0]['id'], "nombre": n_mascota
+                                }).execute()
+                                if res_m.data: m_id_final = res_m.data[0]['id']
+                        else:
+                            st.error("Debes indicar al menos el nombre de la mascota y del dueño para crear la ficha.")
+                    else:
+                        if mascota_sel:
+                            m_id_final = dict_mascotas[mascota_sel]
+                        else:
+                            st.error("Debes seleccionar una mascota.")
+                            
+                    if m_id_final:
                         if f_hora_sel == "Asignación Manual":
                             hora_final_str = hora_manual.strftime('%H:%M')
                             emp_final = f_emp if f_emp != "Cualquiera" else ""
@@ -121,12 +153,12 @@ def render_pestana_agenda(client):
                             
                         servicio_final = f"{servicio_sel} ({emp_final})" if emp_final else servicio_sel
                         fecha_hora_str = f"{fecha_c} {hora_final_str}"
+                        
                         client.table("citas").insert({
-                            "mascotas_id": dict_mascotas[mascota_sel], "fecha_hora": fecha_hora_str,
+                            "mascotas_id": m_id_final, "fecha_hora": fecha_hora_str,
                             "servicio": servicio_final, "duracion_minutos": int(duracion_c)
                         }).execute()
                         st.success("Cita agendada."); time.sleep(1); st.rerun()
-                    else: st.error("Debes seleccionar una mascota.")
 
         with c_agenda2:
             st.markdown("#### 🗓️ Directorio de Citas (Editable)")
