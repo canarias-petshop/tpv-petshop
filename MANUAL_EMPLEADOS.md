@@ -64,7 +64,11 @@ Puedes hacerlo desde la ficha de la mascota (en Clientes) o desde la pestaña "A
 
 ## 5. 💰 Caja Fuerte y Turnos
 Al abrir y cerrar la tienda, hay que llevar el control del dinero en metálico.
-- **Abrir Turno:** Ve a "Control de Caja". Revisa el dinero físico que hay en el cajón y pulsa "Apertura de Turno".
+- **Abrir Turno:** Ve a "Control de Caja". El sistema te sugerirá automáticamente el **Fondo Inicial** basado en lo que quedó en el arqueo de la noche anterior. Revísalo físicamente y pulsa "Apertura de Turno".
+- **Gastos de Tienda (Ej. Fregasuelos, Proveedor en metálico):** Si sacas dinero del cajón para pagar algo:
+  1. En el panel de "Entradas y Salidas", selecciona "Retirada".
+  2. Pon el importe y el motivo.
+  3. En "¿Enviar a Contabilidad?", elige si es un Gasto de tienda o Pago a proveedor. El sistema restará el dinero de la caja y se lo enviará al jefe a la contabilidad general automáticamente.
 - **Cierre Z:** Al final del día, ve a la sección "Cierre de Turno (Arqueo Z)".
   - Usa la calculadora de monedas y billetes contando físicamente lo que hay en el cajón portamonedas.
   - El sistema te dirá si sobra dinero (Descuadre Positivo) o si falta (Descuadre Negativo).

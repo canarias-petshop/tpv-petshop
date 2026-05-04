@@ -7,7 +7,7 @@
 Como administrador, tienes acceso a la configuración avanzada de tus empleados.
 
 - **Registro de Empleados:** En la parte inferior de la pestaña "Personal", puedes dar de alta a nuevos empleados asignándoles un PIN de 4 dígitos.
-- **Asignación de Turnos (Cuadrante):** Puedes establecer qué horario hace cada empleado. Al asignar un turno (ej. `09:00 a 17:00` o `Libre`), el sistema de la Agenda lo leerá automáticamente para bloquear citas fuera de esa franja o en sus días libres.
+- **Asignación de Turnos (Editor Visual):** Ve a "Gestión de Cuadrante (Editable)". Verás un calendario apilado por semanas que funciona como un Excel. Selecciona el rango de fechas (ej. un mes entero), haz doble clic en las celdas para escribir el turno (ej. `09:00 - 17:00` o `Vacaciones`) y pulsa "Guardar Todo el Cuadrante". La Agenda leerá esto y bloqueará las citas cuando no trabajen.
 - **Revisión de Horas:** Puedes ver una tabla con los fichajes reales (Entrada y Salida) y las horas totales trabajadas, útil para preparar las nóminas a final de mes.
 
 ---
@@ -40,6 +40,7 @@ Control de la relación con tus distribuidores y gestión de stock automático.
 Preparación fácil de los impuestos y libros contables.
 
 - **Registro de Gastos Manuales:** Anota nóminas, recibos de luz, alquiler, seguros o cualquier otro gasto que no esté ligado a la compra de productos.
+- *Nota de Automatización:* Los gastos menores (limpieza, pagos a repartidores en metálico) **los registran las empleadas directamente desde la Caja** al hacer la retirada, enviándose a este panel automáticamente sin que tú tengas que apuntarlos de nuevo.
 - **Gestión de Vencimientos:** El sistema te alertará si tienes recibos pendientes de pago.
 - **Exportación a Excel (Asesoría):** 
   - Genera archivos `.xlsx` profesionales a final del trimestre.
