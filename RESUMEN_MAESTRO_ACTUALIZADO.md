@@ -62,6 +62,8 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - Gestor de citas vinculado a las fichas de las mascotas y cruzado con los horarios de los empleados.
 - **Buscador Inteligente de Huecos:** Al seleccionar una mascota, calcula su duración media basada en su historial, lee los cuadrantes de las empleadas en tiempo real y ofrece los tramos libres exactos. Permite que ambas empleadas trabajen en paralelo sugiriendo los huecos de ambas a la misma hora si están disponibles.
 - **Filtro por Peluquero/a Preferido:** Si el cliente tiene un profesional asignado en su ficha, el sistema detecta automáticamente su preferencia y limita la sugerencia de huecos exclusivamente al horario de esa persona concreta.
+- **Creación Rápida de Fichas:** Permite agendar una cita para una mascota no registrada, generando automáticamente su familia y ficha básica en la base de datos sin tener que salir de la agenda.
+- **Directorio Editable:** Tabla interactiva para modificar fechas, horas, servicios o eliminar (cancelar) citas directamente con un par de clics.
 - Cuadrante diario interactivo con vista de bloques de 5 minutos.
 - Cuadrante semanal en formato "tarjetas" visuales.
 
@@ -90,7 +92,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Data Trimming y Rendimiento (Completado):** Se reemplazaron todas las peticiones masivas a Supabase (`select("*")`) por selecciones estrictas de columnas en los 12 módulos. Esto ha reducido drásticamente el tamaño del JSON de descarga, acelerando la navegación entre pestañas en la tablet.
 - **Sistema de Roles y Seguridad (Completado):** Se implementó inicio de sesión dual (Admin / Empleado). El sistema construye las pestañas dinámicamente, ocultando por completo los módulos sensibles (Contabilidad y Bancos) al personal no autorizado, pero manteniendo visibles Estadísticas y Facturación para el aprendizaje de los empleados.
 - **Testeo y Automatización Funcional (Completado):** Se han conectado lógicamente varios módulos para evitar trabajos dobles: El saldo final de caja es el fondo inicial del día siguiente, los gastos de caja viajan solos a Contabilidad y la Agenda bloquea las citas si se marcan vacaciones en el Cuadrante Visual.
-- **Cierre Z Dinámico y Agenda Inteligente Total (Completado):** Implementación de la selección dinámica de la cuenta receptora para los pagos con tarjeta en el TPV y la sugerencia cruzada de huecos en la Agenda de citas, integrando el filtro automático del Peluquero/a preferido en tiempo real.
+- **Cierre Z Dinámico y Agenda Inteligente Total (Completado):** Implementación de la selección dinámica de la cuenta receptora para los pagos con tarjeta en el TPV y la sugerencia cruzada de huecos en la Agenda de citas, integrando el filtro automático del Peluquero/a preferido y la creación rápida de fichas de clientes.
 
 ## 4. Próximos Pasos y Hoja de Ruta
 
