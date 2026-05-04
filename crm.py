@@ -141,7 +141,9 @@ def render_pestana_crm(client):
             
             with c_cal3: f_emp = st.selectbox("3. Peluquera/o:", opciones_emp, index=def_index, key=f"femp_{prefix}_{m_id}")
             
-            res_citas = client.table("citas").select("fecha_hora, duracion_minutos, servicio").gte("fecha_hora", f"{f_fecha} 00:00:00").lte("fecha_hora", f"{f_fecha} 23:59:59").execute()
+            fecha_inicio_q = f"{f_fecha}T00:00:00"
+            fecha_fin_q = f"{f_fecha}T23:59:59"
+            res_citas = client.table("citas").select("fecha_hora, duracion_minutos, servicio").gte("fecha_hora", fecha_inicio_q).lte("fecha_hora", fecha_fin_q).execute()
             citas_dia = res_citas.data if res_citas.data else []
             
             # Obtener todos los turnos del día
@@ -179,6 +181,7 @@ def render_pestana_crm(client):
                         solapa = False
                         for c in citas_dia:
                             c_ini = pd.to_datetime(c['fecha_hora'])
+                            if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                             c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
                             if dt_ini < c_fin and dt_fin > c_ini:
                                 s = c.get('servicio', '')
@@ -216,6 +219,7 @@ def render_pestana_crm(client):
                     dt_fin_man = dt_ini_man + pd.Timedelta(minutes=f_dur)
                     for c in citas_dia:
                         c_ini = pd.to_datetime(c['fecha_hora'])
+                        if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                         c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
                         if dt_ini_man < c_fin and dt_fin_man > c_ini:
                             s = c.get('servicio', '')

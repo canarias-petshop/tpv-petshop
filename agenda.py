@@ -77,8 +77,14 @@ def render_pestana_agenda(client):
                 empleados_a_revisar = [f_emp] if f_emp != "Cualquiera" else empleados_lista
                 huecos_obj = []
                 
-                res_citas_dia = client.table("citas").select("fecha_hora, duracion_minutos, servicio").gte("fecha_hora", f"{fecha_c} 00:00:00").lte("fecha_hora", f"{fecha_c} 23:59:59").execute()
-                citas_dia = res_citas_dia.data if res_citas_dia.data else []
+                citas_dia = []
+                if res_citas.data:
+                    for c in res_citas.data:
+                        try:
+                            dt_c = pd.to_datetime(c['fecha_hora'])
+                            if dt_c.tzinfo: dt_c = dt_c.tz_localize(None)
+                            if dt_c.date() == fecha_c: citas_dia.append(c)
+                        except: pass
                 
                 for emp_nombre in empleados_a_revisar:
                     turno_str = turnos_dict.get(emp_nombre, "")
@@ -103,6 +109,7 @@ def render_pestana_agenda(client):
                             solapa = False
                             for c in citas_dia:
                                 c_ini = pd.to_datetime(c['fecha_hora'])
+                                if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                                 c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
                                 if dt_ini < c_fin and dt_fin > c_ini:
                                     s = c.get('servicio', '')
@@ -132,6 +139,7 @@ def render_pestana_agenda(client):
                         dt_fin_man = dt_ini_man + pd.Timedelta(minutes=duracion_c)
                         for c in citas_dia:
                             c_ini = pd.to_datetime(c['fecha_hora'])
+                            if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                             c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
                             if dt_ini_man < c_fin and dt_fin_man > c_ini:
                                 s = c.get('servicio', '')
@@ -233,11 +241,12 @@ def render_pestana_agenda(client):
                 ed_citas = st.data_editor(
                     df_citas[['id', 'Día', 'Hora', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
+                    column_order=["Día", "Hora", "Peluquero/a", "Mascota", "Servicio", "Duración (min)", "Dueño", "Teléfono"],
                     column_config={
                         "id": None,
-                        "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)"),
-                        "Hora": st.column_config.TextColumn("Hora (HH:MM)"),
-                        "Peluquero/a": st.column_config.SelectboxColumn("Peluquero/a", options=["Sin Asignar"] + empleados_lista),
+                        "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)", width="small"),
+                        "Hora": st.column_config.TextColumn("Hora", width="small"),
+                        "Peluquero/a": st.column_config.SelectboxColumn("👩‍🦰 Peluquero/a", options=["Sin Asignar"] + empleados_lista, required=True),
                         "Mascota": st.column_config.TextColumn(disabled=True),
                         "Dueño": st.column_config.TextColumn(disabled=True),
                         "Teléfono": st.column_config.TextColumn(disabled=True)
@@ -288,18 +297,31 @@ def render_pestana_agenda(client):
             for c in res_citas.data:
                 try:
                     dt_start = pd.to_datetime(c['fecha_hora'])
+                    if dt_start.tzinfo: dt_start = dt_start.tz_localize(None)
                     if dt_start.date() == dia_ver:
                         dur = c.get('duracion_minutos') if c.get('duracion_minutos') is not None else 60
                         dt_end = dt_start + pd.Timedelta(minutes=dur)
                         mascota = c.get('mascotas', {}).get('nombre', 'Mascota')
-                        detalle_texto = f"{mascota} ({dur} min) - {c['servicio']}"
+                        
+                        s = c.get('servicio', '')
+                        assigned_e = "Sin Asignar"
+                        for e in empleados_lista:
+                            if f"({e})" in s:
+                                assigned_e = e
+                                s = s.replace(f" ({e})", "").replace(f"({e})", "").strip()
+                                break
+                                
+                        detalle_texto = f"[{assigned_e}] {mascota} ({dur} min) - {s}"
                         
                         # Recorremos la cuadrícula y rellenamos los huecos afectados
                         for idx, row in df_cuadrante.iterrows():
                             q_time = pd.to_datetime(f"{dia_ver} {row['Hora']}")
                             if dt_start <= q_time < dt_end:
                                 df_cuadrante.loc[idx, "Estado"] = "🔴 OCUPADO"
-                                df_cuadrante.loc[idx, "Detalle"] = detalle_texto
+                                if df_cuadrante.loc[idx, "Detalle"]:
+                                    df_cuadrante.loc[idx, "Detalle"] += " | " + detalle_texto
+                                else:
+                                    df_cuadrante.loc[idx, "Detalle"] = detalle_texto
                 except: pass
                 
         df_cuadrante = df_cuadrante.sort_values("Hora").reset_index(drop=True)
@@ -324,6 +346,7 @@ def render_pestana_agenda(client):
             for cita in res_citas.data:
                 try:
                     dt_start = pd.to_datetime(cita['fecha_hora'])
+                    if dt_start.tzinfo: dt_start = dt_start.tz_localize(None)
                     if start_of_week <= dt_start.date() <= end_of_week:
                         duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
                         dt_end = dt_start + timedelta(minutes=duracion)
@@ -331,8 +354,14 @@ def render_pestana_agenda(client):
                         col_dia = dt_start.strftime('%A\n%d/%m')
                         mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
                         
-                        # Formato visual tipo tarjeta: "09:00 a 10:15 | Bobby"
-                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')} a {dt_end.strftime('%H:%M')} | {mascota_nombre} ({cita['servicio']})"
+                        s = cita.get('servicio', '')
+                        assigned_e = "Sin Asignar"
+                        for e in empleados_lista:
+                            if f"({e})" in s:
+                                assigned_e = e
+                                break
+                        
+                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')}-{dt_end.strftime('%H:%M')} | {mascota_nombre} ({assigned_e})"
                         citas_por_dia[col_dia].append((dt_start, texto_cita))
                 except Exception: pass
         
