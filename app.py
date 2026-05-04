@@ -61,7 +61,8 @@ st.markdown("""
         /* Ocultar elementos de Streamlit */
         [data-testid="stHeader"], [data-testid="stFooter"], footer, 
         [data-testid="stAppDeployButton"], .stDeployButton, 
-        [data-testid="stToolbar"], #st-viewer-badge, [data-testid="viewerBadge"] 
+        [data-testid="stToolbar"], #st-viewer-badge, [data-testid="viewerBadge"],
+        #MainMenu, .stActionButton, [data-testid="manage-app-button"]
         {display: none !important;}
 
         /* Estilo para alertas de vencimiento */
