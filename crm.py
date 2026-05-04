@@ -182,7 +182,10 @@ def render_pestana_crm(client):
                             c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
                             if dt_ini < c_fin and dt_fin > c_ini:
                                 s = c.get('servicio', '')
-                                if f"({emp_nombre})" in s or "(" not in s:
+                                assigned_e = None
+                                for e in empleados_lista:
+                                    if f"({e})" in s: assigned_e = e; break
+                                if assigned_e == emp_nombre or assigned_e is None:
                                     solapa = True; break
                         if not solapa:
                             huecos_obj.append({"dt": dt_ini, "hora": f"{h:02d}:{m:02d}", "emp": emp_nombre})
@@ -204,20 +207,52 @@ def render_pestana_crm(client):
                 with fc_2: 
                     f_serv = st.selectbox("5. Servicio:", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
                 
+                solapa_manual = False
+                motivo_solape = ""
+                motivo_extra = ""
+                
+                if f_hora_sel == "Asignación Manual" and f_hora_manual:
+                    dt_ini_man = pd.to_datetime(f"{f_fecha} {f_hora_manual.strftime('%H:%M')}")
+                    dt_fin_man = dt_ini_man + pd.Timedelta(minutes=f_dur)
+                    for c in citas_dia:
+                        c_ini = pd.to_datetime(c['fecha_hora'])
+                        c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
+                        if dt_ini_man < c_fin and dt_fin_man > c_ini:
+                            s = c.get('servicio', '')
+                            assigned_e = None
+                            for e in empleados_lista:
+                                if f"({e})" in s: assigned_e = e; break
+                            if f_emp != "Cualquiera":
+                                if assigned_e == f_emp or assigned_e is None: solapa_manual = True; break
+                            else:
+                                solapa_manual = True; break
+                    if solapa_manual:
+                        st.warning("⚠️ La hora seleccionada ya está ocupada o hay citas sin asignar.")
+                        motivo_solape = st.selectbox("Motivo para forzar la cita: *", ["", "Tenemos otro peluquero disponible", "Se va a ayudar con la peluquería", "Se puede hacer a la vez", "Otro motivo"], key=f"mot_{prefix}_{m_id}")
+                        if motivo_solape == "Otro motivo":
+                            motivo_extra = st.text_input("Especificar otro motivo: *", key=f"mote_{prefix}_{m_id}")
+
                 if st.form_submit_button("➕ Confirmar Cita", type="primary", use_container_width=True):
-                    if f_hora_sel == "Asignación Manual":
-                        hora_final_str = f_hora_manual.strftime('%H:%M')
-                        emp_final = f_emp if f_emp != "Cualquiera" else ""
+                    if solapa_manual and (not motivo_solape or (motivo_solape == "Otro motivo" and not motivo_extra)):
+                        st.error("Debes indicar un motivo para forzar la cita en una hora ocupada.")
                     else:
-                        hora_final_str = f_hora_sel.split(" (")[0]
-                        emp_final = f_hora_sel.split("(Con ")[1].replace(")", "")
-                        
-                    servicio_final = f"{f_serv} ({emp_final})" if emp_final else f_serv
-                    client.table("citas").insert({
-                        "mascotas_id": m_id, "fecha_hora": f"{f_fecha} {hora_final_str}", 
-                        "servicio": servicio_final, "duracion_minutos": int(f_dur)
-                    }).execute()
-                    st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
+                        if f_hora_sel == "Asignación Manual":
+                            hora_final_str = f_hora_manual.strftime('%H:%M')
+                            emp_final = f_emp if f_emp != "Cualquiera" else ""
+                        else:
+                            hora_final_str = f_hora_sel.split(" (")[0]
+                            emp_final = f_hora_sel.split("(Con ")[1].replace(")", "")
+                            
+                        servicio_final = f"{f_serv} ({emp_final})" if emp_final else f_serv
+                        if solapa_manual:
+                            motivo_final = motivo_extra if motivo_solape == "Otro motivo" else motivo_solape
+                            servicio_final += f" [Forzado: {motivo_final}]"
+                            
+                        client.table("citas").insert({
+                            "mascotas_id": m_id, "fecha_hora": f"{f_fecha} {hora_final_str}", 
+                            "servicio": servicio_final, "duracion_minutos": int(f_dur)
+                        }).execute()
+                        st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
         sub_cli, sub_masc, sub_alertas, sub_encargos = st.tabs(["👤 Directorio de Clientes", "🐾 Fichas de Mascotas", "🔔 Alertas y Recordatorios", "🛍️ Encargos de Clientes"])
         

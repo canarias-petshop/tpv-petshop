@@ -16,6 +16,12 @@ def render_pestana_agenda(client):
             
     res_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
     
+    # --- DATOS COMUNES ---
+    try:
+        emp_res = client.table("personal_empleados").select("id, nombre").eq("activo", True).execute()
+        empleados_lista = [e['nombre'] for e in emp_res.data] if emp_res.data else []
+    except: empleados_lista = []
+    
     # --- PESTAÑAS DE VISTAS ---
     sub_agenda, sub_diario, sub_semanal = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal"])
     
@@ -23,12 +29,6 @@ def render_pestana_agenda(client):
         c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
         
         with c_agenda1:
-            # Cargar lista de empleados
-            try:
-                emp_res = client.table("personal_empleados").select("id, nombre").eq("activo", True).execute()
-                empleados_lista = [e['nombre'] for e in emp_res.data] if emp_res.data else []
-            except: empleados_lista = []
-            
             with st.container(border=True):
                 st.markdown("#### ➕ Nueva Cita")
                 
@@ -106,7 +106,10 @@ def render_pestana_agenda(client):
                                 c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
                                 if dt_ini < c_fin and dt_fin > c_ini:
                                     s = c.get('servicio', '')
-                                    if f"({emp_nombre})" in s or "(" not in s:
+                                    assigned_e = None
+                                    for e in empleados_lista:
+                                        if f"({e})" in s: assigned_e = e; break
+                                    if assigned_e == emp_nombre or assigned_e is None:
                                         solapa = True; break
                             if not solapa: huecos_obj.append({"dt": dt_ini, "hora": f"{h:02d}:{m:02d}", "emp": emp_nombre})
                 
@@ -118,47 +121,81 @@ def render_pestana_agenda(client):
                 f_hora_sel = st.selectbox("Hora recomendada:", huecos_formateados)
                     
                 hora_manual = None
-                if f_hora_sel == "Asignación Manual": hora_manual = st.time_input("Hora de Inicio *")
+                solapa_manual = False
+                motivo_solape = ""
+                motivo_extra = ""
+                
+                if f_hora_sel == "Asignación Manual":
+                    hora_manual = st.time_input("Hora de Inicio *")
+                    if hora_manual:
+                        dt_ini_man = pd.to_datetime(f"{fecha_c} {hora_manual.strftime('%H:%M')}")
+                        dt_fin_man = dt_ini_man + pd.Timedelta(minutes=duracion_c)
+                        for c in citas_dia:
+                            c_ini = pd.to_datetime(c['fecha_hora'])
+                            c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
+                            if dt_ini_man < c_fin and dt_fin_man > c_ini:
+                                s = c.get('servicio', '')
+                                assigned_e = None
+                                for e in empleados_lista:
+                                    if f"({e})" in s: assigned_e = e; break
+                                if f_emp != "Cualquiera":
+                                    if assigned_e == f_emp or assigned_e is None: solapa_manual = True; break
+                                else:
+                                    solapa_manual = True; break
+                        
+                        if solapa_manual:
+                            st.warning("⚠️ La hora seleccionada ya está ocupada o hay citas sin asignar en esa franja.")
+                            motivo_solape = st.selectbox("Motivo para forzar la cita: *", ["", "Tenemos otro peluquero disponible", "Se va a ayudar con la peluquería", "Se puede hacer a la vez", "Otro motivo"])
+                            if motivo_solape == "Otro motivo":
+                                motivo_extra = st.text_input("Especificar otro motivo: *")
                 
                 servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
                 
                 if st.button("Guardar Cita", type="primary", use_container_width=True):
                     m_id_final = None
                     
-                    if crear_rapido:
-                        if n_mascota and n_cliente:
-                            res_cli = client.table("clientes").insert({
-                                "nombre_dueno": n_cliente, "telefono": n_tel, "puntos": 0
-                            }).execute()
-                            if res_cli.data:
-                                res_m = client.table("mascotas").insert({
-                                    "cliente_id": res_cli.data[0]['id'], "nombre": n_mascota
-                                }).execute()
-                                if res_m.data: m_id_final = res_m.data[0]['id']
-                        else:
-                            st.error("Debes indicar al menos el nombre de la mascota y del dueño para crear la ficha.")
+                    if solapa_manual and (not motivo_solape or (motivo_solape == "Otro motivo" and not motivo_extra)):
+                        st.error("Debes indicar un motivo para forzar la cita en una hora ocupada.")
                     else:
-                        if mascota_sel:
-                            m_id_final = dict_mascotas[mascota_sel]
+                        if crear_rapido:
+                            if n_mascota and n_cliente:
+                                res_cli = client.table("clientes").insert({
+                                    "nombre_dueno": n_cliente, "telefono": n_tel, "puntos": 0
+                                }).execute()
+                                if res_cli.data:
+                                    res_m = client.table("mascotas").insert({
+                                        "cliente_id": res_cli.data[0]['id'], "nombre": n_mascota
+                                    }).execute()
+                                    if res_m.data: m_id_final = res_m.data[0]['id']
+                            else:
+                                st.error("Debes indicar al menos el nombre de la mascota y del dueño para crear la ficha.")
                         else:
-                            st.error("Debes seleccionar una mascota.")
+                            if mascota_sel:
+                                m_id_final = dict_mascotas[mascota_sel]
+                            else:
+                                st.error("Debes seleccionar una mascota.")
+                                
+                        if m_id_final:
+                            if f_hora_sel == "Asignación Manual":
+                                hora_final_str = hora_manual.strftime('%H:%M')
+                                emp_final = f_emp if f_emp != "Cualquiera" else ""
+                            else:
+                                hora_final_str = f_hora_sel.split(" (")[0]
+                                emp_final = f_hora_sel.split("(Con ")[1].replace(")", "")
+                                
+                            servicio_final = f"{servicio_sel} ({emp_final})" if emp_final else servicio_sel
                             
-                    if m_id_final:
-                        if f_hora_sel == "Asignación Manual":
-                            hora_final_str = hora_manual.strftime('%H:%M')
-                            emp_final = f_emp if f_emp != "Cualquiera" else ""
-                        else:
-                            hora_final_str = f_hora_sel.split(" (")[0]
-                            emp_final = f_hora_sel.split("(Con ")[1].replace(")", "")
+                            if solapa_manual:
+                                motivo_final = motivo_extra if motivo_solape == "Otro motivo" else motivo_solape
+                                servicio_final += f" [Forzado: {motivo_final}]"
+                                
+                            fecha_hora_str = f"{fecha_c} {hora_final_str}"
                             
-                        servicio_final = f"{servicio_sel} ({emp_final})" if emp_final else servicio_sel
-                        fecha_hora_str = f"{fecha_c} {hora_final_str}"
-                        
-                        client.table("citas").insert({
-                            "mascotas_id": m_id_final, "fecha_hora": fecha_hora_str,
-                            "servicio": servicio_final, "duracion_minutos": int(duracion_c)
-                        }).execute()
-                        st.success("Cita agendada."); time.sleep(1); st.rerun()
+                            client.table("citas").insert({
+                                "mascotas_id": m_id_final, "fecha_hora": fecha_hora_str,
+                                "servicio": servicio_final, "duracion_minutos": int(duracion_c)
+                            }).execute()
+                            st.success("Cita agendada."); time.sleep(1); st.rerun()
 
         with c_agenda2:
             st.markdown("#### 🗓️ Directorio de Citas (Editable)")
@@ -170,12 +207,22 @@ def render_pestana_agenda(client):
                     dur = c.get('duracion_minutos') if c.get('duracion_minutos') is not None else 60
                     
                     dt_obj = pd.to_datetime(c['fecha_hora'])
+                    
+                    s = c.get('servicio', '')
+                    assigned_e = "Sin Asignar"
+                    for e in empleados_lista:
+                        if f"({e})" in s:
+                            assigned_e = e
+                            s = s.replace(f" ({e})", "").replace(f"({e})", "").strip()
+                            break
+                            
                     citas_formateadas.append({
                         "id": c['id'],
                         "Día": dt_obj.strftime('%d/%m/%Y'),
                         "Hora": dt_obj.strftime('%H:%M'),
                         "Duración (min)": dur,
-                        "Servicio": c['servicio'],
+                        "Peluquero/a": assigned_e,
+                        "Servicio": s,
                         "Mascota": mascota_info.get('nombre', 'N/A'),
                         "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
                         "Teléfono": cliente_info.get('telefono', 'N/A')
@@ -184,12 +231,13 @@ def render_pestana_agenda(client):
                 df_citas = pd.DataFrame(citas_formateadas)
                 
                 ed_citas = st.data_editor(
-                    df_citas[['id', 'Día', 'Hora', 'Duración (min)', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
+                    df_citas[['id', 'Día', 'Hora', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
                     column_config={
                         "id": None,
                         "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)"),
                         "Hora": st.column_config.TextColumn("Hora (HH:MM)"),
+                        "Peluquero/a": st.column_config.SelectboxColumn("Peluquero/a", options=["Sin Asignar"] + empleados_lista),
                         "Mascota": st.column_config.TextColumn(disabled=True),
                         "Dueño": st.column_config.TextColumn(disabled=True),
                         "Teléfono": st.column_config.TextColumn(disabled=True)
@@ -210,10 +258,17 @@ def render_pestana_agenda(client):
                             except:
                                 dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}").strftime('%Y-%m-%d %H:%M:%S')
                                 
+                            srv = str(row['Servicio'])
+                            pelu = str(row['Peluquero/a'])
+                            if pelu != "Sin Asignar":
+                                srv_final = f"{srv} ({pelu})"
+                            else:
+                                srv_final = srv
+                                
                             client.table("citas").update({
                                 "fecha_hora": dt_str,
                                 "duracion_minutos": int(row['Duración (min)']),
-                                "servicio": str(row['Servicio'])
+                                "servicio": srv_final
                             }).eq("id", row['id']).execute()
                     st.success("Agenda actualizada."); time.sleep(0.8); st.rerun()
             else:
