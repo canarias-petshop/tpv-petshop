@@ -7,8 +7,8 @@
 - **Backend (Base de Datos):** Supabase (PostgreSQL en la nube).
 - **Hardware Integrado:** Lector de códigos de barras de pistola e integración nativa con impresoras térmicas Star Micronics (vía protocolo PassPRNT).
 
-## 2. Módulos Completados (11 Pestañas Funcionales)
-El sistema cuenta con **11 módulos principales 100% operativos** en el código (`app.py`):
+## 2. Módulos Completados (12 Pestañas Funcionales)
+El sistema cuenta con **12 módulos principales 100% operativos** en el código (`app.py`):
 
 📦 **1. Inventario y Servicios**
 - Separación inteligente entre "Productos" (con control de stock) y "Servicios" (peluquería, veterinaria).
@@ -67,14 +67,19 @@ El sistema cuenta con **11 módulos principales 100% operativos** en el código 
 - Gestión de IBAN, titulares y control en tiempo real del saldo y liquidez disponible.
 - **Transferencias Internas:** Movimiento de dinero entre cuentas bancarias o ingreso de efectivo sobrante desde la Caja Fuerte a la cuenta del banco (actualizando el saldo bancario y retirando de la caja si hay turno activo).
 
+⏱️ **12. Personal y Control de Horario**
+- Fichaje rápido de entrada/salida para empleados mediante PIN de 4 dígitos.
+- Visualización de cuadrante semanal de turnos para los empleados.
+- **Panel de Administrador:** Gestión de la plantilla, asignación de turnos rotativos y registro histórico de horas trabajadas para la confección de nóminas.
+
 ## 3. Estado Actual del Desarrollo (Hito C Completado y UI Optimizada)
 El Hito C relacionado con la Contabilidad de Gestión y Tesorería se da por cerrado con éxito. Las últimas características clave integradas son:
 - **Gestión de Bancos y Transferencias** (Pestaña 11).
 - **Pago de Deudas** integrando las opciones de usar saldo de bancos o saldo en caja (Pestaña 8, Sub-Pestaña 4).
 - **Conexión transparente de hardware de impresión** evitando bloqueos o apertura de múltiples pestañas en el navegador de la tablet.
 - **Optimización UI/UX para Tablet (ÚLTIMO PUNTO SEGURO):** Se inyectó CSS personalizado en `app.py` para reducir márgenes (`padding-top: 0.5rem`), agrandar botones (`min-height: 48px`) y mejorar la legibilidad en pantallas táctiles. **Este es el punto oficial de restauración en el Timeline (Control de Versiones) en caso de fallos estructurales.**
-- **Refactorización Modular (Hito D Completado):** Se han extraído exitosamente los 11 módulos funcionales a archivos independientes (`inventario.py`, `tpv.py`, `crm.py`, `historial.py`, `caja.py`, `estadisticas.py`, `proveedores.py`, `facturacion.py`, `contabilidad.py`, `agenda.py` y `bancos.py`). Todos están importados y funcionando correctamente dentro de un `app.py` completamente limpio y simplificado, que ahora actúa únicamente como enrutador principal.
-- **Data Trimming y Rendimiento (Completado):** Se reemplazaron todas las peticiones masivas a Supabase (`select("*")`) por selecciones estrictas de columnas en los 11 módulos. Esto ha reducido drásticamente el tamaño del JSON de descarga, acelerando la navegación entre pestañas en la tablet.
+- **Refactorización Modular (Hito D Completado):** Se han extraído exitosamente los 12 módulos funcionales a archivos independientes (`inventario.py`, `tpv.py`, `crm.py`, `historial.py`, `caja.py`, `estadisticas.py`, `proveedores.py`, `facturacion.py`, `contabilidad.py`, `agenda.py`, `bancos.py` y `personal.py`). Todos están importados y funcionando correctamente dentro de un `app.py` completamente limpio y simplificado, que ahora actúa únicamente como enrutador principal.
+- **Data Trimming y Rendimiento (Completado):** Se reemplazaron todas las peticiones masivas a Supabase (`select("*")`) por selecciones estrictas de columnas en los 12 módulos. Esto ha reducido drásticamente el tamaño del JSON de descarga, acelerando la navegación entre pestañas en la tablet.
 - **Sistema de Roles y Seguridad (Completado):** Se implementó inicio de sesión dual (Admin / Empleado). El sistema construye las pestañas dinámicamente, ocultando por completo los módulos sensibles (Contabilidad y Bancos) al personal no autorizado, pero manteniendo visibles Estadísticas y Facturación para el aprendizaje de los empleados.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Roadmap Estratégico)

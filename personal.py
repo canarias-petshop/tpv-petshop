@@ -119,7 +119,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                     c1, c2, c3 = st.columns(3)
                     emp_asig = c1.selectbox("Empleado", options=list(emp_nombres.keys()), key="emp_asig")
                     fecha_asig = c2.date_input("Fecha")
-                    turno_asig = c3.selectbox("Turno", ["Mañana", "Tarde", "Completo", "Libre"])
+                    turno_asig = c3.text_input("Turno / Horario", placeholder="ej. 09:00 - 17:00 o Libre")
                     
                     if st.form_submit_button("Asignar Turno"):
                         emp_id = emp_nombres[emp_asig]['id']
