@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, date, timedelta
 import time
 from postgrest import SyncPostgrestClient
+from zoneinfo import ZoneInfo
 
 def render_pestana_personal(client: SyncPostgrestClient):
     st.header("⏱️ Control de Personal y Horarios")
@@ -33,8 +34,10 @@ def render_pestana_personal(client: SyncPostgrestClient):
                 st.write("")
                 if st.button("Fichar Entrada/Salida", use_container_width=True, type="primary"):
                     if emp_sel and pin == emp_sel['pin_fichaje']:
-                        hoy = date.today().isoformat()
-                        ahora = datetime.now().isoformat()
+                        tz_canarias = ZoneInfo("Atlantic/Canary")
+                        ahora_dt = datetime.now(tz_canarias)
+                        hoy = ahora_dt.date().isoformat()
+                        ahora = ahora_dt.isoformat()
                         
                         # Buscar si ya tiene una entrada sin salida hoy
                         fichajes_res = client.table("personal_fichajes").select("*").eq("empleado_id", emp_sel['id']).eq("fecha", hoy).is_("hora_salida", "null").execute()
@@ -44,13 +47,15 @@ def render_pestana_personal(client: SyncPostgrestClient):
                             # Fichar salida
                             fichaje_id = fichajes[0]['id']
                             hora_entrada = datetime.fromisoformat(fichajes[0]['hora_entrada'])
-                            minutos = int((datetime.now() - hora_entrada.replace(tzinfo=None)).total_seconds() / 60)
+                            if hora_entrada.tzinfo is None:
+                                hora_entrada = hora_entrada.replace(tzinfo=tz_canarias)
+                            minutos = int((ahora_dt - hora_entrada).total_seconds() / 60)
                             
                             client.table("personal_fichajes").update({
                                 "hora_salida": ahora,
                                 "minutos_trabajados": minutos
                             }).eq("id", fichaje_id).execute()
-                            st.success(f"Salida registrada para {nombre_sel} a las {datetime.now().strftime('%H:%M')}")
+                            st.success(f"Salida registrada para {nombre_sel} a las {ahora_dt.strftime('%H:%M')}")
                             time.sleep(1)
                             st.rerun()
                         else:
@@ -60,7 +65,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                                 "fecha": hoy,
                                 "hora_entrada": ahora
                             }).execute()
-                            st.success(f"Entrada registrada para {nombre_sel} a las {datetime.now().strftime('%H:%M')}")
+                            st.success(f"Entrada registrada para {nombre_sel} a las {ahora_dt.strftime('%H:%M')}")
                             time.sleep(1)
                             st.rerun()
                     else:
@@ -200,6 +205,20 @@ def render_pestana_personal(client: SyncPostgrestClient):
                     df_fich = pd.DataFrame(fichajes_totales.data)
                     df_emp = pd.DataFrame(empleados)[['id', 'nombre']]
                     df_fich = df_fich.merge(df_emp, left_on='empleado_id', right_on='id', how='left')
+                    
+                    def format_hm(ts):
+                        if not ts: return ""
+                        try:
+                            dt = datetime.fromisoformat(ts)
+                            if dt.tzinfo is None: dt = dt.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
+                            else: dt = dt.astimezone(ZoneInfo("Atlantic/Canary"))
+                            return dt.strftime('%H:%M')
+                        except: return ts
+                        
+                    df_fich['hora_entrada'] = df_fich['hora_entrada'].apply(format_hm)
+                    df_fich['hora_salida'] = df_fich['hora_salida'].apply(format_hm)
+                    df_fich['fecha'] = pd.to_datetime(df_fich['fecha']).dt.strftime('%d/%m/%Y')
+                    
                     cols = ['nombre', 'fecha', 'hora_entrada', 'hora_salida', 'minutos_trabajados']
                     st.dataframe(df_fich[cols], use_container_width=True, hide_index=True)
                 else:

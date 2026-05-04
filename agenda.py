@@ -169,9 +169,11 @@ def render_pestana_agenda(client):
                     cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
                     dur = c.get('duracion_minutos') if c.get('duracion_minutos') is not None else 60
                     
+                    dt_obj = pd.to_datetime(c['fecha_hora'])
                     citas_formateadas.append({
                         "id": c['id'],
-                        "Día y Hora": c['fecha_hora'],
+                        "Día": dt_obj.strftime('%d/%m/%Y'),
+                        "Hora": dt_obj.strftime('%H:%M'),
                         "Duración (min)": dur,
                         "Servicio": c['servicio'],
                         "Mascota": mascota_info.get('nombre', 'N/A'),
@@ -182,10 +184,12 @@ def render_pestana_agenda(client):
                 df_citas = pd.DataFrame(citas_formateadas)
                 
                 ed_citas = st.data_editor(
-                    df_citas[['id', 'Día y Hora', 'Duración (min)', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
+                    df_citas[['id', 'Día', 'Hora', 'Duración (min)', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
                     column_config={
                         "id": None,
+                        "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)"),
+                        "Hora": st.column_config.TextColumn("Hora (HH:MM)"),
                         "Mascota": st.column_config.TextColumn(disabled=True),
                         "Dueño": st.column_config.TextColumn(disabled=True),
                         "Teléfono": st.column_config.TextColumn(disabled=True)
@@ -201,8 +205,13 @@ def render_pestana_agenda(client):
                     
                     for _, row in ed_citas.iterrows():
                         if pd.notna(row['id']):
+                            try:
+                                dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}", format='%d/%m/%Y %H:%M').strftime('%Y-%m-%d %H:%M:%S')
+                            except:
+                                dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}").strftime('%Y-%m-%d %H:%M:%S')
+                                
                             client.table("citas").update({
-                                "fecha_hora": str(row['Día y Hora']),
+                                "fecha_hora": dt_str,
                                 "duracion_minutos": int(row['Duración (min)']),
                                 "servicio": str(row['Servicio'])
                             }).eq("id", row['id']).execute()
