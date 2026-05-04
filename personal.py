@@ -71,31 +71,43 @@ def render_pestana_personal(client: SyncPostgrestClient):
         hoy = date.today()
         c_v1, c_v2 = st.columns(2)
         with c_v1: f_ini_ver = st.date_input("Desde:", value=hoy - timedelta(days=hoy.weekday()), key="v_ini")
-        with c_v2: f_fin_ver = st.date_input("Hasta:", value=f_ini_ver + timedelta(days=13), key="v_fin") # Default 2 semanas
+        with c_v2: f_fin_ver = st.date_input("Hasta:", value=f_ini_ver + timedelta(days=27), key="v_fin") # Default 4 semanas
         
         try:
-            cuadrantes_res = client.table("personal_cuadrantes").select("*").gte("fecha", f_ini_ver.isoformat()).lte("fecha", f_fin_ver.isoformat()).execute()
+            # Alinear siempre a Lunes y Domingo para mostrar semanas completas
+            start_aligned = f_ini_ver - timedelta(days=f_ini_ver.weekday())
+            end_aligned = f_fin_ver + timedelta(days=6 - f_fin_ver.weekday())
+
+            cuadrantes_res = client.table("personal_cuadrantes").select("*").gte("fecha", start_aligned.isoformat()).lte("fecha", end_aligned.isoformat()).execute()
             df_cuadrante = pd.DataFrame(cuadrantes_res.data)
+            
+            dias_es = {0: "Lun", 1: "Mar", 2: "Mié", 3: "Jue", 4: "Vie", 5: "Sáb", 6: "Dom"}
             
             if not df_cuadrante.empty:
                 df_emp = pd.DataFrame(empleados)[['id', 'nombre']]
                 df_cuadrante = df_cuadrante.merge(df_emp, left_on='empleado_id', right_on='id')
-                
-                # Formatear fechas para mejor visualización (ej: Lun 01/10)
-                dias_es = {0: "Lun", 1: "Mar", 2: "Mié", 3: "Jue", 4: "Vie", 5: "Sáb", 6: "Dom"}
                 df_cuadrante['Fecha_Str'] = pd.to_datetime(df_cuadrante['fecha']).apply(lambda x: f"{dias_es[x.weekday()]} {x.strftime('%d/%m')}")
-                
-                df_pivot = df_cuadrante.pivot_table(index='nombre', columns='Fecha_Str', values='turno', aggfunc='first').fillna('-')
-                
-                # Ordenar las columnas cronológicamente
-                fechas_rango = pd.date_range(start=f_ini_ver, end=f_fin_ver)
-                cols_ordenadas = [f"{dias_es[d.weekday()]} {d.strftime('%d/%m')}" for d in fechas_rango]
-                cols_existentes = [c for c in cols_ordenadas if c in df_pivot.columns]
-                df_pivot = df_pivot.reindex(columns=cols_existentes)
-                
-                st.dataframe(df_pivot, use_container_width=True)
+                df_pivot = df_cuadrante.pivot_table(index='nombre', columns='Fecha_Str', values='turno', aggfunc='first')
             else:
-                st.info("No hay turnos asignados para este rango de fechas.")
+                df_pivot = pd.DataFrame()
+                
+            curr_w = start_aligned
+            while curr_w <= end_aligned:
+                w_end = curr_w + timedelta(days=6)
+                st.markdown(f"<h5 style='margin-bottom: 5px; color: #005275; margin-top: 10px;'>Semana del {curr_w.strftime('%d/%m/%Y')} al {w_end.strftime('%d/%m/%Y')}</h5>", unsafe_allow_html=True)
+                
+                fechas_semana = [curr_w + timedelta(days=x) for x in range(7)]
+                cols_semana = [f"{dias_es[d.weekday()]} {d.strftime('%d/%m')}" for d in fechas_semana]
+                
+                if not df_pivot.empty:
+                    # Mostrar solo las columnas de esta semana, rellenar si no hay turno
+                    df_show = df_pivot.reindex(columns=cols_semana).fillna('-')
+                else:
+                    df_show = pd.DataFrame(index=[e['nombre'] for e in empleados], columns=cols_semana).fillna('-')
+                    
+                st.dataframe(df_show, use_container_width=True)
+                curr_w += timedelta(days=7)
+                
         except Exception as e:
             st.error(f"Error al cargar cuadrante: {e}")
 
@@ -125,44 +137,58 @@ def render_pestana_personal(client: SyncPostgrestClient):
 
         with tab_admin2:
             st.markdown("#### 🗓️ Editor Visual de Cuadrantes")
-            st.info("Selecciona el rango de fechas. Edita los turnos haciendo **doble clic en las celdas**. Al terminar, pulsa 'Guardar Cuadrante'.")
+            st.info("Selecciona el rango de fechas. Edita los turnos haciendo **doble clic en las celdas**. Las tablas se dividen por semanas para mayor comodidad. Al terminar, pulsa 'Guardar Todo el Cuadrante'.")
             
             c_e1, c_e2 = st.columns(2)
             with c_e1: f_ini_ed = st.date_input("Editor Desde:", value=hoy - timedelta(days=hoy.weekday()), key="e_ini")
-            with c_e2: f_fin_ed = st.date_input("Editor Hasta:", value=f_ini_ed + timedelta(days=13), key="e_fin")
+            with c_e2: f_fin_ed = st.date_input("Editor Hasta:", value=f_ini_ed + timedelta(days=27), key="e_fin")
             
             if empleados:
-                fechas_ed = [f_ini_ed + timedelta(days=x) for x in range((f_fin_ed - f_ini_ed).days + 1)]
+                start_aligned_ed = f_ini_ed - timedelta(days=f_ini_ed.weekday())
+                end_aligned_ed = f_fin_ed + timedelta(days=6 - f_fin_ed.weekday())
                 dias_es = {0: "Lun", 1: "Mar", 2: "Mié", 3: "Jue", 4: "Vie", 5: "Sáb", 6: "Dom"}
                 
                 # Cargar datos existentes
-                res_q = client.table("personal_cuadrantes").select("*").gte("fecha", f_ini_ed.isoformat()).lte("fecha", f_fin_ed.isoformat()).execute()
+                res_q = client.table("personal_cuadrantes").select("*").gte("fecha", start_aligned_ed.isoformat()).lte("fecha", end_aligned_ed.isoformat()).execute()
                 q_map = {(d['empleado_id'], d['fecha']): d['turno'] for d in (res_q.data if res_q.data else [])}
                 
-                # Construir tabla editable (Grid)
-                grid_data = []
-                for emp in empleados:
-                    row = {"Empleado": emp['nombre'], "id_emp": emp['id']}
-                    for d in fechas_ed: row[d.isoformat()] = q_map.get((emp['id'], d.isoformat()), "")
-                    grid_data.append(row)
-                    
-                col_config = {"id_emp": None, "Empleado": st.column_config.TextColumn("Empleado", disabled=True)}
-                for d in fechas_ed:
-                    col_config[d.isoformat()] = st.column_config.TextColumn(f"{dias_es[d.weekday()]} {d.strftime('%d/%m')}")
-                    
-                ed_grid = st.data_editor(pd.DataFrame(grid_data), column_config=col_config, hide_index=True, use_container_width=True, key="grid_cuadrante")
+                curr_w = start_aligned_ed
+                edited_dfs = []
                 
-                if st.button("💾 Guardar Cuadrante", type="primary"):
+                while curr_w <= end_aligned_ed:
+                    w_end = curr_w + timedelta(days=6)
+                    st.markdown(f"<h5 style='margin-bottom: 5px; color: #005275; margin-top: 15px;'>Semana del {curr_w.strftime('%d/%m/%Y')} al {w_end.strftime('%d/%m/%Y')}</h5>", unsafe_allow_html=True)
+                    fechas_semana = [curr_w + timedelta(days=x) for x in range(7)]
+                    
+                    grid_data = []
+                    for emp in empleados:
+                        row = {"Empleado": emp['nombre'], "id_emp": emp['id']}
+                        for d in fechas_semana: 
+                            row[d.isoformat()] = q_map.get((emp['id'], d.isoformat()), "")
+                        grid_data.append(row)
+                        
+                    col_config = {"id_emp": None, "Empleado": st.column_config.TextColumn("Empleado", disabled=True)}
+                    for d in fechas_semana:
+                        col_config[d.isoformat()] = st.column_config.TextColumn(f"{dias_es[d.weekday()]} {d.strftime('%d/%m')}")
+                        
+                    ed_grid = st.data_editor(pd.DataFrame(grid_data), column_config=col_config, hide_index=True, use_container_width=True, key=f"ed_grid_{curr_w.isoformat()}")
+                    edited_dfs.append((fechas_semana, ed_grid))
+                    
+                    curr_w += timedelta(days=7)
+                
+                st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+                if st.button("💾 Guardar Todo el Cuadrante", type="primary", use_container_width=True):
                     emp_ids = [e['id'] for e in empleados]
                     # 1. Limpiamos el rango de fechas seleccionado
-                    client.table("personal_cuadrantes").delete().in_("empleado_id", emp_ids).gte("fecha", f_ini_ed.isoformat()).lte("fecha", f_fin_ed.isoformat()).execute()
+                    client.table("personal_cuadrantes").delete().in_("empleado_id", emp_ids).gte("fecha", start_aligned_ed.isoformat()).lte("fecha", end_aligned_ed.isoformat()).execute()
                     # 2. Insertamos todos los turnos que no estén en blanco
                     inserts = []
-                    for _, row in ed_grid.iterrows():
-                        for d in fechas_ed:
-                            val = row[d.isoformat()]
-                            if val and str(val).strip() != "":
-                                inserts.append({"empleado_id": row['id_emp'], "fecha": d.isoformat(), "turno": str(val).strip()})
+                    for fechas_semana, ed_grid in edited_dfs:
+                        for _, row in ed_grid.iterrows():
+                            for d in fechas_semana:
+                                val = row.get(d.isoformat(), "")
+                                if val and str(val).strip() != "":
+                                    inserts.append({"empleado_id": row['id_emp'], "fecha": d.isoformat(), "turno": str(val).strip()})
                     if inserts: client.table("personal_cuadrantes").insert(inserts).execute()
                     st.success("¡Cuadrante guardado exitosamente!"); time.sleep(1); st.rerun()
         
