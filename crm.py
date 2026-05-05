@@ -12,6 +12,12 @@ def render_pestana_crm(client):
         empleados_lista = [e['nombre'] for e in emp_res.data] if emp_res.data else []
     except:
         empleados_lista = []
+            
+    try:
+        serv_res = client.table("productos").select("nombre").eq("categoria", "Servicio").order("nombre").execute()
+        servicios_lista = [s['nombre'] for s in serv_res.data] + ["Otro"] if serv_res.data else ["Peluquería", "Otro"]
+    except:
+        servicios_lista = ["Otro"]
 
     col_c1, col_c2 = st.columns([1.2, 2.5])
 
@@ -276,7 +282,7 @@ def render_pestana_crm(client):
                     if f_hora_sel == "Asignación Manual":
                         f_hora_manual = st.time_input("Hora manual")
                 with fc_2: 
-                    f_serv = st.selectbox("5. Servicio:", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
+                    f_serv = st.selectbox("5. Servicio:", servicios_lista)
                 
                 solapa_manual = False
                 motivo_solape = ""

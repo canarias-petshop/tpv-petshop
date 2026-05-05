@@ -22,6 +22,12 @@ def render_pestana_agenda(client):
         empleados_lista = [e['nombre'] for e in emp_res.data] if emp_res.data else []
     except: empleados_lista = []
     
+    try:
+        serv_res = client.table("productos").select("nombre").eq("categoria", "Servicio").order("nombre").execute()
+        servicios_lista = [s['nombre'] for s in serv_res.data] + ["Otro"] if serv_res.data else ["Peluquería", "Otro"]
+    except: 
+        servicios_lista = ["Otro"]
+
     ESTADOS_CITA = ["Confirmada", "Cancelada", "Cambio de cita", "Servicio de recogida", "Cambio (día antes)", "Cambio (mismo día)", "Oferta / Descuento", "Pendiente"]
     EMOJIS_ESTADO = {
         "Confirmada": "🟢", "Cancelada": "💖", "Cambio de cita": "🔵", 
@@ -180,7 +186,7 @@ def render_pestana_agenda(client):
                             if motivo_solape == "Otro motivo":
                                 motivo_extra = st.text_input("Especificar otro motivo: *")
                 
-                servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
+                servicio_sel = st.selectbox("Servicio *", servicios_lista)
                 
                 if st.button("Guardar Cita", type="primary", use_container_width=True):
                     m_id_final = None
