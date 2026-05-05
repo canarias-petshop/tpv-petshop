@@ -22,8 +22,29 @@ def render_pestana_agenda(client):
         empleados_lista = [e['nombre'] for e in emp_res.data] if emp_res.data else []
     except: empleados_lista = []
     
+    ESTADOS_CITA = ["Confirmada", "Cancelada", "Cambio de cita", "Servicio de recogida", "Cambio (día antes)", "Cambio (mismo día)", "Oferta / Descuento", "Pendiente"]
+    EMOJIS_ESTADO = {
+        "Confirmada": "🟢", "Cancelada": "💖", "Cambio de cita": "🔵", 
+        "Servicio de recogida": "🟣", "Cambio (día antes)": "🟠", 
+        "Cambio (mismo día)": "⚪", "Oferta / Descuento": "🟩", "Pendiente": "🟡"
+    }
+
+    def parse_cita_estado(servicio_raw):
+        estado = "Confirmada"
+        if "[ESTADO:" in servicio_raw:
+            import re
+            m_est = re.match(r'\[ESTADO:\s*(.*?)\]\s*(.*)', servicio_raw)
+            if m_est:
+                estado = m_est.group(1)
+                servicio_raw = m_est.group(2)
+        emp = "Sin Asignar"
+        for e in empleados_lista:
+            if f"({e})" in servicio_raw:
+                emp = e; servicio_raw = servicio_raw.replace(f"({e})", "").replace("  ", " ").strip(); break
+        return estado, servicio_raw.strip(), emp
+    
     # --- PESTAÑAS DE VISTAS ---
-    sub_agenda, sub_diario, sub_semanal = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal"])
+    sub_agenda, sub_diario, sub_semanal, sub_cancelaciones = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal", "🚫 Cancelaciones"])
     
     with sub_agenda:
         c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
@@ -108,6 +129,7 @@ def render_pestana_agenda(client):
                             
                             solapa = False
                             for c in citas_dia:
+                                if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
                                 c_ini = pd.to_datetime(c['fecha_hora'])
                                 if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                                 c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
@@ -138,6 +160,7 @@ def render_pestana_agenda(client):
                         dt_ini_man = pd.to_datetime(f"{fecha_c} {hora_manual.strftime('%H:%M')}")
                         dt_fin_man = dt_ini_man + pd.Timedelta(minutes=duracion_c)
                         for c in citas_dia:
+                            if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
                             c_ini = pd.to_datetime(c['fecha_hora'])
                             if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                             c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
@@ -197,6 +220,7 @@ def render_pestana_agenda(client):
                                 motivo_final = motivo_extra if motivo_solape == "Otro motivo" else motivo_solape
                                 servicio_final += f" [Forzado: {motivo_final}]"
                                 
+                            servicio_final = f"[ESTADO: Confirmada] {servicio_final}"
                             fecha_hora_str = f"{fecha_c} {hora_final_str}"
                             
                             client.table("citas").insert({
@@ -216,21 +240,16 @@ def render_pestana_agenda(client):
                     
                     dt_obj = pd.to_datetime(c['fecha_hora'])
                     
-                    s = c.get('servicio', '')
-                    assigned_e = "Sin Asignar"
-                    for e in empleados_lista:
-                        if f"({e})" in s:
-                            assigned_e = e
-                            s = s.replace(f" ({e})", "").replace(f"({e})", "").strip()
-                            break
+                    estado_c, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
                             
                     citas_formateadas.append({
                         "id": c['id'],
                         "Día": dt_obj.strftime('%d/%m/%Y'),
                         "Hora": dt_obj.strftime('%H:%M'),
+                        "Estado": estado_c,
                         "Duración (min)": dur,
                         "Peluquero/a": assigned_e,
-                        "Servicio": s,
+                        "Servicio": s_clean,
                         "Mascota": mascota_info.get('nombre', 'N/A'),
                         "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
                         "Teléfono": cliente_info.get('telefono', 'N/A')
@@ -239,13 +258,14 @@ def render_pestana_agenda(client):
                 df_citas = pd.DataFrame(citas_formateadas)
                 
                 ed_citas = st.data_editor(
-                    df_citas[['id', 'Día', 'Hora', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
+                    df_citas[['id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
-                    column_order=["Día", "Hora", "Peluquero/a", "Mascota", "Servicio", "Duración (min)", "Dueño", "Teléfono"],
+                    column_order=["Día", "Hora", "Estado", "Peluquero/a", "Mascota", "Servicio", "Duración (min)", "Dueño", "Teléfono"],
                     column_config={
                         "id": None,
                         "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)", width="small"),
                         "Hora": st.column_config.TextColumn("Hora", width="small"),
+                        "Estado": st.column_config.SelectboxColumn("🎨 Estado", options=ESTADOS_CITA, required=True),
                         "Peluquero/a": st.column_config.SelectboxColumn("👩‍🦰 Peluquero/a", options=["Sin Asignar"] + empleados_lista, required=True),
                         "Mascota": st.column_config.TextColumn(disabled=True),
                         "Dueño": st.column_config.TextColumn(disabled=True),
@@ -269,10 +289,13 @@ def render_pestana_agenda(client):
                                 
                             srv = str(row['Servicio'])
                             pelu = str(row['Peluquero/a'])
+                            est = str(row['Estado'])
                             if pelu != "Sin Asignar":
-                                srv_final = f"{srv} ({pelu})"
+                                srv_base = f"{srv} ({pelu})"
                             else:
-                                srv_final = srv
+                                srv_base = srv
+                                
+                            srv_final = f"[ESTADO: {est}] {srv_base}"
                                 
                             client.table("citas").update({
                                 "fecha_hora": dt_str,
@@ -296,6 +319,7 @@ def render_pestana_agenda(client):
         if res_citas.data:
             for c in res_citas.data:
                 try:
+                    if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
                     dt_start = pd.to_datetime(c['fecha_hora'])
                     if dt_start.tzinfo: dt_start = dt_start.tz_localize(None)
                     if dt_start.date() == dia_ver:
@@ -303,21 +327,16 @@ def render_pestana_agenda(client):
                         dt_end = dt_start + pd.Timedelta(minutes=dur)
                         mascota = c.get('mascotas', {}).get('nombre', 'Mascota')
                         
-                        s = c.get('servicio', '')
-                        assigned_e = "Sin Asignar"
-                        for e in empleados_lista:
-                            if f"({e})" in s:
-                                assigned_e = e
-                                s = s.replace(f" ({e})", "").replace(f"({e})", "").strip()
-                                break
+                        estado_c, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
+                        emoji = EMOJIS_ESTADO.get(estado_c, "🟢")
                                 
-                        detalle_texto = f"[{assigned_e}] {mascota} ({dur} min) - {s}"
+                        detalle_texto = f"{emoji} [{assigned_e}] {mascota} ({dur} min) - {s_clean}"
                         
                         # Recorremos la cuadrícula y rellenamos los huecos afectados
                         for idx, row in df_cuadrante.iterrows():
                             q_time = pd.to_datetime(f"{dia_ver} {row['Hora']}")
                             if dt_start <= q_time < dt_end:
-                                df_cuadrante.loc[idx, "Estado"] = "🔴 OCUPADO"
+                                df_cuadrante.loc[idx, "Estado"] = f"{emoji} OCUPADO"
                                 if df_cuadrante.loc[idx, "Detalle"]:
                                     df_cuadrante.loc[idx, "Detalle"] += " | " + detalle_texto
                                 else:
@@ -348,20 +367,17 @@ def render_pestana_agenda(client):
                     dt_start = pd.to_datetime(cita['fecha_hora'])
                     if dt_start.tzinfo: dt_start = dt_start.tz_localize(None)
                     if start_of_week <= dt_start.date() <= end_of_week:
+                        if "[ESTADO: Cancelada]" in cita.get('servicio', ''): continue
                         duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
                         dt_end = dt_start + timedelta(minutes=duracion)
                         
                         col_dia = dt_start.strftime('%A\n%d/%m')
                         mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
                         
-                        s = cita.get('servicio', '')
-                        assigned_e = "Sin Asignar"
-                        for e in empleados_lista:
-                            if f"({e})" in s:
-                                assigned_e = e
-                                break
+                        estado_c, s_clean, assigned_e = parse_cita_estado(cita.get('servicio', ''))
+                        emoji = EMOJIS_ESTADO.get(estado_c, "🟢")
                         
-                        texto_cita = f"🕒 {dt_start.strftime('%H:%M')}-{dt_end.strftime('%H:%M')} | {mascota_nombre} ({assigned_e})"
+                        texto_cita = f"{emoji} {dt_start.strftime('%H:%M')}-{dt_end.strftime('%H:%M')} | {mascota_nombre} ({assigned_e})"
                         citas_por_dia[col_dia].append((dt_start, texto_cita))
                 except Exception: pass
         
@@ -383,3 +399,27 @@ def render_pestana_agenda(client):
                     citas_por_dia[dia].append("")
             df_semana = pd.DataFrame(citas_por_dia)
             st.dataframe(df_semana, use_container_width=True, hide_index=True)
+            
+    with sub_cancelaciones:
+        st.markdown("#### 🚫 Registro de Cancelaciones")
+        st.info("Aquí aparecen todas las citas que han sido marcadas como 'Cancelada' desde el Directorio. Estas citas liberan su hueco automáticamente en la agenda para que puedas dárselo a otro.")
+        canceladas = []
+        if res_citas.data:
+            for c in res_citas.data:
+                if "[ESTADO: Cancelada]" in c.get('servicio', ''):
+                    mascota_info = c.get('mascotas', {})
+                    cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
+                    dt_obj = pd.to_datetime(c['fecha_hora'])
+                    _, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
+                    
+                    canceladas.append({
+                        "Fecha": dt_obj.strftime('%d/%m/%Y'),
+                        "Hora": dt_obj.strftime('%H:%M'),
+                        "Mascota": mascota_info.get('nombre', 'N/A'),
+                        "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
+                        "Teléfono": cliente_info.get('telefono', 'N/A'),
+                        "Peluquero/a": assigned_e,
+                        "Servicio Programado": s_clean
+                    })
+        if canceladas: st.dataframe(pd.DataFrame(canceladas), use_container_width=True, hide_index=True)
+        else: st.success("No hay cancelaciones registradas en el sistema.")

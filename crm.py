@@ -176,6 +176,25 @@ def render_pestana_crm(client):
                 st.success("Historial y notas actualizados correctamente."); time.sleep(0.5); st.rerun()
                 
             st.markdown("---")
+            st.markdown("#### 🚫 Historial de Cancelaciones")
+            res_canc = client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", m_id).like("servicio", "%[ESTADO: Cancelada]%").execute()
+            if res_canc.data:
+                st.warning(f"⚠️ **ALERTA DE POLÍTICA:** Esta mascota tiene **{len(res_canc.data)}** cancelación(es) registrada(s).")
+                canc_lista = []
+                for cx in res_canc.data:
+                    dt_c = pd.to_datetime(cx['fecha_hora'])
+                    import re
+                    s_raw = cx.get('servicio', '')
+                    s_clean = re.sub(r'\[ESTADO:\s*Cancelada\]\s*', '', s_raw).strip()
+                    canc_lista.append({
+                        "Fecha de la Cita": dt_c.strftime('%d/%m/%Y %H:%M'),
+                        "Servicio Cancelado": s_clean
+                    })
+                st.dataframe(pd.DataFrame(canc_lista), hide_index=True, use_container_width=True)
+            else:
+                st.info("Esta mascota no tiene cancelaciones. ¡Cliente excelente! ⭐")
+
+            st.markdown("---")
             st.markdown(f"#### 📅 Agendar Cita Inteligente para **{m_nombre}**")
             st.markdown("<p style='color: gray; font-size: 13px;'>El sistema calcula automáticamente los huecos libres (09:00 a 21:00) para la fecha y duración seleccionadas.</p>", unsafe_allow_html=True)
             
@@ -228,6 +247,7 @@ def render_pestana_crm(client):
                         
                         solapa = False
                         for c in citas_dia:
+                            if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
                             c_ini = pd.to_datetime(c['fecha_hora'])
                             if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                             c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
@@ -266,6 +286,7 @@ def render_pestana_crm(client):
                     dt_ini_man = pd.to_datetime(f"{f_fecha} {f_hora_manual.strftime('%H:%M')}")
                     dt_fin_man = dt_ini_man + pd.Timedelta(minutes=f_dur)
                     for c in citas_dia:
+                        if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
                         c_ini = pd.to_datetime(c['fecha_hora'])
                         if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                         c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
@@ -299,6 +320,8 @@ def render_pestana_crm(client):
                         if solapa_manual:
                             motivo_final = motivo_extra if motivo_solape == "Otro motivo" else motivo_solape
                             servicio_final += f" [Forzado: {motivo_final}]"
+                            
+                        servicio_final = f"[ESTADO: Confirmada] {servicio_final}"
                             
                         client.table("citas").insert({
                             "mascotas_id": m_id, "fecha_hora": f"{f_fecha} {hora_final_str}", 
