@@ -130,9 +130,10 @@ def render_pestana_tpv(client):
             """
             
             for p in t['productos']:
-                desc_item = p.get('Desc %', 0.0)
+                desc_item = p.get('Desc. %', p.get('Desc %', 0.0))
                 if desc_item > 0:
-                    html_ticket += f"<tr><td style='padding-bottom: 0px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 0px;'>{p['Subtotal']:.2f}€</td></tr>"
+                    precio_orig = p.get('Precio', 0.0) * p['Cantidad']
+                    html_ticket += f"<tr><td style='padding-bottom: 0px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 0px;'><del>{precio_orig:.2f}€</del> {p['Subtotal']:.2f}€</td></tr>"
                     html_ticket += f"<tr><td colspan='2' style='font-size: 16px; padding-bottom: 5px; color: #555;'>  ↳ Dto. {desc_item}% aplicado</td></tr>"
                 else:
                     html_ticket += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
@@ -142,17 +143,24 @@ def render_pestana_tpv(client):
                     <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
             """
             
+            if t.get('puntos_descontados', 0) > 0:
+                descuento_pts_eur = t['puntos_descontados'] * 0.10
+                html_ticket += f"<div style='text-align: right; font-size: 22px;'><b>Canjeo Puntos (-{t['puntos_descontados']} pts): -{descuento_pts_eur:.2f}€</b></div>"
+
             desc_global = t.get('descuento_global', 0.0)
             if desc_global > 0:
                 subtotal_sin_desc = t['total'] / (1 - desc_global / 100) if (1 - desc_global / 100) > 0 else t['total']
+                descuento_eur = subtotal_sin_desc - t['total']
                 html_ticket += f"<div style='text-align: right; font-size: 22px;'>Subtotal: {subtotal_sin_desc:.2f}€</div>"
-                html_ticket += f"<div style='text-align: right; font-size: 22px;'><b>Dto. Global: -{desc_global}%</b></div>"
+                html_ticket += f"<div style='text-align: right; font-size: 22px;'><b>Dto. Global ({desc_global}%): -{descuento_eur:.2f}€</b></div>"
 
             html_ticket += f"""
                     <div style="text-align: right; font-size: 28px;"><b>TOTAL: {t['total']:.2f}€</b></div>
             """
             if t.get('cliente_fidel'):
-                html_ticket += f"<div style='font-size:18px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {t['cliente_fidel']}</b><br>Has ganado +{t['puntos_ganados']} puntos hoy!</div>"
+                html_ticket += f"<div style='font-size:18px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {t['cliente_fidel']}</b>"
+                html_ticket += f"<br>Has ganado +{t['puntos_ganados']} puntos hoy!"
+                html_ticket += f"<br>Saldo actual: {t.get('nuevo_saldo', 0)} puntos</div>"
 
             html_ticket += """
                     
@@ -253,7 +261,12 @@ def render_pestana_tpv(client):
                 
                 st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-                metodo = st.radio("p", ["Efectivo", "Tarjeta", "Bizum", "Mixto"], horizontal=True, label_visibility="collapsed")
+                res_b_radio = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+                lista_bancos = res_b_radio.data if res_b_radio.data else []
+                nombres_tarjetas = [f"Tarjeta ({b['nombre_banco']})" for b in lista_bancos] if lista_bancos else ["Tarjeta"]
+                
+                opciones_pago = ["Efectivo"] + nombres_tarjetas + ["Bizum", "Mixto"]
+                metodo = st.radio("p", opciones_pago, horizontal=True, label_visibility="collapsed")
                 pagado_hoy = 0.0; pendiente = 0.0; metodo_log = metodo
                 p_efectivo = 0.0; p_tarjeta = 0.0; p_bizum = 0.0
 
@@ -287,31 +300,42 @@ def render_pestana_tpv(client):
                     pagado_hoy = p_e_val + p_t_val + p_b_val
                     p_efectivo = p_e_val; p_tarjeta = p_t_val; p_bizum = p_b_val
                     pendiente = total_f - pagado_hoy if pagado_hoy < total_f else 0.0
-                    metodo_log = f"Mixto (E:{p_e_val}|T:{p_t_val}|B:{p_b_val})"
+                    
+                    banco_sel_nombre = ""
+                    banco_sel_id = None
+                    banco_sel_saldo = 0.0
+                    
+                    if p_tarjeta > 0 and lista_bancos:
+                        banco_sel_nombre = st.selectbox("🏦 Banco para parte en Tarjeta", [b['nombre_banco'] for b in lista_bancos])
+                        banco_info = next((b for b in lista_bancos if b['nombre_banco'] == banco_sel_nombre), None)
+                        if banco_info:
+                            banco_sel_id = banco_info['id']
+                            banco_sel_saldo = banco_info['saldo_actual']
+                        metodo_log = f"Mixto (E:{p_efectivo}|T:{p_tarjeta} - {banco_sel_nombre}|B:{p_bizum})"
+                    else:
+                        metodo_log = f"Mixto (E:{p_efectivo}|T:{p_tarjeta}|B:{p_bizum})"
+                        
                     if pendiente > 0: st.warning(f"Pendiente: {pendiente:.2f}€")
                 
                 else:
                     st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
                     pagado_hoy = total_f
-                    if metodo == "Tarjeta": p_tarjeta = total_f
+                    
+                    banco_sel_nombre = ""
+                    banco_sel_id = None
+                    banco_sel_saldo = 0.0
+                    metodo_log = metodo
+                    
+                    if metodo.startswith("Tarjeta"): 
+                        p_tarjeta = total_f
+                        banco_sel_nombre = metodo.replace("Tarjeta (", "").replace(")", "") if "(" in metodo else "Tarjeta"
+                        if lista_bancos:
+                            banco_info = next((b for b in lista_bancos if b['nombre_banco'] == banco_sel_nombre), None)
+                            if banco_info:
+                                banco_sel_id = banco_info['id']
+                                banco_sel_saldo = banco_info['saldo_actual']
+                        metodo_log = metodo
                     if metodo == "Bizum": p_bizum = total_f
-
-                banco_sel_nombre = ""
-                banco_sel_id = None
-                banco_sel_saldo = 0.0
-                if p_tarjeta > 0:
-                    res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
-                    if res_b.data:
-                        opciones_bancos = {b['nombre_banco']: (b['id'], b['saldo_actual']) for b in res_b.data}
-                        if opciones_bancos:
-                            st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
-                            banco_sel_nombre = st.selectbox("🏦 Datáfono / Banco de destino", list(opciones_bancos.keys()))
-                            banco_sel_id, banco_sel_saldo = opciones_bancos[banco_sel_nombre]
-                            
-                            if metodo == "Tarjeta":
-                                metodo_log = f"Tarjeta ({banco_sel_nombre})"
-                            elif metodo == "Mixto":
-                                metodo_log = f"Mixto (E:{p_efectivo}|T:{p_tarjeta} - {banco_sel_nombre}|B:{p_bizum})"
 
                 nombre_deudor = ""
                 if pendiente > 0:

@@ -207,9 +207,10 @@ def render_pestana_historial(client):
                                 <table style="width: 100%; font-size: 22px; text-align: left; font-weight: bold;">
                         """
                         for p in prods:
-                            desc_item = p.get('Desc %', 0.0)
+                            desc_item = p.get('Desc. %', p.get('Desc %', 0.0))
                             if desc_item > 0:
-                                html_reprint += f"<tr><td style='padding-bottom: 0px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 0px;'>{p['Subtotal']:.2f}€</td></tr>"
+                                precio_orig = p.get('Precio', p.get('Base Ud', 0) * (1 + p.get('IGIC %', 0)/100)) * p['Cantidad']
+                                html_reprint += f"<tr><td style='padding-bottom: 0px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 0px;'><del>{precio_orig:.2f}€</del> {p['Subtotal']:.2f}€</td></tr>"
                                 html_reprint += f"<tr><td colspan='2' style='font-size: 16px; padding-bottom: 5px; color: #555;'>  ↳ Dto. {desc_item}% aplicado</td></tr>"
                             else:
                                 html_reprint += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
@@ -220,8 +221,9 @@ def render_pestana_historial(client):
                         desc_g_re = float(t_info.get('descuento_global', 0.0))
                         if desc_g_re > 0:
                             subt_re = total_final_calculado / (1 - desc_g_re / 100) if (1 - desc_g_re / 100) > 0 else total_final_calculado
+                            descuento_eur = subt_re - total_final_calculado
                             html_reprint += f"<div style='text-align: right; font-size: 22px;'>Subtotal: {subt_re:.2f}€</div>"
-                            html_reprint += f"<div style='text-align: right; font-size: 22px;'><b>Dto. Global: -{desc_g_re}%</b></div>"
+                            html_reprint += f"<div style='text-align: right; font-size: 22px;'><b>Dto. Global ({desc_g_re}%): -{descuento_eur:.2f}€</b></div>"
                         
                         html_reprint += f"""
                                 <div style="text-align: right; font-size: 28px;"><b>TOTAL: {total_final_calculado:.2f}€</b></div>
@@ -234,8 +236,13 @@ def render_pestana_historial(client):
                             var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
                             var htmlCodificado = encodeURIComponent(fullHTML);
                             var urlRetorno = "https://google.com";
-                            try {{ if (window.top.location.href && window.top.location.href !== "about:blank") {{ urlRetorno = window.top.location.href; }} }} catch(e) {{}}
-                            window.top.location.href = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
+                            try {{
+                                if (window.top.location.href && window.top.location.href !== "about:blank") {{
+                                    var baseUrl = window.top.location.href.split('#')[0];
+                                    urlRetorno = baseUrl + "#impreso";
+                                }}
+                            }} catch(e) {{}}
+                            window.location.href = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
                         }}
                         </script>
                         </body></html>
