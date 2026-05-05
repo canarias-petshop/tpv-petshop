@@ -16,15 +16,17 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - Smart Restock: Sistema de alertas de stock bajo con un botón para "Auto-distribuir" y generar borradores de pedidos a proveedores automáticamente.
 
 🛒 **2. Terminal de Caja (TPV)**
-- Buscador manual y escáner de pistola.
+- Buscador manual y escáner de pistola **(con auto-vaciado y reseteo instantáneo tras cada lectura exitosa o fallida)**.
 - Pagos mixtos (Efectivo, Tarjeta, Bizum).
 - **Selector dinámico de banco/datáfono:** Al cobrar con tarjeta o de forma mixta, permite enviar el dinero directamente a la cuenta bancaria seleccionada (y su datáfono) en tiempo real.
 - Sistema de fidelización VIP (suma y canjeo de puntos automáticos).
-- Impresión térmica directa a Star Micronics sin recargar la página ni abrir pestañas infinitas (solución vía JavaScript con `window.top.location.href`).
+- Impresión térmica directa a Star Micronics (protocolo `starpassprnt://`) estabilizada: **se eliminaron las recargas forzadas de página** para evitar el cierre de sesión, manteniendo al empleado en la pantalla con el botón de "Nueva Venta" siempre visible.
 
 👥 **3. Clientes y Mascotas (CRM)**
-- Fichas de familias y mascotas con cálculo de edad automático y asignación de **Peluquero/a Preferido**.
+- Directorio principal mejorado con la visibilidad del **teléfono del dueño** directamente en el listado de mascotas.
+- Fichas de familias y mascotas con cálculo de edad automático, asignación de **Peluquero/a Preferido** y un **Diario de Observaciones Clínicas** independiente.
 - Historial clínico y de peluquería con cálculo de tiempo medio por servicio y registro del empleado ("Realizado por") para trazabilidad.
+- **Registro de Cancelaciones (Políticas Estrictas):** El CRM detecta automáticamente cuántas veces ha cancelado una mascota y muestra una alerta roja en su ficha para que los empleados lo tengan en cuenta al darle cita.
 - Alertas de Mantenimiento: Sistema que detecta mascotas que llevan mucho tiempo sin venir y genera un enlace para enviarles un WhatsApp de recordatorio con un solo clic.
 
 📜 **4. Historial Operativo**
@@ -60,8 +62,10 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 
 📅 **10. Agenda y Citas (Inteligente)**
 - Gestor de citas vinculado a las fichas de las mascotas y cruzado con los horarios de los empleados.
-- **Buscador Inteligente de Huecos:** Al seleccionar una mascota, calcula su duración media basada en su historial, lee los cuadrantes de las empleadas en tiempo real y ofrece los tramos libres exactos. Permite que ambas empleadas trabajen en paralelo sugiriendo los huecos de ambas a la misma hora si están disponibles.
+- **Buscador Inteligente de Huecos:** Al seleccionar una mascota, lee su historial, **muestra un panel informativo con su duración media y peluquero preferido**, lee los cuadrantes y ofrece los tramos libres exactos.
 - **Filtro por Peluquero/a Preferido:** Si el cliente tiene un profesional asignado en su ficha, el sistema detecta automáticamente su preferencia y limita la sugerencia de huecos exclusivamente al horario de esa persona concreta.
+- **Leyenda de Colores y Políticas de Cancelación:** Las citas incluyen estados dinámicos (Confirmada 🟢, Cancelada 💖, Cambio de cita 🔵, etc.). Al marcar una cita como "Cancelada", se libera su hueco en el calendario y viaja a una pestaña específica de "🚫 Cancelaciones".
+- **Carga Dinámica de Servicios:** El desplegable de servicios en la agenda lee en tiempo real el catálogo de servicios de la pestaña de Inventario.
 - **Creación Rápida de Fichas:** Permite agendar una cita para una mascota no registrada, generando automáticamente su familia y ficha básica en la base de datos sin tener que salir de la agenda.
 - **Directorio Editable Avanzado:** Tabla interactiva que exige la asignación de un/a Peluquero/a. Las citas "Sin Asignar" bloquean preventivamente el calendario. Si el usuario fuerza manualmente una cita en una hora ocupada, el sistema obliga a registrar un motivo justificativo.
 - Cuadrante diario interactivo con vista de bloques de 5 minutos.
@@ -94,6 +98,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Testeo y Automatización Funcional (Completado):** Se han conectado lógicamente varios módulos para evitar trabajos dobles: El saldo final de caja es el fondo inicial del día siguiente, los gastos de caja viajan solos a Contabilidad y la Agenda bloquea las citas si se marcan vacaciones en el Cuadrante Visual.
 - **Cierre Z Dinámico y Agenda Inteligente Total (Completado):** Implementación de la selección dinámica de la cuenta receptora para los pagos con tarjeta en el TPV y la sugerencia cruzada de huecos en la Agenda de citas, integrando el filtro automático del Peluquero/a preferido y la creación rápida de fichas de clientes.
 - **Sincronización Horaria y Bloqueos de Agenda (Completado):** Configuración de la zona horaria (Atlantic/Canary) para los fichajes y el cálculo de solapamientos. Sincronización absoluta de las 3 vistas de la Agenda, bloqueando horas ocupadas y documentando excepciones de agendamiento.
+- **Políticas Estrictas y Estabilidad UI (Completado):** Se introdujeron las alertas de penalización de mascotas, el panel inteligente al agendar, la lista de servicios viva, el auto-borrado del escáner en TPV y se protegió la sesión eliminando el refresco forzado al enviar impresiones por Bluetooth/Wifi.
 
 ## 4. Próximos Pasos y Hoja de Ruta
 
