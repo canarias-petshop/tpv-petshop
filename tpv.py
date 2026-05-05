@@ -53,13 +53,10 @@ def render_pestana_tpv(client):
         st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
         st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>📇 Escáner de Pistola</p>", unsafe_allow_html=True)
-        if 'limpiar_codigo' in st.session_state and st.session_state.limpiar_codigo:
-            st.session_state.input_pistola = ""
-            st.session_state.limpiar_codigo = False
 
         cp1, cp2 = st.columns([2, 1])
-        with cp1: cod_leido = st.text_input("p1", placeholder="Esperando escaneo...", label_visibility="collapsed", key="input_pistola")
-        with cp2: cant_p = st.number_input("p2", min_value=1, value=1, label_visibility="collapsed", key="cant_p")
+        with cp1: cod_leido = st.text_input("p1", placeholder="Esperando escaneo...", label_visibility="collapsed", key=f"input_pistola_{st.session_state.llave_busqueda_tpv}")
+        with cp2: cant_p = st.number_input("p2", min_value=1, value=1, label_visibility="collapsed", key=f"cant_p_{st.session_state.llave_busqueda_tpv}")
         
         if cod_leido and not df_inv.empty:
             coincid = df_inv[df_inv['sku'] == cod_leido]
@@ -69,7 +66,13 @@ def render_pestana_tpv(client):
                     "id": str(fila_pist['id']), "Producto": fila_pist['nombre'], "Cantidad": cant_p, "Precio": fila_pist['precio_pvp'],
                     "Subtotal": cant_p * float(fila_pist['precio_pvp']), "IGIC": fila_pist.get('igic_tipo', 7), "Manual": False
                 })
-                st.session_state.limpiar_codigo = True; st.rerun()
+                st.session_state.llave_busqueda_tpv += 1
+                st.rerun()
+            else:
+                st.error(f"❌ Código no encontrado")
+                time.sleep(1)
+                st.session_state.llave_busqueda_tpv += 1
+                st.rerun()
 
         st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
@@ -85,6 +88,7 @@ def render_pestana_tpv(client):
                         "Producto": m_nom, "Cantidad": m_can, "Precio": m_pre,
                         "Subtotal": m_can * float(m_pre), "IGIC": 0, "Manual": True
                     })
+                    st.session_state.llave_busqueda_tpv += 1
                     st.rerun()
 
     with col_carrito:
