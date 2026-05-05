@@ -207,11 +207,11 @@ def render_pestana_historial(client):
                         html_reprint = f"""
                         <!DOCTYPE html><html><head><meta charset='utf-8'>
                         <style>
-                            body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: #f8f9fa; }}
-                            .pantalla {{ padding: 10px; max-width: 400px; margin: 0 auto; text-align: center; }}
+                            body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: transparent; }}
+                            .pantalla {{ padding: 5px; max-width: 400px; margin: 0 auto; text-align: center; }}
                             .btn-print {{ padding: 12px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; margin-bottom: 8px; }}
                             .btn-email {{ background-color: #2e7d32; }}
-                            #ticket-impresion-re {{ display: block; border: 1px solid #ccc; padding: 15px; margin-top: 15px; background-color: #fffaf0; width: 300px; margin-left: auto; margin-right: auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); text-align: left; }}
+                            #ticket-impresion-re {{ display: none; }}
                         </style>
                         </head><body>
                         <div class="pantalla">
@@ -269,7 +269,7 @@ def render_pestana_historial(client):
                         </script>
                         </body></html>
                         """
-                        components.html(html_reprint, height=750, scrolling=True)
+                        components.html(html_reprint, height=130, scrolling=False)
                 else:
                     st.info("Este ticket no tiene productos registrados.")
             else:

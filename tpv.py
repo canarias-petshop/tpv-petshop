@@ -119,8 +119,9 @@ def render_pestana_tpv(client):
             <head>
             <style>
                 body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: #f8f9fa; }}
-                #pantalla {{ text-align: center; padding: 10px; max-width: 400px; margin: 0 auto; }}
-                #ticket-impresion {{ display: block; border: 1px solid #ccc; padding: 15px; margin-top: 15px; background-color: #fffaf0; width: 300px; margin-left: auto; margin-right: auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
+                #pantalla {{ text-align: center; padding: 10px; max-width: 400px; margin: 0 auto; margin-top: 10px; }}
+                .escala-mini {{ transform: scale(0.65); transform-origin: top center; height: 400px; overflow: hidden; margin-top: 10px; }}
+                #ticket-impresion {{ display: block; border: 1px solid #ccc; padding: 15px; background-color: #fffaf0; width: 300px; margin: 0 auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
                 .btn-print {{ 
                     padding: 12px; background-color: #005275; color: white; 
                     border: none; border-radius: 5px; cursor: pointer; 
@@ -131,14 +132,8 @@ def render_pestana_tpv(client):
             </head>
             <body>
             
-            <div id="pantalla">
-                <button class="btn-print" onclick="imprimirConStar()">🖨️ IMPRIMIR TICKET (TABLET STAR)</button>
-                <a href="mailto:?subject=Ticket%20de%20Compra%20-%20Animalarium&body={body_encoded}" target="_top" style="text-decoration: none;">
-                    <button class="btn-print btn-email">✉️ ENVIAR TICKET POR EMAIL</button>
-                </a>
-            </div>
-
-            <div id="ticket-impresion">
+            <div class="escala-mini">
+                <div id="ticket-impresion">
                 <div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
                     <b style="font-size: 34px;">ANIMALARIUM</b><br>
                     Raquel Trujillo Hernández<br>
@@ -193,6 +188,14 @@ def render_pestana_tpv(client):
                     </div>
                 </div>
             </div>
+            </div>
+
+            <div id="pantalla">
+                <button class="btn-print" onclick="imprimirConStar()">🖨️ IMPRIMIR TICKET (TABLET STAR)</button>
+                <a href="mailto:?subject=Ticket%20de%20Compra%20-%20Animalarium&body={body_encoded}" target="_top" style="text-decoration: none;">
+                    <button class="btn-print btn-email">✉️ ENVIAR TICKET POR EMAIL</button>
+                </a>
+            </div>
 
             <script>
             function imprimirConStar() {{
@@ -215,7 +218,7 @@ def render_pestana_tpv(client):
             </body>
             </html>
             """
-            components.html(html_ticket, height=750, scrolling=True)
+            components.html(html_ticket, height=580, scrolling=True)
             
             c_nv = st.columns(1)[0]
             with c_nv:
