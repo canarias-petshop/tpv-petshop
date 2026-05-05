@@ -218,7 +218,7 @@ def render_pestana_tpv(client):
             </body>
             </html>
             """
-            components.html(html_ticket, height=580, scrolling=True)
+            components.html(html_ticket, height=430, scrolling=True)
             
             c_nv = st.columns(1)[0]
             with c_nv:
