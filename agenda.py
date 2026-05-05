@@ -85,7 +85,11 @@ def render_pestana_agenda(client):
                         
                         historial = res_m_info.data[0].get('historial_trabajos', [])
                         duraciones = [t['Duración (min)'] for t in historial if isinstance(t, dict) and isinstance(t.get('Duración (min)'), (int, float))]
-                        if duraciones: dur_media = int(sum(duraciones) / len(duraciones))
+                        if duraciones: 
+                            dur_media = int(sum(duraciones) / len(duraciones))
+                            st.info(f"⏱️ **Info de la mascota:** Tiempo medio de {dur_media} min | Peluquero/a pref: {pref_actual}")
+                        else:
+                            st.info(f"⏱️ **Info de la mascota:** Sin historial (60 min por defecto) | Peluquero/a pref: {pref_actual}")
                         
                 fecha_c = st.date_input("Fecha *", value=date.today())
                 duracion_c = st.number_input("Duración estimada (minutos) *", min_value=5, max_value=300, value=dur_media, step=5)
