@@ -479,13 +479,14 @@ def render_pestana_crm(client):
                         st.warning("Falta el nombre de la mascota.")
                         
         with sub_masc:
-            res_mascotas = client.table("mascotas").select("*, clientes(nombre_dueno)").order("id", desc=True).execute()
+            res_mascotas = client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").order("id", desc=True).execute()
             if res_mascotas.data:
                 df_m = pd.DataFrame(res_mascotas.data)
                 
                 b_masc = st.text_input("🔍 Buscar mascota por nombre:", placeholder="Escribe para filtrar...", key="b_masc").strip().lower()
                 
                 df_m['Dueño'] = df_m['clientes'].apply(lambda x: x.get('nombre_dueno', '') if isinstance(x, dict) else '')
+                df_m['Teléfono'] = df_m['clientes'].apply(lambda x: x.get('telefono', '') if isinstance(x, dict) else '')
                 if 'fecha_nacimiento' not in df_m.columns: df_m['fecha_nacimiento'] = ""
                 df_m['Edad'] = df_m['fecha_nacimiento'].apply(calcular_edad)
                 if 'historial_trabajos' not in df_m.columns:
@@ -496,7 +497,7 @@ def render_pestana_crm(client):
                 df_m['Pref'] = df_m['observaciones'].apply(get_pref)
                 df_m['observaciones'] = df_m['observaciones'].apply(strip_pref)
                 
-                df_m_vista = df_m[['id', 'nombre', 'Dueño', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'Duración Media', 'Pref', 'observaciones']].copy()
+                df_m_vista = df_m[['id', 'nombre', 'Dueño', 'Teléfono', 'especie', 'raza', 'fecha_nacimiento', 'Edad', 'Duración Media', 'Pref', 'observaciones']].copy()
                 
                 if b_masc:
                     df_m_vista = df_m_vista[df_m_vista['nombre'].str.lower().str.contains(b_masc, na=False)]
@@ -507,7 +508,7 @@ def render_pestana_crm(client):
                 
                 ed_m = st.data_editor(
                     df_m_vista,
-                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "Dueño": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
+                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "Dueño": st.column_config.TextColumn(disabled=True), "Teléfono": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_mascotas", height=400
                 )
                 if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
