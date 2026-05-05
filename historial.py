@@ -189,15 +189,37 @@ def render_pestana_historial(client):
                         except:
                             fecha_t_print = "Fecha desconocida"
                             
+                        # --- PREPARACIÓN DEL EMAIL (HISTORIAL) ---
+                        cuerpo_email = f"Hola,\n\nAdjuntamos la copia de su ticket #{t_id}:\n\n"
+                        for p in prods:
+                            cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€\n"
+                        
+                        desc_g_re = float(t_info.get('descuento_global', 0.0))
+                        if desc_g_re > 0:
+                            cuerpo_email += f"\nDescuento global aplicado: {desc_g_re}%\n"
+                            
+                        cuerpo_email += f"\nTOTAL PAGADO: {total_final_calculado:.2f}€\n"
+                        cuerpo_email += "\nUn saludo,\nAnimalarium."
+                        
+                        import urllib.parse
+                        body_encoded = urllib.parse.quote(cuerpo_email)
+
                         html_reprint = f"""
                         <!DOCTYPE html><html><head><meta charset='utf-8'>
                         <style>
-                            body {{ margin: 0; padding: 0; font-family: sans-serif; text-align: center; }}
-                            .btn-print {{ padding: 12px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; }}
-                            #ticket-impresion-re {{ display: none; }}
+                            body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: #f8f9fa; }}
+                            .pantalla {{ padding: 10px; max-width: 400px; margin: 0 auto; text-align: center; }}
+                            .btn-print {{ padding: 12px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; margin-bottom: 8px; }}
+                            .btn-email {{ background-color: #2e7d32; }}
+                            #ticket-impresion-re {{ display: block; border: 1px solid #ccc; padding: 15px; margin-top: 15px; background-color: #fffaf0; width: 300px; margin-left: auto; margin-right: auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); text-align: left; }}
                         </style>
                         </head><body>
-                        <button class="btn-print" onclick="reimprimirConStar()">🖨️ IMPRIMIR COPIA TICKET</button>
+                        <div class="pantalla">
+                            <button class="btn-print" onclick="reimprimirConStar()">🖨️ IMPRIMIR COPIA (TABLET STAR)</button>
+                            <a href="mailto:?subject=Copia%20de%20Ticket%20-%20Animalarium&body={body_encoded}" target="_top" style="text-decoration: none;">
+                                <button class="btn-print btn-email">✉️ ENVIAR COPIA POR EMAIL</button>
+                            </a>
+                        </div>
                         <div id="ticket-impresion-re">
                             <div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
                                 <b style="font-size: 34px;">ANIMALARIUM</b><br>
@@ -247,7 +269,7 @@ def render_pestana_historial(client):
                         </script>
                         </body></html>
                         """
-                        components.html(html_reprint, height=55)
+                        components.html(html_reprint, height=750, scrolling=True)
                 else:
                     st.info("Este ticket no tiene productos registrados.")
             else:

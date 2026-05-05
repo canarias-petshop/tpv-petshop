@@ -94,26 +94,48 @@ def render_pestana_tpv(client):
         if t:
             st.success("✅ Venta realizada con éxito")
             
+            # --- PREPARACIÓN DEL EMAIL ---
+            cuerpo_email = "Hola,\n\nGracias por su compra en Animalarium. Adjuntamos el detalle de su ticket:\n\n"
+            for p in t['productos']:
+                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€\n"
+            
+            desc_global = t.get('descuento_global', 0.0)
+            if desc_global > 0:
+                cuerpo_email += f"\nDescuento global aplicado: {desc_global}%\n"
+                
+            cuerpo_email += f"\nTOTAL PAGADO: {t['total']:.2f}€\n"
+            if t.get('cliente_fidel'):
+                cuerpo_email += f"\n🌟 Puntos ganados hoy: +{t['puntos_ganados']}"
+                cuerpo_email += f"\n🌟 Saldo actual: {t.get('nuevo_saldo', 0)} puntos\n"
+                
+            cuerpo_email += "\nPOLÍTICA DE DEVOLUCIÓN:\nPlazo de 14 días con ticket y embalaje original en perfecto estado.\n\nUn saludo."
+            import urllib.parse
+            body_encoded = urllib.parse.quote(cuerpo_email)
+
             # --- TICKET PARA STAR MICRONICS PASS-PRNT ---
             html_ticket = f"""
             <!DOCTYPE html>
             <html>
             <head>
             <style>
-                body {{ margin: 0; padding: 0; font-family: sans-serif; }}
-                #ticket-impresion {{ display: none; }}
-                #pantalla {{ text-align: center; }}
+                body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: #f8f9fa; }}
+                #pantalla {{ text-align: center; padding: 10px; max-width: 400px; margin: 0 auto; }}
+                #ticket-impresion {{ display: block; border: 1px solid #ccc; padding: 15px; margin-top: 15px; background-color: #fffaf0; width: 300px; margin-left: auto; margin-right: auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
                 .btn-print {{ 
                     padding: 12px; background-color: #005275; color: white; 
                     border: none; border-radius: 5px; cursor: pointer; 
-                    font-weight: bold; width: 100%; font-size: 15px;
+                    font-weight: bold; width: 100%; font-size: 15px; margin-bottom: 8px;
                 }}
+                .btn-email {{ background-color: #2e7d32; }}
             </style>
             </head>
             <body>
             
             <div id="pantalla">
-                <button class="btn-print" onclick="imprimirConStar()">🖨️ IMPRIMIR EN STAR MICRONICS</button>
+                <button class="btn-print" onclick="imprimirConStar()">🖨️ IMPRIMIR TICKET (TABLET STAR)</button>
+                <a href="mailto:?subject=Ticket%20de%20Compra%20-%20Animalarium&body={body_encoded}" target="_top" style="text-decoration: none;">
+                    <button class="btn-print btn-email">✉️ ENVIAR TICKET POR EMAIL</button>
+                </a>
             </div>
 
             <div id="ticket-impresion">
@@ -193,7 +215,7 @@ def render_pestana_tpv(client):
             </body>
             </html>
             """
-            components.html(html_ticket, height=50)
+            components.html(html_ticket, height=750, scrolling=True)
             
             c_nv = st.columns(1)[0]
             with c_nv:
