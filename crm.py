@@ -100,32 +100,80 @@ def render_pestana_crm(client):
             if not isinstance(historial, list): historial = []
             
             df_hist = pd.DataFrame(historial)
-            for col in ["Fecha", "Trabajo / Servicio", "Peluquera/o", "Duración (min)", "Importe (€)"]:
-                if col not in df_hist.columns: df_hist[col] = "" if col == "Peluquera/o" else None
+            columnas_hist = ["Fecha", "Trabajo / Servicio", "Tratamiento", "Peluquera/o", "Inicio de sesión", "Fin de sesión", "Duración (min)", "Importe (€)", "Nota Sesión"]
+            
+            for col in columnas_hist:
+                if col not in df_hist.columns: 
+                    df_hist[col] = None if col in ["Duración (min)", "Importe (€)", "Inicio de sesión", "Fin de sesión", "Fecha"] else ""
                 
-            df_hist = df_hist[["Fecha", "Trabajo / Servicio", "Peluquera/o", "Duración (min)", "Importe (€)"]]
+            df_hist = df_hist[columnas_hist]
             
             df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%d/%m/%Y", errors="coerce")
             df_hist["Duración (min)"] = pd.to_numeric(df_hist["Duración (min)"], errors="coerce")
             df_hist["Importe (€)"] = pd.to_numeric(df_hist["Importe (€)"], errors="coerce")
+            
+            def parse_time_safe(t):
+                if pd.isna(t) or str(t).strip() in ["", "nan", "None", "NaT"]: return None
+                try: return pd.to_datetime(str(t)).time()
+                except: return None
+                
+            df_hist["Inicio de sesión"] = df_hist["Inicio de sesión"].apply(parse_time_safe)
+            df_hist["Fin de sesión"] = df_hist["Fin de sesión"].apply(parse_time_safe)
             
             ed_hist = st.data_editor(
                 df_hist, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_hist_{prefix}_{m_id}",
                 column_config={
                     "Fecha": st.column_config.DateColumn("Fecha (D/M/A)", format="DD/MM/YYYY"),
                     "Trabajo / Servicio": st.column_config.TextColumn("Servicio Realizado"),
+                    "Tratamiento": st.column_config.TextColumn("Tratamiento"),
                     "Peluquera/o": st.column_config.SelectboxColumn("Realizado por", options=[""] + empleados_lista),
+                    "Inicio de sesión": st.column_config.TimeColumn("Inicio", format="HH:mm"),
+                    "Fin de sesión": st.column_config.TimeColumn("Fin", format="HH:mm"),
                     "Duración (min)": st.column_config.NumberColumn("Duración (min)", min_value=0, step=5),
-                    "Importe (€)": st.column_config.NumberColumn("Importe Cobrado (€)", format="%.2f", min_value=0.0)
+                    "Importe (€)": st.column_config.NumberColumn("Importe Cobrado (€)", format="%.2f", min_value=0.0),
+                    "Nota Sesión": st.column_config.TextColumn("Nota Sesión")
                 }
             )
             
-            if st.button(f"💾 Guardar Historial de {m_nombre}", type="primary", key=f"btn_hist_{prefix}_{m_id}"):
+            st.markdown("#### 📝 Diario y Observaciones Clínicas")
+            obs_actuales = strip_pref(m_data.get('observaciones', ''))
+            notas_clinicas = st.text_area("Anota aquí alergias, estado de piel, carácter o recordatorios extensos:", value=obs_actuales, height=120, key=f"notas_clinicas_{prefix}_{m_id}")
+            
+            if st.button(f"💾 Guardar Historial y Notas de {m_nombre}", type="primary", key=f"btn_hist_{prefix}_{m_id}"):
                 df_save = ed_hist.copy()
-                df_save['Fecha'] = pd.to_datetime(df_save['Fecha']).dt.strftime('%d/%m/%Y').fillna("")
+                df_save['Fecha'] = pd.to_datetime(df_save['Fecha'], errors='coerce').dt.strftime('%d/%m/%Y').fillna("")
+                
+                for idx, row in df_save.iterrows():
+                    ini = row.get('Inicio de sesión')
+                    fin = row.get('Fin de sesión')
+                    
+                    ini_str = ini.strftime('%H:%M') if hasattr(ini, 'strftime') else (str(ini) if pd.notnull(ini) and str(ini).strip() not in ["", "None", "NaT"] else "")
+                    fin_str = fin.strftime('%H:%M') if hasattr(fin, 'strftime') else (str(fin) if pd.notnull(fin) and str(fin).strip() not in ["", "None", "NaT"] else "")
+                    
+                    df_save.at[idx, 'Inicio de sesión'] = ini_str
+                    df_save.at[idx, 'Fin de sesión'] = fin_str
+                    
+                    if ini_str and fin_str:
+                        try:
+                            h_i, m_i = map(int, ini_str.split(':')[:2])
+                            h_f, m_f = map(int, fin_str.split(':')[:2])
+                            minutos = (h_f * 60 + m_f) - (h_i * 60 + m_i)
+                            if minutos < 0: minutos += 24 * 60
+                            df_save.at[idx, 'Duración (min)'] = minutos
+                        except:
+                            pass
+                            
                 df_save = df_save.fillna("")
-                client.table("mascotas").update({"historial_trabajos": df_save.to_dict(orient='records')}).eq("id", m_id).execute()
-                st.success("Historial actualizado correctamente."); time.sleep(0.5); st.rerun()
+                
+                pref_actual = get_pref(m_data.get('observaciones', ''))
+                final_obs = f"[Pref: {pref_actual}] {notas_clinicas}".strip() if pref_actual != "Cualquiera" else notas_clinicas
+                
+                client.table("mascotas").update({
+                    "historial_trabajos": df_save.to_dict(orient='records'),
+                    "observaciones": final_obs
+                }).eq("id", m_id).execute()
+                
+                st.success("Historial y notas actualizados correctamente."); time.sleep(0.5); st.rerun()
                 
             st.markdown("---")
             st.markdown(f"#### 📅 Agendar Cita Inteligente para **{m_nombre}**")
