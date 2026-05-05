@@ -14,7 +14,7 @@ def render_pestana_agenda(client):
             dueno = m['clientes']['nombre_dueno'] if m.get('clientes') else "Desconocido"
             dict_mascotas[f"🐾 {m['nombre']} (De: {dueno})"] = m['id']
             
-    res_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, estado, mascotas_id, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
+    res_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
     
     # --- DATOS COMUNES ---
     try:
@@ -22,25 +22,8 @@ def render_pestana_agenda(client):
         empleados_lista = [e['nombre'] for e in emp_res.data] if emp_res.data else []
     except: empleados_lista = []
     
-    ESTADOS_CITA = [
-        "🟩 Confirmado",
-        "🩷 Cancelado (Definitivo)",
-        "🟦 Cancelado (Reprogramado)",
-        "🟪 Servicio de Recogida",
-        "🟧 Lista de Espera (Avisar hueco)",
-        "⬜ Gris (Cambio mismo día)",
-        "🍏 Pistacho (Descuento Oferta)",
-        "⚪ Sin Confirmar"
-    ]
-
-    try:
-        res_serv = client.table("productos").select("nombre").eq("categoria", "Servicio").execute()
-        servicios_lista = [s['nombre'] for s in res_serv.data] if res_serv.data else ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"]
-    except:
-        servicios_lista = ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"]
-
     # --- PESTAÑAS DE VISTAS ---
-    sub_agenda, sub_diario, sub_semanal, sub_cancelados = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal", "❌ Cancelados"])
+    sub_agenda, sub_diario, sub_semanal = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal"])
     
     with sub_agenda:
         c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
@@ -175,9 +158,6 @@ def render_pestana_agenda(client):
                                 motivo_extra = st.text_input("Especificar otro motivo: *")
                 
                 servicio_sel = st.selectbox("Servicio *", ["Peluquería (Baño y Corte)", "Peluquería (Solo Baño)", "Corte de Uñas", "Revisión Veterinaria", "Otro"])
-                c_sv1, c_sv2 = st.columns(2)
-                with c_sv1: servicio_sel = st.selectbox("Servicio *", servicios_lista)
-                with c_sv2: estado_sel = st.selectbox("Estado", ESTADOS_CITA)
                 
                 if st.button("Guardar Cita", type="primary", use_container_width=True):
                     m_id_final = None
@@ -221,14 +201,12 @@ def render_pestana_agenda(client):
                             
                             client.table("citas").insert({
                                 "mascotas_id": m_id_final, "fecha_hora": fecha_hora_str,
-                                "servicio": servicio_final, "duracion_minutos": int(duracion_c),
-                                "estado": estado_sel
+                                "servicio": servicio_final, "duracion_minutos": int(duracion_c)
                             }).execute()
                             st.success("Cita agendada."); time.sleep(1); st.rerun()
 
         with c_agenda2:
             st.markdown("#### 🗓️ Directorio de Citas (Editable)")
-            df_citas = pd.DataFrame()
             if res_citas.data:
                 citas_formateadas = []
                 for c in res_citas.data:
@@ -251,27 +229,23 @@ def render_pestana_agenda(client):
                         "Día": dt_obj.strftime('%d/%m/%Y'),
                         "Hora": dt_obj.strftime('%H:%M'),
                         "Duración (min)": dur,
-                        "Estado": c.get('estado', '🟩 Confirmado'),
                         "Peluquero/a": assigned_e,
                         "Servicio": s,
                         "Mascota": mascota_info.get('nombre', 'N/A'),
                         "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
-                        "Teléfono": cliente_info.get('telefono', 'N/A'),
-                        "mascotas_id": c.get('mascotas_id')
+                        "Teléfono": cliente_info.get('telefono', 'N/A')
                     })
                     
                 df_citas = pd.DataFrame(citas_formateadas)
                 
                 ed_citas = st.data_editor(
-                    df_citas[['id', 'Día', 'Hora', 'Duración (min)', 'Estado', 'Peluquero/a', 'Servicio', 'Mascota', 'Dueño', 'Teléfono', 'mascotas_id']],
+                    df_citas[['id', 'Día', 'Hora', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
-                    column_order=["Día", "Hora", "Estado", "Peluquero/a", "Mascota", "Servicio", "Duración (min)", "Dueño", "Teléfono"],
+                    column_order=["Día", "Hora", "Peluquero/a", "Mascota", "Servicio", "Duración (min)", "Dueño", "Teléfono"],
                     column_config={
                         "id": None,
-                        "mascotas_id": None,
                         "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)", width="small"),
                         "Hora": st.column_config.TextColumn("Hora", width="small"),
-                        "Estado": st.column_config.SelectboxColumn("Estado / Etiqueta", options=ESTADOS_CITA, required=True),
                         "Peluquero/a": st.column_config.SelectboxColumn("👩‍🦰 Peluquero/a", options=["Sin Asignar"] + empleados_lista, required=True),
                         "Mascota": st.column_config.TextColumn(disabled=True),
                         "Dueño": st.column_config.TextColumn(disabled=True),
@@ -300,35 +274,11 @@ def render_pestana_agenda(client):
                             else:
                                 srv_final = srv
                                 
-                            old_row = df_citas[df_citas['id'] == row['id']].iloc[0]
-
                             client.table("citas").update({
                                 "fecha_hora": dt_str,
                                 "duracion_minutos": int(row['Duración (min)']),
-                                "servicio": srv_final,
-                                "estado": str(row['Estado'])
+                                "servicio": srv_final
                             }).eq("id", row['id']).execute()
-                            
-                            # Auto-registrar la cancelación en la ficha clínica si detecta el cambio
-                            if "Cancelado" in str(row['Estado']) and "Cancelado" not in str(old_row['Estado']):
-                                m_id = row.get('mascotas_id')
-                                if pd.notna(m_id):
-                                    res_m_hist = client.table("mascotas").select("historial_trabajos").eq("id", int(m_id)).execute()
-                                    if res_m_hist.data:
-                                        hist = res_m_hist.data[0].get('historial_trabajos', [])
-                                        if not isinstance(hist, list): hist = []
-                                        hist.append({
-                                            "Fecha": row['Día'],
-                                            "Inicio de Sesión": "",
-                                            "Trabajo / Servicio": f"CITA CANCELADA - {srv_final}",
-                                            "Tratamiento": "",
-                                            "Peluquera/o": str(row['Peluquero/a']),
-                                            "Duración (min)": 0,
-                                            "Importe (€)": 0,
-                                            "Observaciones": f"Cambio de estado a: {str(row['Estado'])}"
-                                        })
-                                        client.table("mascotas").update({"historial_trabajos": hist}).eq("id", int(m_id)).execute()
-
                     st.success("Agenda actualizada."); time.sleep(0.8); st.rerun()
             else:
                 st.info("No hay citas agendadas en el sistema.")
@@ -433,17 +383,3 @@ def render_pestana_agenda(client):
                     citas_por_dia[dia].append("")
             df_semana = pd.DataFrame(citas_por_dia)
             st.dataframe(df_semana, use_container_width=True, hide_index=True)
-
-    with sub_cancelados:
-        st.markdown("#### ❌ Cuadrante de Citas Canceladas")
-        st.info("Aquí aparecen todas las citas que han sido etiquetadas como Canceladas. Si modificas el Estado en la Pestaña de Gestión, saltará aquí y se anotará en la ficha del animal automáticamente.")
-        try:
-            if not df_citas.empty:
-                df_canc = df_citas[df_citas['Estado'].str.contains("Cancelado", na=False)]
-                if not df_canc.empty:
-                    st.dataframe(df_canc[['Día', 'Hora', 'Estado', 'Mascota', 'Dueño', 'Teléfono', 'Servicio', 'Peluquero/a']], use_container_width=True, hide_index=True)
-                else:
-                    st.success("No hay citas canceladas actualmente.")
-            else:
-                st.info("No hay citas en el sistema.")
-        except: pass
