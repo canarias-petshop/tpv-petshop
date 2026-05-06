@@ -351,6 +351,7 @@ def render_pestana_facturacion(client):
     with sub_archivo:
         st.markdown("####  🔍  Archivo Histórico")
         tipo_doc = st.radio("Documento:", ["Facturas Emitidas (Ventas)", "Facturas Recibidas (Compras)"], horizontal=True)
+            tipo_doc = st.radio("Documento:", ["Facturas Emitidas (Ventas)", "Gastos, Compras y Facturas Recibidas"], horizontal=True)
         c_f1, c_f2 = st.columns(2)
         f_ini = c_f1.date_input("Desde:", pd.to_datetime('today') - pd.Timedelta(days=30), key="a_i")
         f_fin = c_f2.date_input("Hasta:", pd.to_datetime('today'), key="a_f")
@@ -454,9 +455,34 @@ def render_pestana_facturacion(client):
             if res_comp.data:
                 df_comp = pd.DataFrame(res_comp.data)
                 df_comp['Proveedor'] = df_comp['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
-                df_vista = df_comp[['id', 'tipo', 'total', 'Proveedor', 'estado']].copy()
                 
-                # Insertamos las dos casillas
+                st.markdown("##### 🗂️ Clasificación de Documentos")
+                filtro_cat = st.selectbox(
+                    "Filtro:",
+                    [
+                        "Todos los registros", 
+                        "📦 Facturas de Proveedores (Mercancía)", 
+                        "🧹 Gastos de Tienda (Limpieza, consumibles...)", 
+                        "🏢 Gastos Fijos (Alquiler, Luz...)", 
+                        "👥 Personal y Nóminas", 
+                        "🛠️ Servicios Exteriores (Técnicos...)", 
+                        "🏛️ Impuestos y Tasas"
+                    ],
+                    label_visibility="collapsed"
+                )
+                
+                df_filtrado = df_comp.copy()
+                if "Facturas de Proveedores" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.startswith('Factura:', na=False)]
+                elif "Gastos de Tienda" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Gastos de compra', na=False)]
+                elif "Gastos Fijos" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Gastos fijos', na=False)]
+                elif "Personal y Nóminas" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Personal', na=False)]
+                elif "Servicios Exteriores" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Servicios exteriores', na=False)]
+                elif "Impuestos y Tasas" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Impuestos y Tasas', na=False)]
+                
+                if df_filtrado.empty:
+                    st.info("No hay registros en esta categoría para las fechas seleccionadas.")
+                    
+                df_vista = df_filtrado[['id', 'tipo', 'total', 'Proveedor', 'estado']].copy()
                 df_vista.insert(0, "Borrar", False)
                 df_vista.insert(0, "Ver", False)
                 
@@ -465,7 +491,7 @@ def render_pestana_facturacion(client):
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver"), 
                         "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"),
-                        "id": None, "tipo": "Nº Factura"
+                        "id": None, "tipo": "Documento / Concepto"
                     }
                 )
 
