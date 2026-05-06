@@ -126,6 +126,7 @@ def render_pestana_tpv(client):
                 body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: #f8f9fa; }}
                 #pantalla {{ text-align: center; padding: 5px; max-width: 400px; margin: 0 auto; margin-top: 5px; }}
                 .escala-mini {{ transform: scale(0.55); transform-origin: top center; height: 300px; overflow: hidden; margin-top: 5px; }}
+                .escala-mini {{ zoom: 0.55; -moz-transform: scale(0.55); -moz-transform-origin: top center; margin-top: 5px; margin-bottom: 10px; }}
                 #ticket-impresion {{ display: block; border: 1px solid #ccc; padding: 15px; background-color: #fffaf0; width: 300px; margin: 0 auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
                 .btn-print {{ 
                     padding: 10px; background-color: #005275; color: white; 
@@ -225,6 +226,7 @@ def render_pestana_tpv(client):
             </html>
             """
             components.html(html_ticket, height=400, scrolling=True)
+            components.html(html_ticket, height=450, scrolling=True)
             
             c_nv = st.columns(1)[0]
             with c_nv:
