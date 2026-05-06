@@ -301,6 +301,10 @@ def render_pestana_tpv(client):
                 pagado_hoy = 0.0; pendiente = 0.0; metodo_log = metodo
                 p_efectivo = 0.0; p_tarjeta = 0.0; p_bizum = 0.0
 
+                banco_sel_nombre = ""
+                banco_sel_id = None
+                banco_sel_saldo = 0.0
+
                 if metodo == "Efectivo":
                     c_tot, c_ent, c_cam = st.columns([0.8, 1, 1])
                     with c_tot: st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
@@ -332,10 +336,6 @@ def render_pestana_tpv(client):
                     p_efectivo = p_e_val; p_tarjeta = p_t_val; p_bizum = p_b_val
                     pendiente = total_f - pagado_hoy if pagado_hoy < total_f else 0.0
                     
-                    banco_sel_nombre = ""
-                    banco_sel_id = None
-                    banco_sel_saldo = 0.0
-                    
                     if p_tarjeta > 0 and lista_bancos:
                         banco_sel_nombre = st.selectbox("🏦 Banco para parte en Tarjeta", [b['nombre_banco'] for b in lista_bancos])
                         banco_info = next((b for b in lista_bancos if b['nombre_banco'] == banco_sel_nombre), None)
@@ -352,9 +352,6 @@ def render_pestana_tpv(client):
                     st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
                     pagado_hoy = total_f
                     
-                    banco_sel_nombre = ""
-                    banco_sel_id = None
-                    banco_sel_saldo = 0.0
                     metodo_log = metodo
                     
                     if metodo.startswith("Tarjeta"): 
