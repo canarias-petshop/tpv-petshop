@@ -51,7 +51,7 @@ def render_pestana_facturacion(client):
                 it_v = df_inv[df_inv['sku'] == sku_v].iloc[0]
                 st.session_state.factura_v_temp.append({
                     "id": str(it_v['id']), "Código": it_v['sku'], "Descripción": it_v['nombre'],
-                    "Cantidad": 1, "Precio Venta": float(it_v['precio_pvp']), "Desc %": 0.0
+                    "Cantidad": 1, "Base Ud": float(it_v.get('precio_base', float(it_v['precio_pvp'])/1.07)), "IGIC %": float(it_v.get('igic_tipo', 7.0)), "Precio Venta": float(it_v['precio_pvp']), "Desc %": 0.0
                 })
                 st.session_state.llave_busqueda_v += 1 
                 st.rerun()
@@ -85,10 +85,11 @@ def render_pestana_facturacion(client):
                                 if res_new.data:
                                     nuevo_id = str(res_new.data[0]['id'])
                         
+                        m_base_val = m_pvp / (1 + (m_igic / 100))
                         if not add_to_stock or (add_to_stock and m_sku):
                             st.session_state.factura_v_temp.append({
                                 "id": str(nuevo_id), "Código": m_sku if m_sku else "---", "Descripción": m_nom,
-                                "Cantidad": m_cant, "Precio Venta": m_pvp, "Desc %": 0.0
+                                "Cantidad": m_cant, "Base Ud": m_base_val, "IGIC %": m_igic, "Precio Venta": m_pvp, "Desc %": 0.0
                             })
                             st.success("Artículo añadido a la factura."); time.sleep(0.5); st.rerun()
                     else:
@@ -98,8 +99,16 @@ def render_pestana_facturacion(client):
             # Parche anti-fantasmas
             if 'Precio Venta' not in st.session_state.factura_v_temp[0]:
                 st.session_state.factura_v_temp = []; st.rerun()
+                
+            for item in st.session_state.factura_v_temp:
+                if 'Base Ud' not in item:
+                    item['Base Ud'] = item['Precio Venta'] / 1.07
+                    item['IGIC %'] = 7.0
 
             df_v = pd.DataFrame(st.session_state.factura_v_temp)
+            df_v['Base Ud'] = df_v['Precio Venta'] / (1 + df_v['IGIC %'] / 100)
+            df_v['Base Neta'] = (df_v['Base Ud'] * df_v['Cantidad']) * (1 - df_v['Desc %']/100)
+            df_v['IGIC €'] = (df_v['Base Neta'] * (df_v['IGIC %']/100)).round(2)
             df_v['Total Línea'] = (df_v['Precio Venta'] * df_v['Cantidad']) * (1 - df_v['Desc %']/100)
             df_v['Total Línea'] = df_v['Total Línea'].round(2)
 
@@ -107,7 +116,8 @@ def render_pestana_facturacion(client):
                 df_v, hide_index=True, use_container_width=True, key="ed_v_final",
                 num_rows="dynamic",
                 column_config={
-                    "id": None, "Código": st.column_config.TextColumn(disabled=True),
+                    "id": None, "Base Ud": None, "IGIC %": None, "Base Neta": None, "IGIC €": None,
+                    "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
                     "Precio Venta": st.column_config.NumberColumn("Precio Venta (€)", format="%.2f"),
@@ -115,24 +125,32 @@ def render_pestana_facturacion(client):
                     "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
                 }
             )
+            
+            df_v_edit['IGIC %'] = df_v_edit['IGIC %'].fillna(7.0)
+            df_v_edit['Base Ud'] = df_v_edit['Precio Venta'] / (1 + df_v_edit['IGIC %'] / 100)
 
-            nuevos_datos_v = df_v_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Precio Venta', 'Desc %']].to_dict('records')
+            nuevos_datos_v = df_v_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Precio Venta', 'Desc %']].to_dict('records')
             if nuevos_datos_v != st.session_state.factura_v_temp:
                 st.session_state.factura_v_temp = nuevos_datos_v
                 st.rerun()
 
+            suma_base_v = df_v['Base Neta'].sum()
+            suma_igic_v = df_v['IGIC €'].sum()
             suma_articulos_v = df_v['Total Línea'].sum()
             st.markdown("---")
             col_v1, col_v2 = st.columns([1, 2])
             with col_v1:
                 desc_g_v = st.number_input(" 🎁  Dto. Global (%)", 0.0, 100.0, value=None, key="desc_v_alta")
             
-            total_v_final = suma_articulos_v * (1 - (desc_g_v or 0.0) / 100)
+            desc_g_val = float(desc_g_v or 0.0)
+            total_base_final = suma_base_v * (1 - desc_g_val / 100)
+            total_igic_final = suma_igic_v * (1 - desc_g_val / 100)
+            total_v_final = suma_articulos_v * (1 - desc_g_val / 100)
 
             with col_v2:
                 st.markdown(f"""
                 <div style="background-color: #f0f7f9; padding: 15px; border-radius: 10px; border-left: 5px solid #005275; text-align: right;">
-                <p style="margin:0; font-size: 14px;">Suma artículos: {suma_articulos_v:.2f}€</p>
+                <p style="margin:0; font-size: 14px;">Base Neta: {total_base_final:.2f}€ | IGIC: {total_igic_final:.2f}€</p>
                 <h2 style="margin:0; color: #005275;">TOTAL FACTURA: {total_v_final:.2f}€</h2>
                 </div>
                 """, unsafe_allow_html=True)
@@ -142,8 +160,8 @@ def render_pestana_facturacion(client):
                     c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
                     
                     client.table("facturas").insert({
-                        "cliente_id": c_id, "total_neto": float(total_v_final), "total_igic": 0.0, "total_final": float(total_v_final),
-                        "descuento_global": float(desc_g_v or 0.0), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
+                        "cliente_id": c_id, "total_neto": float(total_base_final), "total_igic": float(total_igic_final), "total_final": float(total_v_final),
+                        "descuento_global": float(desc_g_val), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
                     }).execute()
                     for i in st.session_state.factura_v_temp:
                         if str(i.get('id', '0')) != '0' and str(i.get('id')) != 'None':
@@ -390,17 +408,44 @@ def render_pestana_facturacion(client):
                     f_id = filas.iloc[0]['id']
                     f_data = df_fac[df_fac['id'] == f_id].iloc[0]
                     prods = pd.DataFrame(f_data['productos'])
-                    if 'Precio Venta' not in prods.columns: prods['Precio Venta'] = (prods.get('Base Ud',0)*(1+prods.get('IGIC %',0)/100)).round(2)
+                    
+                    if 'Precio Venta' not in prods.columns: 
+                        prods['Precio Venta'] = (prods.get('Base Ud',0)*(1+prods.get('IGIC %',0)/100)).round(2)
+                    
+                    if 'Base Ud' not in prods.columns:
+                        prods['IGIC %'] = 7.0
+                        prods['Base Ud'] = prods['Precio Venta'] / 1.07
+                    
+                    prods['Base Neta'] = (prods['Base Ud'] * prods['Cantidad']) * (1 - prods.get('Desc %',0)/100)
+                    prods['IGIC €'] = (prods['Base Neta'] * (prods['IGIC %']/100)).round(2)
                     prods['Total Línea'] = (prods['Precio Venta']*prods['Cantidad'])*(1-prods.get('Desc %',0)/100)
                     
                     st.markdown(f"#### 📝 Editando Factura {f_data['numero_factura']}")
                     ed_ph = st.data_editor(prods, hide_index=True, use_container_width=True, num_rows="dynamic", key=f"ed_v_{f_id}", column_config={"id": None, "Base Ud": None, "IGIC %": None, "Base Neta": None, "IGIC €": None})
                     
-                    new_total = ed_ph['Total Línea'].sum() * (1 - st.number_input("Dto. Global (%)", 0.0, 100.0, float(f_data.get('descuento_global',0)), key=f"dg_{f_id}")/100)
+                    # Si se añaden filas dinámicas, rellenamos datos
+                    ed_ph['IGIC %'] = ed_ph.get('IGIC %', pd.Series()).fillna(7.0)
+                    ed_ph['Base Ud'] = ed_ph['Precio Venta'] / (1 + ed_ph['IGIC %'] / 100)
+                    ed_ph['Base Neta'] = (ed_ph['Base Ud'] * ed_ph['Cantidad']) * (1 - ed_ph.get('Desc %',0)/100)
+                    ed_ph['IGIC €'] = (ed_ph['Base Neta'] * (ed_ph['IGIC %']/100)).round(2)
+                    ed_ph['Total Línea'] = (ed_ph['Precio Venta'] * ed_ph['Cantidad']) * (1 - ed_ph.get('Desc %',0)/100)
+                    
+                    desc_g_val = st.number_input("Dto. Global (%)", 0.0, 100.0, float(f_data.get('descuento_global',0)), key=f"dg_{f_id}")
+                    
+                    new_base = ed_ph['Base Neta'].sum() * (1 - desc_g_val/100)
+                    new_igic = ed_ph['IGIC €'].sum() * (1 - desc_g_val/100)
+                    new_total = ed_ph['Total Línea'].sum() * (1 - desc_g_val/100)
+                    
                     st.metric("NUEVO TOTAL FACTURA", f"{new_total:.2f} €")
                     
                     if st.button("💾 SINCRONIZAR CAMBIOS DE ESTA FACTURA"):
-                        client.table("facturas").update({"productos": json.loads(ed_ph.to_json(orient='records')), "total_final": float(new_total)}).eq("id", f_id).execute()
+                        client.table("facturas").update({
+                            "productos": json.loads(ed_ph.to_json(orient='records')), 
+                            "total_neto": float(new_base),
+                            "total_igic": float(new_igic),
+                            "total_final": float(new_total),
+                            "descuento_global": float(desc_g_val)
+                        }).eq("id", f_id).execute()
                         st.success("Guardado."); st.rerun()
 
         # --- ARCHIVO DE COMPRAS ---

@@ -59,10 +59,14 @@ def render_pestana_contabilidad(client):
         fecha_inicio_q = f"{f_desde_inf}T00:00:00"
         fecha_fin_q = f"{f_hasta_inf}T23:59:59"
 
+        # Mapa de categorías de productos para separar la lógica de IGIC
+        res_prod = client.table("productos").select("id, categoria").execute()
+        mapa_categorias = {str(p['id']): p.get('categoria', 'Producto') for p in res_prod.data} if res_prod.data else {}
+
         # Recuperar datos de Tickets
-        res_v_inf = client.table("ventas_historial").select("id, created_at, total, metodo_pago, cliente_deuda").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+        res_v_inf = client.table("ventas_historial").select("id, created_at, total, metodo_pago, cliente_deuda, productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
         # Recuperar datos de Facturas Emitidas
-        res_f_inf = client.table("facturas").select("numero_factura, created_at, total_final, forma_pago, clientes(nombre_dueno)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+        res_f_inf = client.table("facturas").select("numero_factura, created_at, total_neto, total_igic, total_final, forma_pago, clientes(nombre_dueno), productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
         # Recuperar datos de Compras/Gastos
         res_c_inf = client.table("compras").select("id, created_at, tipo, total, estado, productos, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
 
@@ -71,13 +75,43 @@ def render_pestana_contabilidad(client):
         
         if res_v_inf.data:
             for t in res_v_inf.data:
+                # Calcular Base e IGIC real desde los productos del ticket
+                base_t = 0.0
+                igic_t = 0.0
+                if t.get('productos'):
+                    for p in t['productos']:
+                        precio_pvp = float(p.get('Precio', 0.0))
+                        cant = float(p.get('Cantidad', 1))
+                        desc_item = float(p.get('Desc. %', p.get('Desc %', 0.0)))
+                        
+                        cat_producto = mapa_categorias.get(str(p.get('id', '')), 'Producto')
+                        
+                        # Si es Producto, IGIC = 0% en la venta
+                        if cat_producto == 'Producto' or p.get('Manual', False):
+                            igic_porcentaje = 0.0
+                        else:
+                            # Si es Servicio, se usa su IGIC
+                            igic_porcentaje = float(p.get('IGIC', 7.0))
+                        
+                        pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
+                        base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
+                        igic_linea = pvp_con_desc - base_linea
+                        
+                        base_t += base_linea
+                        igic_t += igic_linea
+                
+                # Aplicar descuento global del ticket a la base y al IGIC
+                desc_global = float(t.get('descuento_global', 0.0))
+                base_t = round(base_t * (1 - desc_global / 100), 2)
+                igic_t = round(igic_t * (1 - desc_global / 100), 2)
+                
                 ventas_unificadas.append({
                     "Fecha": pd.to_datetime(t['created_at']).strftime('%d/%m/%Y'),
-                    "Tipo Documento": "Ticket de Caja",
+                    "Tipo Documento": "Ticket de Venta (TPV)",
                     "Nº Documento": f"T-{t['id']}",
                     "Cliente": t.get('cliente_deuda') if t.get('cliente_deuda') else "Mostrador",
-                    "Base Imponible (€)": float(t['total']),
-                    "Cuota IGIC (€)": 0.00,
+                    "Base Imponible (€)": base_t,
+                    "Cuota IGIC (€)": igic_t,
                     "Importe Total (€)": float(t['total']),
                     "Método de Pago": t['metodo_pago']
                 })
@@ -85,12 +119,42 @@ def render_pestana_contabilidad(client):
         if res_f_inf.data:
             for f in res_f_inf.data:
                 cliente_nom = f['clientes']['nombre_dueno'] if f.get('clientes') else "N/A"
-                tot_f = float(f['total_final'])
-                base_f = round(tot_f / 1.07, 2)
-                igic_f = round(tot_f - base_f, 2)
+                tot_f = float(f.get('total_final', 0))
+                
+                # Recalculamos la base y el IGIC leyendo los productos de la factura para aplicar la regla Producto = 0% IGIC
+                base_f = 0.0
+                igic_f = 0.0
+                if f.get('productos'):
+                    for p in f['productos']:
+                        precio_pvp = float(p.get('Precio Venta', 0.0))
+                        cant = float(p.get('Cantidad', 1))
+                        desc_item = float(p.get('Desc %', 0.0))
+                        
+                        cat_producto = mapa_categorias.get(str(p.get('id', '')), 'Producto')
+                        
+                        if cat_producto == 'Producto':
+                            igic_porcentaje = 0.0
+                        else:
+                            igic_porcentaje = float(p.get('IGIC %', 7.0))
+                        
+                        pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
+                        base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
+                        igic_linea = pvp_con_desc - base_linea
+                        
+                        base_f += base_linea
+                        igic_f += igic_linea
+                        
+                    desc_global = float(f.get('descuento_global', 0.0))
+                    base_f = round(base_f * (1 - desc_global / 100), 2)
+                    igic_f = round(igic_f * (1 - desc_global / 100), 2)
+                else:
+                    # Si no hay productos (facturas antiguas sin JSON), asumimos fallback a total neto
+                    base_f = float(f.get('total_neto', round(tot_f / 1.07, 2)))
+                    igic_f = float(f.get('total_igic', round(tot_f - base_f, 2)))
+
                 ventas_unificadas.append({
                     "Fecha": pd.to_datetime(f['created_at']).strftime('%d/%m/%Y'),
-                    "Tipo Documento": "Factura por Servicios",
+                    "Tipo Documento": "Factura Emitida",
                     "Nº Documento": f"F-{f['numero_factura']}",
                     "Cliente": cliente_nom,
                     "Base Imponible (€)": base_f,
@@ -178,7 +242,7 @@ def render_pestana_contabilidad(client):
         with c_down2:
             st.success("📑 SOLO FACTURAS (Para IGIC)")
             if not df_ventas_unificadas.empty:
-                df_solo_facturas = df_ventas_unificadas[df_ventas_unificadas['Tipo Documento'] == 'Factura por Servicios'].copy()
+                df_solo_facturas = df_ventas_unificadas[df_ventas_unificadas['Tipo Documento'] == 'Factura Emitida'].copy()
                 df_asesor_f = df_solo_facturas[['Nº Documento', 'Fecha', 'Cliente', 'Base Imponible (€)', 'Cuota IGIC (€)', 'Importe Total (€)', 'Método de Pago']]
                 excel_f = generar_excel_formateado(df_asesor_f, "Facturas Emitidas")
                 st.download_button("📥 Descargar Solo Facturas", excel_f, f"Solo_Facturas_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
