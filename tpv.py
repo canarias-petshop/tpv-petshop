@@ -75,9 +75,9 @@ def render_pestana_tpv(client):
         st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>✍️ Artículo manual</p>", unsafe_allow_html=True)
         with st.form("f_man", clear_on_submit=True, border=False):
             cm1, cm2, cm3 = st.columns([1.3, 1, 1]) 
-            with cm1: m_nom = st.text_input("Artículo", placeholder="Nombre...", label_visibility="visible")
-            with cm2: m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", value=None, label_visibility="visible")
-            with cm3: m_can = st.number_input("Cant.", min_value=1, value=1, label_visibility="visible")
+            with cm1: m_nom = st.text_input("Artículo", placeholder="Nombre...", label_visibility="visible", key=f"m_nom_{st.session_state.llave_busqueda_tpv}")
+            with cm2: m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", value=None, label_visibility="visible", key=f"m_pre_{st.session_state.llave_busqueda_tpv}")
+            with cm3: m_can = st.number_input("Cant.", min_value=1, value=1, label_visibility="visible", key=f"m_can_{st.session_state.llave_busqueda_tpv}")
             if st.form_submit_button("➕ Añadir Manual al Carrito", use_container_width=True):
                 if m_nom and m_pre is not None and m_pre >= 0:
                     st.session_state.carrito.append({
