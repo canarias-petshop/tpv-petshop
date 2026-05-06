@@ -669,9 +669,18 @@ def render_pestana_crm(client):
                         df_e = pd.DataFrame(res_e.data)
                         df_e['Fecha'] = pd.to_datetime(df_e['created_at']).dt.strftime('%d/%m/%Y')
                         if 'notas' not in df_e.columns: df_e['notas'] = ""
+                        if 'WhatsApp' not in df_e.columns: df_e['WhatsApp'] = None
                         
                         hoy_date = pd.to_datetime('today')
                         for idx, row in df_e.iterrows():
+                            # Generar enlace de WhatsApp dinámico para el encargo
+                            tel_enc = str(row.get('telefono', ''))
+                            tel_limpio = ''.join(filter(str.isdigit, tel_enc))
+                            if tel_limpio:
+                                if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
+                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te avisamos de que tu encargo de {row['detalle_pedido']} ya está en Animalarium listo para recoger. ¡Un saludo!"
+                                df_e.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_encargo)}"
+                                
                             try:
                                 dt_c = pd.to_datetime(row['created_at'])
                                 if dt_c.tzinfo is not None:
@@ -687,13 +696,14 @@ def render_pestana_crm(client):
                                     st.error(f"🚨 **REVISIÓN NECESARIA:** El encargo de **{row['nombre_cliente']}** lleva 14+ días desde su creación y sigue 'Avisado'. ¿Se entregó y olvidaste marcarlo, o el cliente no vino a buscarlo?")
                             except Exception: pass
                         
-                        df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'notas', 'estado']]
+                        df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'notas', 'estado', 'WhatsApp']]
                         ed_e = st.data_editor(
                             df_e_vista, hide_index=True, use_container_width=True, num_rows="dynamic", height=300, key="ed_tabla_encargos",
                             column_config={
                                 "id": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                 "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
-                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado"])
+                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado"]),
+                                "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
                             }
                         )
                         if st.button("💾 Guardar Cambios en Encargos"):
