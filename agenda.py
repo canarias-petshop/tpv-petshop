@@ -36,7 +36,7 @@ def render_pestana_agenda(client):
     }
 
     def parse_cita_estado(servicio_raw):
-        estado = "Confirmada"
+        estado = "Pendiente"
         if "[ESTADO:" in servicio_raw:
             import re
             m_est = re.match(r'\[ESTADO:\s*(.*?)\]\s*(.*)', servicio_raw)
@@ -229,10 +229,9 @@ def render_pestana_agenda(client):
                             if solapa_manual:
                                 motivo_final = motivo_extra if motivo_solape == "Otro motivo" else motivo_solape
                                 servicio_final += f" [Forzado: {motivo_final}]"
-                                
-                            servicio_final = f"[ESTADO: Confirmada] {servicio_final}"
-                            fecha_hora_str = f"{fecha_c} {hora_final_str}"
-                            
+
+                            servicio_final = f"[ESTADO: Pendiente] {servicio_final}"
+                            fecha_hora_str = f"{fecha_c} {hora_final_str}"                            
                             client.table("citas").insert({
                                 "mascotas_id": m_id_final, "fecha_hora": fecha_hora_str,
                                 "servicio": servicio_final, "duracion_minutos": int(duracion_c)
