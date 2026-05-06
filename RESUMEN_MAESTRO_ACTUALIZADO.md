@@ -16,8 +16,10 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - Smart Restock: Sistema de alertas de stock bajo con un botón para "Auto-distribuir" y generar borradores de pedidos a proveedores automáticamente.
 
 🛒 **2. Terminal de Caja (TPV)**
-- Buscador manual y escáner de pistola **(con auto-vaciado y reseteo instantáneo tras cada lectura exitosa o fallida)**.
+- Buscador manual y escáner de pistola **(con añadido de 1 clic, auto-vaciado y reseteo instantáneo tras cada lectura exitosa o fallida)**. Formulario de artículo manual también con reseteo automático.
+- **Optimización TPV Tablet:** Código JS global inyectado para desactivar el texto predictivo y autocorrector del teclado. Interfaz de ticket de cobro compactada (`zoom`) para mantener los botones de imprimir/email siempre visibles sin scroll.
 - Pagos mixtos (Efectivo, Tarjeta, Bizum).
+- **Detalle en Tickets:** El método de pago exacto (y su desglose en caso de ser mixto) se imprime y envía por email en el ticket al cliente.
 - **Selector dinámico de banco/datáfono:** Al cobrar con tarjeta o de forma mixta, permite enviar el dinero directamente a la cuenta bancaria seleccionada (y su datáfono) en tiempo real.
 - Sistema de fidelización VIP (suma y canjeo de puntos automáticos).
 - Impresión térmica directa a Star Micronics (protocolo `starpassprnt://`) estabilizada: **se eliminaron las recargas forzadas de página** para evitar el cierre de sesión, manteniendo al empleado en la pantalla con el botón de "Nueva Venta" siempre visible.
@@ -34,12 +36,14 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - Edición directa de errores (cambiar métodos de pago, aplicar descuentos a posteriori).
 - Sistema de devoluciones que restaura el stock automáticamente.
 - Reimpresión de tickets antiguos.
+- Los tickets reimpresos desde el historial conservan e informan del método de pago utilizado.
 
 💰 **5. Control de Caja Fuerte**
 - Apertura de turnos con sugerencia automática del Fondo Inicial basada en el arqueo del día anterior.
 - Calculadora visual de monedas y billetes para el arqueo.
 - Registro de entradas y salidas manuales, con envío automatizado a Contabilidad al registrar gastos de tienda.
 - Generación e impresión del Cierre Z desglosando las tarjetas de forma **100% dinámica por cada datáfono/banco** registrado que haya tenido movimientos.
+- **Sumatorio Automático:** El resumen del Cierre Z incluye la suma total de las ventas (Efectivo + Tarjetas + Bizum) calculada y mostrada en un bloque destacado.
 
 📈 **6. Estadísticas**
 - Dashboard financiero con balance neto (Ingresos vs Gastos).
@@ -98,6 +102,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Testeo y Automatización Funcional (Completado):** Se han conectado lógicamente varios módulos para evitar trabajos dobles: El saldo final de caja es el fondo inicial del día siguiente, los gastos de caja viajan solos a Contabilidad y la Agenda bloquea las citas si se marcan vacaciones en el Cuadrante Visual.
 - **Cierre Z Dinámico y Agenda Inteligente Total (Completado):** Implementación de la selección dinámica de la cuenta receptora para los pagos con tarjeta en el TPV y la sugerencia cruzada de huecos en la Agenda de citas, integrando el filtro automático del Peluquero/a preferido y la creación rápida de fichas de clientes.
 - **Sincronización Horaria y Bloqueos de Agenda (Completado):** Configuración de la zona horaria (Atlantic/Canary) para los fichajes y el cálculo de solapamientos. Sincronización absoluta de las 3 vistas de la Agenda, bloqueando horas ocupadas y documentando excepciones de agendamiento.
+- **Optimización Extrema de Tablet y UI TPV (Completado):** Corrección definitiva de variables al cobrar en efectivo. Inyección JS global anti-autocorrector. Agilización del buscador a 1 clic con reseteo automático de inputs. Rediseño estructural de la vista del ticket en pantalla eliminando el scroll fantasma y visibilizando el método de pago exacto empleado en todos los documentos.
 - **Políticas Estrictas y Estabilidad UI (Completado):** Se introdujeron las alertas de penalización de mascotas, el panel inteligente al agendar, la lista de servicios viva, el auto-borrado del escáner en TPV y se protegió la sesión eliminando el refresco forzado al enviar impresiones por Bluetooth/Wifi.
 
 ## 4. Próximos Pasos y Hoja de Ruta
