@@ -233,6 +233,15 @@ def render_pestana_historial(client):
                         import urllib.parse
                         body_encoded = urllib.parse.quote(cuerpo_email)
 
+                        import base64
+                        logo_html = ""
+                        try:
+                            with open("LOGO.jpg", "rb") as img_file:
+                                b64_string = base64.b64encode(img_file.read()).decode('utf-8')
+                                logo_html = f'<img src="data:image/jpeg;base64,{b64_string}" style="max-width: 200px; margin-bottom: 10px;"><br>'
+                        except:
+                            pass
+
                         html_reprint = f"""
                         <!DOCTYPE html><html><head><meta charset='utf-8'>
                         <style>
@@ -251,6 +260,7 @@ def render_pestana_historial(client):
                         </div>
                         <div id="ticket-impresion-re">
                             <div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
+                                {logo_html}
                                 <b style="font-size: 34px;">ANIMALARIUM</b><br>
                                 Raquel Trujillo Hernández<br>DNI: 78854854K<br>C/ José Hernández Alfonso, 26<br>38009 S/C de Tenerife<br><br>
                                 <div style="text-align: left; font-size: 22px;">Fecha: {fecha_t_print}<br>COPIA DE TICKET #{t_id}</div>
@@ -348,6 +358,15 @@ def render_pestana_historial(client):
                     
                     total_ventas_z = resumen.get('Efectivo', 0) + resumen.get('Tarjeta', 0) + resumen.get('Bizum', 0)
                     
+                    import base64
+                    logo_html = ""
+                    try:
+                        with open("LOGO.jpg", "rb") as img_file:
+                            b64_string = base64.b64encode(img_file.read()).decode('utf-8')
+                            logo_html = f'<img src="data:image/jpeg;base64,{b64_string}" style="max-width: 150px; margin-bottom: 10px;"><br>'
+                    except:
+                        pass
+
                     html_cierre = f"""
                     <!DOCTYPE html>
                     <html>
@@ -369,6 +388,7 @@ def render_pestana_historial(client):
                         </div>
                         <div id="ticket-z">
                             <div style="text-align: center; font-weight: bold; font-size: 16px;">CIERRE DE CAJA Z</div>
+                            <div style="text-align: center;">{logo_html}</div>
                             <div style="text-align: center;">ANIMALARIUM</div>
                             <hr style="border-top: 1px dashed black;">
                             Turno Nº: {turno_sel}<br>

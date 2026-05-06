@@ -24,6 +24,15 @@ def render_pestana_caja(client):
                 total_ventas_z = resumen.get('Efectivo', 0) + resumen.get('Tarjeta', 0) + resumen.get('Bizum', 0)
                 f_apertura = pd.to_datetime(ult_caja['created_at']).strftime('%d/%m/%Y %H:%M')
                 
+                import base64
+                logo_html = ""
+                try:
+                    with open("LOGO.jpg", "rb") as img_file:
+                        b64_string = base64.b64encode(img_file.read()).decode('utf-8')
+                        logo_html = f'<img src="data:image/jpeg;base64,{b64_string}" style="max-width: 150px; margin-bottom: 10px;"><br>'
+                except:
+                    pass
+
                 st.markdown(f"#### 🖨️ Último Cierre de Caja Registrado (Apertura: {f_apertura})")
                 
                 html_cierre_ult = f"""
@@ -47,6 +56,7 @@ def render_pestana_caja(client):
                     </div>
                     <div id="ticket-z">
                         <div style="text-align: center; font-weight: bold; font-size: 16px;">CIERRE DE CAJA Z</div>
+                        <div style="text-align: center;">{logo_html}</div>
                         <div style="text-align: center;">ANIMALARIUM</div>
                         <hr style="border-top: 1px dashed black;">
                         Apertura: {f_apertura}<br>

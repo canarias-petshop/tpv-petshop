@@ -121,6 +121,15 @@ def render_pestana_tpv(client):
             import urllib.parse
             body_encoded = urllib.parse.quote(cuerpo_email)
 
+            import base64
+            logo_html = ""
+            try:
+                with open("LOGO.jpg", "rb") as img_file:
+                    b64_string = base64.b64encode(img_file.read()).decode('utf-8')
+                    logo_html = f'<img src="data:image/jpeg;base64,{b64_string}" style="max-width: 200px; margin-bottom: 10px;"><br>'
+            except:
+                pass
+
             # --- TICKET PARA STAR MICRONICS PASS-PRNT ---
             html_ticket = f"""
             <!DOCTYPE html>
@@ -151,6 +160,7 @@ def render_pestana_tpv(client):
             <div class="escala-mini">
                 <div id="ticket-impresion">
                 <div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
+                    {logo_html}
                     <b style="font-size: 34px;">ANIMALARIUM</b><br>
                     Raquel Trujillo Hernández<br>
                     DNI: 78854854K<br>
