@@ -376,6 +376,10 @@ def render_pestana_historial(client):
                     
                     total_ventas_z = resumen.get('Efectivo', 0) + resumen.get('Tarjeta', 0) + resumen.get('Bizum', 0)
                     
+                    tarjetas_html = ''.join([f"Tarjeta ({k.replace('Tarjeta ', '')}): {v:.2f} €<br>" for k, v in resumen.items() if k.startswith('Tarjeta ') and k != 'Tarjeta'])
+                    if not tarjetas_html:
+                        tarjetas_html = f"Tarjeta: {resumen.get('Tarjeta', 0):.2f} €<br>"
+
                     import base64
                     logo_html = ""
                     try:
@@ -415,7 +419,7 @@ def render_pestana_historial(client):
                             <hr style="border-top: 1px dashed black;">
                             <b>VENTAS POR MÉTODO:</b><br>
                             Efectivo: {resumen.get('Efectivo', 0):.2f} €<br>
-                            Tarjeta: {resumen.get('Tarjeta', 0):.2f} €<br>
+                            {tarjetas_html}
                             Bizum: {resumen.get('Bizum', 0):.2f} €<br>
                             <div style="border-top: 1px dotted black; margin: 5px 0;"></div>
                             <b>TOTAL VENTAS: {total_ventas_z:.2f} €</b><br>
