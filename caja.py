@@ -119,6 +119,7 @@ def render_pestana_caja(client):
                 conta_opt = st.selectbox("¿Enviar a Contabilidad? (Solo retiradas)", [
                     "No (Solo movimiento de caja interno)", 
                     "Sí, como Gasto (Limpieza, consumibles...)", 
+                    "Sí, como Servicio Exterior (Técnico, reparación...)",
                     "Sí, como Pago a Proveedor (Mercancía)"
                 ], help="⚠️ ESCENARIO 1 (Factura nueva en mano): Elige 'Sí, como Pago a Proveedor'.\n⚠️ ESCENARIO 2 (Factura ya pendiente en sistema): Elige 'No', anota el Nº de Factura en el motivo para cuadrar la caja, y luego avisa para que se marque como Pagada en Facturación.")
                 
@@ -129,7 +130,10 @@ def render_pestana_caja(client):
                         
                         if tipo_limpio == "Retirada" and "Sí" in conta_opt:
                             from datetime import date
-                            cat = "Gastos de compra" if "Gasto" in conta_opt else "Factura de Proveedor"
+                            if "Gasto" in conta_opt: cat = "Gastos de compra"
+                            elif "Servicio Exterior" in conta_opt: cat = "Servicios exteriores"
+                            else: cat = "Factura de Proveedor"
+                            
                             client.table("compras").insert({
                                 "tipo": f"{cat} (Desde Caja) | {motivo_mov}",
                                 "total": float(cant_mov),

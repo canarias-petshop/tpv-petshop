@@ -16,7 +16,8 @@ def render_pestana_contabilidad(client):
                 categoria_gasto = st.selectbox("Categoría Contable", [
                     "Gastos de compra (Limpieza, consumibles...)",
                     "Gastos fijos y variables (Alquileres, seguros, luz, agua...)",
-                    "Personal y autónomos (Nóminas, SS...)"
+                "Personal y autónomos (Nóminas, SS...)",
+                "Servicios exteriores (Reparaciones, técnicos, profesionales...)"
                 ])
                 concepto = st.text_input("Concepto / Proveedor detallado")
                 importe = st.number_input("Importe Total (€)", min_value=0.0, value=None)
@@ -298,12 +299,14 @@ def render_pestana_contabilidad(client):
                     concepto = c['tipo']
                     
                     # Separar si es un gasto manual o una nómina
-                    if "Gastos de compra" in c['tipo']: cat_contable = "Gastos de Compra (Limpieza, Consumibles)"
-                    elif "Gastos fijos" in c['tipo']: cat_contable = "Gastos Fijos y Variables"
-                    elif "Personal" in c['tipo']: cat_contable = "Personal y Autónomos"
+                    tipo_str = str(c.get('tipo', ''))
+                    if "Gastos de compra" in tipo_str: cat_contable = "Gastos de Compra (Limpieza, Consumibles)"
+                    elif "Gastos fijos" in tipo_str: cat_contable = "Gastos Fijos y Variables"
+                    elif "Personal" in tipo_str: cat_contable = "Personal y Autónomos"
+                    elif "Servicios exteriores" in tipo_str: cat_contable = "Servicios Exteriores y Reparaciones"
                     
-                    if " | " in c['tipo']:
-                        concepto = c['tipo'].split(" | ")[1]
+                    if " | " in tipo_str:
+                        concepto = tipo_str.split(" | ")[1]
 
                     base_c = float(c['total'])
                     igic_c = 0.0
