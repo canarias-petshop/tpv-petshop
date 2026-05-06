@@ -63,6 +63,16 @@ def render_pestana_contabilidad(client):
         res_prod = client.table("productos").select("id, categoria").execute()
         mapa_categorias = {str(p['id']): p.get('categoria', 'Producto') for p in res_prod.data} if res_prod.data else {}
 
+        def safe_float(val, default=0.0):
+            if val is None or val == "":
+                return default
+            try:
+                if isinstance(val, str):
+                    val = val.replace(',', '.')
+                return float(val)
+            except:
+                return default
+
         # Recuperar datos de Tickets
         res_v_inf = client.table("ventas_historial").select("id, created_at, total, metodo_pago, cliente_deuda, productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
         # Recuperar datos de Facturas Emitidas
@@ -91,9 +101,9 @@ def render_pestana_contabilidad(client):
                         
                     for p in prods:
                         if not isinstance(p, dict): continue
-                        precio_pvp = float(p.get('Precio', 0.0))
-                        cant = float(p.get('Cantidad', 1))
-                        desc_item = float(p.get('Desc. %', p.get('Desc %', 0.0)))
+                        precio_pvp = safe_float(p.get('Precio', 0.0))
+                        cant = safe_float(p.get('Cantidad', 1))
+                        desc_item = safe_float(p.get('Desc. %', p.get('Desc %', 0.0)))
                         
                         cat_producto = mapa_categorias.get(str(p.get('id', '')), 'Producto')
                         
