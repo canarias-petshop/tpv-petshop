@@ -32,6 +32,20 @@ def render_pestana_historial(client):
             for col in ['metodo_pago', 'estado', 'cliente_deuda']:
                 if col not in df_v.columns: df_v[col] = "N/A"
 
+            # --- MÉTRICAS DE VENTAS ---
+            df_validas = df_v[df_v['estado'] != 'DEVUELTO']
+            hoy_str = hoy.strftime('%Y-%m-%d')
+            try:
+                total_hoy = df_validas[pd.to_datetime(df_validas['created_at']).dt.strftime('%Y-%m-%d') == hoy_str]['total'].sum()
+            except:
+                total_hoy = 0.0
+            total_periodo = df_validas['total'].sum()
+
+            cm1, cm2, cm3 = st.columns([1, 1, 2])
+            with cm1: st.metric("💶 Ventas Hoy", f"{total_hoy:.2f} €")
+            with cm2: st.metric("📅 Ventas Periodo", f"{total_periodo:.2f} €")
+            st.markdown("<hr style='margin: 0px 0px 15px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+
             # 1. PREPARAMOS EL DATAFRAME
             df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda']].copy()
             
