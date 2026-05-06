@@ -187,7 +187,7 @@ def render_pestana_tpv(client):
             """
             
             if t.get('puntos_descontados', 0) > 0:
-                descuento_pts_eur = t['puntos_descontados'] * 0.10
+                descuento_pts_eur = t['puntos_descontados'] * 0.50
                 html_ticket += f"<div style='text-align: right; font-size: 22px;'><b>Canjeo Puntos (-{t['puntos_descontados']} pts): -{descuento_pts_eur:.2f}€</b></div>"
 
             desc_global = t.get('descuento_global', 0.0)
@@ -285,9 +285,9 @@ def render_pestana_tpv(client):
                     puntos_disp = int(pts_str) if pts_str.isdigit() else 0
                     if puntos_disp > 0:
                         max_descuento_eur = total_f * 0.50
-                        max_puntos_permitidos = int(max_descuento_eur / 0.10)
+                        max_puntos_permitidos = int(max_descuento_eur / 0.50)
                         puntos_a_usar = min(puntos_disp, max_puntos_permitidos)
-                        eur_a_descontar = puntos_a_usar * 0.10
+                        eur_a_descontar = puntos_a_usar * 0.50
                         if puntos_a_usar > 0:
                             if st.checkbox(f"💳 Canjear {puntos_a_usar} puntos por -{eur_a_descontar:.2f}€ (Límite 50%)", value=False):
                                 desc_puntos_eur = eur_a_descontar

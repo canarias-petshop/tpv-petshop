@@ -677,8 +677,14 @@ def render_pestana_crm(client):
                                 if dt_c.tzinfo is not None:
                                     dt_c = dt_c.tz_localize(None)
                                 dias = (hoy_date - dt_c).days
-                                if dias >= 2 and row.get('estado') == 'Pendiente':
-                                    st.warning(f"⚠️ **RETRASO:** El encargo de {row['nombre_cliente']} lleva {dias} días en estado Pendiente.")
+                                estado_actual = row.get('estado')
+                                
+                                if estado_actual == 'Pendiente' and dias >= 1:
+                                    st.warning(f"⚠️ **PEDIDO RETRASADO:** El encargo de **{row['nombre_cliente']}** se anotó hace {dias} día(s) y sigue Pendiente de pedir al proveedor.")
+                                elif estado_actual == 'Recibido':
+                                    st.warning(f"🔔 **AVISO PENDIENTE:** El encargo de **{row['nombre_cliente']}** está Recibido. ¡Recuerda avisar al cliente hoy!")
+                                elif estado_actual == 'Avisado' and dias >= 14:
+                                    st.error(f"🚨 **REVISIÓN NECESARIA:** El encargo de **{row['nombre_cliente']}** lleva 14+ días desde su creación y sigue 'Avisado'. ¿Se entregó y olvidaste marcarlo, o el cliente no vino a buscarlo?")
                             except Exception: pass
                         
                         df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'notas', 'estado']]
