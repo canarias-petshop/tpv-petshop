@@ -256,6 +256,13 @@ def render_pestana_agenda(client):
                     emoji_estado = EMOJIS_ESTADO.get(estado_c, "🟢")
                     estado_con_emoji = f"{emoji_estado} {estado_c}"
                             
+                    tel_limpio = ''.join(filter(str.isdigit, str(cliente_info.get('telefono', ''))))
+                    url_wa = None
+                    if tel_limpio:
+                        if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
+                        msg_cita = f"¡Hola {cliente_info.get('nombre_dueno', '')}! 🐾 Te escribimos de Animalarium para recordarte la cita de {mascota_info.get('nombre', '')} el día {dt_obj.strftime('%d/%m/%Y')} a las {dt_obj.strftime('%H:%M')}. Por favor, confírmanos tu asistencia. ¡Te esperamos! ✂️"
+                        url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg_cita)}"
+                            
                     citas_formateadas.append({
                         "id": c['id'],
                         "Día": dt_obj.strftime('%d/%m/%Y'),
@@ -428,14 +435,6 @@ def render_pestana_agenda(client):
                     cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
                     dt_obj = pd.to_datetime(c['fecha_hora'])
                     _, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
-                    
-                    tel_limpio = ''.join(filter(str.isdigit, str(cliente_info.get('telefono', ''))))
-                    url_wa = None
-                    if tel_limpio:
-                        if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
-                        # Texto de recordatorio automático de cita
-                        msg_cita = f"¡Hola {cliente_info.get('nombre_dueno', '')}! 🐾 Te escribimos de Animalarium para recordarte la cita de {mascota_info.get('nombre', '')} el día {dt_obj.strftime('%d/%m/%Y')} a las {dt_obj.strftime('%H:%M')}. Por favor, confírmanos tu asistencia. ¡Te esperamos! ✂️"
-                        url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg_cita)}"
 
                     canceladas.append({
                         "Fecha": dt_obj.strftime('%d/%m/%Y'),
