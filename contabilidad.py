@@ -17,7 +17,8 @@ def render_pestana_contabilidad(client):
                     "Gastos de compra (Limpieza, consumibles...)",
                     "Gastos fijos y variables (Alquileres, seguros, luz, agua...)",
                 "Personal y autónomos (Nóminas, SS...)",
-                "Servicios exteriores (Reparaciones, técnicos, profesionales...)"
+                "Servicios exteriores (Reparaciones, técnicos, profesionales...)",
+                "Impuestos y Tasas (IGIC, IRPF, tributos...)"
                 ])
                 concepto = st.text_input("Concepto / Proveedor detallado")
                 importe = st.number_input("Importe Total (€)", min_value=0.0, value=None)
@@ -304,6 +305,7 @@ def render_pestana_contabilidad(client):
                     elif "Gastos fijos" in tipo_str: cat_contable = "Gastos Fijos y Variables"
                     elif "Personal" in tipo_str: cat_contable = "Personal y Autónomos"
                     elif "Servicios exteriores" in tipo_str: cat_contable = "Servicios Exteriores y Reparaciones"
+                    elif "Impuestos y Tasas" in tipo_str: cat_contable = "Impuestos y Tasas"
                     
                     if " | " in tipo_str:
                         concepto = tipo_str.split(" | ")[1]

@@ -120,6 +120,7 @@ def render_pestana_caja(client):
                     "No (Solo movimiento de caja interno)", 
                     "Sí, como Gasto (Limpieza, consumibles...)", 
                     "Sí, como Servicio Exterior (Técnico, reparación...)",
+                    "Sí, como Impuestos y Tasas (Tributos...)",
                     "Sí, como Pago a Proveedor (Mercancía)"
                 ], help="⚠️ ESCENARIO 1 (Factura nueva en mano): Elige 'Sí, como Pago a Proveedor'.\n⚠️ ESCENARIO 2 (Factura ya pendiente en sistema): Elige 'No', anota el Nº de Factura en el motivo para cuadrar la caja, y luego avisa para que se marque como Pagada en Facturación.")
                 
@@ -132,6 +133,7 @@ def render_pestana_caja(client):
                             from datetime import date
                             if "Gasto" in conta_opt: cat = "Gastos de compra"
                             elif "Servicio Exterior" in conta_opt: cat = "Servicios exteriores"
+                            elif "Impuestos y Tasas" in conta_opt: cat = "Impuestos y Tasas"
                             else: cat = "Factura de Proveedor"
                             
                             client.table("compras").insert({
