@@ -79,7 +79,18 @@ def render_pestana_contabilidad(client):
                 base_t = 0.0
                 igic_t = 0.0
                 if t.get('productos'):
-                    for p in t['productos']:
+                    prods = t['productos']
+                    if isinstance(prods, str):
+                        try:
+                            import json
+                            prods = json.loads(prods)
+                        except:
+                            prods = []
+                    if isinstance(prods, dict):
+                        prods = [prods]
+                        
+                    for p in prods:
+                        if not isinstance(p, dict): continue
                         precio_pvp = float(p.get('Precio', 0.0))
                         cant = float(p.get('Cantidad', 1))
                         desc_item = float(p.get('Desc. %', p.get('Desc %', 0.0)))
@@ -125,7 +136,18 @@ def render_pestana_contabilidad(client):
                 base_f = 0.0
                 igic_f = 0.0
                 if f.get('productos'):
-                    for p in f['productos']:
+                    prods = f['productos']
+                    if isinstance(prods, str):
+                        try:
+                            import json
+                            prods = json.loads(prods)
+                        except:
+                            prods = []
+                    if isinstance(prods, dict):
+                        prods = [prods]
+                        
+                    for p in prods:
+                        if not isinstance(p, dict): continue
                         precio_pvp = float(p.get('Precio Venta', 0.0))
                         cant = float(p.get('Cantidad', 1))
                         desc_item = float(p.get('Desc %', 0.0))
