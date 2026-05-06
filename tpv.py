@@ -108,6 +108,7 @@ def render_pestana_tpv(client):
                 cuerpo_email += f"\nDescuento global aplicado: {desc_global}%\n"
                 
             cuerpo_email += f"\nTOTAL PAGADO: {t['total']:.2f}€\n"
+            cuerpo_email += f"MÉTODO DE PAGO: {t['metodo']}\n"
             if t.get('cliente_fidel'):
                 cuerpo_email += f"\n🌟 Puntos ganados hoy: +{t['puntos_ganados']}"
                 cuerpo_email += f"\n🌟 Saldo actual: {t.get('nuevo_saldo', 0)} puntos\n"
@@ -177,6 +178,7 @@ def render_pestana_tpv(client):
 
             html_ticket += f"""
                     <div style="text-align: right; font-size: 28px;"><b>TOTAL: {t['total']:.2f}€</b></div>
+                    <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {t['metodo']}</div>
             """
             if t.get('cliente_fidel'):
                 html_ticket += f"<div style='font-size:18px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {t['cliente_fidel']}</b>"

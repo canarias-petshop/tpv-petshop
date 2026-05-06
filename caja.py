@@ -21,6 +21,7 @@ def render_pestana_caja(client):
                 ultimo_fondo_sugerido = float(ult_caja.get('total_contado') or 0.0)
                 resumen = ult_caja.get('resumen_pagos', {})
                 if not resumen: resumen = {"Efectivo": 0, "Tarjeta": 0, "Bizum": 0, "Ingresos": 0, "Retiradas": 0}
+                total_ventas_z = resumen.get('Efectivo', 0) + resumen.get('Tarjeta', 0) + resumen.get('Bizum', 0)
                 f_apertura = pd.to_datetime(ult_caja['created_at']).strftime('%d/%m/%Y %H:%M')
                 
                 st.markdown(f"#### 🖨️ Último Cierre de Caja Registrado (Apertura: {f_apertura})")
@@ -55,6 +56,8 @@ def render_pestana_caja(client):
                         Efectivo: {resumen.get('Efectivo', 0):.2f} €<br>
                         {''.join([f"Tarjeta ({k.replace('Tarjeta ', '')}): {v:.2f} €<br>" for k, v in resumen.items() if k.startswith('Tarjeta ') and k != 'Tarjeta']) if any(k.startswith('Tarjeta ') and k != 'Tarjeta' for k in resumen) else f"Tarjeta: {resumen.get('Tarjeta', 0):.2f} €<br>"}
                         Bizum: {resumen.get('Bizum', 0):.2f} €<br>
+                        <div style="border-top: 1px dotted black; margin: 5px 0;"></div>
+                        <b>TOTAL VENTAS: {total_ventas_z:.2f} €</b><br>
                         <hr style="border-top: 1px dashed black;">
                         <b>MOVIMIENTOS DE CAJA:</b><br>
                         Ingresos Extra: +{resumen.get('Ingresos', 0):.2f} €<br>

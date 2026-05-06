@@ -199,6 +199,7 @@ def render_pestana_historial(client):
                             cuerpo_email += f"\nDescuento global aplicado: {desc_g_re}%\n"
                             
                         cuerpo_email += f"\nTOTAL PAGADO: {total_final_calculado:.2f}€\n"
+                        cuerpo_email += f"MÉTODO DE PAGO: {t_info.get('metodo_pago', 'Desconocido')}\n"
                         cuerpo_email += "\nUn saludo,\nAnimalarium."
                         
                         import urllib.parse
@@ -249,6 +250,7 @@ def render_pestana_historial(client):
                         
                         html_reprint += f"""
                                 <div style="text-align: right; font-size: 28px;"><b>TOTAL: {total_final_calculado:.2f}€</b></div>
+                                <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {t_info.get('metodo_pago', 'Desconocido')}</div>
                                 <div style="font-size: 18px; color: #000; margin-top: 30px; text-align: center;"><b>POLÍTICA DE DEVOLUCIÓN</b><br>Plazo de 14 días con ticket y<br>embalaje original en perfecto estado.</div>
                             </div>
                         </div>
@@ -316,6 +318,8 @@ def render_pestana_historial(client):
                     resumen = caja_seleccionada.get('resumen_pagos', {})
                     if not resumen or pd.isna(resumen): resumen = {"Efectivo": 0, "Tarjeta": 0, "Bizum": 0, "Ingresos": 0, "Retiradas": 0}
                     
+                    total_ventas_z = resumen.get('Efectivo', 0) + resumen.get('Tarjeta', 0) + resumen.get('Bizum', 0)
+                    
                     html_cierre = f"""
                     <!DOCTYPE html>
                     <html>
@@ -347,6 +351,8 @@ def render_pestana_historial(client):
                             Efectivo: {resumen.get('Efectivo', 0):.2f} €<br>
                             Tarjeta: {resumen.get('Tarjeta', 0):.2f} €<br>
                             Bizum: {resumen.get('Bizum', 0):.2f} €<br>
+                            <div style="border-top: 1px dotted black; margin: 5px 0;"></div>
+                            <b>TOTAL VENTAS: {total_ventas_z:.2f} €</b><br>
                             <hr style="border-top: 1px dashed black;">
                             <b>MOVIMIENTOS DE CAJA:</b><br>
                             Ingresos Extra: +{resumen.get('Ingresos', 0):.2f} €<br>
