@@ -22,7 +22,7 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - Pagos mixtos (Efectivo, Tarjeta, Bizum).
 - **Detalle en Tickets:** El método de pago exacto (y su desglose en caso de ser mixto) se imprime y envía por email en el ticket al cliente.
 - **Selector dinámico de banco/datáfono:** Al cobrar con tarjeta o de forma mixta, permite enviar el dinero directamente a la cuenta bancaria seleccionada (y su datáfono) en tiempo real.
-- Sistema de fidelización VIP (suma y canjeo de puntos automáticos).
+- **Sistema de Fidelización VIP Saneado:** Suma 1 punto por cada 10€ de compra. Canjea puntos a 0.50€/pto (límite del 50% del ticket). La contabilidad reajusta proporcionalmente las bases imponibles e IGIC al aplicar puntos para evitar descuadres fiscales.
 - Impresión térmica directa a Star Micronics (protocolo `starpassprnt://`) estabilizada: **se eliminaron las recargas forzadas de página** para evitar el cierre de sesión, manteniendo al empleado en la pantalla con el botón de "Nueva Venta" siempre visible.
 
 👥 **3. Clientes y Mascotas (CRM)**
@@ -30,7 +30,7 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - Fichas de familias y mascotas con cálculo de edad automático, asignación de **Peluquero/a Preferido** y un **Diario de Observaciones Clínicas** independiente.
 - Historial clínico y de peluquería con cálculo de tiempo medio por servicio y registro del empleado ("Realizado por") para trazabilidad.
 - **Registro de Cancelaciones (Políticas Estrictas):** El CRM detecta automáticamente cuántas veces ha cancelado una mascota y muestra una alerta roja en su ficha para que los empleados lo tengan en cuenta al darle cita.
-- Alertas de Mantenimiento: Sistema que detecta mascotas que llevan mucho tiempo sin venir y genera un enlace para enviarles un WhatsApp de recordatorio con un solo clic.
+- **WhatsApp Deep Linking:** Sistema que detecta mascotas sin mantenimiento y genera un enlace `wa.me` para enviarles un WhatsApp con un solo clic, incorporando además un descuento gancho del 10%. También envía avisos automáticos de pedidos (Encargos) recibidos en tienda.
 
 📜 **4. Historial Operativo**
 - Registro en vivo de todos los tickets.
@@ -42,7 +42,7 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 💰 **5. Control de Caja Fuerte**
 - Apertura de turnos con sugerencia automática del Fondo Inicial basada en el arqueo del día anterior.
 - Calculadora visual de monedas y billetes para el arqueo.
-- Registro de entradas y salidas manuales, con envío automatizado a Contabilidad al registrar gastos de tienda.
+- Registro de entradas y salidas manuales, con envío automatizado categorizado (Gastos de tienda, Servicios Exteriores, Impuestos, Proveedores) a Contabilidad.
 - Generación e impresión del Cierre Z desglosando las tarjetas de forma **100% dinámica por cada datáfono/banco** registrado que haya tenido movimientos.
 - **Sumatorio Automático:** El resumen del Cierre Z incluye la suma total de las ventas (Efectivo + Tarjetas + Bizum) calculada y mostrada en un bloque destacado.
 
@@ -51,17 +51,17 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - Gráfica visual de la evolución de las ventas diarias.
 
 🚚 **7. Proveedores y Pedidos**
-- Directorio de proveedores con sus datos fiscales y de reparto.
+- Directorio de proveedores con sus datos fiscales, de reparto y **control de Pedido Mínimo** para portes gratis.
 - Gestor de Borradores de Pedido con un botón para generar automáticamente un correo electrónico con el pedido listo para enviar.
 
 📑 **8. Facturación Legal y Stock**
 - *Sub-1 Emisión:* Emisión de facturas a clientes calculando dinámicamente el desglose interno de Base Imponible y Cuota de IGIC, aunque el empleado solo introduzca el PVP Público.
 - *Sub-2 Compras:* Registro de facturas de proveedores: al archivar una compra, el sistema actualiza automáticamente el stock, el precio de coste y el PVP en el inventario.
-- *Sub-3 Archivo:* Archivo de documentos con opción de edición y borrado.
+- *Sub-3 Archivo:* Archivo histórico de documentos con **Filtros Dinámicos por Categoría** (Nóminas, Gastos Fijos, Mercancía, Impuestos, Servicios Externos).
 - *Sub-4 Pagos Pendientes:* Control para deudas a proveedores y gastos, con la capacidad de pagar seleccionando múltiples facturas y descontando el importe del saldo de un Banco o de la Caja Fuerte (dejando constancia en el movimiento de caja si hay turno abierto).
 
 📊 **9. Contabilidad e Informes para Asesoría**
-- Registro de gastos manuales (nóminas, luz, agua) y recepción automática de gastos menores derivados directamente desde la Caja Fuerte por los empleados.
+- Registro de gastos manuales (nóminas, luz, agua, impuestos, técnicos) y recepción automática de gastos menores derivados directamente desde la Caja Fuerte por los empleados.
 - **Generador nativo de archivos Excel Inteligentes (.xlsx):** Escanea el carrito exacto de tickets y facturas. Aplica la regla fiscal correcta: **0% de IGIC forzado para venta de Productos** (solo Base Imponible) y **desglose real de IGIC para la venta de Servicios**. Todo protegido con lectura tolerante a fallos (`safe_float`) para tickets antiguos y datos corrompidos.
 - Alertas de vencimientos pendientes.
 
@@ -107,6 +107,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Optimización Extrema de Tablet y UI TPV (Completado):** Corrección definitiva de variables al cobrar en efectivo. Inyección JS global anti-autocorrector. Agilización del buscador a 1 clic con reseteo automático de inputs. Rediseño estructural de la vista del ticket en pantalla eliminando el scroll fantasma y visibilizando el método de pago exacto empleado en todos los documentos.
 - **Políticas Estrictas y Estabilidad UI (Completado):** Se introdujeron las alertas de penalización de mascotas, el panel inteligente al agendar, la lista de servicios viva, el auto-borrado del escáner en TPV y se protegió la sesión eliminando el refresco forzado al enviar impresiones por Bluetooth/Wifi.
 - **Saneamiento Fiscal y Contable (Completado):** Corrección de la lógica de Base Imponible e IGIC. Los tickets y facturas ahora diferencian la venta de "Servicios" (que desglosa IGIC) de la venta de "Productos" (que reporta todo como Base Imponible). Todo a prueba de fallos mediante parseo seguro de datos legados.
+- **Automatizaciones Finales y Deep Linking (Completado):** Implementación de recordatorios de citas, alertas de mantenimiento y avisos de encargos por WhatsApp (1-click) sin coste de API. Inclusión de categorías avanzadas (Servicios Exteriores, Tasas) con filtrado modular y control de pedidos mínimos para envíos.
 
 ## 4. Próximos Pasos y Hoja de Ruta
 

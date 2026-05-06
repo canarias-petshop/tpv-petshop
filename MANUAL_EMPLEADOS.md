@@ -22,7 +22,7 @@ Esta es la pantalla principal para cobrar a los clientes.
    - **Buscador Manual:** Escribe el nombre del producto en el cuadro de búsqueda y pulsa "Añadir".
    - **Servicios:** Selecciona servicios como Peluquería o Veterinaria desde el menú desplegable "Añadir Servicio Rápido".
 2. **Modificar Ticket:** Si te equivocas, usa el botón "🗑️" junto al producto en el ticket para eliminarlo, o cambia la cantidad manualmente.
-3. **Fidelización VIP:** Si el cliente está registrado, búscalo por nombre o teléfono en "Cliente VIP". Al cobrar, sumará puntos automáticamente.
+3. **Fidelización VIP:** Si el cliente está registrado, búscalo por nombre o teléfono en "Cliente VIP". Al cobrar, ganará 1 punto por cada 10€ de compra. Al canjearlos, cada punto equivale a 0.50€ de descuento.
 4. **Cobrar:**
    - Selecciona el método de pago (Efectivo, Tarjeta, Bizum).
    - Pulsa el botón verde **"💳 COBRAR TICKET"**.
@@ -40,7 +40,7 @@ Aquí gestionarás las fichas de las familias y sus perros/gatos.
 - **Historial de la Mascota:** Dentro de la familia, marca "👁️ Ver Ficha" en la mascota específica.
   - Verás su historial de peluquería.
   - Al añadir un nuevo servicio al historial, **selecciona tu nombre en la columna "Realizado por"** para dejar constancia de quién hizo el trabajo. Pulsa "Guardar Historial".
-- **Encargos:** Si un cliente pide un saco de pienso que no hay en tienda, anótalo en la pestaña "🛍️ Encargos de Clientes" para que no se olvide.
+- **Encargos:** Si un cliente pide un artículo que no hay en tienda, anótalo en "🛍️ Encargos". Cuando el producto llegue, pulsa el botón **"💬 WhatsApp"** para avisarle automáticamente. El sistema te alertará si un encargo se retrasa o si el cliente tarda mucho en recogerlo.
 
 ---
 
@@ -56,6 +56,7 @@ Puedes hacerlo desde la ficha de la mascota (en Clientes) o desde la pestaña "A
 4. Selecciona la **Hora de Inicio** exacta del menú desplegable y el **Servicio** (ej. Baño y Corte).
 5. Pulsa **"➕ Confirmar Cita"**.
 
+**Recordatorios:** Desde el directorio de la agenda, puedes pulsar **"💬 Recordatorio"** para enviar un WhatsApp al cliente confirmando la fecha y hora de su cita.
 ### Ver el Cuadrante:
 - **Vista Diaria:** Te muestra el día dividido en bloques de 5 minutos para ver los huecos libres exactos.
 - **Vista Semanal:** Te muestra los próximos 7 días en un formato visual tipo "tarjetas".
@@ -68,7 +69,7 @@ Al abrir y cerrar la tienda, hay que llevar el control del dinero en metálico.
 - **Gastos de Tienda (Ej. Fregasuelos, Proveedor en metálico):** Si sacas dinero del cajón para pagar algo:
   1. En el panel de "Entradas y Salidas", selecciona "Retirada".
   2. Pon el importe y el motivo.
-  3. En "¿Enviar a Contabilidad?", elige si es un Gasto de tienda o Pago a proveedor. El sistema restará el dinero de la caja y se lo enviará al jefe a la contabilidad general automáticamente.
+  3. En "¿Enviar a Contabilidad?", elige la categoría exacta (Gasto de tienda, Servicio Exterior/Técnico, Impuestos o Pago a proveedor). El sistema restará el dinero de la caja y lo registrará en la contabilidad automáticamente.
 - **Cierre Z:** Al final del día, ve a la sección "Cierre de Turno (Arqueo Z)".
   - Usa la calculadora de monedas y billetes contando físicamente lo que hay en el cajón portamonedas.
   - El sistema te dirá si sobra dinero (Descuadre Positivo) o si falta (Descuadre Negativo).

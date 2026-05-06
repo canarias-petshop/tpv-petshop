@@ -24,13 +24,13 @@ Panel visual para analizar la salud financiera del negocio en tiempo real.
 ## 3. 🚚 Proveedores, Pedidos y Facturación
 Control de la relación con tus distribuidores y gestión de stock automático.
 
-- **Gestión de Proveedores:** Registra los datos de los comerciales, días de reparto y correos electrónicos de pedidos.
+- **Gestión de Proveedores:** Registra los comerciales, días de reparto y el **Pedido Mínimo (€)**. Si el proveedor exige un mínimo para no cobrar portes, el sistema te avisará al hacer un borrador.
 - **Borradores de Pedido (Smart Restock):** 
   - Desde "Inventario", el sistema te avisa del stock bajo. Pulsando "Auto-distribuir", el sistema reparte esos artículos pendientes a sus respectivos proveedores.
   - Desde "Proveedores", puedes revisar el borrador y pulsar el botón **"📧 Enviar Pedido"** para generar automáticamente un correo con la lista lista para mandar.
 - **Registro de Compras (Albaranes y Facturas):**
   - Ve a **"Facturación y Stock > Registro de Compras"**.
-  - Al introducir la factura de un proveedor, el sistema te permite actualizar el Precio de Coste de los productos.
+  - Al introducir la factura de un proveedor, el sistema te permite actualizar el Precio de Coste de los productos e incluir descuentos por Pronto Pago.
   - Al "Archivar" esa compra, **el stock del Inventario sube automáticamente**.
 - **Pago de Deudas a Proveedores:** En "Pagos Pendientes", puedes saldar facturas atrasadas descontando el dinero directamente de un Banco o de la Caja Fuerte.
 
@@ -39,8 +39,9 @@ Control de la relación con tus distribuidores y gestión de stock automático.
 ## 4. 📊 Contabilidad y Exportación para Asesoría
 Preparación fácil de los impuestos y libros contables.
 
-- **Registro de Gastos Manuales:** Anota nóminas, recibos de luz, alquiler, seguros o cualquier otro gasto que no esté ligado a la compra de productos.
+- **Registro de Gastos Manuales:** Anota nóminas, recibos de luz, impuestos/tasas, técnicos externos o cualquier otro gasto que no esté ligado a la mercancía.
 - *Nota de Automatización:* Los gastos menores (limpieza, pagos a repartidores en metálico) **los registran las empleadas directamente desde la Caja** al hacer la retirada, enviándose a este panel automáticamente sin que tú tengas que apuntarlos de nuevo.
+- **Archivo Inteligente:** En la pestaña Facturación -> Archivo, puedes usar el **filtro de categorías** para ver únicamente un tipo de gasto (ej. Solo "Impuestos y Tasas" o "Nóminas").
 - **Gestión de Vencimientos:** El sistema te alertará si tienes recibos pendientes de pago.
 - **Exportación a Excel (Asesoría):** 
   - Genera archivos `.xlsx` profesionales a final del trimestre.
