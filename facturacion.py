@@ -515,7 +515,9 @@ def render_pestana_facturacion(client):
                     st.markdown(f"#### 🛒 Editando Compra {c_data['tipo']}")
                     ed_pc = st.data_editor(prods, hide_index=True, use_container_width=True, num_rows="dynamic", key=f"ed_c_{c_id}", column_config={"id": None})
                     
-                    dto_pp = st.number_input("Dto. Pronto Pago (%)", 0.0, 100.0, float(c_data.get('descuento_pp',0)), key=f"pp_{c_id}")
+                    val_pp = c_data.get('descuento_pp', 0.0)
+                    val_pp = float(val_pp) if pd.notna(val_pp) and val_pp is not None and str(val_pp).strip() != "" else 0.0
+                    dto_pp = st.number_input("Dto. Pronto Pago (%)", 0.0, 100.0, val_pp, key=f"pp_{c_id}")
                     
                     if not ed_pc.empty:
                         new_total = ed_pc['Total Línea'].sum() * (1 - dto_pp/100)
