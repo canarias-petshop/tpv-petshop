@@ -499,17 +499,33 @@ def render_pestana_facturacion(client):
                 if not filas.empty:
                     c_id = filas.iloc[0]['id']
                     c_data = df_comp[df_comp['id'] == c_id].iloc[0]
-                    prods = pd.DataFrame(c_data['productos'])
-                    prods['Total Línea'] = (prods['Base Ud']*prods['Cantidad'])*(1+prods.get('IGIC %',0)/100)
+                    
+                    prods_raw = c_data.get('productos')
+                    if not isinstance(prods_raw, list): prods_raw = []
+                    prods = pd.DataFrame(prods_raw)
+                    
+                    if not prods.empty:
+                        if 'Base Ud' not in prods.columns: prods['Base Ud'] = 0.0
+                        if 'Cantidad' not in prods.columns: prods['Cantidad'] = 1
+                        if 'IGIC %' not in prods.columns: prods['IGIC %'] = 0.0
+                        prods['Total Línea'] = (prods['Base Ud']*prods['Cantidad'])*(1+prods['IGIC %']/100)
+                    else:
+                        prods = pd.DataFrame(columns=['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %', 'PVP (€)', 'Total Línea'])
                     
                     st.markdown(f"#### 🛒 Editando Compra {c_data['tipo']}")
                     ed_pc = st.data_editor(prods, hide_index=True, use_container_width=True, num_rows="dynamic", key=f"ed_c_{c_id}", column_config={"id": None})
                     
-                    new_total = ed_pc['Total Línea'].sum() * (1 - st.number_input("Dto. Pronto Pago (%)", 0.0, 100.0, float(c_data.get('descuento_pp',0)), key=f"pp_{c_id}")/100)
+                    dto_pp = st.number_input("Dto. Pronto Pago (%)", 0.0, 100.0, float(c_data.get('descuento_pp',0)), key=f"pp_{c_id}")
+                    
+                    if not ed_pc.empty:
+                        new_total = ed_pc['Total Línea'].sum() * (1 - dto_pp/100)
+                    else:
+                        new_total = float(c_data['total'])
+                        
                     st.metric("NUEVO TOTAL COMPRA", f"{new_total:.2f} €")
 
                     if st.button("💾 SINCRONIZAR CAMBIOS DE ESTA COMPRA"):
-                        client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(new_total)}).eq("id", c_id).execute()
+                        client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(new_total), "descuento_pp": float(dto_pp)}).eq("id", c_id).execute()
                         st.success("Compra actualizada."); st.rerun()
 
     # ==========================================
