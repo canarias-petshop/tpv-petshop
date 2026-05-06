@@ -36,7 +36,7 @@ def render_pestana_agenda(client):
     }
 
     def parse_cita_estado(servicio_raw):
-        estado = "Pendiente"
+        estado = "Confirmada"
         if "[ESTADO:" in servicio_raw:
             import re
             m_est = re.match(r'\[ESTADO:\s*(.*?)\]\s*(.*)', servicio_raw)
@@ -229,9 +229,10 @@ def render_pestana_agenda(client):
                             if solapa_manual:
                                 motivo_final = motivo_extra if motivo_solape == "Otro motivo" else motivo_solape
                                 servicio_final += f" [Forzado: {motivo_final}]"
-
-                            servicio_final = f"[ESTADO: Pendiente] {servicio_final}"
-                            fecha_hora_str = f"{fecha_c} {hora_final_str}"                            
+                                
+                            servicio_final = f"[ESTADO: Confirmada] {servicio_final}"
+                            fecha_hora_str = f"{fecha_c} {hora_final_str}"
+                            
                             client.table("citas").insert({
                                 "mascotas_id": m_id_final, "fecha_hora": fecha_hora_str,
                                 "servicio": servicio_final, "duracion_minutos": int(duracion_c)
@@ -250,12 +251,15 @@ def render_pestana_agenda(client):
                     dt_obj = pd.to_datetime(c['fecha_hora'])
                     
                     estado_c, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
+                    
+                    emoji_estado = EMOJIS_ESTADO.get(estado_c, "🟢")
+                    estado_con_emoji = f"{emoji_estado} {estado_c}"
                             
                     citas_formateadas.append({
                         "id": c['id'],
                         "Día": dt_obj.strftime('%d/%m/%Y'),
                         "Hora": dt_obj.strftime('%H:%M'),
-                        "Estado": estado_c,
+                        "Estado": estado_con_emoji,
                         "Duración (min)": dur,
                         "Peluquero/a": assigned_e,
                         "Servicio": s_clean,
@@ -274,7 +278,7 @@ def render_pestana_agenda(client):
                         "id": None,
                         "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)", width="small"),
                         "Hora": st.column_config.TextColumn("Hora", width="small"),
-                        "Estado": st.column_config.SelectboxColumn("🎨 Estado", options=ESTADOS_CITA, required=True),
+                        "Estado": st.column_config.SelectboxColumn("🎨 Estado", options=[f"{EMOJIS_ESTADO.get(e, '')} {e}" for e in ESTADOS_CITA], required=True),
                         "Peluquero/a": st.column_config.SelectboxColumn("👩‍🦰 Peluquero/a", options=["Sin Asignar"] + empleados_lista, required=True),
                         "Mascota": st.column_config.TextColumn(disabled=True),
                         "Dueño": st.column_config.TextColumn(disabled=True),
@@ -298,7 +302,8 @@ def render_pestana_agenda(client):
                                 
                             srv = str(row['Servicio'])
                             pelu = str(row['Peluquero/a'])
-                            est = str(row['Estado'])
+                            est_raw = str(row['Estado'])
+                            est = est_raw.split(" ", 1)[1] if " " in est_raw else est_raw
                             if pelu != "Sin Asignar":
                                 srv_base = f"{srv} ({pelu})"
                             else:

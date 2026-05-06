@@ -18,6 +18,7 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 🛒 **2. Terminal de Caja (TPV)**
 - Buscador manual y escáner de pistola **(con añadido de 1 clic, auto-vaciado y reseteo instantáneo tras cada lectura exitosa o fallida)**. Formulario de artículo manual también con reseteo automático.
 - **Optimización TPV Tablet:** Código JS global inyectado para desactivar el texto predictivo y autocorrector del teclado. Interfaz de ticket de cobro compactada (`zoom`) para mantener los botones de imprimir/email siempre visibles sin scroll.
+- **Simetría y Alineación UI:** Cajas de cobro en efectivo alineadas a la base (`vertical_alignment="bottom"`) para mantener proporciones perfectas en pantallas táctiles.
 - Pagos mixtos (Efectivo, Tarjeta, Bizum).
 - **Detalle en Tickets:** El método de pago exacto (y su desglose en caso de ser mixto) se imprime y envía por email en el ticket al cliente.
 - **Selector dinámico de banco/datáfono:** Al cobrar con tarjeta o de forma mixta, permite enviar el dinero directamente a la cuenta bancaria seleccionada (y su datáfono) en tiempo real.
@@ -54,19 +55,20 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - Gestor de Borradores de Pedido con un botón para generar automáticamente un correo electrónico con el pedido listo para enviar.
 
 📑 **8. Facturación Legal y Stock**
-- *Sub-1 Emisión:* Emisión de facturas a clientes a partir de compras (con selector de forma de pago y cliente).
+- *Sub-1 Emisión:* Emisión de facturas a clientes calculando dinámicamente el desglose interno de Base Imponible y Cuota de IGIC, aunque el empleado solo introduzca el PVP Público.
 - *Sub-2 Compras:* Registro de facturas de proveedores: al archivar una compra, el sistema actualiza automáticamente el stock, el precio de coste y el PVP en el inventario.
 - *Sub-3 Archivo:* Archivo de documentos con opción de edición y borrado.
 - *Sub-4 Pagos Pendientes:* Control para deudas a proveedores y gastos, con la capacidad de pagar seleccionando múltiples facturas y descontando el importe del saldo de un Banco o de la Caja Fuerte (dejando constancia en el movimiento de caja si hay turno abierto).
 
 📊 **9. Contabilidad e Informes para Asesoría**
 - Registro de gastos manuales (nóminas, luz, agua) y recepción automática de gastos menores derivados directamente desde la Caja Fuerte por los empleados.
-- Generador nativo de archivos Excel (.xlsx) profesionales para la asesoría, con filas de totales, colores y formato moneda pre-configurado.
+- **Generador nativo de archivos Excel Inteligentes (.xlsx):** Escanea el carrito exacto de tickets y facturas. Aplica la regla fiscal correcta: **0% de IGIC forzado para venta de Productos** (solo Base Imponible) y **desglose real de IGIC para la venta de Servicios**. Todo protegido con lectura tolerante a fallos (`safe_float`) para tickets antiguos y datos corrompidos.
 - Alertas de vencimientos pendientes.
 
 📅 **10. Agenda y Citas (Inteligente)**
 - Gestor de citas vinculado a las fichas de las mascotas y cruzado con los horarios de los empleados.
 - **Buscador Inteligente de Huecos:** Al seleccionar una mascota, lee su historial, **muestra un panel informativo con su duración media y peluquero preferido**, lee los cuadrantes y ofrece los tramos libres exactos.
+- **Estado "Pendiente" por Defecto:** Las citas nacen en un estado neutro (Pendiente 🟡) para adaptarse al flujo real de llamadas de confirmación unos días antes.
 - **Filtro por Peluquero/a Preferido:** Si el cliente tiene un profesional asignado en su ficha, el sistema detecta automáticamente su preferencia y limita la sugerencia de huecos exclusivamente al horario de esa persona concreta.
 - **Leyenda de Colores y Políticas de Cancelación:** Las citas incluyen estados dinámicos (Confirmada 🟢, Cancelada 💖, Cambio de cita 🔵, etc.). Al marcar una cita como "Cancelada", se libera su hueco en el calendario y viaja a una pestaña específica de "🚫 Cancelaciones".
 - **Carga Dinámica de Servicios:** El desplegable de servicios en la agenda lee en tiempo real el catálogo de servicios de la pestaña de Inventario.
@@ -104,14 +106,18 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Sincronización Horaria y Bloqueos de Agenda (Completado):** Configuración de la zona horaria (Atlantic/Canary) para los fichajes y el cálculo de solapamientos. Sincronización absoluta de las 3 vistas de la Agenda, bloqueando horas ocupadas y documentando excepciones de agendamiento.
 - **Optimización Extrema de Tablet y UI TPV (Completado):** Corrección definitiva de variables al cobrar en efectivo. Inyección JS global anti-autocorrector. Agilización del buscador a 1 clic con reseteo automático de inputs. Rediseño estructural de la vista del ticket en pantalla eliminando el scroll fantasma y visibilizando el método de pago exacto empleado en todos los documentos.
 - **Políticas Estrictas y Estabilidad UI (Completado):** Se introdujeron las alertas de penalización de mascotas, el panel inteligente al agendar, la lista de servicios viva, el auto-borrado del escáner en TPV y se protegió la sesión eliminando el refresco forzado al enviar impresiones por Bluetooth/Wifi.
+- **Saneamiento Fiscal y Contable (Completado):** Corrección de la lógica de Base Imponible e IGIC. Los tickets y facturas ahora diferencian la venta de "Servicios" (que desglosa IGIC) de la venta de "Productos" (que reporta todo como Base Imponible). Todo a prueba de fallos mediante parseo seguro de datos legados.
 
 ## 4. Próximos Pasos y Hoja de Ruta
 
 **A Corto Plazo (Optimización Post-Refactorización):**
 - **Testeo en Entorno Real:** Validar la aplicación durante el día a día en tienda para corregir pequeños detalles de experiencia de usuario en las tabletas (por ejemplo, detalle del cálculo de IGIC en la Facturación).
+- **Simetría Visual:** Repaso de proporciones y alineaciones en todos los módulos (como se hizo con los cobros del TPV).
+- **Restauración UI Agenda:** Devolver los emojis de colores al panel editable ("Directorio de Citas") para mayor agilidad visual al ver los estados "Pendiente", "Confirmada", etc.
 
 **A Medio Plazo (Obligación Legal - Próximo Año):**
-- **Integración Verifactu:** Conexión obligatoria con Hacienda para cumplir con la normativa legal española (las tablas de la base de datos ya están preparadas para ello).
+- **Integración Verifactu:** Conexión obligatoria con Hacienda para cumplir con la normativa legal española (las tablas de la base de datos ya están preparadas para ello). Aplazado para el año que viene.
+- **Migración a Entorno Local:** Configurar el proyecto en un entorno de desarrollo local para tener una gestión más personalizada y mayor control de la base de código sin depender exclusivamente de Streamlit Cloud.
 
 **A Largo Plazo (Visión Comercial):**
-- **Comercialización (SaaS / Licencias):** Empaquetar el ERP/TPV para ofrecerlo o venderlo a otras clínicas y tiendas de mascotas. Aprovechar el "know-how" único del sector para ofrecer una solución robusta y adaptada que escasea en el mercado actual.
+- **Escalabilidad y Comercialización (SaaS / Licencias):** Empaquetar el ERP/TPV para ofrecerlo o venderlo a otras clínicas y tiendas de mascotas. Aprovechar el "know-how" único del sector para ofrecer una solución robusta y adaptada que escasea en el mercado actual.
