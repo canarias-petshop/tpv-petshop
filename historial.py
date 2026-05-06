@@ -297,14 +297,7 @@ def render_pestana_historial(client):
                             var ticketHTML = document.getElementById('ticket-impresion-re').innerHTML;
                             var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
                             var htmlCodificado = encodeURIComponent(fullHTML);
-                            var urlRetorno = "https://google.com";
-                            try {{
-                                if (window.top.location.href && window.top.location.href !== "about:blank") {{
-                                    var baseUrl = window.top.location.href.split('#')[0];
-                                    urlRetorno = baseUrl + "#impreso";
-                                }}
-                            }} catch(e) {{}}
-                            window.location.href = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
+                            window.location.href = "starpassprnt://v1/print/nopreview?html=" + htmlCodificado;
                         }}
                         </script>
                         </body></html>
