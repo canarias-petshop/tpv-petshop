@@ -120,7 +120,7 @@ def render_pestana_caja(client):
                     "No (Solo movimiento de caja interno)", 
                     "Sí, como Gasto (Limpieza, consumibles...)", 
                     "Sí, como Pago a Proveedor (Mercancía)"
-                ])
+                ], help="⚠️ ESCENARIO 1 (Factura nueva en mano): Elige 'Sí, como Pago a Proveedor'.\n⚠️ ESCENARIO 2 (Factura ya pendiente en sistema): Elige 'No', anota el Nº de Factura en el motivo para cuadrar la caja, y luego avisa para que se marque como Pagada en Facturación.")
                 
                 if st.form_submit_button("Registrar Movimiento", use_container_width=True):
                     if motivo_mov and cant_mov is not None:
