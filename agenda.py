@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
 import time
+import urllib.parse
 
 def render_pestana_agenda(client):
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
@@ -265,15 +266,16 @@ def render_pestana_agenda(client):
                         "Servicio": s_clean,
                         "Mascota": mascota_info.get('nombre', 'N/A'),
                         "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
-                        "Teléfono": cliente_info.get('telefono', 'N/A')
+                        "Teléfono": cliente_info.get('telefono', 'N/A'),
+                        "WhatsApp": url_wa
                     })
                     
                 df_citas = pd.DataFrame(citas_formateadas)
                 
                 ed_citas = st.data_editor(
-                    df_citas[['id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Mascota', 'Dueño', 'Teléfono']],
+                    df_citas[['id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Mascota', 'Dueño', 'Teléfono', 'WhatsApp']],
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
-                    column_order=["Día", "Hora", "Estado", "Peluquero/a", "Mascota", "Servicio", "Duración (min)", "Dueño", "Teléfono"],
+                    column_order=["Día", "Hora", "Estado", "Peluquero/a", "Mascota", "Servicio", "Duración (min)", "Dueño", "Teléfono", "WhatsApp"],
                     column_config={
                         "id": None,
                         "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)", width="small"),
@@ -282,7 +284,8 @@ def render_pestana_agenda(client):
                         "Peluquero/a": st.column_config.SelectboxColumn("👩‍🦰 Peluquero/a", options=["Sin Asignar"] + empleados_lista, required=True),
                         "Mascota": st.column_config.TextColumn(disabled=True),
                         "Dueño": st.column_config.TextColumn(disabled=True),
-                        "Teléfono": st.column_config.TextColumn(disabled=True)
+                        "Teléfono": st.column_config.TextColumn(disabled=True),
+                        "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 Recordatorio")
                     }
                 )
                 
@@ -426,6 +429,14 @@ def render_pestana_agenda(client):
                     dt_obj = pd.to_datetime(c['fecha_hora'])
                     _, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
                     
+                    tel_limpio = ''.join(filter(str.isdigit, str(cliente_info.get('telefono', ''))))
+                    url_wa = None
+                    if tel_limpio:
+                        if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
+                        # Texto de recordatorio automático de cita
+                        msg_cita = f"¡Hola {cliente_info.get('nombre_dueno', '')}! 🐾 Te escribimos de Animalarium para recordarte la cita de {mascota_info.get('nombre', '')} el día {dt_obj.strftime('%d/%m/%Y')} a las {dt_obj.strftime('%H:%M')}. Por favor, confírmanos tu asistencia. ¡Te esperamos! ✂️"
+                        url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg_cita)}"
+
                     canceladas.append({
                         "Fecha": dt_obj.strftime('%d/%m/%Y'),
                         "Hora": dt_obj.strftime('%H:%M'),

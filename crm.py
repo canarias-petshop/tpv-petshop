@@ -601,7 +601,7 @@ def render_pestana_crm(client):
                                         tel_limpio = '34' + tel_limpio
                                         
                                     # Mensaje de marketing amistoso
-                                    mensaje = f"¡Hola {dueno}! 🐾 Soy Raquel de Animalarium. Te escribo porque he visto en la ficha de {m['nombre']} que ya le toca su sesión de mantenimiento (hace {dias_transcurridos} días de su última visita). ¿Te gustaría que le busquemos un huequito en la agenda para estos días? ¡Un saludo! 🐶✂️"
+                                    mensaje = f"¡Hola {dueno}! 🐾 Soy Raquel de Animalarium. Te escribo porque he visto en la ficha de {m['nombre']} que ya le va tocando su sesión de mantenimiento. Si vienes antes de que pasen los 2 meses, el sistema te aplica un 10% de descuento automático en el servicio. ¿Te buscamos un huequito para aprovecharlo? ¡Un saludo! 🐶✂️"
                                     url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje)}" if tel_limpio else None
                                     
                                     alertas.append({

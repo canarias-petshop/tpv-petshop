@@ -31,6 +31,7 @@ def render_pestana_proveedores(client):
                 
                 n_frec = st.text_input("Días de Reparto", placeholder="Ej: Todos los días, Los martes, Bajo demanda...", value="Bajo demanda")
                 n_hora = st.text_input("Hora límite de pedido", placeholder="Ej: 14:00, 20:00, Sin límite...", value="Sin límite")
+                n_min = st.number_input("Pedido Mínimo (€) para portes gratis", min_value=0.0, format="%.2f")
                 
                 if st.form_submit_button("Guardar Proveedor", use_container_width=True, type="primary"):
                     if n_emp:
@@ -38,7 +39,8 @@ def render_pestana_proveedores(client):
                             "nombre_empresa": n_emp, "cif": n_cif,
                             "telefono": n_tel, "movil": n_mov, "email": n_ema,
                             "direccion": n_dir, "poblacion": n_pob, "pais": n_pais,
-                            "frecuencia_reparto": n_frec, "hora_limite": n_hora
+                            "frecuencia_reparto": n_frec, "hora_limite": n_hora,
+                            "pedido_minimo": float(n_min)
                         }).execute()
                         st.success("Guardado"); time.sleep(0.5); st.rerun()
         with cp2:
@@ -50,7 +52,7 @@ def render_pestana_proveedores(client):
                 df_p = pd.DataFrame(res_p.data)
                 
                 # Aseguramos que las nuevas columnas existan en el DataFrame (por si no has corrido el SQL aún)
-                for col in ['telefono', 'movil', 'email', 'direccion', 'poblacion', 'codigo_postal', 'provincia', 'pais', 'codigo_pais', 'idioma', 'forma_pago', 'persona_contacto', 'iban', 'swift', 'notas', 'contacto']:
+                for col in ['telefono', 'movil', 'email', 'direccion', 'poblacion', 'codigo_postal', 'provincia', 'pais', 'codigo_pais', 'idioma', 'forma_pago', 'persona_contacto', 'iban', 'swift', 'notas', 'contacto', 'pedido_minimo']:
                     if col not in df_p.columns: df_p[col] = ""
                     
                 df_p_vista = df_p[['id', 'nombre_empresa', 'telefono', 'movil', 'email']].copy()
@@ -114,14 +116,15 @@ def render_pestana_proveedores(client):
                     with cf10: f_pais = st.text_input("País", value=p_data.get('pais',''))
                     with cf11: f_cod_pais = st.text_input("Cód. País", value=p_data.get('codigo_pais',''))
                     with cf12: f_idioma = st.text_input("Idioma", value=p_data.get('idioma',''))
-                    with cf16: f_frec = st.text_input("Días de Reparto", value=p_data.get('frecuencia_reparto','Bajo demanda'))
-                    with cf17: f_hora = st.text_input("Hora Límite", value=p_data.get('hora_limite','Sin límite'))
+                    with cf16: f_frec = st.text_input("Días de Envío", value=p_data.get('frecuencia_reparto','Bajo demanda'))
+                    with cf17: f_hora = st.text_input("Hora de Corte", value=p_data.get('hora_limite','Sin límite'))
                     
                     st.markdown("**3. Facturación y Notas**")
-                    cf13, cf14, cf15 = st.columns([1, 1.5, 1])
+                    cf13, cf14, cf15, cf18 = st.columns([1, 1.5, 1, 1])
                     with cf13: f_fpago = st.text_input("Forma de Pago", value=p_data.get('forma_pago',''))
                     with cf14: f_iban = st.text_input("IBAN", value=p_data.get('iban',''))
                     with cf15: f_swift = st.text_input("SWIFT", value=p_data.get('swift',''))
+                    with cf18: f_min = st.number_input("Pedido Mínimo (€)", value=float(p_data.get('pedido_minimo', 0.0)))
                     
                     f_not = st.text_area("Fax / Otras Notas / Observaciones", value=p_data.get('notas',''))
                     
@@ -132,7 +135,8 @@ def render_pestana_proveedores(client):
                                 "telefono": f_tel, "movil": f_mov, "email": f_ema, "direccion": f_dir,
                                 "poblacion": f_pob, "codigo_postal": f_cp, "provincia": f_prov,
                                 "pais": f_pais, "frecuencia_reparto": f_frec, "hora_limite": f_hora,
-                                "forma_pago": f_fpago, "iban": f_iban, "swift": f_swift, "notas": f_not, 
+                                "forma_pago": f_fpago, "iban": f_iban, "swift": f_swift, "notas": f_not,
+                                "pedido_minimo": float(f_min),
                                 "contacto": "" # Borramos la línea antigua ya que se ha organizado
                             }).eq("id", p_id).execute()
                             st.success("Ficha del proveedor actualizada correctamente."); time.sleep(0.5); st.rerun()
@@ -154,7 +158,7 @@ def render_pestana_proveedores(client):
                     st.rerun()
                     
             with cp_b:
-                res_ped = client.table("pedidos_proveedores").select("*, proveedores(nombre_empresa, frecuencia_reparto, hora_limite, email)").order("created_at", desc=True).execute()
+                res_ped = client.table("pedidos_proveedores").select("*, proveedores(nombre_empresa, frecuencia_reparto, hora_limite, email, pedido_minimo)").order("created_at", desc=True).execute()
                 if res_ped.data:
                     df_ped = pd.DataFrame(res_ped.data)
                     df_ped['Proveedor'] = df_ped['proveedores'].apply(lambda x: x.get('nombre_empresa', ''))
@@ -200,7 +204,11 @@ def render_pestana_proveedores(client):
                         ped_id = filas_ped.iloc[0]['id']
                         ped_data = df_ped[df_ped['id'] == ped_id].iloc[0]
                         st.markdown(f"#### 🛒 Contenido del Borrador #{ped_id} ({ped_data['Proveedor']})")
-                        
+                        minimo = float(ped_data.get('proveedores', {}).get('pedido_minimo', 0.0)) if isinstance(ped_data.get('proveedores'), dict) else 0.0
+                        if minimo > 0:
+                            st.info(f"🚚 **Recuerda:** Este proveedor exige un pedido mínimo de **{minimo:.2f} €** para portes gratis. Hora de corte: {ped_data['Corte']}.")
+                        else:
+                            st.info(f"🚚 Hora de corte para este proveedor: {ped_data['Corte']}.")
                         lista_prods_ped = ped_data.get('productos', [])
                         df_prods_ped = pd.DataFrame(lista_prods_ped) if lista_prods_ped else pd.DataFrame(columns=["Producto", "Cantidad"])
                         if 'Producto' not in df_prods_ped.columns: df_prods_ped['Producto'] = ""
