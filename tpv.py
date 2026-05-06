@@ -94,6 +94,14 @@ def render_pestana_tpv(client):
         if t:
             st.success("✅ Venta realizada con éxito")
             
+            # --- LIMPIEZA DEL MÉTODO DE PAGO PARA TICKET/EMAIL ---
+            metodo_display = t['metodo']
+            if metodo_display.startswith("Tarjeta"):
+                metodo_display = "Tarjeta"
+            elif metodo_display.startswith("Mixto"):
+                import re
+                metodo_display = re.sub(r'\s-\s[^|]+', '', metodo_display)
+
             # --- PREPARACIÓN DEL EMAIL ---
             cuerpo_email = "Hola,\n\nGracias por su compra en Animalarium. Adjuntamos el detalle de su ticket:\n\n"
             for p in t['productos']:
@@ -104,7 +112,7 @@ def render_pestana_tpv(client):
                 cuerpo_email += f"\nDescuento global aplicado: {desc_global}%\n"
                 
             cuerpo_email += f"\nTOTAL PAGADO: {t['total']:.2f}€\n"
-            cuerpo_email += f"MÉTODO DE PAGO: {t['metodo']}\n"
+            cuerpo_email += f"MÉTODO DE PAGO: {metodo_display}\n"
             if t.get('cliente_fidel'):
                 cuerpo_email += f"\n🌟 Puntos ganados hoy: +{t['puntos_ganados']}"
                 cuerpo_email += f"\n🌟 Saldo actual: {t.get('nuevo_saldo', 0)} puntos\n"
@@ -181,7 +189,7 @@ def render_pestana_tpv(client):
 
             html_ticket += f"""
                     <div style="text-align: right; font-size: 28px;"><b>TOTAL: {t['total']:.2f}€</b></div>
-                    <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {t['metodo']}</div>
+                    <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {metodo_display}</div>
             """
             if t.get('cliente_fidel'):
                 html_ticket += f"<div style='font-size:18px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {t['cliente_fidel']}</b>"

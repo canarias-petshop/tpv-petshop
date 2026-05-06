@@ -41,6 +41,12 @@ def render_pestana_historial(client):
             
             st.markdown("💡 *Marca **'👁️ Ver'** para abrir el desglose. Marca **'🗑️ Borrar'** para eliminar. Haz doble clic en las celdas normales para corregirlas.*")
             
+            # Extraemos los métodos de pago únicos para que el Selectbox no los deje en blanco
+            opciones_pago_hist = ["Efectivo", "Tarjeta", "Bizum", "Mixto"]
+            if 'metodo_pago' in df_vista.columns:
+                extras = [m for m in df_vista['metodo_pago'].dropna().unique() if m not in opciones_pago_hist]
+                opciones_pago_hist.extend(extras)
+
             # 2. TABLA EDITABLE CON CASILLA
             edited_df = st.data_editor(
                 df_vista,
@@ -50,7 +56,7 @@ def render_pestana_historial(client):
                     "id": st.column_config.NumberColumn("Nº", disabled=True, width="small"),
                     "Fecha": st.column_config.TextColumn("Fecha", disabled=True),
                     "total": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f"),
-                    "metodo_pago": st.column_config.SelectboxColumn("Método", options=["Efectivo", "Tarjeta", "Bizum", "Mixto"]),
+                    "metodo_pago": st.column_config.SelectboxColumn("Método", options=opciones_pago_hist),
                     "estado": st.column_config.SelectboxColumn("Estado", options=["Completado", "Deuda", "DEVUELTO"]),
                     "cliente_deuda": st.column_config.TextColumn("Cliente (Si debe)")
                 },
@@ -189,6 +195,14 @@ def render_pestana_historial(client):
                         except:
                             fecha_t_print = "Fecha desconocida"
                             
+                        # --- LIMPIEZA DE MÉTODO DE PAGO PARA TICKET/EMAIL ---
+                        metodo_reprint = str(t_info.get('metodo_pago', 'Desconocido'))
+                        if metodo_reprint.startswith("Tarjeta"):
+                            metodo_reprint = "Tarjeta"
+                        elif metodo_reprint.startswith("Mixto"):
+                            import re
+                            metodo_reprint = re.sub(r'\s-\s[^|]+', '', metodo_reprint)
+
                         # --- PREPARACIÓN DEL EMAIL (HISTORIAL) ---
                         cuerpo_email = f"Hola,\n\nAdjuntamos la copia de su ticket #{t_id}:\n\n"
                         for p in prods:
@@ -199,7 +213,7 @@ def render_pestana_historial(client):
                             cuerpo_email += f"\nDescuento global aplicado: {desc_g_re}%\n"
                             
                         cuerpo_email += f"\nTOTAL PAGADO: {total_final_calculado:.2f}€\n"
-                        cuerpo_email += f"MÉTODO DE PAGO: {t_info.get('metodo_pago', 'Desconocido')}\n"
+                        cuerpo_email += f"MÉTODO DE PAGO: {metodo_reprint}\n"
                         cuerpo_email += "\nUn saludo,\nAnimalarium."
                         
                         import urllib.parse
@@ -250,7 +264,7 @@ def render_pestana_historial(client):
                         
                         html_reprint += f"""
                                 <div style="text-align: right; font-size: 28px;"><b>TOTAL: {total_final_calculado:.2f}€</b></div>
-                                <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {t_info.get('metodo_pago', 'Desconocido')}</div>
+                                <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {metodo_reprint}</div>
                                 <div style="font-size: 18px; color: #000; margin-top: 30px; text-align: center;"><b>POLÍTICA DE DEVOLUCIÓN</b><br>Plazo de 14 días con ticket y<br>embalaje original en perfecto estado.</div>
                             </div>
                         </div>
