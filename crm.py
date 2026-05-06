@@ -672,13 +672,18 @@ def render_pestana_crm(client):
                         
                         hoy_date = pd.to_datetime('today')
                         for idx, row in df_e.iterrows():
-                            dias = (hoy_date - pd.to_datetime(row['created_at']).tz_localize(None)).days
-                            if dias >= 2 and row['estado'] == 'Pendiente':
-                                st.warning(f"⚠️ **RETRASO:** El encargo de {row['nombre_cliente']} lleva {dias} días en estado Pendiente.")
+                            try:
+                                dt_c = pd.to_datetime(row['created_at'])
+                                if dt_c.tzinfo is not None:
+                                    dt_c = dt_c.tz_localize(None)
+                                dias = (hoy_date - dt_c).days
+                                if dias >= 2 and row.get('estado') == 'Pendiente':
+                                    st.warning(f"⚠️ **RETRASO:** El encargo de {row['nombre_cliente']} lleva {dias} días en estado Pendiente.")
+                            except Exception: pass
                         
                         df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'notas', 'estado']]
                         ed_e = st.data_editor(
-                            df_e_vista, hide_index=True, use_container_width=True, num_rows="dynamic", height=300,
+                            df_e_vista, hide_index=True, use_container_width=True, num_rows="dynamic", height=300, key="ed_tabla_encargos",
                             column_config={
                                 "id": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                 "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
@@ -693,4 +698,4 @@ def render_pestana_crm(client):
                                     }).eq("id", r['id']).execute()
                             st.rerun()
                     else: st.info("No hay encargos activos.")
-                except: st.warning("Por favor, revisa la conexión con la tabla encargos_clientes.")
+                except Exception as e: st.warning(f"Error al cargar encargos: {e}")
