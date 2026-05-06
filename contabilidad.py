@@ -126,6 +126,14 @@ def render_pestana_contabilidad(client):
                 base_t = round(base_t * (1 - desc_global / 100), 2)
                 igic_t = round(igic_t * (1 - desc_global / 100), 2)
                 
+                # Parche de Seguridad Contable: Ajuste proporcional si hubo canjeo de puntos (descuento en euros)
+                total_calc = base_t + igic_t
+                tot_real = float(t['total'])
+                if total_calc > 0 and abs(total_calc - tot_real) > 0.01:
+                    ratio = tot_real / total_calc
+                    base_t = round(base_t * ratio, 2)
+                    igic_t = round(igic_t * ratio, 2)
+                
                 ventas_unificadas.append({
                     "Fecha": pd.to_datetime(t['created_at']).strftime('%d/%m/%Y'),
                     "Tipo Documento": "Ticket de Venta (TPV)",

@@ -180,7 +180,9 @@ def render_pestana_historial(client):
                         )
                     
                     # Calculamos el total final aplicando el descuento que haya en el cuadro
-                    total_final_calculado = suma_articulos * (1 - nuevo_desc_global / 100)
+                    # Respetando el descuento en euros si el ticket original usó puntos VIP
+                    descuento_puntos_eur = int(t_info.get('puntos_usados', 0)) * 0.50
+                    total_final_calculado = max(0.0, (suma_articulos * (1 - nuevo_desc_global / 100)) - descuento_puntos_eur)
                     
                     with c_tot3:
                         st.metric("TOTAL FINAL", f"{total_final_calculado:.2f}€", 
