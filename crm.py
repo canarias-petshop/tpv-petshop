@@ -672,7 +672,7 @@ def render_pestana_crm(client):
                         
                         hoy_date = pd.to_datetime('today')
                         for idx, row in df_e.iterrows():
-                            dias = (hoy_date - pd.to_datetime(row['created_at']).dt.tz_localize(None)).days
+                            dias = (hoy_date - pd.to_datetime(row['created_at']).tz_localize(None)).days
                             if dias >= 2 and row['estado'] == 'Pendiente':
                                 st.warning(f"⚠️ **RETRASO:** El encargo de {row['nombre_cliente']} lleva {dias} días en estado Pendiente.")
                         
