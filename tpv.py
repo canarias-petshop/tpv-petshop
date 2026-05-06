@@ -124,20 +124,26 @@ def render_pestana_tpv(client):
             <head>
             <style>
                 body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: #f8f9fa; }}
-                #pantalla {{ text-align: center; padding: 5px; max-width: 400px; margin: 0 auto; margin-top: 5px; }}
-                .escala-mini {{ transform: scale(0.55); transform-origin: top center; height: 300px; overflow: hidden; margin-top: 5px; }}
-                .escala-mini {{ zoom: 0.55; -moz-transform: scale(0.55); -moz-transform-origin: top center; margin-top: 5px; margin-bottom: 10px; }}
-                #ticket-impresion {{ display: block; border: 1px solid #ccc; padding: 15px; background-color: #fffaf0; width: 300px; margin: 0 auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
+                #botones-container {{ display: flex; gap: 10px; padding: 10px; max-width: 350px; margin: 0 auto; justify-content: center; }}
                 .btn-print {{ 
-                    padding: 10px; background-color: #005275; color: white; 
+                    flex: 1; padding: 12px 5px; background-color: #005275; color: white; 
                     border: none; border-radius: 5px; cursor: pointer; 
-                    font-weight: bold; width: 100%; font-size: 14px; margin-bottom: 6px;
+                    font-weight: bold; font-size: 13px; width: 100%;
                 }}
                 .btn-email {{ background-color: #2e7d32; }}
+                .escala-mini {{ zoom: 0.65; -moz-transform: scale(0.65); -moz-transform-origin: top center; padding-bottom: 20px; }}
+                #ticket-impresion {{ display: block; border: 1px solid #ccc; padding: 15px; background-color: #fffaf0; width: 300px; margin: 0 auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
             </style>
             </head>
             <body>
             
+            <div id="botones-container">
+                <button class="btn-print" onclick="imprimirConStar()">🖨️ IMPRIMIR TICKET</button>
+                <a href="mailto:?subject=Ticket%20de%20Compra%20-%20Animalarium&body={body_encoded}" target="_top" style="text-decoration: none; flex: 1;">
+                    <button class="btn-print btn-email">✉️ ENVIAR EMAIL</button>
+                </a>
+            </div>
+
             <div class="escala-mini">
                 <div id="ticket-impresion">
                 <div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
@@ -197,13 +203,6 @@ def render_pestana_tpv(client):
             </div>
             </div>
 
-            <div id="pantalla">
-                <button class="btn-print" onclick="imprimirConStar()">🖨️ IMPRIMIR TICKET (TABLET STAR)</button>
-                <a href="mailto:?subject=Ticket%20de%20Compra%20-%20Animalarium&body={body_encoded}" target="_top" style="text-decoration: none;">
-                    <button class="btn-print btn-email">✉️ ENVIAR TICKET POR EMAIL</button>
-                </a>
-            </div>
-
             <script>
             function imprimirConStar() {{
                 var ticketHTML = document.getElementById('ticket-impresion').innerHTML;
@@ -225,7 +224,6 @@ def render_pestana_tpv(client):
             </body>
             </html>
             """
-            components.html(html_ticket, height=400, scrolling=True)
             components.html(html_ticket, height=450, scrolling=True)
             
             c_nv = st.columns(1)[0]
