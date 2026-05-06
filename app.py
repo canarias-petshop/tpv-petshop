@@ -72,6 +72,25 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# --- JS GLOBAL PARA DESACTIVAR EL AUTOCORRECTOR EN TABLETS ---
+components.html("""
+<script>
+    const doc = window.parent.document;
+    function disableAuto() {
+        const inputs = doc.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('autocorrect', 'off');
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('spellcheck', 'false');
+        });
+    }
+    const observer = new MutationObserver(disableAuto);
+    observer.observe(doc.body, { childList: true, subtree: true });
+    disableAuto();
+</script>
+""", height=0)
+
 # --- 2. MEMORIA DE LA SESIÓN ---
 if 'carrito' not in st.session_state: st.session_state['carrito'] = []
 if 'acceso_concedido' not in st.session_state: st.session_state.acceso_concedido = False
