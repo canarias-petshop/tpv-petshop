@@ -687,7 +687,7 @@ def render_pestana_crm(client):
                             column_config={
                                 "id": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                 "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
-                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Entregado"])
+                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado"])
                             }
                         )
                         if st.button("💾 Guardar Cambios en Encargos"):
