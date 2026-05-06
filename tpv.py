@@ -302,7 +302,7 @@ def render_pestana_tpv(client):
                 banco_sel_saldo = 0.0
 
                 if metodo == "Efectivo":
-                    c_tot, c_ent, c_cam = st.columns([0.8, 1, 1])
+                    c_tot, c_ent, c_cam = st.columns([0.8, 1, 1], vertical_alignment="bottom")
                     with c_tot: st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
                     with c_ent: entregado = st.number_input("Entregado € (Intro)", min_value=0.0, value=float(total_f), format="%.2f")
                     with c_cam:
