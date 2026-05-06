@@ -402,7 +402,10 @@ def render_pestana_tpv(client):
                                 "estado": "Completado" if pendiente == 0 else "Deuda",
                                 "pago_efectivo": float(p_efectivo),
                                 "pago_tarjeta": float(p_tarjeta),
-                                "pago_bizum": float(p_bizum)
+                                "pago_bizum": float(p_bizum),
+                                "cliente_vip_nombre": cliente_fidel_nombre,
+                                "puntos_ganados": puntos_ganados,
+                                "puntos_usados": puntos_a_descontar
                             }).execute()
                             
                             if banco_sel_id and p_tarjeta > 0:

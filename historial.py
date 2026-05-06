@@ -95,6 +95,17 @@ def render_pestana_historial(client):
                                     res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
                                     if res_p.data:
                                         client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
+                        
+                        # Revertir puntos si era cliente VIP
+                        cliente_vip = str(tk_data.get('cliente_vip_nombre', ''))
+                        if cliente_vip and cliente_vip != "nan" and cliente_vip != "None":
+                            res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cliente_vip).execute()
+                            if res_cli.data:
+                                cli_id = res_cli.data[0]['id']
+                                p_ganados = int(tk_data.get('puntos_ganados', 0))
+                                p_usados = int(tk_data.get('puntos_usados', 0))
+                                nuevo_saldo = max(0, res_cli.data[0].get('puntos', 0) - p_ganados + p_usados)
+                                client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cli_id).execute()
                         # Eliminar registro
                         client.table("ventas_historial").delete().eq("id", tk_id).execute()
                     st.success("Ticket(s) eliminado(s) correctamente."); time.sleep(1); st.rerun()
@@ -200,6 +211,18 @@ def render_pestana_historial(client):
                                         res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
                                         if res_p.data:
                                             client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
+                                
+                                # Revertir puntos si era cliente VIP
+                                cliente_vip = str(t_info.get('cliente_vip_nombre', ''))
+                                if cliente_vip and cliente_vip != "nan" and cliente_vip != "None":
+                                    res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cliente_vip).execute()
+                                    if res_cli.data:
+                                        cli_id = res_cli.data[0]['id']
+                                        p_ganados = int(t_info.get('puntos_ganados', 0))
+                                        p_usados = int(t_info.get('puntos_usados', 0))
+                                        nuevo_saldo = max(0, res_cli.data[0].get('puntos', 0) - p_ganados + p_usados)
+                                        client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cli_id).execute()
+                                        
                                 client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_id)).execute()
                                 st.success("Venta anulada."); time.sleep(0.8); st.rerun()
                                 
