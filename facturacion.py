@@ -350,7 +350,6 @@ def render_pestana_facturacion(client):
     # ==========================================
     with sub_archivo:
         st.markdown("####  🔍  Archivo Histórico")
-        tipo_doc = st.radio("Documento:", ["Facturas Emitidas (Ventas)", "Facturas Recibidas (Compras)"], horizontal=True)
             tipo_doc = st.radio("Documento:", ["Facturas Emitidas (Ventas)", "Gastos, Compras y Facturas Recibidas"], horizontal=True)
         c_f1, c_f2 = st.columns(2)
         f_ini = c_f1.date_input("Desde:", pd.to_datetime('today') - pd.Timedelta(days=30), key="a_i")
