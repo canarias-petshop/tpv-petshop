@@ -134,8 +134,13 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 ### FASE 3: Profesionalización Laboral y Comercial (Largo Plazo)
 *   **Módulo de Marketing Automatizado:**
     *   *Objetivo:* Aprovechar la base de datos de clientes para adelantarse y automatizar planes de marketing.
-    *   *Pasos a dar:* Crear una pestaña dedicada para estructurar y planificar envíos automáticos, ofertas y recordatorios segmentados de forma proactiva.
-    *   *Gestión de Temporadas:* Incluir un calendario anual con "Cápsulas de Contenido" pre-redactadas y una **Alarma Predictiva** que avise entre 30 y 45 días antes de que se acabe el contenido programado para solicitar la creación de la siguiente tanda.
+    *   *Pasos a dar:* Pestaña "Marketing y Ofertas" con un planificador anual visual integrado con Supabase.
+    *   *Estrategia Anual (Norma Alta Frecuencia Sin Email):* 
+        - **Instagram (3x/semana):** Mezcla de Reels, Posts y Stories interactivas.
+        - **WhatsApp (1x/mes máximo):** Solo para campañas clave o aperturas de agenda (evitar saturación).
+        - **Ads / Tienda Física:** Acciones puntuales estratégicas. (El Email masivo queda descartado hasta tener una base de datos sólida).
+    *   *Gestión de Temporadas y Copywriting:* El esqueleto del plan anual se carga completo en la base de datos. Toda la estrategia, normas de publicación y el esqueleto de campañas futuras residen en la carpeta **`marketing_plans/`**.
+    *   *Alarma Predictiva:* Avisará entre 30 y 45 días antes de que se agote el contenido redactado. Cuando esto ocurra, el usuario solo debe decirle a la IA: *"Abre la carpeta marketing_plans, lee el plan anual y redáctame la siguiente temporada"*.
 *   **Calendarios Visuales de Pagos y Tesorería:**
     *   *Objetivo:* Tener un panel visual (semanal y mensual) de todas las previsiones de pagos.
     *   *Pasos a dar:* Integrar en Facturación un panel de vencimientos para proveedores, y en Contabilidad un registro automatizado de gastos fijos/recurrentes (luz, agua, préstamos, nóminas, impuestos) que genere previsiones visuales y alarmas personalizables.
