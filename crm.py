@@ -335,7 +335,7 @@ def render_pestana_crm(client):
                         }).execute()
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
-        sub_cli, sub_masc, sub_alertas, sub_encargos = st.tabs(["👤 Directorio de Clientes", "🐾 Fichas de Mascotas", "🔔 Alertas y Recordatorios", "🛍️ Encargos de Clientes"])
+        sub_cli, sub_masc, sub_alertas, sub_encargos = st.tabs(["👤 Directorio de Clientes", "🐾 Fichas de Mascotas", " Centro WhatsApp", "🛍️ Encargos de Clientes"])
         
         with sub_cli:
             res_clientes = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).execute()
@@ -579,20 +579,84 @@ def render_pestana_crm(client):
             else: st.info("No hay mascotas registradas.")
 
         with sub_alertas:
-            st.markdown("#### 🔔 Alertas de Mantenimiento Inteligentes")
-            st.markdown("<p style='color:gray; font-size:14px;'>El sistema escanea el historial de las mascotas y te avisa de las que llevan tiempo sin venir, generándote un enlace directo para enviarles un WhatsApp pre-escrito con un solo toque.</p>", unsafe_allow_html=True)
+            st.markdown("#### 📱 Centro de Comunicaciones (WhatsApp)")
+            st.info("Espacio centralizado para gestionar las confirmaciones y recordatorios diarios con un solo clic.")
+            
+            # --- 1. CONFIRMACIONES DE MAÑANA ---
+            st.markdown("##### 📅 1. Confirmaciones para Mañana")
+            hoy_dt = pd.to_datetime('today')
+            manana_dt = hoy_dt + pd.Timedelta(days=1)
+            manana_str_ini = manana_dt.strftime('%Y-%m-%dT00:00:00')
+            manana_str_fin = manana_dt.strftime('%Y-%m-%dT23:59:59')
+            
+            res_manana = client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").gte("fecha_hora", manana_str_ini).lte("fecha_hora", manana_str_fin).execute()
+            
+            citas_manana = []
+            if res_manana.data:
+                for c in res_manana.data:
+                    if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
+                    mascota_info = c.get('mascotas', {}) or {}
+                    cliente_info = mascota_info.get('clientes', {}) or {}
+                    dueno = cliente_info.get('nombre_dueno', 'Dueño')
+                    telefono = cliente_info.get('telefono', '')
+                    nombre_m = mascota_info.get('nombre', 'tu mascota')
+                    
+                    dt_obj = pd.to_datetime(c['fecha_hora'])
+                    hora_str = dt_obj.strftime('%H:%M')
+                    
+                    tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
+                    url_wa = None
+                    if tel_limpio:
+                        if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
+                        msg = f"¡Hola {dueno}! 🐾 Te escribimos de Animalarium para confirmarte la cita de {nombre_m} para mañana a las {hora_str}. ¿Nos confirmas tu asistencia? ¡Muchas gracias! ✂️"
+                        url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg)}"
+                        
+                    import re
+                    s_raw = c.get('servicio', '')
+                    s_clean = re.sub(r'\[ESTADO:\s*.*?\]\s*', '', s_raw).strip()
+                    
+                    citas_manana.append({
+                        "Hora": hora_str,
+                        "Mascota": nombre_m,
+                        "Dueño": dueno,
+                        "Servicio": s_clean,
+                        "WhatsApp": url_wa
+                    })
+                    
+            if citas_manana:
+                df_manana = pd.DataFrame(citas_manana).sort_values("Hora")
+                st.dataframe(df_manana, use_container_width=True, hide_index=True, column_config={"WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Pedir Confirmación")})
+            else:
+                st.success("No hay citas programadas para mañana o ya están todas canceladas.")
+
+            st.markdown("---")
+            
+            # --- 2. RECORDATORIOS DE MANTENIMIENTO ---
+            st.markdown("##### ✂️ 2. Recordatorios de Mantenimiento")
+            st.markdown("<p style='color:gray; font-size:14px;'>Clientes que superan los días sin venir y <b>NO tienen ya una cita futura agendada</b>.</p>", unsafe_allow_html=True)
             
             c_al1, c_al2 = st.columns([1, 2])
             with c_al1:
-                dias_aviso = st.slider("Mostrar mascotas que no hayan venido en más de (días):", min_value=15, max_value=180, value=45, step=5)
+                dias_aviso = st.slider("Mostrar mascotas sin venir en más de (días):", min_value=15, max_value=180, value=45, step=5)
+            
+            # Obtener mascotas que YA tienen cita futura
+            hoy_str = hoy_dt.strftime('%Y-%m-%dT00:00:00')
+            res_futuras = client.table("citas").select("mascotas_id, servicio").gte("fecha_hora", hoy_str).execute()
+            mascotas_con_cita = set()
+            if res_futuras.data:
+                for c in res_futuras.data:
+                    if "[ESTADO: Cancelada]" not in c.get("servicio", ""):
+                        mascotas_con_cita.add(c["mascotas_id"])
             
             res_m_alertas = client.table("mascotas").select("id, nombre, historial_trabajos, clientes(nombre_dueno, telefono)").execute()
             
             if res_m_alertas.data:
                 alertas = []
-                hoy_dt = pd.to_datetime('today')
                 
                 for m in res_m_alertas.data:
+                    if m['id'] in mascotas_con_cita:
+                        continue # Excluir si ya tiene cita futura
+                        
                     hist = m.get('historial_trabajos', [])
                     if isinstance(hist, list) and len(hist) > 0:
                         try:
@@ -603,16 +667,15 @@ def render_pestana_crm(client):
                                 dias_transcurridos = (hoy_dt - ultima_visita).days
                                 
                                 if dias_transcurridos >= dias_aviso:
-                                    dueno = m['clientes']['nombre_dueno'] if m.get('clientes') else 'Dueño'
-                                    telefono = m['clientes']['telefono'] if m.get('clientes') else ''
+                                    cliente_info = m.get('clientes') or {}
+                                    dueno = cliente_info.get('nombre_dueno', 'Dueño')
+                                    telefono = cliente_info.get('telefono', '')
                                     
-                                    # Preparar el número para WhatsApp (+34 España)
                                     tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
                                     if tel_limpio and len(tel_limpio) == 9 and not tel_limpio.startswith('34'):
                                         tel_limpio = '34' + tel_limpio
                                         
-                                    # Mensaje de marketing amistoso
-                                    mensaje = f"¡Hola {dueno}! 🐾 Soy Raquel de Animalarium. Te escribo porque he visto en la ficha de {m['nombre']} que ya le va tocando su sesión de mantenimiento. Si vienes antes de que pasen los 2 meses, el sistema te aplica un 10% de descuento automático en el servicio. ¿Te buscamos un huequito para aprovecharlo? ¡Un saludo! 🐶✂️"
+                                    mensaje = f"¡Hola {dueno}! 🐾 Soy Raquel de Animalarium. Te escribo porque he visto en la ficha de {m['nombre']} que ya le va tocando su sesión de mantenimiento. Si vienes antes de que pasen los 2 meses, te aplicamos un 10% de descuento en el servicio. ¿Te buscamos un huequito? ¡Un saludo! 🐶✂️"
                                     url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje)}" if tel_limpio else None
                                     
                                     alertas.append({
@@ -627,7 +690,7 @@ def render_pestana_crm(client):
                     st.warning(f"⚠️ Tienes **{len(alertas)}** clientes pendientes de contactar para mantenimiento.")
                     st.dataframe(df_alertas, use_container_width=True, hide_index=True, column_config={"WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Enviar WhatsApp")})
                 else:
-                    st.success("✨ ¡Genial! Tienes la agenda al día. Ninguna mascota supera los días de alerta.")
+                    st.success("✨ ¡Genial! Tienes la agenda al día. Ninguna mascota supera los días de alerta o ya tienen su cita.")
 
         with sub_encargos:
             col_en1, col_en2 = st.columns([1, 2])
