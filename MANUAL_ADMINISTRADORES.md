@@ -72,3 +72,4 @@ Aunque los empleados pueden vender, la estructura del catálogo recae en la admi
 1. **Nunca reveles la contraseña/URL de acceso al panel principal (Streamlit Cloud)** a los empleados. 
 2. Tus empleados solo deben conocer su propio PIN de 4 dígitos. Si entran con su PIN, no verán ni la pestaña de Contabilidad ni la de Bancos.
 3. El archivo `RESUMEN_MAESTRO_ACTUALIZADO.md` detalla el funcionamiento interno del software y es solo para uso técnico y de mantenimiento.
+4. **Ley Antifraude (VeriFactu):** El sistema inyecta un código criptográfico (Hash SHA-256) en cada ticket y factura, bloqueando su borrado. Si un empleado comete un error, indícale que debe usar el botón de "Devolución" en lugar de pedirte que lo borres para evitar sanciones.

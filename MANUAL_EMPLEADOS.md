@@ -79,11 +79,9 @@ Al abrir y cerrar la tienda, hay que llevar el control del dinero en metálico.
 ---
 
 ## 6. 📜 Historial Operativo (Devoluciones y Errores)
-Si cometes un error al cobrar un ticket (ej. cobraste en efectivo pero era con tarjeta):
-1. Ve a **Historial Operativo**.
-2. Busca el ticket del día de hoy.
-3. En la columna de la derecha, selecciona "Tarjeta" en el menú desplegable. El cambio se guarda automáticamente.
-4. **Devoluciones:** Si un cliente devuelve un collar, pulsa el botón rojo **"Devolver"**. El dinero se registrará como salida y el collar volverá automáticamente al stock de la tienda.
+Por la nueva **Ley Antifraude de Hacienda**, está terminantemente prohibido borrar tickets emitidos. Si te equivocas, esto es lo que debes hacer:
+- **Error en la forma de pago:** Si cobraste en efectivo pero era con tarjeta, ve a "Historial Operativo", busca el ticket y cambia el desplegable a "Tarjeta" (Solo puedes hacer esto si aún NO has hecho el Cierre Z de hoy).
+- **Error en los artículos o Devolución:** Si cobraste mal un producto o un cliente lo devuelve, ve a "Historial Operativo", busca el ticket, marca la casilla "👁️ Ver" y pulsa el botón **"↩️ Devolver y Restaurar Stock"**. Esto generará un abono legal y el artículo volverá al inventario de la tienda automáticamente.
 
 ---
 

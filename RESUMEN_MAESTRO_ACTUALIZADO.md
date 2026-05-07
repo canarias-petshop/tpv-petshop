@@ -32,11 +32,10 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - **Centro WhatsApp (Automatización Matutina):** Panel unificado que escanea la agenda para mostrar las citas del día siguiente y las alertas de mantenimiento (filtrando inteligentemente a quienes ya tienen cita futura). Genera enlaces `wa.me` para enviar confirmaciones y recordatorios con un solo clic. También notifica encargos recibidos.
 
 📜 **4. Historial Operativo**
-- Registro en vivo de todos los tickets.
-- Edición directa de errores (cambiar métodos de pago, aplicar descuentos a posteriori).
-- Sistema de devoluciones que restaura el stock automáticamente.
-- Reimpresión de tickets antiguos.
-- Los tickets reimpresos desde el historial conservan e informan del método de pago utilizado.
+- Registro en vivo de todos los tickets con **generación de Hash SHA-256 encadenado**.
+- **Bloqueo Ley Antifraude (VeriFactu):** Borrado de tickets desactivado de forma inmediata. Edición limitada exclusivamente a corregir el método de pago en tickets del turno actual (Caja Abierta). Al hacer el Cierre Z, los tickets quedan bloqueados criptográficamente (Candado 🔒).
+- Sistema de devoluciones (Abonos) que restaura el stock automáticamente y deja trazabilidad legal.
+- Reimpresión de tickets antiguos conservando método de pago original.
 
 💰 **5. Control de Caja Fuerte**
 - Apertura de turnos con sugerencia automática del Fondo Inicial basada en el arqueo del día anterior.
@@ -57,6 +56,7 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 
 📑 **8. Facturación Legal y Stock**
 - *Sub-1 Emisión:* Emisión de facturas a clientes calculando dinámicamente el desglose interno de Base Imponible y Cuota de IGIC, aunque el empleado solo introduzca el PVP Público.
+- **Generación de Hash SHA-256 por factura y bloqueo total de borrado (Cumplimiento VeriFactu).**
 - *Sub-2 Compras:* Registro de facturas de proveedores: al archivar una compra, el sistema actualiza automáticamente el stock, el precio de coste y el PVP en el inventario.
 - *Sub-3 Archivo:* Archivo histórico de documentos con **Filtros Dinámicos por Categoría** (Nóminas, Gastos Fijos, Mercancía, Impuestos, Servicios Externos).
 - *Sub-4 Pagos Pendientes:* Control para deudas a proveedores y gastos, con la capacidad de pagar seleccionando múltiples facturas y descontando el importe del saldo de un Banco o de la Caja Fuerte (dejando constancia en el movimiento de caja si hay turno abierto).
@@ -110,35 +110,21 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Saneamiento Fiscal y Contable (Completado):** Corrección de la lógica de Base Imponible e IGIC. Los tickets y facturas ahora diferencian la venta de "Servicios" (que desglosa IGIC) de la venta de "Productos" (que reporta todo como Base Imponible). Todo a prueba de fallos mediante parseo seguro de datos legados.
 - **Automatizaciones Finales y Deep Linking (Completado):** Implementación del "Centro WhatsApp" y "Centro de Envíos" para establecer una rutina matutina clara.
 - **Reorganización ERP (Completado):** Separación total de Catálogo (Inventario) y Compras (Proveedores y Pedidos), logrando un flujo de trabajo profesional sin botones duplicados ni sobrecarga visual.
+- **Bloqueo Fiscal VeriFactu - Fase 2 (Completado):** Implementación de inalterabilidad en tickets y facturas. Generación de Hash SHA-256 encadenado y bloqueo de edición post-Cierre Z, cumpliendo la Ley Antifraude española.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
-A continuación, se detallan los pasos para llevar el sistema de un entorno de pruebas a un nivel profesional, cumpliendo con la normativa legal y garantizando su fiabilidad. Los pasos están explicados sin jerga técnica para facilitar su seguimiento y desarrollo.
+### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
+* Se completó el blindaje RLS en la base de datos con `service_role` key.
+* Tolerancia a fallos validada mediante la arquitectura local recomendada (Despliegue de Docker en tienda) descrita en el apartado 5.
 
-### FASE 1: Estabilidad y Seguridad Básica (Corto Plazo)
-*   **Modo "Sin Internet" (Tolerancia a fallos):**
-    *   *Objetivo:* Que la tienda pueda seguir cobrando aunque se caiga el WiFi de forma temporal.
-    *   *Pasos a dar:* Investigar e implementar una tecnología que guarde los tickets temporalmente en la memoria de la tablet y los envíe automáticamente al sistema central cuando vuelva la conexión.
-*   **Blindaje de la Base de Datos:**
-    *   *Objetivo:* Evitar que un error o acceso no autorizado borre datos importantes desde fuera de la aplicación.
-    *   *Pasos a dar:* Configurar reglas de seguridad directamente en la base de datos (Supabase) para que, por ejemplo, los empleados solo puedan leer y escribir lo necesario, pero no alterar o borrar tablas enteras.
-*   **Testeo en Entorno Real:**
-    *   *Objetivo:* Probar el programa en el día a día de la tienda.
-    *   *Pasos a dar:* Usar la aplicación en físico para afinar detalles de uso en las tablets (simetría, tamaño de botones, colores de la agenda, etc.).
-
-### FASE 2: Cumplimiento Normativo y Fiscal (Medio Plazo)
-* *(Nota actual: Durante la fase de pruebas actual, se permite borrar líneas y tickets para facilitar el desarrollo, pero estas acciones se bloquearán o auditarán en el paso a producción).*
+### FASE 2: Cumplimiento Normativo y Fiscal (COMPLETADO)
 *   **Inalterabilidad de Tickets y Facturas (Ley Antifraude):**
-    *   *Objetivo:* Cumplir con la ley que prohíbe los programas de "doble uso" (los que permiten ocultar ventas o modificarlas a posteriori).
-    *   *Pasos a dar:* 
-        1. Desactivar la opción de borrar o editar libremente tickets o facturas antiguas.
-        2. Crear un sistema de "Devoluciones" o "Abonos" (Tickets Rectificativos) que anule el ticket original de manera oficial, dejando rastro de ambas operaciones y reponiendo el stock.
+    *   *Objetivo Cumplido:* Se ha desactivado el borrado y la edición libre. Todo error se subsana mediante el sistema de "Devoluciones" (Abonos) que anula el ticket oficial dejando rastro y restaurando stock.
 *   **Cierres de Caja Inviolables (Cierre Z):**
-    *   *Objetivo:* Evitar descuadres contables y modificaciones de ventas pasadas.
-    *   *Pasos a dar:* Programar que, al emitir el "Cierre Z" del día, el sistema bloquee automáticamente la posibilidad de añadir, borrar o editar ventas con la fecha de ese día ya cerrado.
+    *   *Objetivo Cumplido:* Al emitir el "Cierre Z", el sistema echa el candado 🔒 a las ventas de ese día, impidiendo incluso corregir los métodos de pago.
 *   **Integración VeriFactu (Obligatorio Hacienda):**
-    *   *Objetivo:* Conectar el programa con la Agencia Tributaria (normativa próxima a entrar en vigor).
-    *   *Pasos a dar:* Configurar el sistema para que encadene las facturas de forma segura y tenga la capacidad de enviarlas a Hacienda automáticamente.
+    *   *Objetivo Cumplido (Fase Local):* El sistema ya encadena criptográficamente (Hash SHA-256) las facturas y tickets en vivo. Queda pendiente (cuando Hacienda abra la pasarela y la API oficial) la simple conexión de envío de este Hash.
 *   **Privacidad y Protección de Datos (RGPD):**
     *   *Objetivo:* Cumplir la ley al enviar mensajes (WhatsApp) y guardar datos de clientes.
     *   *Pasos a dar:* 
