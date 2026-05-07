@@ -105,11 +105,12 @@ def render_pestana_contabilidad(client):
         
         c_alerta1, c_alerta2 = st.columns([1, 2])
         with c_alerta1:
-            # Para evitar error si la tabla no existe aún, se carga dentro del try-except
-            try: res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
             dias_alerta = st.slider("🔔 Días de antelación para alarmas:", min_value=1, max_value=30, value=7)
             
         try:
+            # Para evitar error si la tabla no existe aún, se carga dentro del try-except principal
+            res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
+            
             hoy_dt = pd.Timestamp(date.today())
             futuro_dt = hoy_dt + pd.Timedelta(days=60)
             proyeccion = []
