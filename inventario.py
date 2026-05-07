@@ -3,7 +3,7 @@ import pandas as pd
 import time
 
 def render_pestana_inventario(client):
-    st.markdown("<h3 style='margin-top: -15px;'>📦 Gestión de Inventario y Servicios</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top: -15px;'>📦 Gestión de Inventario, Servicios y Pedidos</h3>", unsafe_allow_html=True)
     
     col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
@@ -92,185 +92,198 @@ def render_pestana_inventario(client):
                 if 'stock_minimo' not in df_solo_productos.columns: df_solo_productos['stock_minimo'] = 2
                 if 'cantidad_reponer' not in df_solo_productos.columns: df_solo_productos['cantidad_reponer'] = 5
 
-                # --- ALERTA DE STOCK BAJO ---
-                df_bajo_stock = df_solo_productos[df_solo_productos['stock_actual'] <= df_solo_productos['stock_minimo']].sort_values(by="stock_actual")
-                if not df_bajo_stock.empty:
-                    st.warning(f"⚠️ **ATENCIÓN: Tienes {len(df_bajo_stock)} producto(s) por debajo de su stock mínimo.**")
-                    
-                    # --- GENERADOR INTELIGENTE (CON CASILLAS DE VERIFICACIÓN) ---
-                    df_bajo_stock_vista = df_bajo_stock[['id', 'sku', 'nombre', 'stock_actual', 'stock_minimo', 'cantidad_reponer']].copy()
-                    df_bajo_stock_vista.insert(0, "Pedir", True) # Vienen marcados por defecto
-                    
-                    st.markdown("<p style='font-size:14px;'>Revisa los productos sugeridos por el sistema. <b>Desmarca</b> aquellos que no quieras mandar a pedir en este momento.</p>", unsafe_allow_html=True)
-                    
-                    ed_bajo_stock = st.data_editor(
-                        df_bajo_stock_vista,
-                        hide_index=True, use_container_width=True,
-                        column_config={
-                            "Pedir": st.column_config.CheckboxColumn("✅ Pedir", default=True),
-                            "id": None, "sku": "SKU", "nombre": "Producto", "stock_actual": "Stock",
-                            "stock_minimo": "Mínimo", "cantidad_reponer": "Cant. Reponer"
-                        },
-                        key="ed_bajo_stock"
-                    )
-
-                    if st.button("🚀 AUTO-DISTRIBUIR SELECCIONADOS A BORRADORES", type="primary", use_container_width=True):
-                        prods_a_pedir_auto = ed_bajo_stock[ed_bajo_stock["Pedir"] == True]
-                        if not prods_a_pedir_auto.empty:
-                            res_rels = client.table("productos_proveedores").select("producto_id, proveedor_id").execute()
-                            mapa_provs = {r['producto_id']: r['proveedor_id'] for r in res_rels.data} if res_rels.data else {}
+                sub_prod, sub_serv, sub_pedidos = st.tabs(["📦 Inventario", "✂️ Servicios", "🛒 Reposición y Pedidos"])
+                
+                with sub_pedidos:
+                    # --- ALERTA DE STOCK BAJO ---
+                    df_bajo_stock = df_solo_productos[df_solo_productos['stock_actual'] <= df_solo_productos['stock_minimo']].sort_values(by="stock_actual")
+                    if not df_bajo_stock.empty:
+                        st.warning(f"⚠️ **ATENCIÓN: Tienes {len(df_bajo_stock)} producto(s) por debajo de su stock mínimo.**")
+                        
+                        with st.expander("👀 Ver y editar lista de reposición sugerida", expanded=False):
+                            # --- GENERADOR INTELIGENTE (CON CASILLAS DE VERIFICACIÓN) ---
+                            df_bajo_stock_vista = df_bajo_stock[['id', 'sku', 'nombre', 'stock_actual', 'stock_minimo', 'cantidad_reponer']].copy()
+                            df_bajo_stock_vista.insert(0, "Pedir", True) # Vienen marcados por defecto
                             
-                            pedidos_a_crear = {}
-                            for _, row in prods_a_pedir_auto.iterrows():
-                                prov_id = mapa_provs.get(row['id'])
-                                if prov_id:
-                                    if prov_id not in pedidos_a_crear: pedidos_a_crear[prov_id] = []
-                                    pedidos_a_crear[prov_id].append({"Producto": row['nombre'], "Cantidad": int(row['cantidad_reponer'])})
-                                    
-                            if pedidos_a_crear:
-                                for p_id, prods in pedidos_a_crear.items():
-                                    res_b = client.table("pedidos_proveedores").select("id, productos").eq("proveedor_id", p_id).eq("estado", "Borrador").execute()
-                                    if res_b.data:
-                                        draft_id = res_b.data[0]['id']
-                                        prods_act = res_b.data[0].get('productos', [])
-                                        nombres_act = [p.get('Producto') for p in prods_act]
-                                        for np in prods:
-                                            if np['Producto'] not in nombres_act: prods_act.append(np)
-                                        client.table("pedidos_proveedores").update({"productos": prods_act}).eq("id", draft_id).execute()
-                                    else:
-                                        client.table("pedidos_proveedores").insert({"proveedor_id": p_id, "estado": "Borrador", "productos": prods}).execute()
-                                st.success("✅ ¡Borradores generados con los productos seleccionados! Ve a la Pestaña 7 (Proveedores) para revisarlos."); time.sleep(1.5); st.rerun()
-                            else:
-                                st.error("❌ No se pudo automatizar: Ninguno de los productos seleccionados tiene un proveedor asociado.")
-                        else:
-                            st.warning("No has seleccionado ningún producto para pedir.")
+                            st.markdown("<p style='font-size:14px;'>Revisa los productos sugeridos por el sistema. <b>Desmarca</b> aquellos que no quieras mandar a pedir en este momento.</p>", unsafe_allow_html=True)
+                            
+                            ed_bajo_stock = st.data_editor(
+                                df_bajo_stock_vista,
+                                hide_index=True, use_container_width=True,
+                                column_config={
+                                    "Pedir": st.column_config.CheckboxColumn("✅ Pedir", default=True),
+                                    "id": None, "sku": "SKU", "nombre": "Producto", "stock_actual": "Stock",
+                                    "stock_minimo": "Mínimo", "cantidad_reponer": "Cant. Reponer"
+                                },
+                                key="ed_bajo_stock"
+                            )
 
-                # --- INTEGRACIÓN CON PEDIDOS A PROVEEDORES (GLOBAL MANUAL) ---
-                st.markdown("#### 🛒 Añadir productos manualmente a un Borrador")
-                st.markdown("<p style='color:gray; font-size:13px;'>Selecciona cualquier producto del inventario para añadirlo a un pedido abierto (aunque no esté bajo mínimos).</p>", unsafe_allow_html=True)
-                res_borradores = client.table("pedidos_proveedores").select("id, proveedores(nombre_empresa)").eq("estado", "Borrador").execute()
-                if res_borradores.data:
-                    opciones_borrador = {f"Borrador #{b['id']} - {b['proveedores']['nombre_empresa']}": b['id'] for b in res_borradores.data if b.get('proveedores')}
+                            if st.button("🚀 AUTO-DISTRIBUIR SELECCIONADOS A BORRADORES", type="primary", use_container_width=True):
+                                prods_a_pedir_auto = ed_bajo_stock[ed_bajo_stock["Pedir"] == True]
+                                if not prods_a_pedir_auto.empty:
+                                    res_rels = client.table("productos_proveedores").select("producto_id, proveedor_id").execute()
+                                    mapa_provs = {r['producto_id']: r['proveedor_id'] for r in res_rels.data} if res_rels.data else {}
+                                    
+                                    pedidos_a_crear = {}
+                                    for _, row in prods_a_pedir_auto.iterrows():
+                                        prov_id = mapa_provs.get(row['id'])
+                                        if prov_id:
+                                            if prov_id not in pedidos_a_crear: pedidos_a_crear[prov_id] = []
+                                            pedidos_a_crear[prov_id].append({"Producto": row['nombre'], "Cantidad": int(row['cantidad_reponer'])})
+                                            
+                                    if pedidos_a_crear:
+                                        for p_id, prods in pedidos_a_crear.items():
+                                            res_b = client.table("pedidos_proveedores").select("id, productos").eq("proveedor_id", p_id).eq("estado", "Borrador").execute()
+                                            if res_b.data:
+                                                draft_id = res_b.data[0]['id']
+                                                prods_act = res_b.data[0].get('productos', [])
+                                                nombres_act = [p.get('Producto') for p in prods_act]
+                                                for np in prods:
+                                                    if np['Producto'] not in nombres_act: prods_act.append(np)
+                                                client.table("pedidos_proveedores").update({"productos": prods_act}).eq("id", draft_id).execute()
+                                            else:
+                                                client.table("pedidos_proveedores").insert({"proveedor_id": p_id, "estado": "Borrador", "productos": prods}).execute()
+                                        st.success("✅ ¡Borradores generados con los productos seleccionados! Ve a la Pestaña 7 (Proveedores) para revisarlos."); time.sleep(1.5); st.rerun()
+                                    else:
+                                        st.error("❌ No se pudo automatizar: Ninguno de los productos seleccionados tiene un proveedor asociado.")
+                                else:
+                                    st.warning("No has seleccionado ningún producto para pedir.")
+
+                    st.markdown("---")
+                    # --- INTEGRACIÓN CON PEDIDOS A PROVEEDORES (GLOBAL MANUAL) ---
+                    st.markdown("#### 🛒 Añadir productos manualmente a un Borrador")
+                    st.markdown("<p style='color:gray; font-size:13px;'>Selecciona cualquier producto del inventario para añadirlo a un pedido abierto (o crea uno nuevo).</p>", unsafe_allow_html=True)
+                    res_borradores = client.table("pedidos_proveedores").select("id, proveedores(nombre_empresa)").eq("estado", "Borrador").execute()
+                    
                     c_ped1, c_ped2 = st.columns([2, 1])
                     with c_ped1: prods_a_pedir_manual = st.multiselect("Selecciona productos del inventario para pedir:", df_solo_productos['nombre'].tolist())
                     with c_ped2:
-                        borrador_sel = st.selectbox("Selecciona el Borrador:", list(opciones_borrador.keys()))
-                        if st.button("➕ Añadir al Borrador", use_container_width=True) and prods_a_pedir_manual and borrador_sel:
-                            draft_id = opciones_borrador[borrador_sel]
-                            prods_actuales = client.table("pedidos_proveedores").select("productos").eq("id", draft_id).execute().data[0].get('productos', [])
-                            for p_nom in prods_a_pedir_manual:
-                                if not any(item.get('Producto') == p_nom for item in prods_actuales):
-                                    prods_actuales.append({"Producto": p_nom, "Cantidad": 1})
-                            client.table("pedidos_proveedores").update({"productos": prods_actuales}).eq("id", draft_id).execute()
-                            st.success("¡Añadidos al borrador! Ve a la Pestaña 7 para gestionarlo."); time.sleep(1); st.rerun()
-                else:
-                    st.info("💡 No tienes ningún borrador de pedido abierto. Ve a la Pestaña 7 (Proveedores) para crear uno.")
+                        if res_borradores.data:
+                            opciones_borrador = {f"Borrador #{b['id']} - {b['proveedores']['nombre_empresa']}": b['id'] for b in res_borradores.data if b.get('proveedores')}
+                            borrador_sel = st.selectbox("Selecciona el Borrador:", list(opciones_borrador.keys()))
+                            if st.button("➕ Añadir al Borrador", use_container_width=True):
+                                if prods_a_pedir_manual and borrador_sel:
+                                    draft_id = opciones_borrador[borrador_sel]
+                                    prods_actuales = client.table("pedidos_proveedores").select("productos").eq("id", draft_id).execute().data[0].get('productos', [])
+                                    for p_nom in prods_a_pedir_manual:
+                                        if not any(item.get('Producto') == p_nom for item in prods_actuales):
+                                            prods_actuales.append({"Producto": p_nom, "Cantidad": 1})
+                                    client.table("pedidos_proveedores").update({"productos": prods_actuales}).eq("id", draft_id).execute()
+                                    st.success("¡Añadidos al borrador! Ve a la Pestaña 7 para gestionarlo."); time.sleep(1); st.rerun()
+                                else:
+                                    st.warning("Selecciona al menos un producto para añadir.")
+                        else:
+                            st.info("💡 No tienes borradores abiertos.")
+                            nuevo_prov_sel = st.selectbox("Elige un Proveedor para crear uno:", list(dict_proveedores.keys()))
+                            if st.button("➕ Crear Nuevo Borrador", use_container_width=True):
+                                client.table("pedidos_proveedores").insert({"proveedor_id": dict_proveedores[nuevo_prov_sel], "estado": "Borrador", "productos": []}).execute()
+                                st.rerun()
 
-                # --- TABLA DE PRODUCTOS MEJORADA ---
-                st.markdown("#### 📦 Inventario de Productos")
+                with sub_prod:
+                    # --- TABLA DE PRODUCTOS MEJORADA ---
+                    st.markdown("#### 📦 Inventario de Productos")
 
-                # Ahora permitimos borrar filas con num_rows="dynamic"
-                edit_p = st.data_editor(
-                    df_solo_productos,
-                    column_config={
-                        "id": None, "categoria": None, "categoria_filt": None, "productos_proveedores": None,
-                        "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
-                        "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
-                        "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f"),
-                        "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock",
-                        "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
-                        "cantidad_reponer": st.column_config.NumberColumn("Reponer Ud", step=1)
-                    },
-                    column_order=["sku", "codigo_barras", "nombre", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "stock_minimo", "cantidad_reponer"],
-                    hide_index=True, 
-                    use_container_width=True, 
-                    num_rows="dynamic", # <--- ESTO PERMITE BORRAR FILAS
-                    key="edit_p_sep"
-                )
+                    # Ahora permitimos borrar filas con num_rows="dynamic"
+                    edit_p = st.data_editor(
+                        df_solo_productos,
+                        column_config={
+                            "id": None, "categoria": None, "categoria_filt": None, "productos_proveedores": None,
+                            "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
+                            "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
+                            "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f"),
+                            "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock",
+                            "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
+                            "cantidad_reponer": st.column_config.NumberColumn("Reponer Ud", step=1)
+                        },
+                        column_order=["sku", "codigo_barras", "nombre", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "stock_minimo", "cantidad_reponer"],
+                        hide_index=True, 
+                        use_container_width=True, 
+                        num_rows="dynamic", # <--- ESTO PERMITE BORRAR FILAS
+                        key="edit_p_sep"
+                    )
 
-                if st.button("💾 Guardar cambios en Productos", key="btn_save_p_sep"):
-                    # 1. Detectar si alguna fila ha sido borrada
-                    ids_actuales = edit_p['id'].dropna().tolist()
-                    ids_originales = df_solo_productos['id'].tolist()
-                    ids_a_borrar = [id_orig for id_orig in ids_originales if id_orig not in ids_actuales]
+                    if st.button("💾 Guardar cambios en Productos", key="btn_save_p_sep"):
+                        # 1. Detectar si alguna fila ha sido borrada
+                        ids_actuales = edit_p['id'].dropna().tolist()
+                        ids_originales = df_solo_productos['id'].tolist()
+                        ids_a_borrar = [id_orig for id_orig in ids_originales if id_orig not in ids_actuales]
 
-                    # 2. Borrar de Supabase los que ya no están en la tabla
-                    for id_del in ids_a_borrar:
-                        client.table("productos").delete().eq("id", id_del).execute()
+                        # 2. Borrar de Supabase los que ya no están en la tabla
+                        for id_del in ids_a_borrar:
+                            client.table("productos").delete().eq("id", id_del).execute()
 
-                    # 3. Actualizar los que se han quedado (por si cambiaste precios o stock)
-                    for i, row in edit_p.iterrows():
-                        if pd.notna(row['id']): # Solo actualizamos si el producto ya existía
-                            datos = row.to_dict()
-                            
-                            # --- Gestión del proveedor ---
-                            prov_nombre = datos.get('Proveedor', '---')
-                            
-                            for col_eliminar in ['categoria_filt', 'Proveedor', 'productos_proveedores']:
-                                if col_eliminar in datos: del datos[col_eliminar]
-                            client.table("productos").update(datos).eq("id", row['id']).execute()
-                            
-                            # Actualizar la relación principal del proveedor
-                            client.table("productos_proveedores").delete().eq("producto_id", row['id']).execute()
-                            if prov_nombre != "---" and prov_nombre in dict_proveedores:
-                                client.table("productos_proveedores").insert({
-                                    "producto_id": row['id'], "proveedor_id": dict_proveedores[prov_nombre], "precio_coste": float(datos.get('precio_base', 0.0))
-                                }).execute()
+                        # 3. Actualizar los que se han quedado (por si cambiaste precios o stock)
+                        for i, row in edit_p.iterrows():
+                            if pd.notna(row['id']): # Solo actualizamos si el producto ya existía
+                                datos = row.to_dict()
+                                
+                                # --- Gestión del proveedor ---
+                                prov_nombre = datos.get('Proveedor', '---')
+                                
+                                for col_eliminar in ['categoria_filt', 'Proveedor', 'productos_proveedores']:
+                                    if col_eliminar in datos: del datos[col_eliminar]
+                                client.table("productos").update(datos).eq("id", row['id']).execute()
+                                
+                                # Actualizar la relación principal del proveedor
+                                client.table("productos_proveedores").delete().eq("producto_id", row['id']).execute()
+                                if prov_nombre != "---" and prov_nombre in dict_proveedores:
+                                    client.table("productos_proveedores").insert({
+                                        "producto_id": row['id'], "proveedor_id": dict_proveedores[prov_nombre], "precio_coste": float(datos.get('precio_base', 0.0))
+                                    }).execute()
 
-                    st.success("Inventario sincronizado correctamente")
-                    st.rerun() # Recargamos para ver los cambios [cite: 9]
+                        st.success("Inventario sincronizado correctamente")
+                        st.rerun() # Recargamos para ver los cambios [cite: 9]
 
-                st.markdown("---")
+                with sub_serv:
+                    # --- TABLA DE SERVICIOS MEJORADA ---
+                    st.markdown("#### ✂️ Catálogo de Servicios")
+                    df_solo_servicios = df_inv[df_inv['categoria_filt'] == 'Servicio'].copy()
+                    
+                    # Añadimos la columna calculada de Cuota de IGIC para mostrar el desglose
+                    df_solo_servicios['Cuota IGIC (€)'] = df_solo_servicios['precio_pvp'] - df_solo_servicios['precio_base']
 
-                # --- TABLA DE SERVICIOS MEJORADA ---
-                st.markdown("#### ✂️ Catálogo de Servicios")
-                df_solo_servicios = df_inv[df_inv['categoria_filt'] == 'Servicio'].copy()
-                
-                # Añadimos la columna calculada de Cuota de IGIC para mostrar el desglose
-                df_solo_servicios['Cuota IGIC (€)'] = df_solo_servicios['precio_pvp'] - df_solo_servicios['precio_base']
+                    # Habilitamos num_rows="dynamic" para que puedas borrar servicios
+                    edit_s = st.data_editor(
+                        df_solo_servicios,
+                        column_config={
+                            "id": None, "categoria": None, "categoria_filt": None,
+                            "sku": "Código", "nombre": "Descripción del Servicio",
+                            "precio_base": st.column_config.NumberColumn("Base Real sin IGIC (€)", format="%.2f", disabled=True),
+                            "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[7.0, 0.0, 3.0, 15.0]),
+                            "Cuota IGIC (€)": st.column_config.NumberColumn("Cuota IGIC (€)", format="%.2f", disabled=True),
+                            "precio_pvp": st.column_config.NumberColumn("Precio Cerrado (PVP) (€)", format="%.2f")
+                        },
+                        column_order=["sku", "nombre", "precio_base", "igic_tipo", "Cuota IGIC (€)", "precio_pvp"],
+                        hide_index=True, 
+                        use_container_width=True, 
+                        num_rows="dynamic", # <--- PERMITE BORRAR FILAS DE SERVICIOS
+                        key="edit_s_sep"
+                    )
 
-                # Habilitamos num_rows="dynamic" para que puedas borrar servicios
-                edit_s = st.data_editor(
-                    df_solo_servicios,
-                    column_config={
-                        "id": None, "categoria": None, "categoria_filt": None,
-                        "sku": "Código", "nombre": "Descripción del Servicio",
-                        "precio_base": st.column_config.NumberColumn("Base Real sin IGIC (€)", format="%.2f", disabled=True),
-                        "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[7.0, 0.0, 3.0, 15.0]),
-                        "Cuota IGIC (€)": st.column_config.NumberColumn("Cuota IGIC (€)", format="%.2f", disabled=True),
-                        "precio_pvp": st.column_config.NumberColumn("Precio Cerrado (PVP) (€)", format="%.2f")
-                    },
-                    column_order=["sku", "nombre", "precio_base", "igic_tipo", "Cuota IGIC (€)", "precio_pvp"],
-                    hide_index=True, 
-                    use_container_width=True, 
-                    num_rows="dynamic", # <--- PERMITE BORRAR FILAS DE SERVICIOS
-                    key="edit_s_sep"
-                )
+                    if st.button("💾 Guardar cambios en Servicios", key="btn_save_s_sep"):
+                        # 1. Identificar si algún servicio fue eliminado de la tabla
+                        ids_s_actuales = edit_s['id'].dropna().tolist()
+                        ids_s_originales = df_solo_servicios['id'].tolist()
+                        ids_s_a_borrar = [id_orig for id_orig in ids_s_originales if id_orig not in ids_s_actuales]
 
-                if st.button("💾 Guardar cambios en Servicios", key="btn_save_s_sep"):
-                    # 1. Identificar si algún servicio fue eliminado de la tabla
-                    ids_s_actuales = edit_s['id'].dropna().tolist()
-                    ids_s_originales = df_solo_servicios['id'].tolist()
-                    ids_s_a_borrar = [id_orig for id_orig in ids_s_originales if id_orig not in ids_s_actuales]
+                        # 2. Borrar de la base de datos los servicios eliminados
+                        for id_del in ids_s_a_borrar:
+                            client.table("productos").delete().eq("id", id_del).execute()
 
-                    # 2. Borrar de la base de datos los servicios eliminados
-                    for id_del in ids_s_a_borrar:
-                        client.table("productos").delete().eq("id", id_del).execute()
+                        # 3. Actualizar o guardar los cambios en los servicios que quedan
+                        for i, row in edit_s.iterrows():
+                            if pd.notna(row['id']):
+                                # Recalculamos la base real de forma automática si cambiaste el PVP o el IGIC en la tabla
+                                nuevo_pvp = float(row['precio_pvp'])
+                                nuevo_igic = float(row['igic_tipo'])
+                                nueva_base = nuevo_pvp / (1 + (nuevo_igic / 100))
+                                
+                                client.table("productos").update({
+                                    "sku": str(row['sku']), "nombre": str(row['nombre']),
+                                    "precio_pvp": nuevo_pvp, "igic_tipo": nuevo_igic, "precio_base": nueva_base
+                                }).eq("id", row['id']).execute()
 
-                    # 3. Actualizar o guardar los cambios en los servicios que quedan
-                    for i, row in edit_s.iterrows():
-                        if pd.notna(row['id']):
-                            # Recalculamos la base real de forma automática si cambiaste el PVP o el IGIC en la tabla
-                            nuevo_pvp = float(row['precio_pvp'])
-                            nuevo_igic = float(row['igic_tipo'])
-                            nueva_base = nuevo_pvp / (1 + (nuevo_igic / 100))
-                            
-                            client.table("productos").update({
-                                "sku": str(row['sku']), "nombre": str(row['nombre']),
-                                "precio_pvp": nuevo_pvp, "igic_tipo": nuevo_igic, "precio_base": nueva_base
-                            }).eq("id", row['id']).execute()
-
-                    st.success("Catálogo de servicios actualizado")
-                    st.rerun()
+                        st.success("Catálogo de servicios actualizado")
+                        st.rerun()
             else:
                 st.info("Inventario vacío.")
