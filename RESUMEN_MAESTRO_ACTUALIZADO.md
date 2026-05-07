@@ -141,6 +141,9 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
         - **Ads / Tienda Física:** Acciones puntuales estratégicas. (El Email masivo queda descartado hasta tener una base de datos sólida).
     *   *Gestión de Temporadas y Copywriting:* El esqueleto del plan anual se carga completo en la base de datos. Toda la estrategia, normas de publicación y el esqueleto de campañas futuras residen en la carpeta **`marketing_plans/`**.
     *   *Alarma Predictiva:* Avisará entre 30 y 45 días antes de que se agote el contenido redactado. Cuando esto ocurra, el usuario solo debe decirle a la IA: *"Abre la carpeta marketing_plans, lee el plan anual y redáctame la siguiente temporada"*.
+*   **Gestión de Eventos y Talleres Presenciales:**
+    *   *Objetivo:* Fomentar la comunidad y generar ventas cruzadas en la tienda mediante eventos mensuales.
+    *   *Pasos a dar:* Sub-módulo en Marketing para crear talleres (ej. mantenimiento de pelo, nutrición), gestionar el aforo máximo y llevar el control de los clientes inscritos y el pago de reservas ("Fianza redimible" en tienda).
 *   **Calendarios Visuales de Pagos y Tesorería:**
     *   *Objetivo:* Tener un panel visual (semanal y mensual) de todas las previsiones de pagos.
     *   *Pasos a dar:* Integrar en Facturación un panel de vencimientos para proveedores, y en Contabilidad un registro automatizado de gastos fijos/recurrentes (luz, agua, préstamos, nóminas, impuestos) que genere previsiones visuales y alarmas personalizables.

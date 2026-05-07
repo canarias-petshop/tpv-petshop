@@ -8,6 +8,7 @@ Este documento contiene la estrategia comercial de la tienda y el esqueleto de l
 - **WhatsApp (1x/mes máximo):** Usado con extrema precaución. Solo para avisos de apertura de agenda muy demandada (Verano/Navidad) o recordatorios urgentes.
 - **Email Masivo:** Descartado temporalmente hasta construir una base de datos más amplia (RGPD).
 - **Promociones Físicas:** Fomentar el cruce de ventas en tienda física (Up-selling) con regalos por volumen de compra.
+- **Eventos y Talleres (1x/mes):** Jornadas presenciales en fin de semana (bajo coste, ej. 15€ redimibles en productos) para fidelizar, enseñar mantenimiento básico y generar ventas cruzadas en la tienda.
 
 ---
 

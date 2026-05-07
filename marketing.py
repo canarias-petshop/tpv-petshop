@@ -7,8 +7,9 @@ import urllib.parse
 def render_pestana_marketing(client):
     st.markdown("<h3 style='margin-top: -15px;'>🎯 Marketing Automatizado y Planificación</h3>", unsafe_allow_html=True)
     
-    tab_anual, tab_cumples, tab_campanas, tab_recup = st.tabs([
+    tab_anual, tab_eventos, tab_cumples, tab_campanas, tab_recup = st.tabs([
         "📅 Plan Anual (Calendario)", 
+        "🎟️ Eventos y Talleres",
         "🎂 Club de Cumpleaños", 
         "📢 Campañas (Email Masivo)", 
         "♻️ Recuperación (Win-back)"
@@ -111,6 +112,95 @@ def render_pestana_marketing(client):
             except:
                 st.info("🔧 Tabla 'marketing_plan' no encontrada. Créala en Supabase con el SQL proporcionado.")
                 
+    with tab_eventos:
+        st.markdown("#### 🎟️ Gestión de Eventos y Talleres")
+        st.info("Organiza cursos de fin de semana (cepillado, nutrición, etc.), controla el aforo y gestiona las reservas de los clientes.")
+        
+        c_ev1, c_ev2 = st.columns([1, 2.5])
+        
+        with c_ev1:
+            with st.container(border=True):
+                st.markdown("##### ➕ Crear Nuevo Evento")
+                with st.form("form_nuevo_evento", clear_on_submit=True):
+                    e_titulo = st.text_input("Título del Taller *", placeholder="Ej: Taller de cepillado básico")
+                    e_fecha = st.date_input("Fecha planificada", value=date.today())
+                    e_hora = st.text_input("Hora y Turno", placeholder="Ej: Sábado 10:00 - 12:00")
+                    c_e1, c_e2 = st.columns(2)
+                    with c_e1: e_plazas = st.number_input("Plazas totales", min_value=1, value=8)
+                    with c_e2: e_precio = st.number_input("Precio Reserva (€)", min_value=0.0, format="%.2f", value=15.0)
+                    e_desc = st.text_area("Descripción / Temario")
+                    
+                    if st.form_submit_button("Crear Evento", type="primary", use_container_width=True):
+                        if e_titulo:
+                            try:
+                                client.table("eventos_talleres").insert({
+                                    "titulo": e_titulo, "fecha": str(e_fecha), "hora": e_hora,
+                                    "plazas_totales": int(e_plazas), "precio": float(e_precio), "descripcion": e_desc
+                                }).execute()
+                                st.success("Evento creado en el calendario."); time.sleep(1); st.rerun()
+                            except Exception as e:
+                                st.error("⚠️ Ejecuta el código SQL en Supabase primero.")
+                        else:
+                            st.warning("El título es obligatorio.")
+                            
+        with c_ev2:
+            try:
+                res_ev = client.table("eventos_talleres").select("*").order("fecha", desc=False).execute()
+                if res_ev.data:
+                    df_ev = pd.DataFrame(res_ev.data)
+                    df_ev['Fecha'] = pd.to_datetime(df_ev['fecha']).dt.strftime('%d/%m/%Y')
+                    
+                    st.markdown("##### 📅 Panel de Gestión de Inscripciones")
+                    opciones_ev = {f"{e['Fecha']} | {e['titulo']} (Reserva: {e['precio']}€)": e['id'] for _, e in df_ev.iterrows()}
+                    ev_sel_str = st.selectbox("Selecciona un evento para gestionar su aforo:", list(opciones_ev.keys()))
+                    
+                    if ev_sel_str:
+                        ev_id = opciones_ev[ev_sel_str]
+                        ev_data = df_ev[df_ev['id'] == ev_id].iloc[0]
+                        
+                        res_asi = client.table("eventos_asistentes").select("id, pagado, clientes(nombre_dueno, telefono)").eq("evento_id", ev_id).execute()
+                        inscritos = len(res_asi.data) if res_asi.data else 0
+                        plazas_libres = ev_data['plazas_totales'] - inscritos
+                        
+                        st.markdown(f"**Aforo actual:** {inscritos} de {ev_data['plazas_totales']} plazas ocupadas. (<span style='color:green;'>{plazas_libres} libres</span>)", unsafe_allow_html=True)
+                        st.progress(inscritos / ev_data['plazas_totales'] if ev_data['plazas_totales'] > 0 else 0)
+                        
+                        c_asi1, c_asi2 = st.columns([2, 1])
+                        with c_asi1:
+                            res_cli = client.table("clientes").select("id, nombre_dueno, telefono").execute()
+                            dict_cli = {f"{c['nombre_dueno']} ({c.get('telefono','')})": c['id'] for c in res_cli.data} if res_cli.data else {}
+                            cli_sel = st.selectbox("Inscribir nuevo cliente al evento:", [""] + list(dict_cli.keys()))
+                        with c_asi2:
+                            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                            if st.button("➕ Añadir a la Lista", use_container_width=True, disabled=plazas_libres<=0):
+                                if cli_sel:
+                                    try:
+                                        client.table("eventos_asistentes").insert({"evento_id": ev_id, "cliente_id": dict_cli[cli_sel], "pagado": False}).execute()
+                                        st.success("Inscrito correctamente."); time.sleep(0.5); st.rerun()
+                                    except: st.error("Este cliente ya estaba inscrito.")
+                                    
+                        if res_asi.data:
+                            df_a = pd.DataFrame([{"id": a['id'], "Cliente": a['clientes']['nombre_dueno'], "Teléfono": a['clientes']['telefono'], "Reserva Pagada": a['pagado']} for a in res_asi.data])
+                            df_a_vista = df_a.copy()
+                            df_a_vista.insert(0, "Quitar", False)
+                            
+                            ed_a = st.data_editor(
+                                df_a_vista, hide_index=True, use_container_width=True,
+                                column_config={
+                                    "Quitar": st.column_config.CheckboxColumn("🗑️", width="small"),
+                                    "Reserva Pagada": st.column_config.CheckboxColumn("💰 Reserva Pagada"),
+                                    "id": None, "Cliente": st.column_config.TextColumn(disabled=True), "Teléfono": st.column_config.TextColumn(disabled=True)
+                                }, key=f"ed_asi_{ev_id}"
+                            )
+                            if st.button("💾 Guardar Cambios en la Lista de Asistentes", type="primary"):
+                                for _, rb in ed_a[ed_a["Quitar"] == True].iterrows(): client.table("eventos_asistentes").delete().eq("id", rb['id']).execute()
+                                for _, rg in ed_a[ed_a["Quitar"] == False].iterrows(): client.table("eventos_asistentes").update({"pagado": bool(rg['Reserva Pagada'])}).eq("id", rg['id']).execute()
+                                st.rerun()
+                else:
+                    st.info("No hay eventos programados. Rellena el formulario de la izquierda para crear el primero.")
+            except Exception as e:
+                st.info("🔧 Ejecuta el código SQL en Supabase para activar la función de Eventos.")
+
     with tab_cumples:
         st.markdown("#### 🎂 Club de Cumpleaños (Próximamente)")
         st.write("El sistema escaneará las fechas de nacimiento de las mascotas y te preparará enlaces de WhatsApp automáticos para felicitarles e invitarles a la tienda a recoger un regalito o descuento.")
