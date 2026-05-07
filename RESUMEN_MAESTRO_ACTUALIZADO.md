@@ -7,8 +7,8 @@
 - **Backend (Base de Datos):** Supabase (PostgreSQL en la nube).
 - **Hardware Integrado:** Lector de códigos de barras de pistola e integración nativa con impresoras térmicas Star Micronics (vía protocolo PassPRNT).
 
-## 2. Módulos Completados (13 Pestañas Funcionales)
-El sistema cuenta con **13 módulos principales 100% operativos** en el código (`app.py`):
+## 2. Módulos Completados (14 Pestañas Funcionales)
+El sistema cuenta con **14 módulos principales operativos** en el código (`app.py`):
 
 📦 **1. Inventario y Servicios**
 - Separación inteligente entre "Productos" (con control de stock) y "Servicios" (peluquería, veterinaria).
@@ -66,6 +66,12 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - **Calendario Predictivo y Alertas:** Panel visual a 60 días que proyecta los vencimientos de gastos fijos recurrentes, incluyendo un configurador de alarmas para avisar con los días de antelación deseados.
 - **Generador nativo de archivos Excel Inteligentes (.xlsx):** Escanea el carrito exacto de tickets y facturas. Aplica la regla fiscal correcta: **0% de IGIC forzado para venta de Productos** (solo Base Imponible) y **desglose real de IGIC para la venta de Servicios**. Todo protegido con lectura tolerante a fallos (`safe_float`) para tickets antiguos y datos corrompidos.
 
+🎯 **Módulo Extra: Marketing y Ofertas (Admin)**
+- **Planificador Anual:** Calendario visual de campañas con alarma predictiva (30-45 días) para evitar quedarse sin contenido.
+- **Gestión de Eventos y Talleres:** Control de aforo, inscripciones y reservas (con estrategia de "Bono Redimible" en tienda).
+- **Cápsulas de Texto:** Integración de "copywriting" pre-redactado listo para copiar y pegar.
+- *Pendiente (Prioridad):* Club de Cumpleaños, Recuperación Win-back y Email Masivo.
+
 📅 **10. Agenda y Citas (Inteligente)**
 - Gestor de citas vinculado a las fichas de las mascotas y cruzado con los horarios de los empleados.
 - **Buscador Inteligente de Huecos:** Al seleccionar una mascota, lee su historial, **muestra un panel informativo con su duración media y peluquero preferido**, lee los cuadrantes y ofrece los tramos libres exactos.
@@ -111,6 +117,8 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Automatizaciones Finales y Deep Linking (Completado):** Implementación del "Centro WhatsApp" y "Centro de Envíos" para establecer una rutina matutina clara.
 - **Reorganización ERP (Completado):** Separación total de Catálogo (Inventario) y Compras (Proveedores y Pedidos), logrando un flujo de trabajo profesional sin botones duplicados ni sobrecarga visual.
 - **Bloqueo Fiscal VeriFactu - Fase 2 (Completado):** Implementación de inalterabilidad en tickets y facturas. Generación de Hash SHA-256 encadenado y bloqueo de edición post-Cierre Z, cumpliendo la Ley Antifraude española.
+- **Contabilidad Predictiva y Eventos (Completado):** Implementación del calendario visual a 60 días para gastos recurrentes en Contabilidad y creación del gestor de aforos para Talleres presenciales.
+- **Plan de Marketing Anual (Completado):** Despliegue del calendario de campañas 2026 con textos redactados por temporadas y alarmas de contenido.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
@@ -133,17 +141,20 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 
 ### FASE 3: Profesionalización Laboral y Comercial (Largo Plazo)
 *   **Módulo de Marketing Automatizado:**
-    *   *Objetivo:* Aprovechar la base de datos de clientes para adelantarse y automatizar planes de marketing.
-    *   *Pasos a dar:* Pestaña "Marketing y Ofertas" con un planificador anual visual integrado con Supabase.
+    *   *Objetivo:* Aprovechar la base de datos de clientes para adelantarse y automatizar planes de marketing (Instagram, WhatsApp y Eventos).
+    *   *Estado Actual:* Pestaña creada con Planificador Anual y Gestor de Eventos operativo.
     *   *Estrategia Anual (Norma Alta Frecuencia Sin Email):* 
         - **Instagram (3x/semana):** Mezcla de Reels, Posts y Stories interactivas.
         - **WhatsApp (1x/mes máximo):** Solo para campañas clave o aperturas de agenda (evitar saturación).
         - **Ads / Tienda Física:** Acciones puntuales estratégicas. (El Email masivo queda descartado hasta tener una base de datos sólida).
     *   *Gestión de Temporadas y Copywriting:* El esqueleto del plan anual se carga completo en la base de datos. Toda la estrategia, normas de publicación y el esqueleto de campañas futuras residen en la carpeta **`marketing_plans/`**.
     *   *Alarma Predictiva:* Avisará entre 30 y 45 días antes de que se agote el contenido redactado. Cuando esto ocurra, el usuario solo debe decirle a la IA: *"Abre la carpeta marketing_plans, lee el plan anual y redáctame la siguiente temporada"*.
+    *   **⏳ PRÓXIMOS PASOS PRIORITARIOS (Motor de Automatización):**
+        1. **Marketing de Cumpleaños:** Escáner automático de fechas de nacimiento de mascotas para enviar felicitaciones y ganchos por WhatsApp.
+        2. **Recuperación Win-Back:** Radar de clientes con más de 6 meses sin venir para enviarles promociones de rescate.
+        3. **Campañas de Email Masivo:** Infraestructura para el envío de boletines cuando la base RGPD crezca.
 *   **Gestión de Eventos y Talleres Presenciales:**
-    *   *Objetivo:* Fomentar la comunidad y generar ventas cruzadas en la tienda mediante eventos mensuales.
-    *   *Pasos a dar:* Sub-módulo en Marketing para crear talleres (ej. mantenimiento de pelo, nutrición), gestionar el aforo máximo y llevar el control de los clientes inscritos y el pago de reservas ("Fianza redimible" en tienda).
+    *   *Estado (Completado):* Permite crear talleres, gestionar aforo máximo y llevar control de los clientes inscritos y reservas pagadas.
 *   **Calendarios Visuales de Pagos y Tesorería:**
     *   *Objetivo:* Tener un panel visual (semanal y mensual) de todas las previsiones de pagos.
     *   *Pasos a dar:* Integrar en Facturación un panel de vencimientos para proveedores, y en Contabilidad un registro automatizado de gastos fijos/recurrentes (luz, agua, préstamos, nóminas, impuestos) que genere previsiones visuales y alarmas personalizables.
