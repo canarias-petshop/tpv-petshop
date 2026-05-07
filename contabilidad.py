@@ -3,23 +3,21 @@ import pandas as pd
 from datetime import date
 import io
 import time
+import pandas as pd
 
 def render_pestana_contabilidad(client):
     st.markdown("<h3 style='margin-top: -15px;'>📊 Contabilidad e Informes para Asesoría</h3>", unsafe_allow_html=True)
     
-    sec_gastos, sec_fijos, sec_informes = st.tabs(["💸 Gastos Puntuales", "🔄 Gastos Fijos y Calendario", "📂 Panel Avanzado de Descargas"])
+    sec_gastos, sec_fijos, sec_calendario, sec_informes = st.tabs(["💸 Gastos Puntuales", "🔄 Gastos Fijos", "📅 Calendario y Alertas", "📂 Descargas"])
 
     with sec_gastos:
         col_g1, col_g2 = st.columns([1, 2])
         with col_g1:
             with st.form("nuevo_gasto"):
-                st.markdown("#### Registrar Gasto o Nómina")
+                st.markdown("#### Registrar Gasto")
                 categoria_gasto = st.selectbox("Categoría Contable", [
                     "Gastos de compra (Limpieza, consumibles...)",
-                    "Gastos fijos y variables (Alquileres, seguros, luz, agua...)",
-                "Personal y autónomos (Nóminas, SS...)",
-                "Servicios exteriores (Reparaciones, técnicos, profesionales...)",
-                "Impuestos y Tasas (IGIC, IRPF, tributos...)"
+                    "Servicios exteriores (Reparaciones, técnicos, profesionales...)"
                 ])
                 concepto = st.text_input("Concepto / Proveedor detallado")
                 importe = st.number_input("Importe Total (€)", min_value=0.0, value=None)
@@ -49,8 +47,8 @@ def render_pestana_contabilidad(client):
             else:
                 st.info("No hay facturas ni gastos pendientes. ¡Todo al día!")
 
-    with sec_fijos:
-        st.markdown("#### 📅 Previsión de Tesorería y Gastos Recurrentes")
+    with sec_fijos: # Reorganizado para la edición de gastos fijos
+        st.markdown("#### ➕ Registrar/Editar Gastos Fijos Recurrentes")
         c_fij1, c_fij2 = st.columns([1, 2])
         
         with c_fij1:
@@ -59,10 +57,9 @@ def render_pestana_contabilidad(client):
                 with st.form("nuevo_gasto_fijo", clear_on_submit=True):
                     f_conc = st.text_input("Concepto (Ej: Alquiler, Luz, Préstamo)")
                     f_cat = st.selectbox("Categoría", [
-                        "Gastos fijos y variables (Alquileres, seguros, luz, agua...)", 
+                        "Suministros y Operativos (Alquiler, Luz, Agua, Teléfono, Seguros, Préstamos...)", 
                         "Personal y autónomos (Nóminas, SS...)", 
-                        "Servicios exteriores", 
-                        "Impuestos y Tasas"
+                        "Impuestos y Tasas (IGIC, IRPF, tributos...)"
                     ])
                     f_imp = st.number_input("Importe Estimado/Fijo (€)", min_value=0.0, format="%.2f")
                     f_dia = st.number_input("Día del mes de cargo", min_value=1, max_value=31, value=1)
@@ -102,13 +99,20 @@ def render_pestana_contabilidad(client):
             except:
                 st.info("🔧 Ejecuta el código SQL en Supabase para activar esta función.")
 
-        st.markdown("---")
-        st.markdown("#### 📈 Calendario Visual de Previsión (Próximos 60 días)")
+    with sec_calendario:
+        st.markdown("#### 📅 Calendario Visual y Alertas de Vencimiento")
+        st.info("Visualiza de forma predictiva cuándo llegarán los próximos pagos de tus Gastos Fijos.")
+        
+        c_alerta1, c_alerta2 = st.columns([1, 2])
+        with c_alerta1:
+            # Para evitar error si la tabla no existe aún, se carga dentro del try-except
+            try: res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
+            dias_alerta = st.slider("🔔 Días de antelación para alarmas:", min_value=1, max_value=30, value=7)
+            
         try:
             hoy_dt = pd.Timestamp(date.today())
             futuro_dt = hoy_dt + pd.Timedelta(days=60)
             proyeccion = []
-            
             # 1. Proyectar gastos fijos
             if res_gf.data:
                 for gf in res_gf.data:
@@ -125,11 +129,26 @@ def render_pestana_contabilidad(client):
             if proyeccion:
                 df_proy = pd.DataFrame(proyeccion).sort_values("Fecha Vencimiento")
                 c_cal1, c_cal2, c_cal3 = st.columns(3)
+                
+                with c_alerta2:
+                    # Mostrar alarmas
+                    df_alarmas = df_proy[df_proy['Fecha Vencimiento'] <= (hoy_dt + pd.Timedelta(days=dias_alerta))]
+                    if not df_alarmas.empty:
+                        st.error(f"🚨 **¡ATENCIÓN!** Tienes {len(df_alarmas)} cargo(s) fijo(s) previsto(s) en los próximos {dias_alerta} días.")
+                        for _, al in df_alarmas.iterrows():
+                            st.markdown(f"- **{al['Fecha Vencimiento'].strftime('%d/%m/%Y')}**: {al['Concepto']} ({al['Importe']:.2f} €)")
+                    else:
+                        st.success(f"✅ Sin cargos fijos en los próximos {dias_alerta} días.")
+                        
+                st.markdown("---")
+                c_cal1, c_cal2, c_cal3, c_cal4 = st.columns(4)
                 with c_cal1: st.metric("🟠 Previsión 7 días", f"{df_proy[(df_proy['Fecha Vencimiento'] >= hoy_dt) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=7))]['Importe'].sum():.2f} €")
                 with c_cal2: st.metric("🟡 Previsión 30 días", f"{df_proy[(df_proy['Fecha Vencimiento'] > hoy_dt + pd.Timedelta(days=7)) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=30))]['Importe'].sum():.2f} €")
                 with c_cal3: st.metric("🟢 Previsión 30-60 días", f"{df_proy[df_proy['Fecha Vencimiento'] > hoy_dt + pd.Timedelta(days=30)]['Importe'].sum():.2f} €")
+                with c_cal4: st.metric("📋 Total a 60 días", f"{df_proy['Importe'].sum():.2f} €")
                 
                 df_chart = df_proy.copy()
+                st.markdown("<p style='font-size: 13px; color: gray; margin-top: 10px;'>Previsión semanal de gastos recurrentes:</p>", unsafe_allow_html=True)
                 df_chart['Semana'] = df_chart['Fecha Vencimiento'].dt.to_period('W').apply(lambda r: f"Semana {r.start_time.strftime('%d/%m')}")
                 st.bar_chart(df_chart.groupby('Semana')['Importe'].sum().reset_index().set_index('Semana'), color="#d32f2f")
                 df_proy['Fecha Vencimiento'] = df_proy['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
