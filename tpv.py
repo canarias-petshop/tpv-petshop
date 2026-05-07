@@ -218,15 +218,18 @@ def render_pestana_tpv(client):
             </div>
 
             <script>
-            function imprimirConStar() {
+            function imprimirConStar() {{
                 var ticketHTML = document.getElementById('ticket-impresion').innerHTML;
                 var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
                 var htmlCodificado = encodeURIComponent(fullHTML);
-                var urlRetorno = window.location.href;
-                try { if (window.top.location.href && window.top.location.href !== "about:blank") { urlRetorno = window.top.location.href.split('#')[0].split('?')[0] + '#_'; } } catch(e) {}
-                var starURL = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(urlRetorno) + "&html=" + htmlCodificado;
-                window.location.href = starURL;
-            }
+                var starURL = "starpassprnt://v1/print/nopreview?html=" + htmlCodificado;
+            
+            // Usar un iframe oculto evita que Streamlit se reinicie en la tablet
+            var iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = starURL;
+            document.body.appendChild(iframe);
+            }}
             </script>
             
             </body>
