@@ -109,16 +109,47 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Saneamiento Fiscal y Contable (Completado):** Corrección de la lógica de Base Imponible e IGIC. Los tickets y facturas ahora diferencian la venta de "Servicios" (que desglosa IGIC) de la venta de "Productos" (que reporta todo como Base Imponible). Todo a prueba de fallos mediante parseo seguro de datos legados.
 - **Automatizaciones Finales y Deep Linking (Completado):** Implementación de recordatorios de citas, alertas de mantenimiento y avisos de encargos por WhatsApp (1-click) sin coste de API. Inclusión de categorías avanzadas (Servicios Exteriores, Tasas) con filtrado modular y control de pedidos mínimos para envíos.
 
-## 4. Próximos Pasos y Hoja de Ruta
+## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
-**A Corto Plazo (Optimización Post-Refactorización):**
-- **Testeo en Entorno Real:** Validar la aplicación durante el día a día en tienda para corregir pequeños detalles de experiencia de usuario en las tabletas (por ejemplo, detalle del cálculo de IGIC en la Facturación).
-- **Simetría Visual:** Repaso de proporciones y alineaciones en todos los módulos (como se hizo con los cobros del TPV).
-- **Restauración UI Agenda:** Devolver los emojis de colores al panel editable ("Directorio de Citas") para mayor agilidad visual al ver los estados "Pendiente", "Confirmada", etc.
+A continuación, se detallan los pasos para llevar el sistema de un entorno de pruebas a un nivel profesional, cumpliendo con la normativa legal y garantizando su fiabilidad. Los pasos están explicados sin jerga técnica para facilitar su seguimiento y desarrollo.
 
-**A Medio Plazo (Obligación Legal - Próximo Año):**
-- **Integración Verifactu:** Conexión obligatoria con Hacienda para cumplir con la normativa legal española (las tablas de la base de datos ya están preparadas para ello). Aplazado para el año que viene.
-- **Migración a Entorno Local:** Configurar el proyecto en un entorno de desarrollo local para tener una gestión más personalizada y mayor control de la base de código sin depender exclusivamente de Streamlit Cloud.
+### FASE 1: Estabilidad y Seguridad Básica (Corto Plazo)
+*   **Modo "Sin Internet" (Tolerancia a fallos):**
+    *   *Objetivo:* Que la tienda pueda seguir cobrando aunque se caiga el WiFi de forma temporal.
+    *   *Pasos a dar:* Investigar e implementar una tecnología que guarde los tickets temporalmente en la memoria de la tablet y los envíe automáticamente al sistema central cuando vuelva la conexión.
+*   **Blindaje de la Base de Datos:**
+    *   *Objetivo:* Evitar que un error o acceso no autorizado borre datos importantes desde fuera de la aplicación.
+    *   *Pasos a dar:* Configurar reglas de seguridad directamente en la base de datos (Supabase) para que, por ejemplo, los empleados solo puedan leer y escribir lo necesario, pero no alterar o borrar tablas enteras.
+*   **Testeo en Entorno Real:**
+    *   *Objetivo:* Probar el programa en el día a día de la tienda.
+    *   *Pasos a dar:* Usar la aplicación en físico para afinar detalles de uso en las tablets (simetría, tamaño de botones, colores de la agenda, etc.).
 
-**A Largo Plazo (Visión Comercial):**
-- **Escalabilidad y Comercialización (SaaS / Licencias):** Empaquetar el ERP/TPV para ofrecerlo o venderlo a otras clínicas y tiendas de mascotas. Aprovechar el "know-how" único del sector para ofrecer una solución robusta y adaptada que escasea en el mercado actual.
+### FASE 2: Cumplimiento Normativo y Fiscal (Medio Plazo)
+* *(Nota actual: Durante la fase de pruebas actual, se permite borrar líneas y tickets para facilitar el desarrollo, pero estas acciones se bloquearán o auditarán en el paso a producción).*
+*   **Inalterabilidad de Tickets y Facturas (Ley Antifraude):**
+    *   *Objetivo:* Cumplir con la ley que prohíbe los programas de "doble uso" (los que permiten ocultar ventas o modificarlas a posteriori).
+    *   *Pasos a dar:* 
+        1. Desactivar la opción de borrar o editar libremente tickets o facturas antiguas.
+        2. Crear un sistema de "Devoluciones" o "Abonos" (Tickets Rectificativos) que anule el ticket original de manera oficial, dejando rastro de ambas operaciones y reponiendo el stock.
+*   **Cierres de Caja Inviolables (Cierre Z):**
+    *   *Objetivo:* Evitar descuadres contables y modificaciones de ventas pasadas.
+    *   *Pasos a dar:* Programar que, al emitir el "Cierre Z" del día, el sistema bloquee automáticamente la posibilidad de añadir, borrar o editar ventas con la fecha de ese día ya cerrado.
+*   **Integración VeriFactu (Obligatorio Hacienda):**
+    *   *Objetivo:* Conectar el programa con la Agencia Tributaria (normativa próxima a entrar en vigor).
+    *   *Pasos a dar:* Configurar el sistema para que encadene las facturas de forma segura y tenga la capacidad de enviarlas a Hacienda automáticamente.
+*   **Privacidad y Protección de Datos (RGPD):**
+    *   *Objetivo:* Cumplir la ley al enviar mensajes (WhatsApp) y guardar datos de clientes.
+    *   *Pasos a dar:* 
+        1. Añadir una casilla en la ficha del cliente para marcar si "Ha firmado el documento de protección de datos".
+        2. Añadir un botón para "Anonimizar Cliente" (si el cliente pide borrar sus datos, se cambia su nombre y teléfono por "Cliente Borrado", manteniendo sus tickets anónimos por obligación fiscal).
+
+### FASE 3: Profesionalización Laboral y Comercial (Largo Plazo)
+*   **Registro Horario a Prueba de Inspecciones:**
+    *   *Objetivo:* Que los fichajes de los empleados sean válidos legalmente ante una inspección de trabajo.
+    *   *Pasos a dar:* Asegurar que el sistema de fichaje guarde datos imposibles de alterar por el administrador sin justificación (como la hora exacta del servidor en Canarias, y no la hora que tenga la tablet).
+*   **Migración a Servidor Propio (Producción):**
+    *   *Objetivo:* No depender de plataformas en la nube de prueba y garantizar rapidez extrema.
+    *   *Pasos a dar:* Alquilar un servidor privado profesional para el programa, asegurando que funcione rápido y esté disponible siempre.
+*   **Comercialización y Escalabilidad (Vender el programa):**
+    *   *Objetivo:* Preparar el sistema para venderlo a otras tiendas o clínicas (Modelo SaaS).
+    *   *Pasos a dar:* Crear una estructura de "Multitienda" o un proceso de instalación para que cada cliente (otra clínica) tenga su base de datos totalmente separada y privada.
