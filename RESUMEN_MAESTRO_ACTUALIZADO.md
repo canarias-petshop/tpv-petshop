@@ -147,12 +147,16 @@ A continuación, se detallan los pasos para llevar el sistema de un entorno de p
 *   **Registro Horario a Prueba de Inspecciones:**
     *   *Objetivo:* Que los fichajes de los empleados sean válidos legalmente ante una inspección de trabajo.
     *   *Pasos a dar:* Asegurar que el sistema de fichaje guarde datos imposibles de alterar por el administrador sin justificación (como la hora exacta del servidor en Canarias, y no la hora que tenga la tablet).
-*   **Migración a Servidor Propio y Red Privada (Docker + VPN):**
-    *   *Objetivo:* Eliminar la dependencia de la nube (Streamlit Cloud/Supabase) para ganar velocidad extrema y control total, manteniendo la capacidad de actualizar el programa desde casa.
-    *   *Pasos a dar:* 
-        1. **Servidor Físico:** Utilizar un ordenador (puede ser el de sobremesa del negocio o un servidor dedicado en casa) como "Cerebro Central".
-        2. **Contenedores (Docker):** Empaquetar todo el sistema (el código de Python y la Base de Datos PostgreSQL) en "contenedores" dentro de ese ordenador. Esto hace que el programa sea portátil y a prueba de fallos.
-        3. **Red Privada (Tailscale/VPN):** Crear una red privada virtual segura. Así, el TPV y la tablet de la tienda pueden comunicarse con el servidor, y al mismo tiempo, el programador puede conectarse desde su portátil en casa para inyectar nuevas actualizaciones de código de forma invisible, sin interrumpir el trabajo de la tienda.
+*   **Opciones de Arquitectura y Despliegue (En Evaluación):**
+    *   *Objetivo:* Definir la ubicación física del "Cerebro" del sistema y cómo empaquetarlo para el futuro.
+    *   *Opción 1 (Máxima Estabilidad): Servidor en la Tienda.* El ordenador de sobremesa ejecuta el Docker (Programa + Base de Datos). La gran ventaja es que si se corta el internet de la calle, la red WiFi local sigue funcionando y el TPV no se detiene nunca.
+    *   *Opción 2 (Máxima Comodidad): Servidor en Casa.* El Docker se instala en un equipo del programador. La tienda se conecta por VPN (Tailscale). La desventaja es que si hay un corte de internet en la tienda o en casa, el sistema se paraliza.
+    *   *Opción 3 (Ejecutables e Instaladores):* 
+        *   *Fase A:* Crear un programa `.exe` ejecutable que se instale en el ordenador de la tienda y se conecte a la base de datos en casa (o en la nube).
+        *   *Fase B (Comercialización):* Crear un instalador universal (.exe para Windows, .apk para Android) para que otros negocios puedan comprar e instalar el programa fácilmente sin saber nada de programación ni consolas.
+*   **El Reto del "Modo Sin Internet" (Sincronización Offline-First):**
+    *   *Objetivo:* Que el TPV sea inmune a los cortes de internet, incluso si el servidor/base de datos está lejos.
+    *   *Pasos a dar:* Implementar una "memoria caché" o base de datos temporal local (como SQLite). Si el internet se cae, el TPV sigue cobrando y guarda los tickets en esa memoria interna. En cuanto el sistema detecta que ha vuelto la conexión, envía automáticamente todos los tickets retenidos a la base de datos principal de forma invisible.
 *   **Comercialización y Escalabilidad (Vender el programa):**
     *   *Objetivo:* Preparar el sistema para venderlo a otras tiendas o clínicas (Modelo SaaS).
     *   *Pasos a dar:* Crear una estructura de "Multitienda" o un proceso de instalación para que cada cliente (otra clínica) tenga su base de datos totalmente separada y privada.
