@@ -160,11 +160,11 @@ def render_pestana_proveedores(client):
                     prods = p.get('productos', [])
                     num_arts = len(prods) if isinstance(prods, list) else 0
                     
-                    texto_pedido = f"Hola,\n\nAdjunto nuestro pedido a {nombre_prov}:\n\n"
+                    texto_pedido = f"Estimado/a comercial de {nombre_prov},\n\nNos ponemos en contacto desde Animalarium para remitirles nuestro nuevo pedido de reposición.\n\nA continuación, detallamos los artículos y cantidades solicitadas:\n\n"
                     if isinstance(prods, list):
                         for art in prods:
-                            texto_pedido += f"- {art.get('Cantidad', 1)}x {art.get('Producto', '')}\n"
-                    texto_pedido += "\nGracias,\nAnimalarium"
+                            texto_pedido += f"• {art.get('Cantidad', 1)} uds. - {art.get('Producto', '')}\n"
+                    texto_pedido += "\nQuedamos a la espera de su confirmación y de la fecha estimada de entrega.\n\nAtentamente,\nEl equipo de Animalarium\nC/ José Hernández Alfonso, 26\n38009 S/C de Tenerife"
                     
                     link_email = f"mailto:{email_prov}?subject=Pedido%20Animalarium&body={urllib.parse.quote(texto_pedido)}" if email_prov else None
                         
@@ -325,10 +325,10 @@ def render_pestana_proveedores(client):
                         with c_pbtn2:
                             df_clean_email = ed_prods_ped.dropna(subset=['Producto'])
                             df_clean_email = df_clean_email[df_clean_email['Producto'].astype(str).str.strip() != ""]
-                            texto_pedido = f"Hola,\\n\\nAdjunto nuestro pedido a {ped_data['Proveedor']}:\\n\\n"
+                            texto_pedido = f"Estimado/a comercial de {ped_data['Proveedor']},\n\nNos ponemos en contacto desde Animalarium para remitirles nuestro nuevo pedido de reposición.\n\nA continuación, detallamos los artículos y cantidades solicitadas:\n\n"
                             for _, r_ped in df_clean_email.iterrows():
-                                texto_pedido += f"- {r_ped['Cantidad']}x {r_ped['Producto']}\\n"
-                            texto_pedido += "\\nGracias,\\nAnimalarium"
+                                texto_pedido += f"• {r_ped['Cantidad']} uds. - {r_ped['Producto']}\n"
+                            texto_pedido += "\nQuedamos a la espera de su confirmación y de la fecha estimada de entrega.\n\nAtentamente,\nEl equipo de Animalarium\nC/ José Hernández Alfonso, 26\n38009 S/C de Tenerife"
                             prov_email = ped_data.get('proveedores', {}).get('email', '') if isinstance(ped_data.get('proveedores'), dict) else ''
                             st.markdown(f"<a href='mailto:{prov_email}?subject=Pedido Animalarium&body={urllib.parse.quote(texto_pedido)}' target='_blank'><button style='width:100%; padding:11px; background-color:#005275; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;'>✉️ Generar Email</button></a>", unsafe_allow_html=True)
                             

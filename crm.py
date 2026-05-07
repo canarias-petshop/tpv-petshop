@@ -608,7 +608,7 @@ def render_pestana_crm(client):
                     url_wa = None
                     if tel_limpio:
                         if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
-                        msg = f"¡Hola {dueno}! 🐾 Te escribimos de Animalarium para confirmarte la cita de {nombre_m} para mañana a las {hora_str}. ¿Nos confirmas tu asistencia? ¡Muchas gracias! ✂️"
+                        msg = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium para recordarte que mañana a las {hora_str} tenemos una cita reservada para {nombre_m}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias y un saludo! ✂️🐶"
                         url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg)}"
                         
                     import re
@@ -675,7 +675,7 @@ def render_pestana_crm(client):
                                     if tel_limpio and len(tel_limpio) == 9 and not tel_limpio.startswith('34'):
                                         tel_limpio = '34' + tel_limpio
                                         
-                                    mensaje = f"¡Hola {dueno}! 🐾 Soy Raquel de Animalarium. Te escribo porque he visto en la ficha de {m['nombre']} que ya le va tocando su sesión de mantenimiento. Si vienes antes de que pasen los 2 meses, te aplicamos un 10% de descuento en el servicio. ¿Te buscamos un huequito? ¡Un saludo! 🐶✂️"
+                                    mensaje = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium porque, revisando la ficha de {m['nombre']}, hemos visto que ya le va tocando su sesión de peluquería para mantener el manto perfecto. Recuerda que si reservas antes de que se cumplan los 2 meses de su última visita, te aplicamos un 10% de descuento en el servicio. ¿Te buscamos un huequito para estos días? ¡Un abrazo! 🐶✂️"
                                     url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje)}" if tel_limpio else None
                                     
                                     alertas.append({
@@ -752,7 +752,7 @@ def render_pestana_crm(client):
                             tel_limpio = ''.join(filter(str.isdigit, tel_enc))
                             if tel_limpio:
                                 if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
-                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te avisamos de que tu encargo de {row['detalle_pedido']} ya está en Animalarium listo para recoger. ¡Un saludo!"
+                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium para avisarte de que tu encargo ({row['detalle_pedido']}) ya está en la tienda listo para recoger. ¡Te esperamos! Un saludo."
                                 df_e.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_encargo)}"
                                 
                             try:
