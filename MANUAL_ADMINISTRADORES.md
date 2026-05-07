@@ -33,16 +33,17 @@ Control de la relación con tus distribuidores y gestión de stock automático.
   - Al introducir la factura de un proveedor, el sistema te permite actualizar el Precio de Coste de los productos e incluir descuentos por Pronto Pago.
   - Al "Archivar" esa compra, **el stock del Inventario sube automáticamente**.
 - **Pago de Deudas a Proveedores:** En "Pagos Pendientes", puedes saldar facturas atrasadas descontando el dinero directamente de un Banco o de la Caja Fuerte.
+  - En esta sección dispones de un **Calendario Visual** que te muestra qué pagos están vencidos, cuáles vencen esta semana y cuáles en los próximos 30 días.
 
 ---
 
 ## 4. 📊 Contabilidad y Exportación para Asesoría
 Preparación fácil de los impuestos y libros contables.
 
-- **Registro de Gastos Manuales:** Anota nóminas, recibos de luz, impuestos/tasas, técnicos externos o cualquier otro gasto que no esté ligado a la mercancía.
+- **Gastos Puntuales vs Gastos Fijos:** Registra las reparaciones o compras menores en "Gastos Puntuales". Registra el alquiler, luz, nóminas y préstamos en "Gastos Fijos", indicando qué día del mes se cobran.
 - *Nota de Automatización:* Los gastos menores (limpieza, pagos a repartidores en metálico) **los registran las empleadas directamente desde la Caja** al hacer la retirada, enviándose a este panel automáticamente sin que tú tengas que apuntarlos de nuevo.
+- **Calendario Predictivo y Alertas:** En la pestaña "Calendario y Alertas", el sistema dibuja una previsión a 60 días de todo el dinero que va a salir por gastos fijos. Puedes configurar una alarma para que te avise con X días de antelación de forma visual.
 - **Archivo Inteligente:** En la pestaña Facturación -> Archivo, puedes usar el **filtro de categorías** para ver únicamente un tipo de gasto (ej. Solo "Impuestos y Tasas" o "Nóminas").
-- **Gestión de Vencimientos:** El sistema te alertará si tienes recibos pendientes de pago.
 - **Exportación a Excel (Asesoría):** 
   - Genera archivos `.xlsx` profesionales a final del trimestre.
   - El Excel ya viene con formato moneda, celdas de totales y columnas separadas de Base Imponible, IGIC y Cuotas, listo para que tu asesor lo importe en su programa.

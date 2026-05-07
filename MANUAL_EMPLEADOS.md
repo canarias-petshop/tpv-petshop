@@ -40,7 +40,7 @@ Aquí gestionarás las fichas de las familias y sus perros/gatos.
 - **Historial de la Mascota:** Dentro de la familia, marca "👁️ Ver Ficha" en la mascota específica.
   - Verás su historial de peluquería.
   - Al añadir un nuevo servicio al historial, **selecciona tu nombre en la columna "Realizado por"** para dejar constancia de quién hizo el trabajo. Pulsa "Guardar Historial".
-- **📱 Centro WhatsApp (Rutina Matutina):** En la pestaña "Centro WhatsApp", verás automáticamente a los perros citados para mañana. Pulsa en "Pedir Confirmación" para enviarles el mensaje automático. Justo debajo tendrás recordatorios de mantenimiento.
+- **📱 Centro WhatsApp (Rutina Matutina):** En la pestaña "Centro WhatsApp", verás automáticamente a los perros citados para mañana. Pulsa en "Pedir Confirmación" para enviarles el mensaje automático (se redacta solo, de forma corporativa e institucional). Justo debajo tendrás recordatorios de mantenimiento.
 - **Encargos:** Si un cliente pide un artículo que no hay en tienda, anótalo en "🛍️ Encargos". Cuando el producto llegue, pulsa el botón **"💬 WhatsApp"** para avisarle automáticamente. El sistema te alertará si un encargo se retrasa o si el cliente tarda mucho en recogerlo.
 
 ---
@@ -93,4 +93,4 @@ En esta sección controlamos qué mercancía falta en la tienda y preparamos los
   1. Desmarca los productos que NO quieras pedir.
   2. Pulsa **"🚀 AUTO-DISTRIBUIR"**. El sistema agrupará cada producto con su proveedor correspondiente y creará los borradores listos.
 - **Añadir Artículos Extra:** Abre un borrador marcando "👁️ Ver". Justo debajo, usa el buscador para añadir cualquier otro producto del inventario, o usa la pestaña "Artículo Manual" para incluir cosas fuera de catálogo (como encargos raros de clientes).
-- **Enviar Pedido:** Cuando el borrador esté listo, pulsa el botón azul **"✉️ Generar Email"** para abrir tu correo con toda la lista preparada y envíala. ¡Importante: Una vez enviado, cambia el Estado del pedido a "Enviado"!
+- **Enviar Pedido:** Cuando el borrador esté listo, pulsa el botón azul **"✉️ Generar Email"** para abrir tu correo con toda la lista preparada en un formato formal de empresa y envíalo. ¡Importante: Una vez enviado, cambia el Estado del pedido a "Enviado"!

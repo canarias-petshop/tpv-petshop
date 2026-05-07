@@ -59,12 +59,12 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - **Generación de Hash SHA-256 por factura y bloqueo total de borrado (Cumplimiento VeriFactu).**
 - *Sub-2 Compras:* Registro de facturas de proveedores: al archivar una compra, el sistema actualiza automáticamente el stock, el precio de coste y el PVP en el inventario.
 - *Sub-3 Archivo:* Archivo histórico de documentos con **Filtros Dinámicos por Categoría** (Nóminas, Gastos Fijos, Mercancía, Impuestos, Servicios Externos).
-- *Sub-4 Pagos Pendientes:* Control para deudas a proveedores y gastos, con la capacidad de pagar seleccionando múltiples facturas y descontando el importe del saldo de un Banco o de la Caja Fuerte (dejando constancia en el movimiento de caja si hay turno abierto).
+- *Sub-4 Pagos Pendientes:* Control para deudas a proveedores con **Calendario Visual de Vencimientos** y gráfico de previsión semanal. Capacidad de pagar seleccionando múltiples facturas y descontando el importe del saldo de un Banco o de la Caja Fuerte.
 
 📊 **9. Contabilidad e Informes para Asesoría**
-- Registro de gastos manuales (nóminas, luz, agua, impuestos, técnicos) y recepción automática de gastos menores derivados directamente desde la Caja Fuerte por los empleados.
+- **Gestión Separada de Gastos:** Sub-pestaña para "Gastos Puntuales" (compras, reparaciones) y "Gastos Fijos" (alquileres, luz, nóminas, impuestos, préstamos).
+- **Calendario Predictivo y Alertas:** Panel visual a 60 días que proyecta los vencimientos de gastos fijos recurrentes, incluyendo un configurador de alarmas para avisar con los días de antelación deseados.
 - **Generador nativo de archivos Excel Inteligentes (.xlsx):** Escanea el carrito exacto de tickets y facturas. Aplica la regla fiscal correcta: **0% de IGIC forzado para venta de Productos** (solo Base Imponible) y **desglose real de IGIC para la venta de Servicios**. Todo protegido con lectura tolerante a fallos (`safe_float`) para tickets antiguos y datos corrompidos.
-- Alertas de vencimientos pendientes.
 
 📅 **10. Agenda y Citas (Inteligente)**
 - Gestor de citas vinculado a las fichas de las mascotas y cruzado con los horarios de los empleados.
@@ -137,7 +137,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
     *   *Pasos a dar:* Crear una pestaña dedicada para estructurar y planificar envíos automáticos, ofertas y recordatorios segmentados de forma proactiva.
 *   **Calendarios Visuales de Pagos y Tesorería:**
     *   *Objetivo:* Tener un panel visual (semanal y mensual) de todas las previsiones de pagos.
-    *   *Pasos a dar:* Integrar en Facturación un panel de vencimientos para proveedores, y en Contabilidad un registro automatizado de gastos fijos/recurrentes (luz, agua, préstamos) que genere previsiones visuales para organizar planes de pago y liquidez.
+    *   *Pasos a dar:* Integrar en Facturación un panel de vencimientos para proveedores, y en Contabilidad un registro automatizado de gastos fijos/recurrentes (luz, agua, préstamos, nóminas, impuestos) que genere previsiones visuales y alarmas personalizables.
 *   **Registro Horario a Prueba de Inspecciones:**
     *   *Objetivo:* Que los fichajes de los empleados sean válidos legalmente ante una inspección de trabajo.
     *   *Pasos a dar:* Asegurar que el sistema de fichaje guarde datos imposibles de alterar por el administrador sin justificación (como la hora exacta del servidor en Canarias, y no la hora que tenga la tablet).
