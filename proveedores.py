@@ -144,7 +144,7 @@ def render_pestana_proveedores(client):
                             st.error("El nombre de la empresa es obligatorio.")
 
     with sub_pedidos:
-        st.markdown("#### 📦 Borrador de Pedidos a Proveedores")
+        st.markdown("#### � Borrador de Pedidos a Proveedores")
         st.info("💡 **SISTEMA AUTOMÁTICO ACTIVO:** Cuando pulsas 'Auto-Distribuir' en la Pestaña 1, los productos viajan directamente aquí. Una vez cambies el estado del borrador a 'Enviado', el sistema creará un borrador nuevo la próxima vez que falte stock.")
         try:
             res_provs_p = client.table("proveedores").select("id, nombre_empresa, frecuencia_reparto").execute()

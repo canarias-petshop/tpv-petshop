@@ -97,58 +97,74 @@ def render_pestana_inventario(client):
                 if not df_bajo_stock.empty:
                     st.warning(f"⚠️ **ATENCIÓN: Tienes {len(df_bajo_stock)} producto(s) por debajo de su stock mínimo.**")
                     
-                    if st.button("🚀 AUTO-DISTRIBUIR A BORRADORES (Generación Inteligente)", type="primary", use_container_width=True):
-                        # 1. Encontrar qué proveedor vende cada cosa
-                        res_rels = client.table("productos_proveedores").select("producto_id, proveedor_id").execute()
-                        mapa_provs = {r['producto_id']: r['proveedor_id'] for r in res_rels.data} if res_rels.data else {}
-                        
-                        pedidos_creados = 0
-                        pedidos_a_crear = {}
-                        # 2. Agrupar por proveedor
-                        for _, row in df_bajo_stock.iterrows():
-                            prov_id = mapa_provs.get(row['id'])
-                            if prov_id:
-                                if prov_id not in pedidos_a_crear: pedidos_a_crear[prov_id] = []
-                                pedidos_a_crear[prov_id].append({"Producto": row['nombre'], "Cantidad": int(row['cantidad_reponer'])})
-                                
-                        # 3. Mandar a borradores
-                        if pedidos_a_crear:
-                            for p_id, prods in pedidos_a_crear.items():
-                                res_b = client.table("pedidos_proveedores").select("id, productos").eq("proveedor_id", p_id).eq("estado", "Borrador").execute()
-                                if res_b.data: # Si ya hay borrador, actualizamos
-                                    draft_id = res_b.data[0]['id']
-                                    prods_act = res_b.data[0].get('productos', [])
-                                    nombres_act = [p.get('Producto') for p in prods_act]
-                                    for np in prods:
-                                        if np['Producto'] not in nombres_act: prods_act.append(np)
-                                    client.table("pedidos_proveedores").update({"productos": prods_act}).eq("id", draft_id).execute()
-                                else: # Si no hay, creamos uno nuevo
-                                    client.table("pedidos_proveedores").insert({"proveedor_id": p_id, "estado": "Borrador", "productos": prods}).execute()
-                            st.success("✅ ¡Borradores generados automáticamente! Ve a la Pestaña 7 (Proveedores) para revisarlos y enviarlos.")
-                        else:
-                            st.error("❌ No se pudo automatizar: Ninguno de los productos bajo mínimos tiene un proveedor asociado.")
+                    # --- GENERADOR INTELIGENTE (CON CASILLAS DE VERIFICACIÓN) ---
+                    df_bajo_stock_vista = df_bajo_stock[['id', 'sku', 'nombre', 'stock_actual', 'stock_minimo', 'cantidad_reponer']].copy()
+                    df_bajo_stock_vista.insert(0, "Pedir", True) # Vienen marcados por defecto
+                    
+                    st.markdown("<p style='font-size:14px;'>Revisa los productos sugeridos por el sistema. <b>Desmarca</b> aquellos que no quieras mandar a pedir en este momento.</p>", unsafe_allow_html=True)
+                    
+                    ed_bajo_stock = st.data_editor(
+                        df_bajo_stock_vista,
+                        hide_index=True, use_container_width=True,
+                        column_config={
+                            "Pedir": st.column_config.CheckboxColumn("✅ Pedir", default=True),
+                            "id": None, "sku": "SKU", "nombre": "Producto", "stock_actual": "Stock",
+                            "stock_minimo": "Mínimo", "cantidad_reponer": "Cant. Reponer"
+                        },
+                        key="ed_bajo_stock"
+                    )
 
-                    with st.expander("👀 Ver lista manual de reposición"):
-                        st.dataframe(df_bajo_stock[['sku', 'nombre', 'stock_actual', 'stock_minimo', 'cantidad_reponer']], hide_index=True, use_container_width=True)
-                        
-                        # --- INTEGRACIÓN CON PEDIDOS A PROVEEDORES ---
-                        res_borradores = client.table("pedidos_proveedores").select("id, proveedores(nombre_empresa)").eq("estado", "Borrador").execute()
-                        if res_borradores.data:
-                            opciones_borrador = {f"Borrador #{b['id']} - {b['proveedores']['nombre_empresa']}": b['id'] for b in res_borradores.data if b.get('proveedores')}
-                            c_ped1, c_ped2 = st.columns([2, 1])
-                            with c_ped1: prods_a_pedir = st.multiselect("Selecciona productos para añadir a un pedido:", df_bajo_stock['nombre'].tolist())
-                            with c_ped2:
-                                borrador_sel = st.selectbox("Selecciona el Borrador:", list(opciones_borrador.keys()))
-                                if st.button("➕ Añadir al Borrador", use_container_width=True) and prods_a_pedir and borrador_sel:
-                                    draft_id = opciones_borrador[borrador_sel]
-                                    prods_actuales = client.table("pedidos_proveedores").select("productos").eq("id", draft_id).execute().data[0].get('productos', [])
-                                    for p_nom in prods_a_pedir:
-                                        if not any(item.get('Producto') == p_nom for item in prods_actuales):
-                                            prods_actuales.append({"Producto": p_nom, "Cantidad": 1})
-                                    client.table("pedidos_proveedores").update({"productos": prods_actuales}).eq("id", draft_id).execute()
-                                    st.success("¡Añadidos al borrador! Ve a la Pestaña 7 para gestionarlo.")
+                    if st.button("🚀 AUTO-DISTRIBUIR SELECCIONADOS A BORRADORES", type="primary", use_container_width=True):
+                        prods_a_pedir_auto = ed_bajo_stock[ed_bajo_stock["Pedir"] == True]
+                        if not prods_a_pedir_auto.empty:
+                            res_rels = client.table("productos_proveedores").select("producto_id, proveedor_id").execute()
+                            mapa_provs = {r['producto_id']: r['proveedor_id'] for r in res_rels.data} if res_rels.data else {}
+                            
+                            pedidos_a_crear = {}
+                            for _, row in prods_a_pedir_auto.iterrows():
+                                prov_id = mapa_provs.get(row['id'])
+                                if prov_id:
+                                    if prov_id not in pedidos_a_crear: pedidos_a_crear[prov_id] = []
+                                    pedidos_a_crear[prov_id].append({"Producto": row['nombre'], "Cantidad": int(row['cantidad_reponer'])})
+                                    
+                            if pedidos_a_crear:
+                                for p_id, prods in pedidos_a_crear.items():
+                                    res_b = client.table("pedidos_proveedores").select("id, productos").eq("proveedor_id", p_id).eq("estado", "Borrador").execute()
+                                    if res_b.data:
+                                        draft_id = res_b.data[0]['id']
+                                        prods_act = res_b.data[0].get('productos', [])
+                                        nombres_act = [p.get('Producto') for p in prods_act]
+                                        for np in prods:
+                                            if np['Producto'] not in nombres_act: prods_act.append(np)
+                                        client.table("pedidos_proveedores").update({"productos": prods_act}).eq("id", draft_id).execute()
+                                    else:
+                                        client.table("pedidos_proveedores").insert({"proveedor_id": p_id, "estado": "Borrador", "productos": prods}).execute()
+                                st.success("✅ ¡Borradores generados con los productos seleccionados! Ve a la Pestaña 7 (Proveedores) para revisarlos."); time.sleep(1.5); st.rerun()
+                            else:
+                                st.error("❌ No se pudo automatizar: Ninguno de los productos seleccionados tiene un proveedor asociado.")
                         else:
-                            st.info("💡 Ve a la Pestaña 7 (Proveedores) para crear un Borrador de Pedido y añadir estos productos.")
+                            st.warning("No has seleccionado ningún producto para pedir.")
+
+                # --- INTEGRACIÓN CON PEDIDOS A PROVEEDORES (GLOBAL MANUAL) ---
+                st.markdown("#### 🛒 Añadir productos manualmente a un Borrador")
+                st.markdown("<p style='color:gray; font-size:13px;'>Selecciona cualquier producto del inventario para añadirlo a un pedido abierto (aunque no esté bajo mínimos).</p>", unsafe_allow_html=True)
+                res_borradores = client.table("pedidos_proveedores").select("id, proveedores(nombre_empresa)").eq("estado", "Borrador").execute()
+                if res_borradores.data:
+                    opciones_borrador = {f"Borrador #{b['id']} - {b['proveedores']['nombre_empresa']}": b['id'] for b in res_borradores.data if b.get('proveedores')}
+                    c_ped1, c_ped2 = st.columns([2, 1])
+                    with c_ped1: prods_a_pedir_manual = st.multiselect("Selecciona productos del inventario para pedir:", df_solo_productos['nombre'].tolist())
+                    with c_ped2:
+                        borrador_sel = st.selectbox("Selecciona el Borrador:", list(opciones_borrador.keys()))
+                        if st.button("➕ Añadir al Borrador", use_container_width=True) and prods_a_pedir_manual and borrador_sel:
+                            draft_id = opciones_borrador[borrador_sel]
+                            prods_actuales = client.table("pedidos_proveedores").select("productos").eq("id", draft_id).execute().data[0].get('productos', [])
+                            for p_nom in prods_a_pedir_manual:
+                                if not any(item.get('Producto') == p_nom for item in prods_actuales):
+                                    prods_actuales.append({"Producto": p_nom, "Cantidad": 1})
+                            client.table("pedidos_proveedores").update({"productos": prods_actuales}).eq("id", draft_id).execute()
+                            st.success("¡Añadidos al borrador! Ve a la Pestaña 7 para gestionarlo."); time.sleep(1); st.rerun()
+                else:
+                    st.info("💡 No tienes ningún borrador de pedido abierto. Ve a la Pestaña 7 (Proveedores) para crear uno.")
 
                 # --- TABLA DE PRODUCTOS MEJORADA ---
                 st.markdown("#### 📦 Inventario de Productos")
