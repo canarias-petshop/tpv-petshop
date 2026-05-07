@@ -4,6 +4,7 @@ import time
 import json
 from datetime import datetime
 import streamlit.components.v1 as components
+import hashlib
 
 def render_pestana_tpv(client):
     # --- COMPROBACIÓN DE SEGURIDAD: CAJA ABIERTA ---
@@ -399,6 +400,12 @@ def render_pestana_tpv(client):
                                 puntos_ganados = int(total_f // 10) # 1 punto por cada 10€
                                 nuevo_saldo = cliente_info.get('puntos', 0) - puntos_a_descontar + puntos_ganados
                                 client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cliente_info['id']).execute()
+                                
+                            # GENERACIÓN DE HASH (LEY ANTIFRAUDE / VERIFACTU)
+                            res_last = client.table("ventas_historial").select("hash_actual").order("id", desc=True).limit(1).execute()
+                            hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
+                            data_to_hash = f"TICKET|{datetime.now().isoformat()}|{total_f:.2f}|{hash_anterior}"
+                            hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
 
                             # INSERCIÓN CON COLUMNAS EXACTAS CONTABLES
                             client.table("ventas_historial").insert({
@@ -411,7 +418,9 @@ def render_pestana_tpv(client):
                                 "pago_bizum": float(p_bizum),
                                 "cliente_vip_nombre": cliente_fidel_nombre,
                                 "puntos_ganados": puntos_ganados,
-                                "puntos_usados": puntos_a_descontar
+                                "puntos_usados": puntos_a_descontar,
+                                "hash_anterior": hash_anterior,
+                                "hash_actual": hash_actual
                             }).execute()
                             
                             if banco_sel_id and p_tarjeta > 0:

@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 import time
-from datetime import date
+from datetime import date, datetime
 import json
+import hashlib
 
 def render_pestana_facturacion(client):
     st.markdown("<h3 style='margin-top: -15px;'> 📑  Gestión Integral de Facturación</h3>", unsafe_allow_html=True)
@@ -159,9 +160,16 @@ def render_pestana_facturacion(client):
                 if sel_c:
                     c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
                     
+                    # GENERACIÓN DE HASH (LEY ANTIFRAUDE / VERIFACTU)
+                    res_last_f = client.table("facturas").select("hash_actual").order("id", desc=True).limit(1).execute()
+                    hash_ant_f = res_last_f.data[0].get("hash_actual", "") if res_last_f.data else ""
+                    data_to_hash_f = f"FACTURA|{datetime.now().isoformat()}|{total_v_final:.2f}|{hash_ant_f}"
+                    hash_act_f = hashlib.sha256(data_to_hash_f.encode('utf-8')).hexdigest().upper()
+
                     client.table("facturas").insert({
                         "cliente_id": c_id, "total_neto": float(total_base_final), "total_igic": float(total_igic_final), "total_final": float(total_v_final),
-                        "descuento_global": float(desc_g_val), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp
+                        "descuento_global": float(desc_g_val), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp,
+                        "hash_anterior": hash_ant_f, "hash_actual": hash_act_f
                     }).execute()
                     for i in st.session_state.factura_v_temp:
                         if str(i.get('id', '0')) != '0' and str(i.get('id')) != 'None':
@@ -364,46 +372,25 @@ def render_pestana_facturacion(client):
                 df_vista = df_fac[['id', 'numero_factura', 'total_final', 'Cliente', 'forma_pago']].copy()
                 
                 # 🚨 LEY ANTIFRAUDE (VERI*FACTU): Prohibido borrar facturas emitidas
-                df_vista.insert(0, "Borrar", False)
                 df_vista.insert(0, "Ver", False)
                 
                 ed_fac = st.data_editor(
                     df_vista, hide_index=True, use_container_width=True, key="ed_h_f", 
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver"), 
-                        "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"), 
                         "id": None
                     }
                 )
                 
-                # 1. SISTEMA DE BORRADO DIRECTO DESDE LA TABLA
-                filas_borrar_v = ed_fac[ed_fac["Borrar"] == True]
-                if not filas_borrar_v.empty:
-                    st.error(f"⚠️ Has marcado {len(filas_borrar_v)} factura(s) para eliminar. El stock de los artículos se devolverá automáticamente a la tienda.")
-                    if st.button("🚨 CONFIRMAR ELIMINACIÓN DE FACTURA(S)", type="primary", use_container_width=True):
-                        for idx, row in filas_borrar_v.iterrows():
-                            f_id = row['id']
-                            f_data = df_fac[df_fac['id'] == f_id].iloc[0]
-                            # Devolver stock
-                            for p in f_data.get('productos', []):
-                                if str(p.get('id', '0')) != '0' and str(p.get('id')) != 'None':
-                                    res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
-                                    if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
-                            # Eliminar registro
-                            client.table("facturas").delete().eq("id", f_id).execute()
-                        st.success("Factura(s) eliminada(s) correctamente."); time.sleep(1); st.rerun()
-                
-                st.markdown("---")
-                
                 # 2. SISTEMA DE GUARDADO DE CABECERA (Forma de pago)
                 if st.button(" 💾  Guardar Cambios en Forma de Pago"):
-                    filas_validas = ed_fac[ed_fac["Borrar"] == False]
+                    filas_validas = ed_fac
                     for idx, row in filas_validas.iterrows():
                         client.table("facturas").update({"forma_pago": str(row['forma_pago'])}).eq("id", row['id']).execute()
                     st.success("Formas de pago actualizadas."); time.sleep(0.5); st.rerun()
 
                 # 3. SISTEMA DE DESGLOSE
-                filas = ed_fac[(ed_fac["Ver"] == True) & (ed_fac["Borrar"] == False)]
+                filas = ed_fac[ed_fac["Ver"] == True]
                 if not filas.empty:
                     f_id = filas.iloc[0]['id']
                     f_data = df_fac[df_fac['id'] == f_id].iloc[0]
@@ -438,15 +425,7 @@ def render_pestana_facturacion(client):
                     
                     st.metric("NUEVO TOTAL FACTURA", f"{new_total:.2f} €")
                     
-                    if st.button("💾 SINCRONIZAR CAMBIOS DE ESTA FACTURA"):
-                        client.table("facturas").update({
-                            "productos": json.loads(ed_ph.to_json(orient='records')), 
-                            "total_neto": float(new_base),
-                            "total_igic": float(new_igic),
-                            "total_final": float(new_total),
-                            "descuento_global": float(desc_g_val)
-                        }).eq("id", f_id).execute()
-                        st.success("Guardado."); st.rerun()
+                    st.button("🚫 Edición de líneas y totales bloqueada (Ley Antifraude / VeriFactu)", disabled=True, use_container_width=True)
 
         # --- ARCHIVO DE COMPRAS ---
         else: 

@@ -10,6 +10,13 @@ def render_pestana_historial(client):
     sub_h_ventas, sub_h_cajas = st.tabs(["🛒 Tickets y Ventas", "🔒 Cierres de Caja"])
     
     with sub_h_ventas:
+        # --- CONTROL DE BLOQUEO Z (LEY ANTIFRAUDE) ---
+        res_caja_ab = client.table("control_caja").select("created_at").eq("estado", "Abierta").execute()
+        if res_caja_ab.data:
+            inicio_caja_actual = pd.to_datetime(res_caja_ab.data[0]['created_at'], utc=True)
+        else:
+            inicio_caja_actual = pd.to_datetime('2100-01-01', utc=True) # Todo cerrado
+
         c_f1, c_f2, c_f3 = st.columns([1,1,1])
         with c_f1: preset = st.selectbox("Filtro rápido:", ["Esta semana", "Este mes", "Trimestre Actual", "Todo el año"])
         
@@ -29,6 +36,9 @@ def render_pestana_historial(client):
             try: df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
             except: df_v['Fecha'] = "---"
             
+            df_v['Es_Cerrado'] = pd.to_datetime(df_v['created_at'], utc=True) < inicio_caja_actual
+            df_v['🔒 Candado'] = df_v['Es_Cerrado'].apply(lambda x: "🔒 Cerrado" if x else "🔓 Abierto")
+
             for col in ['metodo_pago', 'estado', 'cliente_deuda']:
                 if col not in df_v.columns: df_v[col] = "N/A"
 
@@ -47,15 +57,12 @@ def render_pestana_historial(client):
             st.markdown("<hr style='margin: 0px 0px 15px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
             # 1. PREPARAMOS EL DATAFRAME
-            df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda']].copy()
+            df_vista = df_v[['id', 'Fecha', 'total', 'metodo_pago', 'estado', 'cliente_deuda', '🔒 Candado']].copy()
             
-            # --- MAGIA TÁCTIL: Añadimos la columna Checkbox ---
-            df_vista.insert(0, "Borrar", False)
             df_vista.insert(0, "Ver", False)
             
-            st.markdown("💡 *Marca **'👁️ Ver'** para abrir el desglose. Marca **'🗑️ Borrar'** para eliminar. Haz doble clic en las celdas normales para corregirlas.*")
+            st.markdown("💡 *Marca **'👁️ Ver'** para abrir el desglose. La eliminación de tickets está bloqueada por Ley Antifraude.*")
             
-            # Extraemos los métodos de pago únicos para que el Selectbox no los deje en blanco
             opciones_pago_hist = ["Efectivo", "Tarjeta", "Bizum", "Mixto"]
             if 'metodo_pago' in df_vista.columns:
                 extras = [m for m in df_vista['metodo_pago'].dropna().unique() if m not in opciones_pago_hist]
@@ -66,7 +73,7 @@ def render_pestana_historial(client):
                 df_vista,
                 column_config={
                     "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False),
-                    "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
+                    "🔒 Candado": st.column_config.TextColumn("Z", disabled=True),
                     "id": st.column_config.NumberColumn("Nº", disabled=True, width="small"),
                     "Fecha": st.column_config.TextColumn("Fecha", disabled=True),
                     "total": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f"),
@@ -80,129 +87,66 @@ def render_pestana_historial(client):
                 key="editor_tickets"
             )
             
-            # 2.5 SISTEMA DE BORRADO DE TICKETS (PARA PRUEBAS)
-            filas_borrar_tk = edited_df[edited_df["Borrar"] == True]
-            if not filas_borrar_tk.empty:
-                st.error(f"⚠️ Has marcado {len(filas_borrar_tk)} ticket(s) para eliminar. El stock se restaurará automáticamente (excepto artículos manuales).")
-                if st.button("🚨 CONFIRMAR ELIMINACIÓN", type="primary", use_container_width=True):
-                    for idx, row in filas_borrar_tk.iterrows():
-                        tk_id = row['id']
-                        tk_data = df_v[df_v['id'] == tk_id].iloc[0]
-                        # Devolver stock solo si el ticket no estaba ya DEVUELTO
-                        if str(tk_data.get('estado', '')).upper() != "DEVUELTO":
-                            for p in tk_data.get('productos', []):
-                                if not p.get('Manual', False) and 'id' in p:
-                                    res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
-                                    if res_p.data:
-                                        client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
-                        
-                        # Revertir puntos si era cliente VIP
-                        cliente_vip = str(tk_data.get('cliente_vip_nombre', ''))
-                        if cliente_vip and cliente_vip != "nan" and cliente_vip != "None":
-                            res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cliente_vip).execute()
-                            if res_cli.data:
-                                cli_id = res_cli.data[0]['id']
-                                p_ganados = int(tk_data.get('puntos_ganados', 0))
-                                p_usados = int(tk_data.get('puntos_usados', 0))
-                                nuevo_saldo = max(0, res_cli.data[0].get('puntos', 0) - p_ganados + p_usados)
-                                client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cli_id).execute()
-                        # Eliminar registro
-                        client.table("ventas_historial").delete().eq("id", tk_id).execute()
-                    st.success("Ticket(s) eliminado(s) correctamente."); time.sleep(1); st.rerun()
-
             # 3. GUARDAR CORRECCIONES EN SUPABASE
             if st.button("💾 Guardar Correcciones de la Tabla", type="primary"):
-                # Ignoramos las columnas de acción para que no afecten a la base de datos
-                df_original = df_vista.drop(columns=["Ver", "Borrar"])
-                df_editado = edited_df.drop(columns=["Ver", "Borrar"])
+                df_original = df_vista.drop(columns=["Ver"])
+                df_editado = edited_df.drop(columns=["Ver"])
                 diferencias = df_editado.compare(df_original)
                 if not diferencias.empty:
                     for idx in diferencias.index.tolist():
+                        tk_id = int(edited_df.loc[idx, 'id'])
+                        if df_v[df_v['id'] == tk_id].iloc[0]['Es_Cerrado']:
+                            st.toast(f"🚫 Modificación del Ticket #{tk_id} ignorada (Cierre Z).")
+                            continue
                         client.table("ventas_historial").update({
                             "metodo_pago": str(edited_df.loc[idx, 'metodo_pago']),
                             "estado": str(edited_df.loc[idx, 'estado']),
                             "cliente_deuda": str(edited_df.loc[idx, 'cliente_deuda']) if str(edited_df.loc[idx, 'cliente_deuda']) != 'nan' else ""
-                        }).eq("id", int(edited_df.loc[idx, 'id'])).execute()
+                        }).eq("id", tk_id).execute()
                     st.success("Tickets actualizados."); time.sleep(0.8); st.rerun()
 
-            st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
+            st.markdown("---")
             
-           # --- 4. DETALLE DINÁMICO (CON DESCUENTO EDITABLE) ---
+            # 4. DESGLOSE DEL TICKET SELECCIONADO
             filas_marcadas = edited_df[edited_df["Ver"] == True]
-            
             if not filas_marcadas.empty:
                 t_id = filas_marcadas.iloc[0]['id']
                 t_info = df_v[df_v['id'] == t_id].iloc[0]
                 
-                st.markdown(f"#### 🔎 Detalle y Edición del Ticket #{t_id}")
+                st.markdown(f"#### 🔎 Detalle del Ticket #{t_id} (Bloqueo VeriFactu)")
+                st.warning("🔒 **TICKET CERRADO Y ENCRIPTADO**: Por normativa antifraude, los tickets emitidos no se pueden modificar ni eliminar. Para corregir un error, debe emitir una Devolución (Abono).")
+                    
                 prods = t_info.get('productos', [])
                 
                 if prods:
                     df_prods = pd.DataFrame(prods)
+                    if 'Desc. %' not in df_prods.columns:
+                        df_prods['Desc. %'] = df_prods.get('Desc %', 0.0)
+                        
+                    # 1. Tabla de productos en modo SOLO LECTURA
+                    st.dataframe(df_prods, use_container_width=True, hide_index=True)
                     
-                    # 1. Tabla de productos editable
-                    edit_prods = st.data_editor(
-                        df_prods, 
-                        column_config={
-                            "Subtotal": st.column_config.NumberColumn("Subtotal (€)", format="%.2f", disabled=True),
-                            "Manual": None,
-                            "IGIC": None,
-                            "Precio": st.column_config.NumberColumn("Precio (€)", format="%.2f"),
-                            "Desc. %": st.column_config.NumberColumn("Desc. Ud (%)", format="%d%%")
-                        },
-                        use_container_width=True, 
-                        hide_index=True, 
-                        num_rows="dynamic",
-                        key=f"edit_det_{t_id}"
-                    )
-                    
-                    # Recalcular subtotal de la lista por si hubo cambios en la tabla
-                    if 'Cantidad' in edit_prods.columns and 'Precio' in edit_prods.columns:
-                        edit_prods['Subtotal'] = (edit_prods['Cantidad'] * edit_prods['Precio']) * (1 - edit_prods.get('Desc. %', 0) / 100)
-                    
-                    suma_articulos = edit_prods['Subtotal'].sum()
+                    suma_articulos = df_prods['Subtotal'].sum() if 'Subtotal' in df_prods.columns else 0.0
 
                     st.markdown("---")
-                    # 2. SECCIÓN DE TOTALES CON DESCUENTO EDITABLE
+                    # 2. SECCIÓN DE TOTALES (SOLO LECTURA)
                     c_tot1, c_tot2, c_tot3 = st.columns(3)
                     
                     with c_tot1:
                         st.metric("Suma Artículos", f"{suma_articulos:.2f}€")
                     
                     with c_tot2:
-                        # Nuevo: Cuadro para cambiar el descuento global del ticket
-                        nuevo_desc_global = st.number_input(
-                            "Corregir Dto. Global (%)", 
-                            min_value=0, 
-                            max_value=100, 
-                            value=int(t_info.get('descuento_global', 0)),
-                            key=f"desc_glob_{t_id}"
-                        )
+                        st.metric("Dto. Global (%)", f"{t_info.get('descuento_global', 0)}%")
                     
-                    # Calculamos el total final aplicando el descuento que haya en el cuadro
-                    # Respetando el descuento en euros si el ticket original usó puntos VIP
-                    descuento_puntos_eur = int(t_info.get('puntos_usados', 0)) * 0.50
-                    total_final_calculado = max(0.0, (suma_articulos * (1 - nuevo_desc_global / 100)) - descuento_puntos_eur)
+                    total_final_calculado = float(t_info.get('total', 0.0))
                     
                     with c_tot3:
-                        st.metric("TOTAL FINAL", f"{total_final_calculado:.2f}€", 
-                                  delta=f"-{(suma_articulos - total_final_calculado):.2f}€" if nuevo_desc_global > 0 else None)
+                        st.metric("TOTAL FINAL", f"{total_final_calculado:.2f}€")
 
                     # 3. BOTONES DE ACCIÓN
                     c1, c2, c3 = st.columns(3)
                     with c1:
-                        if st.button(f"💾 Guardar Todo (Productos + Descuento)", use_container_width=True, type="primary"):
-                            nuevo_json = json.loads(edit_prods.to_json(orient='records'))
-                            
-                            # Actualizamos Supabase con la nueva lista de productos, el nuevo descuento y el nuevo total
-                            client.table("ventas_historial").update({
-                                "productos": nuevo_json,
-                                "descuento_global": float(nuevo_desc_global),
-                                "total": float(total_final_calculado)
-                            }).eq("id", int(t_id)).execute()
-                            st.success(f"Ticket #{t_id} actualizado correctamente.")
-                            time.sleep(0.8)
-                            st.rerun()
+                        st.button("🚫 Edición Bloqueada (VeriFactu)", disabled=True, use_container_width=True)
                     
                     with c2:
                         if "DEVUELTO" not in str(t_info.get('estado', '')).upper():
