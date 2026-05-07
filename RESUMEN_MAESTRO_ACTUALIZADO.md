@@ -135,6 +135,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 *   **Módulo de Marketing Automatizado:**
     *   *Objetivo:* Aprovechar la base de datos de clientes para adelantarse y automatizar planes de marketing.
     *   *Pasos a dar:* Crear una pestaña dedicada para estructurar y planificar envíos automáticos, ofertas y recordatorios segmentados de forma proactiva.
+    *   *Gestión de Temporadas:* Incluir un calendario anual con "Cápsulas de Contenido" pre-redactadas y una **Alarma Predictiva** que avise entre 30 y 45 días antes de que se acabe el contenido programado para solicitar la creación de la siguiente tanda.
 *   **Calendarios Visuales de Pagos y Tesorería:**
     *   *Objetivo:* Tener un panel visual (semanal y mensual) de todas las previsiones de pagos.
     *   *Pasos a dar:* Integrar en Facturación un panel de vencimientos para proveedores, y en Contabilidad un registro automatizado de gastos fijos/recurrentes (luz, agua, préstamos, nóminas, impuestos) que genere previsiones visuales y alarmas personalizables.

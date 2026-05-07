@@ -18,6 +18,19 @@ def render_pestana_marketing(client):
         st.markdown("#### 🗓️ Calendario de Marketing Anual")
         st.info("Programa tus publicaciones de Instagram, correos periódicos y campañas pagadas para anticiparte a las temporadas (Navidad, Verano, Desparasitación...).")
         
+        try:
+            res_alert = client.table("marketing_plan").select("fecha_planificada").order("fecha_planificada", desc=True).limit(1).execute()
+            if res_alert.data:
+                ultima_fecha = pd.to_datetime(res_alert.data[0]['fecha_planificada']).date()
+                dias_restantes = (ultima_fecha - date.today()).days
+                
+                if 0 <= dias_restantes <= 30:
+                    st.error(f"🚨 **¡ALERTA DE CONTENIDO!** Tu plan de marketing programado se agota el **{ultima_fecha.strftime('%d/%m/%Y')}** (en {dias_restantes} días). ¡Pídele a tu asistente que te redacte y prepare la campaña de la siguiente temporada!")
+                elif 30 < dias_restantes <= 45:
+                    st.warning(f"⚠️ **Aviso de Temporada:** Tu plan de marketing actual abarca hasta el **{ultima_fecha.strftime('%d/%m/%Y')}**. Recuerda solicitar la redacción de la próxima tanda de publicaciones pronto para no quedarte sin contenido.")
+        except Exception:
+            pass
+
         c_m1, c_m2 = st.columns([1, 2.5])
         with c_m1:
             with st.container(border=True):
@@ -32,6 +45,7 @@ def render_pestana_marketing(client):
                         "🏬 Promoción Física en Tienda"
                     ])
                     m_tema = st.text_input("Tema / Producto", placeholder="Ej: Lanzamiento pienso natural...")
+                    m_contenido = st.text_area("Texto / Copy exacto (Listo para publicar)", placeholder="Escribe aquí el texto del post, hashtags, emojis...", height=100)
                     m_estado = st.selectbox("Estado", ["Idea / Planificado", "En Preparación", "Publicado / Terminado"])
                     
                     if st.form_submit_button("Añadir al Calendario", type="primary", use_container_width=True):
@@ -39,7 +53,8 @@ def render_pestana_marketing(client):
                             try:
                                 client.table("marketing_plan").insert({
                                     "fecha_planificada": str(m_fecha), "canal": m_canal, 
-                                    "tema": m_tema, "estado": m_estado
+                                    "tema": m_tema, "estado": m_estado,
+                                    "contenido_detallado": m_contenido
                                 }).execute()
                                 st.success("Añadido al plan anual."); time.sleep(1); st.rerun()
                             except Exception as e:
@@ -59,7 +74,9 @@ def render_pestana_marketing(client):
                     df_mkt['Mes Visual'] = df_mkt['Fecha'].apply(lambda x: f"{meses_es[x.month]} {x.year}")
                     df_mkt['Fecha_str'] = df_mkt['Fecha'].dt.strftime('%d/%m/%Y')
                     
-                    df_vista_m = df_mkt[['id', 'Mes Visual', 'Fecha_str', 'canal', 'tema', 'estado']].copy()
+                    if 'contenido_detallado' not in df_mkt.columns: df_mkt['contenido_detallado'] = ""
+                    
+                    df_vista_m = df_mkt[['id', 'Mes Visual', 'Fecha_str', 'canal', 'tema', 'contenido_detallado', 'estado']].copy()
                     df_vista_m.insert(0, "Borrar", False)
                     
                     st.markdown("##### 🗺️ Vista de Proyección de Campañas")
@@ -71,6 +88,7 @@ def render_pestana_marketing(client):
                             "Fecha_str": "Día",
                             "canal": "Canal Principal", 
                             "tema": "Contenido / Producto",
+                            "contenido_detallado": st.column_config.TextColumn("Texto Exacto (Copy)", width="large"),
                             "estado": st.column_config.SelectboxColumn("Estado", options=["Idea / Planificado", "En Preparación", "Publicado / Terminado"]),
                             "id": None
                         }
@@ -84,7 +102,8 @@ def render_pestana_marketing(client):
                         filas_validas = ed_mkt[ed_mkt["Borrar"] == False]
                         for _, rv in filas_validas.iterrows():
                             client.table("marketing_plan").update({
-                                "estado": rv['estado'], "tema": rv['tema']
+                                "estado": rv['estado'], "tema": rv['tema'],
+                                "contenido_detallado": str(rv['contenido_detallado'])
                             }).eq("id", rv['id']).execute()
                         st.success("Plan actualizado."); time.sleep(0.5); st.rerun()
                 else:
