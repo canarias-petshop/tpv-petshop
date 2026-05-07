@@ -222,7 +222,8 @@ def render_pestana_tpv(client):
                 var ticketHTML = document.getElementById('ticket-impresion').innerHTML;
                 var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
                 var htmlCodificado = encodeURIComponent(fullHTML);
-                var starURL = "starpassprnt://v1/print/nopreview?html=" + htmlCodificado;
+                var backURL = encodeURIComponent(window.location.href);
+                var starURL = "starpassprnt://v1/print/nopreview?back=" + backURL + "&html=" + htmlCodificado;
             
             // Usar un iframe oculto evita que Streamlit se reinicie en la tablet
             var iframe = document.createElement('iframe');
