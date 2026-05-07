@@ -563,6 +563,31 @@ def render_pestana_facturacion(client):
             
             st.markdown(f"<h3 style='color: #d32f2f;'>Deuda Total Acumulada: {df_deudas['total'].sum():.2f} €</h3>", unsafe_allow_html=True)
             
+            # --- CALENDARIO VISUAL DE PAGOS A PROVEEDORES ---
+            with st.expander("📅 Ver Calendario Visual de Vencimientos", expanded=True):
+                deuda_vencida = df_deudas[df_deudas['Fecha Vencimiento'] < hoy_date]['total'].sum()
+                deuda_7d = df_deudas[(df_deudas['Fecha Vencimiento'] >= hoy_date) & (df_deudas['Fecha Vencimiento'] <= hoy_date + pd.Timedelta(days=7))]['total'].sum()
+                deuda_30d = df_deudas[(df_deudas['Fecha Vencimiento'] > hoy_date + pd.Timedelta(days=7)) & (df_deudas['Fecha Vencimiento'] <= hoy_date + pd.Timedelta(days=30))]['total'].sum()
+                deuda_futura = df_deudas[df_deudas['Fecha Vencimiento'] > hoy_date + pd.Timedelta(days=30)]['total'].sum()
+                
+                c_cal1, c_cal2, c_cal3, c_cal4 = st.columns(4)
+                with c_cal1: st.metric("🔴 Vencido", f"{deuda_vencida:.2f} €")
+                with c_cal2: st.metric("🟠 Próx. 7 días", f"{deuda_7d:.2f} €")
+                with c_cal3: st.metric("🟡 Próx. 30 días", f"{deuda_30d:.2f} €")
+                with c_cal4: st.metric("🟢 Más adelante", f"{deuda_futura:.2f} €")
+                
+                # Gráfico de barras por semanas para visualización
+                df_chart = df_deudas.dropna(subset=['Fecha Vencimiento']).copy()
+                if not df_chart.empty:
+                    st.markdown("<p style='font-size: 13px; color: gray; margin-top: 10px;'>Previsión semanal de pagos:</p>", unsafe_allow_html=True)
+                    # Agrupar por la semana del año
+                    df_chart['Semana'] = df_chart['Fecha Vencimiento'].dt.to_period('W').apply(lambda r: f"Semana {r.start_time.strftime('%d/%m')}")
+                    chart_data = df_chart.groupby('Semana')['total'].sum().reset_index()
+                    chart_data = chart_data.set_index('Semana')
+                    st.bar_chart(chart_data, color="#005275")
+                    
+            st.markdown("---")
+
             # Crear vista con checkbox para seleccionar las facturas a pagar
             df_vista_p = df_deudas[['id', 'tipo', 'Proveedor', 'total', 'Vence', 'Estado Vencimiento']].copy()
             df_vista_p.insert(0, "Pagar", False)

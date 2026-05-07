@@ -2,11 +2,12 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 import io
+import time
 
 def render_pestana_contabilidad(client):
     st.markdown("<h3 style='margin-top: -15px;'>📊 Contabilidad e Informes para Asesoría</h3>", unsafe_allow_html=True)
     
-    sec_gastos, sec_informes = st.tabs(["💸 Registro de Gastos", "📂 Panel Avanzado de Descargas"])
+    sec_gastos, sec_fijos, sec_informes = st.tabs(["💸 Gastos Puntuales", "🔄 Gastos Fijos y Calendario", "📂 Panel Avanzado de Descargas"])
 
     with sec_gastos:
         col_g1, col_g2 = st.columns([1, 2])
@@ -47,6 +48,94 @@ def render_pestana_contabilidad(client):
                     st.markdown(f"<p class='{clase}'>⚠️ {nombre} - {c['total']}€ (Vence en {dias} días: {c['fecha_vencimiento']})</p>", unsafe_allow_html=True)
             else:
                 st.info("No hay facturas ni gastos pendientes. ¡Todo al día!")
+
+    with sec_fijos:
+        st.markdown("#### 📅 Previsión de Tesorería y Gastos Recurrentes")
+        c_fij1, c_fij2 = st.columns([1, 2])
+        
+        with c_fij1:
+            with st.container(border=True):
+                st.markdown("##### ➕ Nuevo Gasto Fijo")
+                with st.form("nuevo_gasto_fijo", clear_on_submit=True):
+                    f_conc = st.text_input("Concepto (Ej: Alquiler, Luz, Préstamo)")
+                    f_cat = st.selectbox("Categoría", [
+                        "Gastos fijos y variables (Alquileres, seguros, luz, agua...)", 
+                        "Personal y autónomos (Nóminas, SS...)", 
+                        "Servicios exteriores", 
+                        "Impuestos y Tasas"
+                    ])
+                    f_imp = st.number_input("Importe Estimado/Fijo (€)", min_value=0.0, format="%.2f")
+                    f_dia = st.number_input("Día del mes de cargo", min_value=1, max_value=31, value=1)
+                    f_frec = st.selectbox("Frecuencia", ["Mensual", "Bimestral", "Trimestral", "Anual"])
+                    
+                    if st.form_submit_button("Guardar Gasto Fijo", type="primary", use_container_width=True):
+                        try:
+                            client.table("gastos_recurrentes").insert({
+                                "concepto": f_conc, "categoria": f_cat, "importe_estimado": float(f_imp),
+                                "dia_cargo": int(f_dia), "frecuencia": f_frec, "activo": True
+                            }).execute()
+                            st.success("Gasto fijo registrado."); time.sleep(1); st.rerun()
+                        except Exception as e:
+                            st.error("⚠️ Ejecuta el código SQL en Supabase primero.")
+
+        with c_fij2:
+            st.markdown("##### 📋 Tus Gastos Fijos Activos")
+            try:
+                res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
+                if res_gf.data:
+                    df_gf = pd.DataFrame(res_gf.data)
+                    df_gf_vista = df_gf[['id', 'concepto', 'importe_estimado', 'dia_cargo', 'frecuencia']].copy()
+                    df_gf_vista.insert(0, "Desactivar", False)
+                    ed_gf = st.data_editor(df_gf_vista, hide_index=True, use_container_width=True, height=210,
+                        column_config={
+                            "Desactivar": st.column_config.CheckboxColumn("🛑 Quitar"),
+                            "concepto": "Concepto", "importe_estimado": st.column_config.NumberColumn("Importe (€)", format="%.2f"),
+                            "dia_cargo": "Día del Mes", "frecuencia": "Frecuencia", "id": None
+                        })
+                    if st.button("💾 Guardar Cambios en Gastos Fijos"):
+                        filas_desactivar = ed_gf[ed_gf["Desactivar"] == True]
+                        for _, r in filas_desactivar.iterrows():
+                            client.table("gastos_recurrentes").update({"activo": False}).eq("id", r['id']).execute()
+                        st.rerun()
+                else:
+                    st.info("No hay gastos fijos registrados.")
+            except:
+                st.info("🔧 Ejecuta el código SQL en Supabase para activar esta función.")
+
+        st.markdown("---")
+        st.markdown("#### 📈 Calendario Visual de Previsión (Próximos 60 días)")
+        try:
+            hoy_dt = pd.Timestamp(date.today())
+            futuro_dt = hoy_dt + pd.Timedelta(days=60)
+            proyeccion = []
+            
+            # 1. Proyectar gastos fijos
+            if res_gf.data:
+                for gf in res_gf.data:
+                    for mes_offset in [0, 1, 2]:
+                        target_month = hoy_dt.month + mes_offset
+                        target_year = hoy_dt.year
+                        if target_month > 12:
+                            target_month -= 12; target_year += 1
+                        dia_c = min(gf['dia_cargo'], pd.Period(year=target_year, month=target_month, freq='M').days_in_month)
+                        fecha_cargo = pd.to_datetime(f"{target_year}-{target_month:02d}-{dia_c:02d}")
+                        if hoy_dt <= fecha_cargo <= futuro_dt:
+                            proyeccion.append({"Fecha Vencimiento": fecha_cargo, "Concepto": gf['concepto'], "Importe": float(gf['importe_estimado']), "Tipo": "Gasto Fijo (Previsión)"})
+                            
+            if proyeccion:
+                df_proy = pd.DataFrame(proyeccion).sort_values("Fecha Vencimiento")
+                c_cal1, c_cal2, c_cal3 = st.columns(3)
+                with c_cal1: st.metric("🟠 Previsión 7 días", f"{df_proy[(df_proy['Fecha Vencimiento'] >= hoy_dt) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=7))]['Importe'].sum():.2f} €")
+                with c_cal2: st.metric("🟡 Previsión 30 días", f"{df_proy[(df_proy['Fecha Vencimiento'] > hoy_dt + pd.Timedelta(days=7)) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=30))]['Importe'].sum():.2f} €")
+                with c_cal3: st.metric("🟢 Previsión 30-60 días", f"{df_proy[df_proy['Fecha Vencimiento'] > hoy_dt + pd.Timedelta(days=30)]['Importe'].sum():.2f} €")
+                
+                df_chart = df_proy.copy()
+                df_chart['Semana'] = df_chart['Fecha Vencimiento'].dt.to_period('W').apply(lambda r: f"Semana {r.start_time.strftime('%d/%m')}")
+                st.bar_chart(df_chart.groupby('Semana')['Importe'].sum().reset_index().set_index('Semana'), color="#d32f2f")
+                df_proy['Fecha Vencimiento'] = df_proy['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
+                st.dataframe(df_proy, use_container_width=True, hide_index=True)
+            else: st.success("No hay previsiones de gastos fijos para los próximos 60 días.")
+        except Exception as e: pass
 
     with sec_informes:
         st.markdown("#### 📥 Selector de Fechas Personalizado")

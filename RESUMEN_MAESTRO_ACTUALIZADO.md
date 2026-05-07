@@ -132,6 +132,12 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
         2. Añadir un botón para "Anonimizar Cliente" (si el cliente pide borrar sus datos, se cambia su nombre y teléfono por "Cliente Borrado", manteniendo sus tickets anónimos por obligación fiscal).
 
 ### FASE 3: Profesionalización Laboral y Comercial (Largo Plazo)
+*   **Módulo de Marketing Automatizado:**
+    *   *Objetivo:* Aprovechar la base de datos de clientes para adelantarse y automatizar planes de marketing.
+    *   *Pasos a dar:* Crear una pestaña dedicada para estructurar y planificar envíos automáticos, ofertas y recordatorios segmentados de forma proactiva.
+*   **Calendarios Visuales de Pagos y Tesorería:**
+    *   *Objetivo:* Tener un panel visual (semanal y mensual) de todas las previsiones de pagos.
+    *   *Pasos a dar:* Integrar en Facturación un panel de vencimientos para proveedores, y en Contabilidad un registro automatizado de gastos fijos/recurrentes (luz, agua, préstamos) que genere previsiones visuales para organizar planes de pago y liquidez.
 *   **Registro Horario a Prueba de Inspecciones:**
     *   *Objetivo:* Que los fichajes de los empleados sean válidos legalmente ante una inspección de trabajo.
     *   *Pasos a dar:* Asegurar que el sistema de fichaje guarde datos imposibles de alterar por el administrador sin justificación (como la hora exacta del servidor en Canarias, y no la hora que tenga la tablet).
