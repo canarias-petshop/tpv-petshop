@@ -411,7 +411,18 @@ def render_pestana_crm(client):
                     c_data = df_cli[df_cli['id'] == c_id].iloc[0]
                     c_nombre = c_data['nombre_dueno']
                     
-                    st.markdown(f"#### 📖 Ficha de Cliente: **{c_nombre}**")
+                    col_ficha1, col_ficha2 = st.columns([3, 1])
+                    with col_ficha1:
+                        st.markdown(f"#### 📖 Ficha de Cliente: **{c_nombre}**")
+                    with col_ficha2:
+                        if st.button("🗑️ Anonimizar Cliente (RGPD)", help="Borra los datos personales manteniendo el historial de ventas", type="secondary", key=f"anon_cli_{c_id}"):
+                            client.table("clientes").update({
+                                "nombre_dueno": "Cliente Borrado",
+                                "telefono": "",
+                                "email": "",
+                                "rgpd_consent": False
+                            }).eq("id", c_id).execute()
+                            st.success("Cliente anonimizado con éxito según la ley de protección de datos."); time.sleep(1.5); st.rerun()
                     
                     mascotas_lista = c_data.get('mascotas', [])
                     if isinstance(mascotas_lista, list) and len(mascotas_lista) > 0:
