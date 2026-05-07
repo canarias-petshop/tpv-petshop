@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  tpv-app:
+    build: .
+    container_name: animalarium-tpv
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app  # Sincroniza los archivos locales; ideal para actualizar el código sin reconstruir
+    restart: unless-stopped
+    environment:
+      - TZ=Atlantic/Canary  # Configura la zona horaria de Canarias para los fichajes y la agenda
