@@ -156,3 +156,26 @@ A continuación, se detallan los pasos para llevar el sistema de un entorno de p
 *   **Comercialización y Escalabilidad (Vender el programa):**
     *   *Objetivo:* Preparar el sistema para venderlo a otras tiendas o clínicas (Modelo SaaS).
     *   *Pasos a dar:* Crear una estructura de "Multitienda" o un proceso de instalación para que cada cliente (otra clínica) tenga su base de datos totalmente separada y privada.
+
+## 5. MANUAL DE DESPLIEGUE EN TIENDA (Paso a Paso)
+
+Esta sección es una guía estricta para el día que se decida instalar el sistema en el ordenador de sobremesa de la tienda, conectando el trabajo que se hace desde casa (Portátil) con el negocio, utilizando GitHub y Docker.
+
+### A) Preparación inicial en el ordenador de la TIENDA (Solo se hace 1 vez)
+1. **Instalar GitHub Desktop:** Descargar e instalar la aplicación oficial "GitHub Desktop" para Windows. Iniciar sesión con la misma cuenta de GitHub que se usa en el portátil.
+2. **Clonar el Proyecto:** En GitHub Desktop, ir a `File > Clone repository`. Buscar el repositorio `tpv-petshop` y descargarlo (clonarlo) en una carpeta fácil de encontrar (por ejemplo: `C:\Animalarium\tpv-petshop`).
+3. **Instalar Docker Desktop:** Descargar e instalar "Docker Desktop" para Windows. (Puede pedir reiniciar el ordenador. Es necesario aceptar todas las configuraciones por defecto y asegurarse de que el programa "Docker Desktop" se queda abierto y con el icono en verde).
+
+### B) El Día a Día (Cómo aplicar las mejoras que haces desde casa)
+Cada vez que programes algo nuevo en el portátil de tu casa y quieras que la tienda lo tenga, estos son los 3 pasos exactos:
+
+**En tu CASA (Portátil):**
+1. Termina de programar o realizar los cambios con la IA.
+2. Asegúrate de hacer un *Commit* (guardar los cambios) y darle al botón **"Push"** en tu entorno de desarrollo para que el código suba a la nube de GitHub.
+
+**En la TIENDA (Ordenador de sobremesa):**
+1. **Descargar los cambios:** Abre la aplicación **GitHub Desktop**, selecciona el proyecto `tpv-petshop` y pulsa el botón azul **"Fetch origin"** (y luego **"Pull origin"**) que aparece arriba. Esto descargará instantáneamente los cambios que hiciste en casa.
+2. **Encender el Motor:** Abre la terminal de Windows (Símbolo del sistema o PowerShell), navega hasta la carpeta del proyecto (`cd C:\Animalarium\tpv-petshop`) y escribe el siguiente comando:
+   `docker-compose up -d --build`
+   *(Este comando lee los cambios nuevos, reconstruye el sistema y lo deja funcionando de fondo).*
+3. **¡A trabajar!:** En la tablet de la tienda, abre el navegador web y pon la Dirección IP del ordenador de sobremesa seguido de `:8501` (Ejemplo: `http://192.168.1.55:8501`). ¡El TPV ya estará actualizado y funcionando a máxima velocidad!
