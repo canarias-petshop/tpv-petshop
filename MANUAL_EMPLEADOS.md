@@ -40,6 +40,7 @@ Aquí gestionarás las fichas de las familias y sus perros/gatos.
 - **Historial de la Mascota:** Dentro de la familia, marca "👁️ Ver Ficha" en la mascota específica.
   - Verás su historial de peluquería.
   - Al añadir un nuevo servicio al historial, **selecciona tu nombre en la columna "Realizado por"** para dejar constancia de quién hizo el trabajo. Pulsa "Guardar Historial".
+- **📱 Centro WhatsApp (Rutina Matutina):** En la pestaña "Centro WhatsApp", verás automáticamente a los perros citados para mañana. Pulsa en "Pedir Confirmación" para enviarles el mensaje automático. Justo debajo tendrás recordatorios de mantenimiento.
 - **Encargos:** Si un cliente pide un artículo que no hay en tienda, anótalo en "🛍️ Encargos". Cuando el producto llegue, pulsa el botón **"💬 WhatsApp"** para avisarle automáticamente. El sistema te alertará si un encargo se retrasa o si el cliente tarda mucho en recogerlo.
 
 ---
@@ -83,3 +84,15 @@ Si cometes un error al cobrar un ticket (ej. cobraste en efectivo pero era con t
 2. Busca el ticket del día de hoy.
 3. En la columna de la derecha, selecciona "Tarjeta" en el menú desplegable. El cambio se guarda automáticamente.
 4. **Devoluciones:** Si un cliente devuelve un collar, pulsa el botón rojo **"Devolver"**. El dinero se registrará como salida y el collar volverá automáticamente al stock de la tienda.
+
+---
+
+## 7. 🚚 Gestión de Pedidos y Proveedores
+En esta sección controlamos qué mercancía falta en la tienda y preparamos los pedidos.
+
+- **🔔 Centro de Envíos (Alertas):** Al entrar en la pestaña, el sistema te avisará arriba si tienes borradores pendientes de enviar a proveedores y te indicará la **hora límite de corte** del comercial.
+- **Alerta de Stock Bajo (Auto-Distribuir):** Si hay artículos bajo mínimos, aparecerá una lista sugerida debajo. 
+  1. Desmarca los productos que NO quieras pedir.
+  2. Pulsa **"🚀 AUTO-DISTRIBUIR"**. El sistema agrupará cada producto con su proveedor correspondiente y creará los borradores listos.
+- **Añadir Artículos Extra:** Abre un borrador marcando "👁️ Ver". Justo debajo, usa el buscador para añadir cualquier otro producto del inventario, o usa la pestaña "Artículo Manual" para incluir cosas fuera de catálogo (como encargos raros de clientes).
+- **Enviar Pedido:** Cuando el borrador esté listo, pulsa el botón azul **"✉️ Generar Email"** para abrir tu correo con toda la lista preparada y envíala. ¡Importante: Una vez enviado, cambia el Estado del pedido a "Enviado"!

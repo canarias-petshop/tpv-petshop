@@ -13,7 +13,6 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 📦 **1. Inventario y Servicios**
 - Separación inteligente entre "Productos" (con control de stock) y "Servicios" (peluquería, veterinaria).
 - Cálculo automático de Base Imponible e IGIC.
-- Smart Restock: Sistema de alertas de stock bajo con un botón para "Auto-distribuir" y generar borradores de pedidos a proveedores automáticamente.
 
 🛒 **2. Terminal de Caja (TPV)**
 - Buscador manual y escáner de pistola **(con añadido de 1 clic, auto-vaciado y reseteo instantáneo tras cada lectura exitosa o fallida)**. Formulario de artículo manual también con reseteo automático.
@@ -30,7 +29,7 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - Fichas de familias y mascotas con cálculo de edad automático, asignación de **Peluquero/a Preferido** y un **Diario de Observaciones Clínicas** independiente.
 - Historial clínico y de peluquería con cálculo de tiempo medio por servicio y registro del empleado ("Realizado por") para trazabilidad.
 - **Registro de Cancelaciones (Políticas Estrictas):** El CRM detecta automáticamente cuántas veces ha cancelado una mascota y muestra una alerta roja en su ficha para que los empleados lo tengan en cuenta al darle cita.
-- **WhatsApp Deep Linking:** Sistema que detecta mascotas sin mantenimiento y genera un enlace `wa.me` para enviarles un WhatsApp con un solo clic, incorporando además un descuento gancho del 10%. También envía avisos automáticos de pedidos (Encargos) recibidos en tienda.
+- **Centro WhatsApp (Automatización Matutina):** Panel unificado que escanea la agenda para mostrar las citas del día siguiente y las alertas de mantenimiento (filtrando inteligentemente a quienes ya tienen cita futura). Genera enlaces `wa.me` para enviar confirmaciones y recordatorios con un solo clic. También notifica encargos recibidos.
 
 📜 **4. Historial Operativo**
 - Registro en vivo de todos los tickets.
@@ -50,9 +49,11 @@ El sistema cuenta con **13 módulos principales 100% operativos** en el código 
 - Dashboard financiero con balance neto (Ingresos vs Gastos).
 - Gráfica visual de la evolución de las ventas diarias.
 
-🚚 **7. Proveedores y Pedidos**
+🚚 **7. Gestión de Proveedores y Pedidos**
 - Directorio de proveedores con sus datos fiscales, de reparto y **control de Pedido Mínimo** para portes gratis.
-- Gestor de Borradores de Pedido con un botón para generar automáticamente un correo electrónico con el pedido listo para enviar.
+- **Centro de Envíos:** Panel de alertas visuales en tiempo real que indica las horas de corte de los proveedores para envíos pendientes.
+- **Smart Restock Centralizado:** Sistema de detección de stock bajo con casillas de verificación para desmarcar productos y un botón de "Auto-distribuir" que genera borradores automáticos.
+- Integración de buscador de catálogo y formularios de artículos manuales *dentro* del detalle de cada borrador para evitar duplicidades de botones en la interfaz.
 
 📑 **8. Facturación Legal y Stock**
 - *Sub-1 Emisión:* Emisión de facturas a clientes calculando dinámicamente el desglose interno de Base Imponible y Cuota de IGIC, aunque el empleado solo introduzca el PVP Público.
@@ -107,7 +108,8 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Optimización Extrema de Tablet y UI TPV (Completado):** Corrección definitiva de variables al cobrar en efectivo. Inyección JS global anti-autocorrector. Agilización del buscador a 1 clic con reseteo automático de inputs. Rediseño estructural de la vista del ticket en pantalla eliminando el scroll fantasma y visibilizando el método de pago exacto empleado en todos los documentos.
 - **Políticas Estrictas y Estabilidad UI (Completado):** Se introdujeron las alertas de penalización de mascotas, el panel inteligente al agendar, la lista de servicios viva, el auto-borrado del escáner en TPV y se protegió la sesión eliminando el refresco forzado al enviar impresiones por Bluetooth/Wifi.
 - **Saneamiento Fiscal y Contable (Completado):** Corrección de la lógica de Base Imponible e IGIC. Los tickets y facturas ahora diferencian la venta de "Servicios" (que desglosa IGIC) de la venta de "Productos" (que reporta todo como Base Imponible). Todo a prueba de fallos mediante parseo seguro de datos legados.
-- **Automatizaciones Finales y Deep Linking (Completado):** Implementación de recordatorios de citas, alertas de mantenimiento y avisos de encargos por WhatsApp (1-click) sin coste de API. Inclusión de categorías avanzadas (Servicios Exteriores, Tasas) con filtrado modular y control de pedidos mínimos para envíos.
+- **Automatizaciones Finales y Deep Linking (Completado):** Implementación del "Centro WhatsApp" y "Centro de Envíos" para establecer una rutina matutina clara.
+- **Reorganización ERP (Completado):** Separación total de Catálogo (Inventario) y Compras (Proveedores y Pedidos), logrando un flujo de trabajo profesional sin botones duplicados ni sobrecarga visual.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
