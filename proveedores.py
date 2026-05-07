@@ -5,8 +5,8 @@ import json
 import urllib.parse
 
 def render_pestana_proveedores(client):
-    st.markdown("<h3 style='margin-top:-15px;'>📦 Pedidos a Proveedores</h3>", unsafe_allow_html=True)
-    sub_prov, sub_pedidos = st.tabs(["🚚 Directorio Proveedores", "📦 Hacer Pedido a Proveedor"])
+    st.markdown("<h3 style='margin-top:-15px;'> Gestión de Proveedores y Pedidos</h3>", unsafe_allow_html=True)
+    sub_prov, sub_pedidos = st.tabs(["🏢 Directorio de Proveedores", "📦 Gestión de Pedidos y Borradores"])
     
     with sub_prov:
         cp1, cp2 = st.columns([1, 2])

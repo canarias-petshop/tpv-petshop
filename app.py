@@ -167,7 +167,7 @@ with c_rol:
 # --- DEFINICIÓN DINÁMICA DE PESTAÑAS SEGÚN ROL ---
 nombres_pestanas = [
     "📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", 
-    "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores", "📑 Facturación",
+    "💰 Control Caja", "📈 Estadísticas", "🚚 Proveedores y Pedidos", "📑 Facturación",
     "📅 Agenda", "⏱️ Personal", "📖 Ayuda"
 ]
 
