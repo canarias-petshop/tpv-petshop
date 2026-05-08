@@ -369,7 +369,8 @@ def render_pestana_facturacion(client):
             if res_fac.data:
                 df_fac = pd.DataFrame(res_fac.data)
                 df_fac['Cliente'] = df_fac['clientes'].apply(lambda x: x['nombre_dueno'] if x else '---')
-                df_vista = df_fac[['id', 'numero_factura', 'total_final', 'Cliente', 'forma_pago']].copy()
+                df_fac['Fecha'] = pd.to_datetime(df_fac['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+                df_vista = df_fac[['id', 'Fecha', 'numero_factura', 'total_final', 'Cliente', 'forma_pago']].copy()
                 
                 # 🚨 LEY ANTIFRAUDE (VERI*FACTU): Prohibido borrar facturas emitidas
                 df_vista.insert(0, "Ver", False)
@@ -378,7 +379,8 @@ def render_pestana_facturacion(client):
                     df_vista, hide_index=True, use_container_width=True, key="ed_h_f", 
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver"), 
-                        "id": None
+                        "id": None,
+                        "Fecha": "Fecha Emisión"
                     }
                 )
                 
@@ -433,6 +435,7 @@ def render_pestana_facturacion(client):
             if res_comp.data:
                 df_comp = pd.DataFrame(res_comp.data)
                 df_comp['Proveedor'] = df_comp['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
+                df_comp['Fecha'] = pd.to_datetime(df_comp['created_at']).dt.strftime('%d/%m/%Y %H:%M')
                 
                 st.markdown("##### 🗂️ Clasificación de Documentos")
                 filtro_cat = st.selectbox(
@@ -460,7 +463,7 @@ def render_pestana_facturacion(client):
                 if df_filtrado.empty:
                     st.info("No hay registros en esta categoría para las fechas seleccionadas.")
                     
-                df_vista = df_filtrado[['id', 'tipo', 'total', 'Proveedor', 'estado']].copy()
+                df_vista = df_filtrado[['id', 'Fecha', 'tipo', 'total', 'Proveedor', 'estado']].copy()
                 df_vista.insert(0, "Borrar", False)
                 df_vista.insert(0, "Ver", False)
                 
@@ -469,7 +472,8 @@ def render_pestana_facturacion(client):
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver"), 
                         "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"),
-                        "id": None, "tipo": "Documento / Concepto"
+                        "id": None, "tipo": "Documento / Concepto",
+                        "Fecha": "Fecha Reg."
                     }
                 )
 
