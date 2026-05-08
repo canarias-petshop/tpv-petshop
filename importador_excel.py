@@ -54,24 +54,25 @@ if not archivos:
 
 clientes_nuevos = 0
 mascotas_nuevas = 0
+mascotas_actualizadas = 0
 
 print(f"\n🔍 Procesando {len(archivos)} fichas...")
 
 def buscar_valor_junto_a(df, palabra_clave):
-    """Busca una palabra en todo el Excel sin límite de filas/columnas y devuelve el valor a su derecha."""
+    """Busca una palabra y devuelve SÓLO el valor que está justo a su derecha para no mezclar datos."""
     max_filas = len(df)
     max_cols = len(df.columns)
     
     for fila in range(max_filas):
         for col in range(max_cols - 1):
             celda = str(df.iloc[fila, col]).lower().strip()
-            if palabra_clave.lower() in celda:
-                # Encontramos la palabra, miramos hacia la derecha (hasta 4 celdas por si hay combinadas o márgenes)
-                for salto in range(1, min(5, max_cols - col)):
-                    valor = str(df.iloc[fila, col + salto]).strip()
-                    if valor and valor.lower() != "nan":
+            if palabra_clave.lower() in celda and len(celda) < len(palabra_clave) + 5:
+                valor = str(df.iloc[fila, col + 1]).strip()
+                if valor and valor.lower() != "nan":
+                    # Freno de seguridad: Si la celda de al lado es otra etiqueta, no la cogemos
+                    etiquetas_prohibidas = ["nombre", "teléfono", "fecha", "raza", "peso", "correo", "email"]
+                    if not any(et in valor.lower() for et in etiquetas_prohibidas):
                         return valor
-                return ""
     return ""
 
 for archivo in archivos:
@@ -91,25 +92,41 @@ for archivo in archivos:
             print(f"⚠️ Saltando {archivo}: No se encontró el nombre del dueño o de la mascota.")
             continue
             
-        clave_cliente = f"{dueño.lower()} - {telefono}"
-        cliente_id = mapa_clientes.get(clave_cliente)
+        # --- MAGIA: FUSIONAR CON LAS 403 FICHAS VIEJAS ---
+        # Buscamos si la mascota ya existe en el programa (para no romper sus citas)
+        res_busca = client.table("mascotas").select("id, cliente_id, nombre").ilike("nombre", mascota).execute()
         
-        if not cliente_id:
-            res_ins_cli = client.table("clientes").insert({"nombre_dueno": dueño, "telefono": telefono, "puntos": 0, "rgpd_consent": True}).execute()
-            if res_ins_cli.data:
-                cliente_id = res_ins_cli.data[0]['id']
-                mapa_clientes[clave_cliente] = cliente_id
-                clientes_nuevos += 1
-                
-        if cliente_id:
-            clave_mascota = f"{mascota.lower()} - {cliente_id}"
-            if clave_mascota not in mapa_mascotas:
-                print(f"  🐾 Importando: {mascota} (Dueño: {dueño})")
-                client.table("mascotas").insert({"cliente_id": cliente_id, "nombre": mascota, "especie": "Perro", "raza": raza, "observaciones": ""}).execute()
-                mapa_mascotas[clave_mascota] = True
-                mascotas_nuevas += 1
+        if res_busca.data:
+            # La mascota ya estaba (es de las de tu compañera). FUSIONAMOS los datos.
+            m_vieja = res_busca.data[0]
+            print(f"  🔄 FUSIONANDO: '{mascota}' ya existía. Rellenando datos de su dueño ({dueño})...")
+            
+            client.table("clientes").update({"nombre_dueno": dueño, "telefono": telefono}).eq("id", m_vieja['cliente_id']).execute()
+            client.table("mascotas").update({"raza": raza}).eq("id", m_vieja['id']).execute()
+            mascotas_actualizadas += 1
+            
+        else:
+            # Es un perro 100% nuevo que no estaba en las 403 fichas. Lo creamos.
+            clave_cliente = f"{dueño.lower()} - {telefono}"
+            cliente_id = mapa_clientes.get(clave_cliente)
+            
+            if not cliente_id:
+                res_ins_cli = client.table("clientes").insert({"nombre_dueno": dueño, "telefono": telefono, "puntos": 0, "rgpd_consent": True}).execute()
+                if res_ins_cli.data:
+                    cliente_id = res_ins_cli.data[0]['id']
+                    mapa_clientes[clave_cliente] = cliente_id
+                    clientes_nuevos += 1
+                    
+            if cliente_id:
+                clave_mascota = f"{mascota.lower()} - {cliente_id}"
+                if clave_mascota not in mapa_mascotas:
+                    print(f"  🐾 Nueva mascota: {mascota} (Dueño: {dueño})")
+                    client.table("mascotas").insert({"cliente_id": cliente_id, "nombre": mascota, "especie": "Perro", "raza": raza, "observaciones": ""}).execute()
+                    mapa_mascotas[clave_mascota] = True
+                    mascotas_nuevas += 1
                 
     except Exception as e:
         print(f"❌ Error en {archivo}: {e}")
 
-print(f"\n✅ ¡Sincronización Terminada! Se importaron {clientes_nuevos} clientes y {mascotas_nuevas} mascotas nuevas.")
+print(f"\n✅ ¡Importación Completada!")
+print(f"📊 Resumen: {mascotas_actualizadas} fichas antiguas rellenadas con éxito. {clientes_nuevos} clientes nuevos y {mascotas_nuevas} mascotas nuevas añadidos.")
