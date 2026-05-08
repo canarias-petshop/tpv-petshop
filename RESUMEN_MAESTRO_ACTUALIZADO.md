@@ -20,9 +20,10 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Simetría y Alineación UI:** Cajas de cobro en efectivo alineadas a la base (`vertical_alignment="bottom"`) para mantener proporciones perfectas en pantallas táctiles.
 - Pagos mixtos (Efectivo, Tarjeta, Bizum).
 - **Detalle en Tickets:** El método de pago exacto (y su desglose en caso de ser mixto) se imprime y envía por email en el ticket al cliente.
+- **Bloqueo Inteligente de Deudas y Contraseñas:** Se ha desactivado el autocompletado nativo del navegador para evitar que salten gestores de contraseñas. No se puede fiar dinero a clientes anónimos; el sistema obliga a seleccionar al cliente desde el panel VIP.
 - **Selector dinámico de banco/datáfono:** Al cobrar con tarjeta o de forma mixta, permite enviar el dinero directamente a la cuenta bancaria seleccionada (y su datáfono) en tiempo real.
-- **Sistema de Fidelización VIP Saneado:** Suma 1 punto por cada 10€ de compra. Canjea puntos a 0.50€/pto (límite del 50% del ticket). La contabilidad reajusta proporcionalmente las bases imponibles e IGIC al aplicar puntos para evitar descuadres fiscales.
-- Impresión térmica directa a Star Micronics (protocolo `starpassprnt://`) estabilizada: **se eliminaron las recargas forzadas de página** para evitar el cierre de sesión, manteniendo al empleado en la pantalla con el botón de "Nueva Venta" siempre visible.
+- **Sistema de Fidelización VIP Saneado y Diferido:** Suma 1 punto por cada 10€ de compra. Canjea puntos a 0.50€/pto. Si un cliente deja dinero a deber, **los puntos no se suman hasta que abone la deuda** posteriormente. La contabilidad reajusta proporcionalmente las bases imponibles e IGIC al aplicar puntos.
+- Impresión térmica directa a Star Micronics (protocolo `starpassprnt://`) estabilizada: se eliminaron las recargas forzadas y se implementó un **auto-retorno a la pantalla de Nueva Venta a los 30 segundos** de inactividad.
 
 👥 **3. Clientes y Mascotas (CRM)**
 - Directorio principal mejorado con la visibilidad del **teléfono del dueño** directamente en el listado de mascotas.
@@ -30,6 +31,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - Historial clínico y de peluquería con cálculo de tiempo medio por servicio y registro del empleado ("Realizado por") para trazabilidad.
 - **Registro de Cancelaciones (Políticas Estrictas):** El CRM detecta automáticamente cuántas veces ha cancelado una mascota y muestra una alerta roja en su ficha para que los empleados lo tengan en cuenta al darle cita.
 - **Centro WhatsApp (Automatización Matutina):** Panel unificado que escanea la agenda para mostrar las citas del día siguiente y las alertas de mantenimiento (filtrando inteligentemente a quienes ya tienen cita futura). Genera enlaces `wa.me` para enviar confirmaciones y recordatorios con un solo clic. También notifica encargos recibidos.
+- **Gestor de Deudas de Tienda (Pagos Pendientes):** Nueva sub-pestaña que agrupa automáticamente a los clientes morosos del TPV. Suma sus deudas, alerta visualmente a los 14 días y genera un mensaje de WhatsApp para recordarles el pago.
 
 📜 **4. Historial Operativo**
 - Registro en vivo de todos los tickets con **generación de Hash SHA-256 encadenado**.
@@ -75,6 +77,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 📅 **10. Agenda y Citas (Inteligente)**
 - Gestor de citas vinculado a las fichas de las mascotas y cruzado con los horarios de los empleados.
 - **Buscador Inteligente de Huecos:** Al seleccionar una mascota, lee su historial, **muestra un panel informativo con su duración media y peluquero preferido**, lee los cuadrantes y ofrece los tramos libres exactos.
+- **Anotaciones / Observaciones Especiales:** Campo dedicado para anotar las peticiones de corte o trato específico de la mascota que pide el cliente al llamar.
 - **Estado "Pendiente" por Defecto:** Las citas nacen en un estado neutro (Pendiente 🟡) para adaptarse al flujo real de llamadas de confirmación unos días antes.
 - **Filtro por Peluquero/a Preferido:** Si el cliente tiene un profesional asignado en su ficha, el sistema detecta automáticamente su preferencia y limita la sugerencia de huecos exclusivamente al horario de esa persona concreta.
 - **Leyenda de Colores y Políticas de Cancelación:** Las citas incluyen estados dinámicos (Confirmada 🟢, Cancelada 💖, Cambio de cita 🔵, etc.). Al marcar una cita como "Cancelada", se libera su hueco en el calendario y viaja a una pestaña específica de "🚫 Cancelaciones".
@@ -111,7 +114,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Testeo y Automatización Funcional (Completado):** Se han conectado lógicamente varios módulos para evitar trabajos dobles: El saldo final de caja es el fondo inicial del día siguiente, los gastos de caja viajan solos a Contabilidad y la Agenda bloquea las citas si se marcan vacaciones en el Cuadrante Visual.
 - **Cierre Z Dinámico y Agenda Inteligente Total (Completado):** Implementación de la selección dinámica de la cuenta receptora para los pagos con tarjeta en el TPV y la sugerencia cruzada de huecos en la Agenda de citas, integrando el filtro automático del Peluquero/a preferido y la creación rápida de fichas de clientes.
 - **Sincronización Horaria y Bloqueos de Agenda (Completado):** Configuración de la zona horaria (Atlantic/Canary) para los fichajes y el cálculo de solapamientos. Sincronización absoluta de las 3 vistas de la Agenda, bloqueando horas ocupadas y documentando excepciones de agendamiento.
-- **Optimización Extrema de Tablet y UI TPV (Completado):** Corrección definitiva de variables al cobrar en efectivo. Inyección JS global anti-autocorrector. Agilización del buscador a 1 clic con reseteo automático de inputs. Rediseño estructural de la vista del ticket en pantalla eliminando el scroll fantasma y visibilizando el método de pago exacto empleado en todos los documentos.
+- **Optimización Extrema de Tablet y UI TPV (Completado):** Inyección JS global anti-autocorrector y anti-gestores de contraseñas. Agilización del buscador a 1 clic con reseteo automático de inputs. Ticket en pantalla rediseñado con impresión de deudas pendientes y política de puntos.
 - **Políticas Estrictas y Estabilidad UI (Completado):** Se introdujeron las alertas de penalización de mascotas, el panel inteligente al agendar, la lista de servicios viva, el auto-borrado del escáner en TPV y se protegió la sesión eliminando el refresco forzado al enviar impresiones por Bluetooth/Wifi.
 - **Saneamiento Fiscal y Contable (Completado):** Corrección de la lógica de Base Imponible e IGIC. Los tickets y facturas ahora diferencian la venta de "Servicios" (que desglosa IGIC) de la venta de "Productos" (que reporta todo como Base Imponible). Todo a prueba de fallos mediante parseo seguro de datos legados.
 - **Automatizaciones Finales y Deep Linking (Completado):** Implementación del "Centro WhatsApp" y "Centro de Envíos" para establecer una rutina matutina clara.

@@ -25,8 +25,9 @@ Esta es la pantalla principal para cobrar a los clientes.
 3. **Fidelización VIP:** Si el cliente está registrado, búscalo por nombre o teléfono en "Cliente VIP". Al cobrar, ganará 1 punto por cada 10€ de compra. Al canjearlos, cada punto equivale a 0.50€ de descuento.
 4. **Cobrar:**
    - Selecciona el método de pago (Efectivo, Tarjeta, Bizum).
+  - **Dejar a deber:** Si el cliente no te paga la totalidad, asegúrate de **seleccionar su nombre en el desplegable de "Cliente VIP"**. El sistema NO te dejará finalizar el cobro si la venta está como anónima. *Ojo: No ganará puntos hasta que venga a saldar la deuda.*
    - Pulsa el botón verde **"💳 COBRAR TICKET"**.
-   - El cajón portamonedas se abrirá (si es efectivo) y el ticket se imprimirá automáticamente por la impresora Star.
+  - El cajón portamonedas se abrirá (si es efectivo) y el ticket se imprimirá automáticamente. Pasados 30 segundos, la pantalla volverá sola a una Nueva Venta.
 
 ---
 
@@ -42,6 +43,7 @@ Aquí gestionarás las fichas de las familias y sus perros/gatos.
   - Al añadir un nuevo servicio al historial, **selecciona tu nombre en la columna "Realizado por"** para dejar constancia de quién hizo el trabajo. Pulsa "Guardar Historial".
 - **📱 Centro WhatsApp (Rutina Matutina):** En la pestaña "Centro WhatsApp", verás automáticamente a los perros citados para mañana. Pulsa en "Pedir Confirmación" para enviarles el mensaje automático (se redacta solo, de forma corporativa e institucional). Justo debajo tendrás recordatorios de mantenimiento.
 - **Encargos:** Si un cliente pide un artículo que no hay en tienda, anótalo en "🛍️ Encargos". Cuando el producto llegue, pulsa el botón **"💬 WhatsApp"** para avisarle automáticamente. El sistema te alertará si un encargo se retrasa o si el cliente tarda mucho en recogerlo.
+- **💸 Pagos Pendientes:** En esta subpestaña verás qué clientes deben dinero en la tienda, con un botón directo a WhatsApp para reclamarlo a partir de los 14 días.
 
 ---
 
@@ -55,7 +57,8 @@ Puedes hacerlo desde la ficha de la mascota (en Clientes) o desde la pestaña "A
    - *Importante:* Si seleccionas a Marina, el sistema revisará a qué hora trabaja Marina ese día. Si tiene el día libre, te avisará con un mensaje en rojo y no te dejará dar la cita.
 3. El sistema buscará automáticamente los **Tramos Libres** y te los mostrará en verde.
 4. Selecciona la **Hora de Inicio** exacta del menú desplegable y el **Servicio** (ej. Baño y Corte).
-5. Pulsa **"➕ Confirmar Cita"**.
+5. (Opcional) Usa el campo de **Observaciones** para anotar peticiones específicas ("Corte a máquina", "Dejar más largo", etc.).
+6. Pulsa **"➕ Confirmar Cita"**.
 
 **Recordatorios:** Desde el directorio de la agenda, puedes pulsar **"💬 Recordatorio"** para enviar un WhatsApp al cliente confirmando la fecha y hora de su cita.
 ### Ver el Cuadrante:
@@ -81,6 +84,7 @@ Al abrir y cerrar la tienda, hay que llevar el control del dinero en metálico.
 ## 6. 📜 Historial Operativo (Devoluciones y Errores)
 Por la nueva **Ley Antifraude de Hacienda**, está terminantemente prohibido borrar tickets emitidos. Si te equivocas, esto es lo que debes hacer:
 - **Error en la forma de pago:** Si cobraste en efectivo pero era con tarjeta, ve a "Historial Operativo", busca el ticket y cambia el desplegable a "Tarjeta" (Solo puedes hacer esto si aún NO has hecho el Cierre Z de hoy).
+- **Pagar una Deuda Pendiente:** Cuando el cliente venga a pagar lo que debía, busca su ticket aquí y cambia el estado de "Deuda" a "Completado". El sistema le inyectará los puntos en su ficha automáticamente.
 - **Error en los artículos o Devolución:** Si cobraste mal un producto o un cliente lo devuelve, ve a "Historial Operativo", busca el ticket, marca la casilla "👁️ Ver" y pulsa el botón **"↩️ Devolver y Restaurar Stock"**. Esto generará un abono legal y el artículo volverá al inventario de la tienda automáticamente.
 
 ---
