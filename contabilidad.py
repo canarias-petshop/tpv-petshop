@@ -319,27 +319,78 @@ def render_pestana_contabilidad(client):
             df_ventas_unificadas['Fecha_dt'] = pd.to_datetime(df_ventas_unificadas['Fecha'], format='%d/%m/%Y')
             df_ventas_unificadas = df_ventas_unificadas.sort_values(by="Fecha_dt").drop(columns=['Fecha_dt'])
             
-        # --- FUNCIÓN MÁGICA PARA CREAR EXCEL CON FORMATO Y FILA DE TOTALES ---
-        def generar_excel_formateado(df, nombre_hoja="Datos"):
-            # 1. Calculamos y añadimos la fila de TOTALES debajo
-            df_calc = df.copy()
-            fila_totales = {}
-            for col in df_calc.columns:
-                if '€' in col:
-                    fila_totales[col] = df_calc[col].sum()
-                else:
-                    fila_totales[col] = ''
-            fila_totales[df_calc.columns[0]] = 'TOTALES'
-            df_calc = pd.concat([df_calc, pd.DataFrame([fila_totales])], ignore_index=True)
+        # --- PROCESAR COMPRAS Y GASTOS (Separando Facturas de Tickets) ---
+        compras_list = []
+        if res_c_inf.data:
+            for c in res_c_inf.data:
+                cat_contable = "Factura de Proveedor (Mercancía)"
+                concepto = c['tipo']
+                
+                tipo_str = str(c.get('tipo', ''))
+                if "Gastos de compra" in tipo_str: cat_contable = "Gastos de Compra (Limpieza, Consumibles)"
+                elif "Gastos fijos" in tipo_str: cat_contable = "Gastos Fijos y Variables"
+                elif "Personal" in tipo_str: cat_contable = "Personal y Autónomos"
+                elif "Servicios exteriores" in tipo_str: cat_contable = "Servicios Exteriores y Reparaciones"
+                elif "Impuestos y Tasas" in tipo_str: cat_contable = "Impuestos y Tasas"
+                
+                es_factura = False
+                if "factura" in tipo_str.lower() or cat_contable == "Factura de Proveedor (Mercancía)":
+                    es_factura = True
+                
+                if " | " in tipo_str:
+                    concepto = tipo_str.split(" | ")[1]
+
+                base_c = float(c['total'])
+                igic_c = 0.0
+                
+                if c.get('productos') and cat_contable == "Factura de Proveedor (Mercancía)":
+                    try:
+                        df_p = pd.DataFrame(c['productos'])
+                        if not df_p.empty and 'Base Ud' in df_p.columns and 'Cantidad' in df_p.columns:
+                            if 'Desc %' not in df_p.columns: df_p['Desc %'] = 0.0
+                            if 'IGIC %' not in df_p.columns: df_p['IGIC %'] = 0.0
+                            
+                            base_neta_calc = (pd.to_numeric(df_p['Base Ud']) * pd.to_numeric(df_p['Cantidad'])) * (1 - pd.to_numeric(df_p['Desc %'])/100)
+                            igic_eur_calc = base_neta_calc * (pd.to_numeric(df_p['IGIC %'])/100)
+                            
+                            base_b = base_neta_calc.sum()
+                            igic_b = igic_eur_calc.sum()
+                            ratio = float(c['total']) / (base_b + igic_b) if (base_b + igic_b) > 0 else 1
+                            base_c = round(base_b * ratio, 2)
+                            igic_c = round(igic_b * ratio, 2)
+                    except: pass
+                
+                prov_nombre = f"{c['proveedores']['nombre_empresa']} ({c['proveedores'].get('cif','')})" if isinstance(c.get('proveedores'), dict) else "Acreedor / Gasto General"
+                
+                compras_list.append({
+                    "Nº Interno": c['id'], "Fecha": pd.to_datetime(c['created_at']).strftime('%d/%m/%Y'),
+                    "Categoría Contable": cat_contable, "Concepto / Referencia": concepto, "Proveedor / Beneficiario": prov_nombre,
+                    "Base Imponible (€)": base_c, "Cuota IGIC (€)": igic_c, "Importe Total (€)": float(c['total']),
+                    "Estado": c['estado'], "Es_Factura": es_factura
+                })
+
+        df_todas_compras = pd.DataFrame(compras_list)
+        df_facturas_rec = pd.DataFrame()
+        df_tickets_gastos = pd.DataFrame()
+        if not df_todas_compras.empty:
+            df_facturas_rec = df_todas_compras[df_todas_compras['Es_Factura'] == True].drop(columns=['Es_Factura'])
+            df_tickets_gastos = df_todas_compras[df_todas_compras['Es_Factura'] == False].drop(columns=['Es_Factura'])
+
+        # --- EXTRACCIÓN DE GASTOS FIJOS ---
+        res_gf_inf = client.table("gastos_recurrentes").select("concepto, categoria, importe_estimado, dia_cargo, frecuencia").eq("activo", True).execute()
+        df_gf_inf = pd.DataFrame(res_gf_inf.data) if res_gf_inf.data else pd.DataFrame(columns=["concepto", "categoria", "importe_estimado", "dia_cargo", "frecuencia"])
+        if not df_gf_inf.empty:
+            df_gf_inf = df_gf_inf.rename(columns={"concepto": "Concepto", "categoria": "Categoría Contable", "importe_estimado": "Importe Mensual (€)", "dia_cargo": "Día del Mes", "frecuencia": "Frecuencia"})
+
+        # --- FUNCIÓN MÁGICA PARA CREAR EXCEL (CON MÚLTIPLES PESTAÑAS) ---
+        def generar_excel_formateado(df_o_dict, nombre_hoja="Datos"):
+            if isinstance(df_o_dict, pd.DataFrame): dict_dfs = {nombre_hoja: df_o_dict}
+            else: dict_dfs = df_o_dict
 
             output = io.BytesIO()
             writer = pd.ExcelWriter(output, engine='xlsxwriter')
-            df_calc.to_excel(writer, index=False, sheet_name=nombre_hoja)
-            
             workbook = writer.book
-            worksheet = writer.sheets[nombre_hoja]
             
-            # 2. Formatos profesionales (Cabecera, Celdas Normales, Moneda y Totals)
             formato_cabecera = workbook.add_format({
                 'bg_color': '#005275', 'font_color': 'white', 'bold': True,
                 'border': 1, 'text_wrap': True, 'align': 'center', 'valign': 'vcenter'
@@ -349,113 +400,77 @@ def render_pestana_contabilidad(client):
             formato_total = workbook.add_format({'bg_color': '#e8f4f8', 'bold': True, 'border': 1, 'valign': 'vcenter'})
             formato_total_moneda = workbook.add_format({'bg_color': '#e8f4f8', 'bold': True, 'border': 1, 'valign': 'vcenter', 'num_format': '#,##0.00 €'})
             
-            # Aplicar bordes a las celdas y auto-ajustar el ancho de las columnas
-            for col_num, value in enumerate(df_calc.columns.values):
-                worksheet.write(0, col_num, value, formato_cabecera)
-                
-                # Ancho automático inteligente
-                max_len = max([len(str(value))] + [len(str(x)) for x in df_calc[value].astype(str)]) + 2
-                worksheet.set_column(col_num, col_num, max_len)
-                
-                is_currency = ('€' in value)
-                
-                # Pintar las celdas hacia abajo
-                for row_num in range(1, len(df_calc) + 1):
-                    es_ultima_fila = (row_num == len(df_calc))
-                    celda_val = df_calc.iloc[row_num - 1, col_num]
+            for sheet_name, df_calc in dict_dfs.items():
+                if df_calc.empty:
+                    df_calc.to_excel(writer, index=False, sheet_name=sheet_name)
+                    continue
                     
-                    fmt = formato_celda
-                    if is_currency: fmt = formato_moneda
-                    if es_ultima_fila:
-                        fmt = formato_total_moneda if is_currency else formato_total
-                        
-                    if pd.isna(celda_val) or celda_val == '':
-                        worksheet.write_string(row_num, col_num, "", fmt)
-                    elif isinstance(celda_val, (int, float)):
-                        worksheet.write_number(row_num, col_num, celda_val, fmt)
-                    else:
-                        worksheet.write_string(row_num, col_num, str(celda_val), fmt)
+                df_c = df_calc.copy()
+                fila_totales = {}
+                for col in df_c.columns:
+                    if '€' in col: fila_totales[col] = df_c[col].sum()
+                    else: fila_totales[col] = ''
+                fila_totales[df_c.columns[0]] = 'TOTALES'
+                df_final = pd.concat([df_c, pd.DataFrame([fila_totales])], ignore_index=True)
+
+                df_final.to_excel(writer, index=False, sheet_name=sheet_name)
+                worksheet = writer.sheets[sheet_name]
                 
+                for col_num, value in enumerate(df_final.columns.values):
+                    worksheet.write(0, col_num, value, formato_cabecera)
+                    max_len = max([len(str(value))] + [len(str(x)) for x in df_final[value].astype(str)]) + 2
+                    worksheet.set_column(col_num, col_num, max_len)
+                    
+                    is_currency = ('€' in value)
+                    for row_num in range(1, len(df_final) + 1):
+                        es_ultima_fila = (row_num == len(df_final))
+                        celda_val = df_final.iloc[row_num - 1, col_num]
+                        fmt = formato_celda
+                        if is_currency: fmt = formato_moneda
+                        if es_ultima_fila: fmt = formato_total_moneda if is_currency else formato_total
+                            
+                        if pd.isna(celda_val) or celda_val == '': worksheet.write_string(row_num, col_num, "", fmt)
+                        elif isinstance(celda_val, (int, float)): worksheet.write_number(row_num, col_num, celda_val, fmt)
+                        else: worksheet.write_string(row_num, col_num, str(celda_val), fmt)
+                        
             writer.close()
             return output.getvalue()
 
-        c_down1, c_down2, c_down3 = st.columns(3)
+        c_down1, c_down2, c_down3, c_down4 = st.columns(4)
         
         with c_down1:
-            st.info("💶 INFORME GLOBAL DE VENTAS (TICKETS + FACTURAS)")
+            st.info("💶 VENTAS TOTALES")
             if not df_ventas_unificadas.empty:
                 excel_unificado = generar_excel_formateado(df_ventas_unificadas, "Ventas Totales")
-                st.download_button("📥 Descargar Ventas Totales", excel_unificado, f"Ventas_Totales_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                st.markdown(f"*Total Ventas: {df_ventas_unificadas['Importe Total (€)'].sum():.2f}€*")
-            else:
-                st.write("Sin ventas en este periodo.")
+                st.download_button("📥 Descargar Ventas", excel_unificado, f"Ventas_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.markdown(f"<p style='font-size:12px;'>*Total: {df_ventas_unificadas['Importe Total (€)'].sum():.2f}€*</p>", unsafe_allow_html=True)
+            else: st.write("Sin ventas.")
 
         with c_down2:
-            st.success("📑 SOLO FACTURAS (Para IGIC)")
+            st.success("📑 FACTURAS (IGIC)")
+            df_asesor_f = pd.DataFrame()
             if not df_ventas_unificadas.empty:
                 df_solo_facturas = df_ventas_unificadas[df_ventas_unificadas['Tipo Documento'] == 'Factura Emitida'].copy()
-                df_asesor_f = df_solo_facturas[['Nº Documento', 'Fecha', 'Cliente', 'Base Imponible (€)', 'Cuota IGIC (€)', 'Importe Total (€)', 'Método de Pago']]
-                excel_f = generar_excel_formateado(df_asesor_f, "Facturas Emitidas")
-                st.download_button("📥 Descargar Solo Facturas", excel_f, f"Solo_Facturas_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            else:
-                st.write("Sin facturas emitidas.")
+                if not df_solo_facturas.empty: df_asesor_f = df_solo_facturas[['Nº Documento', 'Fecha', 'Cliente', 'Base Imponible (€)', 'Cuota IGIC (€)', 'Importe Total (€)', 'Método de Pago']]
+            
+            if not df_asesor_f.empty or not df_facturas_rec.empty:
+                dict_facturas = {}
+                if not df_asesor_f.empty: dict_facturas["Emitidas"] = df_asesor_f
+                if not df_facturas_rec.empty: dict_facturas["Recibidas"] = df_facturas_rec
+                excel_f = generar_excel_formateado(dict_facturas)
+                st.download_button("📥 Descargar Facturas", excel_f, f"Facturas_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            else: st.write("Sin facturas.")
 
         with c_down3:
-            st.warning("🚚 COMPRAS Y GASTOS (Tickets y Proveedores)")
-            if res_c_inf.data:
-                compras_list = []
-                for c in res_c_inf.data:
-                    cat_contable = "Factura de Proveedor (Mercancía)"
-                    concepto = c['tipo']
-                    
-                    # Separar si es un gasto manual o una nómina
-                    tipo_str = str(c.get('tipo', ''))
-                    if "Gastos de compra" in tipo_str: cat_contable = "Gastos de Compra (Limpieza, Consumibles)"
-                    elif "Gastos fijos" in tipo_str: cat_contable = "Gastos Fijos y Variables"
-                    elif "Personal" in tipo_str: cat_contable = "Personal y Autónomos"
-                    elif "Servicios exteriores" in tipo_str: cat_contable = "Servicios Exteriores y Reparaciones"
-                    elif "Impuestos y Tasas" in tipo_str: cat_contable = "Impuestos y Tasas"
-                    
-                    if " | " in tipo_str:
-                        concepto = tipo_str.split(" | ")[1]
+            st.warning("🎫 TICKETS / GASTOS")
+            if not df_tickets_gastos.empty:
+                excel_c = generar_excel_formateado(df_tickets_gastos, "Tickets y Gastos")
+                st.download_button("📥 Descargar Tickets", excel_c, f"Tickets_Gastos_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            else: st.write("Sin tickets o gastos.")
 
-                    base_c = float(c['total'])
-                    igic_c = 0.0
-                    
-                    # Si es una factura de proveedor con artículos registrados, escaneamos su Base e IGIC reales
-                    if c.get('productos') and cat_contable == "Factura de Proveedor (Mercancía)":
-                        try:
-                            df_p = pd.DataFrame(c['productos'])
-                            if not df_p.empty and 'Base Ud' in df_p.columns and 'Cantidad' in df_p.columns:
-                                if 'Desc %' not in df_p.columns: df_p['Desc %'] = 0.0
-                                if 'IGIC %' not in df_p.columns: df_p['IGIC %'] = 0.0
-                                
-                                base_neta_calc = (pd.to_numeric(df_p['Base Ud']) * pd.to_numeric(df_p['Cantidad'])) * (1 - pd.to_numeric(df_p['Desc %'])/100)
-                                igic_eur_calc = base_neta_calc * (pd.to_numeric(df_p['IGIC %'])/100)
-                                
-                                base_b = base_neta_calc.sum()
-                                igic_b = igic_eur_calc.sum()
-                                ratio = float(c['total']) / (base_b + igic_b) if (base_b + igic_b) > 0 else 1
-                                base_c = round(base_b * ratio, 2)
-                                igic_c = round(igic_b * ratio, 2)
-                        except: pass
-                    
-                    prov_nombre = f"{c['proveedores']['nombre_empresa']} ({c['proveedores'].get('cif','')})" if isinstance(c.get('proveedores'), dict) else "Acreedor / Gasto General"
-                    
-                    compras_list.append({
-                        "Nº Interno": c['id'],
-                        "Fecha": pd.to_datetime(c['created_at']).strftime('%d/%m/%Y'),
-                        "Categoría Contable": cat_contable,
-                        "Concepto / Referencia": concepto,
-                        "Proveedor / Beneficiario": prov_nombre,
-                        "Base Imponible (€)": base_c,
-                        "Cuota IGIC (€)": igic_c,
-                        "Importe Total (€)": float(c['total']),
-                        "Estado": c['estado']
-                    })
-                
-                df_asesor_c = pd.DataFrame(compras_list)
-                excel_c = generar_excel_formateado(df_asesor_c, "Gastos y Compras")
-                st.download_button("📥 Descargar Compras/Gastos", excel_c, f"Gastos_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            else:
-                st.write("Sin compras o gastos en estas fechas.")
+        with c_down4:
+            st.error("🏢 GASTOS FIJOS")
+            if not df_gf_inf.empty:
+                excel_gf = generar_excel_formateado(df_gf_inf, "Gastos Fijos")
+                st.download_button("📥 Descargar G. Fijos", excel_gf, f"Gastos_Fijos_Actuales.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            else: st.write("Sin gastos fijos.")
