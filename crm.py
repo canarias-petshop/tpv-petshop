@@ -335,7 +335,7 @@ def render_pestana_crm(client):
                         }).execute()
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
-        sub_cli, sub_masc, sub_alertas, sub_encargos = st.tabs(["👤 Directorio de Clientes", "🐾 Fichas de Mascotas", " Centro WhatsApp", "🛍️ Encargos de Clientes"])
+        sub_cli, sub_masc, sub_alertas, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", " Centro WhatsApp", "🛍️ Encargos", "💸 Pagos Pendientes"])
         
         with sub_cli:
             res_clientes = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).execute()
@@ -789,3 +789,50 @@ def render_pestana_crm(client):
                             st.rerun()
                     else: st.info("No hay encargos activos.")
                 except Exception as e: st.warning(f"Error al cargar encargos: {e}")
+                
+        with sub_deudas:
+            st.markdown("#### 💸 Clientes con Pagos Pendientes (Deudas de Tienda)")
+            st.info("Aquí se agrupan automáticamente los clientes que dejaron a deber alguna compra en el TPV.")
+            try:
+                res_deudas = client.table("ventas_historial").select("id, created_at, cliente_deuda, pendiente, total").eq("estado", "Deuda").execute()
+                if res_deudas.data:
+                    df_deudas = pd.DataFrame(res_deudas.data)
+                    df_deudas['Fecha'] = pd.to_datetime(df_deudas['created_at'])
+                    
+                    resumen_deudas = []
+                    res_cli_d = client.table("clientes").select("nombre_dueno, telefono").execute()
+                    mapa_telefonos = {c['nombre_dueno']: c['telefono'] for c in res_cli_d.data} if res_cli_d.data else {}
+                    
+                    for cliente, group in df_deudas.groupby("cliente_deuda"):
+                        if not cliente or str(cliente).strip() == "" or str(cliente) == "nan": continue
+                        total_debe = group['pendiente'].sum()
+                        fecha_antigua = group['Fecha'].min()
+                        dias_retraso = (pd.Timestamp('today').tz_localize(fecha_antigua.tz) - fecha_antigua).days
+                        
+                        tel = mapa_telefonos.get(cliente, '')
+                        tel_limpio = ''.join(filter(str.isdigit, str(tel)))
+                        url_wa = None
+                        if tel_limpio:
+                            if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
+                            msg = f"¡Hola {cliente}! 👋 Nos ponemos en contacto desde Animalarium para recordarte que tienes un saldo pendiente en la tienda de {total_debe:.2f}€. Cuando te venga bien, puedes pasarte a saldarlo. ¡Muchas gracias y un saludo! 🐾"
+                            url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg)}"
+                        
+                        alerta = "🔴 Avisar (Más de 15 días)" if dias_retraso >= 15 else "🟡 Reciente"
+                        
+                        resumen_deudas.append({
+                            "Cliente": cliente, "Deuda Acumulada (€)": total_debe, 
+                            "Días de retraso": dias_retraso, "Estado": alerta, "WhatsApp": url_wa
+                        })
+                        
+                    if resumen_deudas:
+                        df_resumen = pd.DataFrame(resumen_deudas).sort_values("Días de retraso", ascending=False)
+                        st.dataframe(
+                            df_resumen, use_container_width=True, hide_index=True,
+                            column_config={"Deuda Acumulada (€)": st.column_config.NumberColumn("Deuda (€)", format="%.2f"), "WhatsApp": st.column_config.LinkColumn("📱 Recordatorio", display_text="💬 Enviar WhatsApp")}
+                        )
+                    else:
+                        st.success("No hay deudas registradas asociadas a clientes.")
+                else:
+                    st.success("¡Genial! Ningún cliente tiene pagos pendientes en el TPV.")
+            except Exception as e:
+                st.error(f"Error al cargar módulo de deudas: {e}")

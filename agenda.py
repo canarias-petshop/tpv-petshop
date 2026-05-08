@@ -15,7 +15,7 @@ def render_pestana_agenda(client):
             dueno = m['clientes']['nombre_dueno'] if m.get('clientes') else "Desconocido"
             dict_mascotas[f"🐾 {m['nombre']} (De: {dueno})"] = m['id']
             
-    res_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
+    res_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
     
     # --- DATOS COMUNES ---
     try:
@@ -192,6 +192,7 @@ def render_pestana_agenda(client):
                                 motivo_extra = st.text_input("Especificar otro motivo: *")
                 
                 servicio_sel = st.selectbox("Servicio *", servicios_lista)
+                f_obs = st.text_input("📝 Observaciones / Petición (Opcional)")
                 
                 if st.button("Guardar Cita", type="primary", use_container_width=True):
                     m_id_final = None
@@ -236,7 +237,8 @@ def render_pestana_agenda(client):
                             
                             client.table("citas").insert({
                                 "mascotas_id": m_id_final, "fecha_hora": fecha_hora_str,
-                                "servicio": servicio_final, "duracion_minutos": int(duracion_c)
+                                "servicio": servicio_final, "duracion_minutos": int(duracion_c),
+                                "observaciones": str(f_obs)
                             }).execute()
                             st.success("Cita agendada."); time.sleep(1); st.rerun()
 
@@ -274,15 +276,16 @@ def render_pestana_agenda(client):
                         "Mascota": mascota_info.get('nombre', 'N/A'),
                         "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
                         "Teléfono": cliente_info.get('telefono', 'N/A'),
+                        "Observaciones": c.get('observaciones', ''),
                         "WhatsApp": url_wa
                     })
                     
                 df_citas = pd.DataFrame(citas_formateadas)
                 
                 ed_citas = st.data_editor(
-                    df_citas[['id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Mascota', 'Dueño', 'Teléfono', 'WhatsApp']],
+                    df_citas[['id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Observaciones', 'Mascota', 'Dueño', 'Teléfono', 'WhatsApp']],
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
-                    column_order=["Día", "Hora", "Estado", "Peluquero/a", "Mascota", "Servicio", "Duración (min)", "Dueño", "Teléfono", "WhatsApp"],
+                    column_order=["Día", "Hora", "Estado", "Peluquero/a", "Mascota", "Servicio", "Observaciones", "Duración (min)", "Dueño", "Teléfono", "WhatsApp"],
                     column_config={
                         "id": None,
                         "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)", width="small"),
@@ -292,6 +295,7 @@ def render_pestana_agenda(client):
                         "Mascota": st.column_config.TextColumn(disabled=True),
                         "Dueño": st.column_config.TextColumn(disabled=True),
                         "Teléfono": st.column_config.TextColumn(disabled=True),
+                        "Observaciones": st.column_config.TextColumn("Anotación"),
                         "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 Recordatorio")
                     }
                 )
@@ -324,7 +328,8 @@ def render_pestana_agenda(client):
                             client.table("citas").update({
                                 "fecha_hora": dt_str,
                                 "duracion_minutos": int(row['Duración (min)']),
-                                "servicio": srv_final
+                                "servicio": srv_final,
+                                "observaciones": str(row.get('Observaciones', ''))
                             }).eq("id", row['id']).execute()
                     st.success("Agenda actualizada."); time.sleep(0.8); st.rerun()
             else:

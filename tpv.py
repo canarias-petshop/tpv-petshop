@@ -198,6 +198,9 @@ def render_pestana_tpv(client):
                 html_ticket += f"<div style='text-align: right; font-size: 22px;'>Subtotal: {subtotal_sin_desc:.2f}€</div>"
                 html_ticket += f"<div style='text-align: right; font-size: 22px;'><b>Dto. Global ({desc_global}%): -{descuento_eur:.2f}€</b></div>"
 
+            if t.get('pendiente', 0) > 0:
+                html_ticket += f"<div style='text-align: right; font-size: 24px; color: black; margin-top: 5px; border: 2px solid black; padding: 3px;'><b>DEUDA PENDIENTE: {t['pendiente']:.2f}€</b></div>"
+
             html_ticket += f"""
                     <div style="text-align: right; font-size: 28px;"><b>TOTAL: {t['total']:.2f}€</b></div>
                     <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {metodo_display}</div>
@@ -232,6 +235,16 @@ def render_pestana_tpv(client):
             iframe.src = starURL;
             document.body.appendChild(iframe);
             }}
+            
+            // Auto-retorno a Nueva Venta pasados 30 segundos
+            setTimeout(function() {{
+                const btns = window.parent.document.querySelectorAll('button');
+                btns.forEach(btn => {{
+                    if(btn.innerText.includes('Nueva Venta')) {{
+                        btn.click();
+                    }}
+                }});
+            }}, 30000);
             </script>
             
             </body>
@@ -274,8 +287,8 @@ def render_pestana_tpv(client):
                 sub_antes = edited_df["Subtotal"].sum()
                 
                 # --- FIDELIZACIÓN ---
-                res_cli_puntos = client.table("clientes").select("id, nombre_dueno, puntos").execute()
-                opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} (Puntos: {c.get('puntos') or 0})" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
+                res_cli_puntos = client.table("clientes").select("id, nombre_dueno, puntos, telefono").execute()
+                opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} - {c.get('telefono', '')} (Puntos: {c.get('puntos') or 0})" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
                 
                 c_desc, c_fid = st.columns(2)
                 with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=None, step=1)
@@ -288,7 +301,7 @@ def render_pestana_tpv(client):
                 desc_puntos_eur = 0.0
                 puntos_a_descontar = 0
                 if "Ninguno" not in cliente_fidelidad:
-                    pts_str = cliente_fidelidad.split("(Puntos: ")[1].replace(")", "")
+                    pts_str = cliente_fidelidad.split("(Puntos: ")[1].split(")")[0]
                     puntos_disp = int(pts_str) if pts_str.isdigit() else 0
                     if puntos_disp > 0:
                         max_descuento_eur = total_f * 0.50
@@ -378,14 +391,10 @@ def render_pestana_tpv(client):
                         metodo_log = metodo
                     if metodo == "Bizum": p_bizum = total_f
 
-                nombre_deudor = ""
-                if pendiente > 0:
-                    nombre_deudor = st.text_input("👤 Nombre para la deuda:", placeholder="¿Quién debe?")
-
                 st.markdown("<div style='height: 2px;'></div>", unsafe_allow_html=True)
                 c_cob, c_vac = st.columns([2, 1])
                 with c_cob:
-                    bloqueo = (pendiente > 0 and not nombre_deudor)
+                    bloqueo = (pendiente > 0 and "Ninguno" in cliente_fidelidad)
                     if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
                         carrito_limpio = json.loads(edited_df.to_json(orient='records'))
                         
@@ -395,7 +404,7 @@ def render_pestana_tpv(client):
                             puntos_ganados = 0
                             nuevo_saldo = 0
                             if "Ninguno" not in cliente_fidelidad:
-                                cliente_fidel_nombre = cliente_fidelidad.split(" (Puntos:")[0]
+                                cliente_fidel_nombre = cliente_fidelidad.split(" - ")[0].strip()
                                 cliente_info = next(c for c in res_cli_puntos.data if c['nombre_dueno'] == cliente_fidel_nombre)
                                 puntos_ganados = int(total_f // 10) # 1 punto por cada 10€
                                 nuevo_saldo = cliente_info.get('puntos', 0) - puntos_a_descontar + puntos_ganados
@@ -410,7 +419,7 @@ def render_pestana_tpv(client):
                             # INSERCIÓN CON COLUMNAS EXACTAS CONTABLES
                             client.table("ventas_historial").insert({
                                 "total": float(total_f), "pagado": float(pagado_hoy), "pendiente": float(pendiente),
-                                "metodo_pago": str(metodo_log), "cliente_deuda": str(nombre_deudor),
+                                "metodo_pago": str(metodo_log), "cliente_deuda": str(cliente_fidel_nombre) if pendiente > 0 else "",
                                 "descuento_global": float(desc_g_val), "productos": carrito_limpio, 
                                 "estado": "Completado" if pendiente == 0 else "Deuda",
                                 "pago_efectivo": float(p_efectivo),
@@ -438,7 +447,7 @@ def render_pestana_tpv(client):
                                 "productos": carrito_limpio, "total": total_f, "metodo": metodo_log,
                                 "cliente_fidel": cliente_fidel_nombre, "puntos_ganados": puntos_ganados,
                                 "puntos_descontados": puntos_a_descontar, "nuevo_saldo": nuevo_saldo,
-                                "descuento_global": desc_g_val
+                                "descuento_global": desc_g_val, "pendiente": pendiente
                             }
                             st.session_state.carrito = []
                             st.session_state.llave_busqueda_tpv += 1

@@ -84,6 +84,10 @@ components.html("""
             input.setAttribute('autocorrect', 'off');
             input.setAttribute('autocapitalize', 'off');
             input.setAttribute('spellcheck', 'false');
+            if (!input.hasAttribute('data-autoselect')) {
+                input.addEventListener('focus', function() { this.select(); });
+                input.setAttribute('data-autoselect', 'true');
+            }
         });
     }
     const observer = new MutationObserver(disableAuto);
