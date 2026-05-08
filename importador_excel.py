@@ -7,7 +7,7 @@ import glob
 # ==========================================
 # --- 1. CONFIGURACIÓN DE LA CARPETA ---
 # ==========================================
-CARPETA_EXCEL = "fichas importadas sueltas"
+CARPETA_EXCEL = "fichas_a_importar"
 
 # ==========================================
 # --- 2. CONECTAR A SUPABASE ---
