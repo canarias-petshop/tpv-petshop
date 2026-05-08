@@ -288,7 +288,7 @@ def render_pestana_tpv(client):
                 
                 # --- FIDELIZACIÓN ---
                 res_cli_puntos = client.table("clientes").select("id, nombre_dueno, puntos, telefono").execute()
-                opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} - {c.get('telefono', '')} (Puntos: {c.get('puntos') or 0})" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
+                opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} ({c.get('telefono', '')}) - Puntos: {c.get('puntos') or 0}" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
                 
                 c_desc, c_fid = st.columns(2)
                 with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=None, step=1)
@@ -301,7 +301,7 @@ def render_pestana_tpv(client):
                 desc_puntos_eur = 0.0
                 puntos_a_descontar = 0
                 if "Ninguno" not in cliente_fidelidad:
-                    pts_str = cliente_fidelidad.split("(Puntos: ")[1].split(")")[0]
+                    pts_str = cliente_fidelidad.split("- Puntos: ")[1].strip()
                     puntos_disp = int(pts_str) if pts_str.isdigit() else 0
                     if puntos_disp > 0:
                         max_descuento_eur = total_f * 0.50
@@ -404,9 +404,15 @@ def render_pestana_tpv(client):
                             puntos_ganados = 0
                             nuevo_saldo = 0
                             if "Ninguno" not in cliente_fidelidad:
-                                cliente_fidel_nombre = cliente_fidelidad.split(" - ")[0].strip()
+                                base_str = cliente_fidelidad.rsplit(") - Puntos:")[0]
+                                cliente_fidel_nombre = base_str.rsplit(" (", 1)[0].strip()
                                 cliente_info = next(c for c in res_cli_puntos.data if c['nombre_dueno'] == cliente_fidel_nombre)
-                                puntos_ganados = int(total_f // 10) # 1 punto por cada 10€
+                                
+                                if pendiente == 0:
+                                    puntos_ganados = int(total_f // 10) # 1 punto por cada 10€
+                                else:
+                                    puntos_ganados = 0 # ❌ No sumar puntos en el ticket si queda deuda
+                                    
                                 nuevo_saldo = cliente_info.get('puntos', 0) - puntos_a_descontar + puntos_ganados
                                 client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cliente_info['id']).execute()
                                 

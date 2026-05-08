@@ -95,13 +95,30 @@ def render_pestana_historial(client):
                 if not diferencias.empty:
                     for idx in diferencias.index.tolist():
                         tk_id = int(edited_df.loc[idx, 'id'])
+                        estado_nuevo = str(edited_df.loc[idx, 'estado'])
+                        estado_antiguo = str(df_original.loc[idx, 'estado'])
+                        cliente_str = str(edited_df.loc[idx, 'cliente_deuda'])
+
                         if df_v[df_v['id'] == tk_id].iloc[0]['Es_Cerrado']:
                             st.toast(f"🚫 Modificación del Ticket #{tk_id} ignorada (Cierre Z).")
                             continue
+                            
+                        # Si se cambia el estado a Completado (Se saldó la deuda), otorgar puntos
+                        if estado_antiguo == "Deuda" and estado_nuevo == "Completado" and cliente_str and cliente_str != 'nan':
+                            tot_tk = float(df_v[df_v['id'] == tk_id].iloc[0]['total'])
+                            pts_ganar = int(tot_tk // 10)
+                            if pts_ganar > 0:
+                                res_c = client.table("clientes").select("id, puntos").eq("nombre_dueno", cliente_str).execute()
+                                if res_c.data:
+                                    c_id = res_c.data[0]['id']
+                                    c_pts = res_c.data[0].get('puntos', 0)
+                                    client.table("clientes").update({"puntos": c_pts + pts_ganar}).eq("id", c_id).execute()
+                                    client.table("ventas_historial").update({"puntos_ganados": pts_ganar}).eq("id", tk_id).execute()
+
                         client.table("ventas_historial").update({
                             "metodo_pago": str(edited_df.loc[idx, 'metodo_pago']),
-                            "estado": str(edited_df.loc[idx, 'estado']),
-                            "cliente_deuda": str(edited_df.loc[idx, 'cliente_deuda']) if str(edited_df.loc[idx, 'cliente_deuda']) != 'nan' else ""
+                            "estado": estado_nuevo,
+                            "cliente_deuda": cliente_str if cliente_str != 'nan' else ""
                         }).eq("id", tk_id).execute()
                     st.success("Tickets actualizados."); time.sleep(0.8); st.rerun()
 

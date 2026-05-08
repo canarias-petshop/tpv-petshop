@@ -80,7 +80,10 @@ components.html("""
     function disableAuto() {
         const inputs = doc.querySelectorAll('input');
         inputs.forEach(input => {
-            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('autocomplete', 'new-password');
+            input.setAttribute('data-lpignore', 'true');
+            input.setAttribute('data-form-type', 'other');
+            input.setAttribute('data-1p-ignore', 'true');
             input.setAttribute('autocorrect', 'off');
             input.setAttribute('autocapitalize', 'off');
             input.setAttribute('spellcheck', 'false');
