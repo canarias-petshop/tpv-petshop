@@ -486,7 +486,10 @@ def render_pestana_facturacion(client):
                             c_id = row['id']
                             c_data = df_comp[df_comp['id'] == c_id].iloc[0]
                             # Restar stock (corrección)
-                            for p in c_data.get('productos', []):
+                            prods_raw = c_data.get('productos', [])
+                            if not isinstance(prods_raw, list):
+                                prods_raw = []
+                            for p in prods_raw:
                                 res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
                                 if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p['id']).execute()
                             # Eliminar registro
