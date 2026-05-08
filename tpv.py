@@ -117,6 +117,7 @@ def render_pestana_tpv(client):
             if t.get('cliente_fidel'):
                 cuerpo_email += f"\n🌟 Puntos ganados hoy: +{t['puntos_ganados']}"
                 cuerpo_email += f"\n🌟 Saldo actual: {t.get('nuevo_saldo', 0)} puntos\n"
+                cuerpo_email += "INFO VIP: Ganas 1 pto por cada 10€ de compra. Cada punto equivale a 0.50€ de descuento.\n"
                 
             cuerpo_email += "\nPOLÍTICA DE DEVOLUCIÓN:\nPlazo de 14 días con ticket y embalaje original en perfecto estado.\n\nUn saludo."
             import urllib.parse
@@ -208,7 +209,8 @@ def render_pestana_tpv(client):
             if t.get('cliente_fidel'):
                 html_ticket += f"<div style='font-size:18px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {t['cliente_fidel']}</b>"
                 html_ticket += f"<br>Has ganado +{t['puntos_ganados']} puntos hoy!"
-                html_ticket += f"<br>Saldo actual: {t.get('nuevo_saldo', 0)} puntos</div>"
+                html_ticket += f"<br>Saldo actual disponible: {t.get('nuevo_saldo', 0)} puntos"
+                html_ticket += f"<br><span style='font-size:14px; color:#555;'>Ganas 1 pto por cada 10€ de compra. (1 pto = 0.50€ dto)</span></div>"
 
             html_ticket += """
                     

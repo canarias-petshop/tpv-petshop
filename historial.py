@@ -214,6 +214,16 @@ def render_pestana_historial(client):
                             
                         cuerpo_email += f"\nTOTAL PAGADO: {total_final_calculado:.2f}€\n"
                         cuerpo_email += f"MÉTODO DE PAGO: {metodo_reprint}\n"
+                        
+                        cliente_vip_reprint = str(t_info.get('cliente_vip_nombre', ''))
+                        if cliente_vip_reprint and cliente_vip_reprint != 'nan' and cliente_vip_reprint != 'None':
+                            saldo_actual_re = 0
+                            res_cli_re = client.table("clientes").select("puntos").eq("nombre_dueno", cliente_vip_reprint).execute()
+                            if res_cli_re.data: saldo_actual_re = res_cli_re.data[0].get('puntos', 0)
+                            cuerpo_email += f"\n🌟 Puntos ganados en este ticket: +{t_info.get('puntos_ganados', 0)}"
+                            cuerpo_email += f"\n🌟 Saldo actual disponible: {saldo_actual_re} puntos\n"
+                            cuerpo_email += "INFO VIP: Ganas 1 pto por cada 10€ de compra. Cada punto equivale a 0.50€ de descuento.\n"
+                            
                         cuerpo_email += "\nUn saludo,\nAnimalarium."
                         
                         import urllib.parse
@@ -275,6 +285,13 @@ def render_pestana_historial(client):
                         html_reprint += f"""
                                 <div style="text-align: right; font-size: 28px;"><b>TOTAL: {total_final_calculado:.2f}€</b></div>
                                 <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {metodo_reprint}</div>
+                        """
+                        if cliente_vip_reprint and cliente_vip_reprint != 'nan' and cliente_vip_reprint != 'None':
+                            html_reprint += f"<div style='font-size:18px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {cliente_vip_reprint}</b>"
+                            html_reprint += f"<br>Puntos ganados en este ticket: +{t_info.get('puntos_ganados', 0)}"
+                            html_reprint += f"<br>Saldo actual disponible: {saldo_actual_re} puntos"
+                            html_reprint += f"<br><span style='font-size:14px; color:#555;'>Ganas 1 pto por cada 10€ de compra. (1 pto = 0.50€ dto)</span></div>"
+                        html_reprint += f"""
                                 <div style="font-size: 18px; color: #000; margin-top: 30px; text-align: center;"><b>POLÍTICA DE DEVOLUCIÓN</b><br>Plazo de 14 días con ticket y<br>embalaje original en perfecto estado.</div>
                             </div>
                         </div>
