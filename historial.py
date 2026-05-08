@@ -63,9 +63,23 @@ def render_pestana_historial(client):
             
             st.markdown("💡 *Marca **'👁️ Ver'** para abrir el desglose. La eliminación de tickets está bloqueada por Ley Antifraude.*")
             
-            opciones_pago_hist = ["Efectivo", "Tarjeta", "Bizum", "Mixto"]
+            # Extraer bancos para el historial
+            try:
+                res_b_radio = client.table("cuentas_bancarias").select("nombre_banco").execute()
+                if res_b_radio.data:
+                    bancos_nombres = [f"Tarjeta ({b['nombre_banco']})" for b in res_b_radio.data]
+                    opciones_pago_hist = ["Efectivo"] + bancos_nombres + ["Bizum", "Mixto"]
+                    tiene_bancos = True
+                else: 
+                    opciones_pago_hist = ["Efectivo", "Tarjeta", "Bizum", "Mixto"]
+                    tiene_bancos = False
+            except: 
+                opciones_pago_hist = ["Efectivo", "Tarjeta", "Bizum", "Mixto"]
+                tiene_bancos = False
+            
             if 'metodo_pago' in df_vista.columns:
-                extras = [m for m in df_vista['metodo_pago'].dropna().unique() if m not in opciones_pago_hist]
+                # Si tenemos bancos específicos, prohibimos explícitamente que la "Tarjeta" genérica vuelva a aparecer
+                extras = [m for m in df_vista['metodo_pago'].dropna().unique() if m not in opciones_pago_hist and (not tiene_bancos or m != "Tarjeta")]
                 opciones_pago_hist.extend(extras)
 
             # 2. TABLA EDITABLE CON CASILLA
