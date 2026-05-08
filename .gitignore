@@ -2,3 +2,7 @@
 .venv/
 __pycache__/
 .streamlit/secrets.toml
+
+# Ignorar fichas de clientes y Excels por privacidad
+fichas importadas sueltas/
+*.xlsx
