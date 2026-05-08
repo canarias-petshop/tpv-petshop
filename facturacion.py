@@ -453,7 +453,7 @@ def render_pestana_facturacion(client):
                 )
                 
                 df_filtrado = df_comp.copy()
-                if "Facturas de Proveedores" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.startswith('Factura:', na=False)]
+                if "Facturas de Proveedores" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Factura', case=False, na=False)]
                 elif "Gastos de Tienda" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Gastos de compra', na=False)]
                 elif "Gastos Fijos" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Gastos fijos', na=False)]
                 elif "Personal y Nóminas" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Personal', na=False)]
