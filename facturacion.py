@@ -454,11 +454,11 @@ def render_pestana_facturacion(client):
                 
                 df_filtrado = df_comp.copy()
                 if "Facturas de Proveedores" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Factura', case=False, na=False)]
-                elif "Gastos de Tienda" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Gastos de compra', na=False)]
-                elif "Gastos Fijos" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Gastos fijos', na=False)]
-                elif "Personal y Nóminas" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Personal', na=False)]
-                elif "Servicios Exteriores" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Servicios exteriores', na=False)]
-                elif "Impuestos y Tasas" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Impuestos y Tasas', na=False)]
+                elif "Gastos de Tienda" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Gastos de compra', case=False, na=False)]
+                elif "Gastos Fijos" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Gastos fijos', case=False, na=False)]
+                elif "Personal y Nóminas" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Personal', case=False, na=False)]
+                elif "Servicios Exteriores" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('exterior', case=False, na=False)]
+                elif "Impuestos y Tasas" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Impuestos', case=False, na=False)]
                 
                 if df_filtrado.empty:
                     st.info("No hay registros en esta categoría para las fechas seleccionadas.")
