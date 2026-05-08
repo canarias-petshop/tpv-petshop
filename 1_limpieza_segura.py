@@ -13,30 +13,36 @@ def init_supabase():
 
 client = init_supabase()
 
-print("🛡️ Iniciando Limpieza Segura (Protegiendo Citas)...")
+print("🛡️ Iniciando Limpieza Segura (Basada en Clientes)...")
 
 # 1. Identificar a los perros intocables (Los que tienen citas)
 res_citas = client.table("citas").select("mascotas_id").execute()
 mascotas_protegidas = set([c['mascotas_id'] for c in res_citas.data if c.get('mascotas_id')])
 
-# 2. Buscar basura importada HOY
+# 2. Buscar CLIENTES importados HOY (La tabla clientes sí tiene created_at)
 hace_24h = (datetime.utcnow() - timedelta(hours=24)).isoformat()
-res_m = client.table("mascotas").select("id, cliente_id, nombre").gte("created_at", hace_24h).execute()
+res_c = client.table("clientes").select("id").gte("created_at", hace_24h).execute()
 
 borradas_m = 0
-clientes_a_revisar = set()
-
-if res_m.data:
-    for m in res_m.data:
-        if m['id'] not in mascotas_protegidas:
-            client.table("mascotas").delete().eq("id", m['id']).execute()
-            clientes_a_revisar.add(m['cliente_id'])
-            borradas_m += 1
-
 borrados_c = 0
-for c_id in clientes_a_revisar:
-    client.table("clientes").delete().eq("id", c_id).execute()
-    borrados_c += 1
+
+if res_c.data:
+    clientes_basura_ids = [c['id'] for c in res_c.data]
+    
+    # 3. Buscar y borrar las mascotas de esos clientes nuevos
+    res_m = client.table("mascotas").select("id, cliente_id").in_("cliente_id", clientes_basura_ids).execute()
+    if res_m.data:
+        for m in res_m.data:
+            if m['id'] not in mascotas_protegidas:
+                client.table("mascotas").delete().eq("id", m['id']).execute()
+                borradas_m += 1
+
+    # 4. Borrar los clientes (solo si ya no les quedan mascotas protegidas)
+    for c_id in clientes_basura_ids:
+        res_check = client.table("mascotas").select("id").eq("cliente_id", c_id).execute()
+        if not res_check.data:
+            client.table("clientes").delete().eq("id", c_id).execute()
+            borrados_c += 1
 
 print(f"\n✅ ¡Caos solucionado! Se borraron {borradas_m} mascotas y {borrados_c} clientes basura.")
 print("Tus 403 fichas originales y TODAS las citas de la agenda están a salvo.")
