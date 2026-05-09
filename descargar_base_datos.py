@@ -15,20 +15,28 @@ def init_supabase():
 client = init_supabase()
 print("📥 Descargando copia de seguridad de la base de datos...")
 
-# Descargar clientes y mascotas
-res_mascotas = client.table("mascotas").select("nombre, especie, raza, fecha_nacimiento, observaciones, clientes(nombre_dueno, telefono, email, puntos)").execute()
+# Descargar clientes con sus mascotas asociadas
+res_clientes = client.table("clientes").select("nombre_dueno, telefono, email, puntos, mascotas(nombre, especie, raza, fecha_nacimiento, observaciones)").execute()
 
-if res_mascotas.data:
+if res_clientes.data:
     filas = []
-    for m in res_mascotas.data:
-        cli = m.get('clientes', {}) or {}
-        filas.append({
-            "Dueño": cli.get('nombre_dueno', ''), "Teléfono": cli.get('telefono', ''),
-            "Email": cli.get('email', ''), "Puntos VIP": cli.get('puntos', 0),
-            "Mascota": m.get('nombre', ''), "Especie": m.get('especie', ''),
-            "Raza": m.get('raza', ''), "Nacimiento Mascota": m.get('fecha_nacimiento', ''),
-            "Observaciones": m.get('observaciones', '')
-        })
+    for c in res_clientes.data:
+        mascotas = c.get('mascotas', [])
+        if not mascotas:
+            filas.append({
+                "Dueño": c.get('nombre_dueno', ''), "Teléfono": c.get('telefono', ''),
+                "Email": c.get('email', ''), "Puntos VIP": c.get('puntos', 0),
+                "Mascota": "", "Especie": "", "Raza": "", "Nacimiento Mascota": "", "Observaciones": ""
+            })
+        else:
+            for m in mascotas:
+                filas.append({
+                    "Dueño": c.get('nombre_dueno', ''), "Teléfono": c.get('telefono', ''),
+                    "Email": c.get('email', ''), "Puntos VIP": c.get('puntos', 0),
+                    "Mascota": m.get('nombre', ''), "Especie": m.get('especie', ''),
+                    "Raza": m.get('raza', ''), "Nacimiento Mascota": m.get('fecha_nacimiento', ''),
+                    "Observaciones": m.get('observaciones', '')
+                })
     
     df = pd.DataFrame(filas)
     df.to_excel("Copia_Seguridad_Clientes.xlsx", index=False)
