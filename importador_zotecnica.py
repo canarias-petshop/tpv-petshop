@@ -15,7 +15,7 @@ client = init_supabase()
 print("🔌 Conectando a Supabase para leer el PDF de Zotécnica...")
 
 # 1. Asegurar que el proveedor existe
-NOMBRE_PROV = "Zotécnica"
+NOMBRE_PROV = "Zootecnia - Zootecnia S.L."
 res_prov = client.table("proveedores").select("id").eq("nombre_empresa", NOMBRE_PROV).execute()
 if res_prov.data:
     prov_id = res_prov.data[0]['id']
