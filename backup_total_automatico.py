@@ -4,8 +4,11 @@ from postgrest import SyncPostgrestClient
 import os
 from datetime import datetime
 
+# Fijamos la ruta exacta donde queremos que trabaje el script
+RUTA_PROYECTO = r"D:\clon vs mode\tpv-petshop"
+
 def init_supabase():
-    secrets_path = os.path.join(".streamlit", "secrets.toml")
+    secrets_path = os.path.join(RUTA_PROYECTO, ".streamlit", "secrets.toml")
     with open(secrets_path, "r") as f: secrets = toml.load(f)
     raw_url = secrets.get('url', '').strip().strip('"').strip("'").rstrip('/')
     api_url = raw_url if raw_url.endswith('/rest/v1') else f"{raw_url}/rest/v1"
@@ -17,7 +20,7 @@ fecha_hoy = datetime.now().strftime("%Y_%m_%d")
 hora_hoy = datetime.now().strftime("%H_%M")
 
 # Crear la carpeta principal de backups si no existe
-carpeta_maestra = "Backups_Datos_Nube"
+carpeta_maestra = os.path.join(RUTA_PROYECTO, "Backups_Datos_Nube")
 if not os.path.exists(carpeta_maestra):
     os.makedirs(carpeta_maestra)
 
