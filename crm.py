@@ -339,7 +339,7 @@ def render_pestana_crm(client):
                         }).execute()
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
-        sub_cli, sub_masc, sub_alertas, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", " Centro WhatsApp", "🛍️ Encargos", "💸 Pagos Pendientes"])
+        sub_cli, sub_masc, sub_alertas, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", "🔔 Centro de Recordatorios", "🛍️ Encargos", "💸 Pagos Pendientes"])
         
         with sub_cli:
             res_clientes = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).execute()
@@ -583,8 +583,8 @@ def render_pestana_crm(client):
             else: st.info("No hay mascotas registradas.")
 
         with sub_alertas:
-            st.markdown("#### 📱 Centro de Comunicaciones (WhatsApp)")
-            st.info("Espacio centralizado para gestionar las confirmaciones y recordatorios diarios con un solo clic.")
+            st.markdown("#### 🔔 Centro de Recordatorios (Citas y Mantenimiento)")
+            st.info("Espacio centralizado para gestionar las confirmaciones de citas y mantenimientos diarios (vía WhatsApp o llamada telefónica).")
             
             # --- 1. CONFIRMACIONES DE MAÑANA ---
             st.markdown("##### 📅 1. Confirmaciones para Mañana")
