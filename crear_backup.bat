@@ -1,25 +1,14 @@
 @echo off
-chcp 65001 >nul
 echo ===================================================
-echo    CREANDO COPIA DE SEGURIDAD (ANIMALARIUM TPV)
+echo   CREANDO BACKUP LOCAL: Animalarium ERP v3.0
 echo ===================================================
+
+set FECHA=%date:~6,4%%date:~3,2%%date:~0,2%
+set NOMBRE_ZIP=Backup_Animalarium_v3.0_%FECHA%.zip
+
+echo Comprimiendo proyecto (ignorando archivos innecesarios)...
+powershell.exe -nologo -noprofile -command "Get-ChildItem -Exclude '.venv', '__pycache__', '.git', '*.zip', 'fichas_a_importar' | Compress-Archive -DestinationPath '%NOMBRE_ZIP%' -Force"
+
 echo.
-
-:: Obtener fecha y hora en formato limpio
-for /f "tokens=2-4 delims=/ " %%a in ('date /t') do (set mydate=%%c%%b%%a)
-for /f "tokens=1-2 delims=/:" %%a in ('time /t') do (set mytime=%%a%%b)
-set mytime=%mytime: =0%
-
-:: Crear carpeta contenedora
-set backup_folder=backups\codigo_backup_%mydate%_%mytime%
-if not exist backups mkdir backups
-mkdir "%backup_folder%"
-
-:: Copiar los archivos Python y Markdown
-copy *.py "%backup_folder%\" >nul
-copy *.md "%backup_folder%\" >nul
-
-echo [OK] Copia de seguridad completada con exito.
-echo Los archivos se han guardado en: %backup_folder%
-echo.
+echo ✅ Backup %NOMBRE_ZIP% creado con exito en tu carpeta.
 pause
