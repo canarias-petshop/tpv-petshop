@@ -215,7 +215,7 @@ for linea in lineas:
             "nombre": nombre,
             "categoria": "Producto",
             "precio_base": coste,
-            "igic_tipo": 7.0, # Asumimos 7% estándar
+            "igic_tipo": 3.0, # IGIC al 3% para alimentación
             "precio_pvp": pvp,
             "stock_actual": 0,
             "stock_minimo": 2,
