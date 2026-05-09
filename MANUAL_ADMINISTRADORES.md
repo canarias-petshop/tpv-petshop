@@ -70,6 +70,14 @@ Aunque los empleados pueden vender, la estructura del catálogo recae en la admi
 
 ---
 
+## 7. 💾 Copias de Seguridad Automáticas (Backups)
+Para garantizar que tus datos nunca se pierdan, el sistema incluye dos herramientas en la carpeta de tu ordenador:
+1. **Backup del Código (`crear_backup.bat`):** Al hacerle doble clic, empaqueta todo el programa en un archivo `.zip`. Útil por si cambias de ordenador.
+2. **Backup de los Datos (`descargar_todos_los_datos.bat`):** Al hacerle doble clic, se conecta a la nube y te descarga en la carpeta `Backups_Datos_Nube` todo tu directorio de clientes, facturas, compras y tickets de venta en formato Excel en bruto. 
+   - *Automatización:* Puedes configurar el "Programador de Tareas" de Windows para que ejecute este archivo todos los días al cierre de forma invisible.
+
+---
+
 ## 🔒 Consideraciones de Seguridad
 1. **Nunca reveles la contraseña/URL de acceso al panel principal (Streamlit Cloud)** a los empleados. 
 2. Tus empleados solo deben conocer su propio PIN de 4 dígitos (Contraseña general de acceso a la tablet + su PIN personal de fichaje). No verán ni la pestaña de Contabilidad ni la de Bancos.
