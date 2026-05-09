@@ -140,6 +140,8 @@ def render_pestana_caja(client):
                                 "tipo": f"{cat} (Desde Caja) | {motivo_mov}",
                                 "total": float(cant_mov),
                                 "estado": "Pagado",
+                                "pagado": float(cant_mov),
+                                "pendiente": 0.0,
                                 "fecha_vencimiento": str(date.today())
                             }).execute()
                             

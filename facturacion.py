@@ -332,7 +332,8 @@ def render_pestana_facturacion(client):
                     client.table("compras").insert({
                         "proveedor_id": p_id, "total": float(total_con_pp), "descuento_pp": float(desc_pp or 0.0),
                         "estado": "Recibido", "tipo": f"Factura: {n_fac}", "fecha_vencimiento": str(f_ven),
-                        "productos": st.session_state.compra_temp
+                        "productos": st.session_state.compra_temp,
+                        "pagado": 0.0, "pendiente": float(total_con_pp)
                     }).execute()
                     for i in st.session_state.compra_temp:
                         if str(i.get('id', '0')) != '0' and str(i.get('id')) != 'None':
@@ -538,7 +539,10 @@ def render_pestana_facturacion(client):
                     st.metric("NUEVO TOTAL COMPRA", f"{new_total:.2f} €")
 
                     if st.button("💾 SINCRONIZAR CAMBIOS DE ESTA COMPRA"):
-                        client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(new_total), "descuento_pp": float(dto_pp)}).eq("id", c_id).execute()
+                        pagado_actual = float(c_data.get('pagado') or 0.0)
+                        nuevo_pendiente = max(0.0, float(new_total) - pagado_actual)
+                        nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else str(c_data.get('estado', 'Pendiente'))
+                        client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(new_total), "pendiente": nuevo_pendiente, "estado": nuevo_estado, "descuento_pp": float(dto_pp)}).eq("id", c_id).execute()
                         st.success("Compra actualizada."); st.rerun()
 
     # ==========================================
@@ -555,6 +559,13 @@ def render_pestana_facturacion(client):
             df_deudas['Proveedor'] = df_deudas['proveedores'].apply(lambda x: x['nombre_empresa'] if x and isinstance(x, dict) else 'Gasto / Nómina')
             df_deudas['Fecha Vencimiento'] = pd.to_datetime(df_deudas['fecha_vencimiento'], errors='coerce')
             
+            df_deudas['pagado'] = pd.to_numeric(df_deudas.get('pagado', 0.0)).fillna(0.0)
+            df_deudas['pendiente'] = df_deudas.apply(
+                lambda r: float(r['total']) - r['pagado'] if 'pendiente' not in df_deudas.columns or pd.isna(r.get('pendiente')) else float(r.get('pendiente', 0.0)), 
+                axis=1
+            )
+            df_deudas['pendiente'] = df_deudas['pendiente'].apply(lambda x: max(0.0, x))
+            
             hoy_date = pd.Timestamp(date.today())
             
             # Calcular estado de vencimiento
@@ -568,14 +579,14 @@ def render_pestana_facturacion(client):
             df_deudas['Estado Vencimiento'] = df_deudas['Fecha Vencimiento'].apply(calc_estado_venc)
             df_deudas['Vence'] = df_deudas['Fecha Vencimiento'].dt.strftime('%d/%m/%Y').fillna('-')
             
-            st.markdown(f"<h3 style='color: #d32f2f;'>Deuda Total Acumulada: {df_deudas['total'].sum():.2f} €</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='color: #d32f2f;'>Deuda Total Acumulada: {df_deudas['pendiente'].sum():.2f} €</h3>", unsafe_allow_html=True)
             
             # --- CALENDARIO VISUAL DE PAGOS A PROVEEDORES ---
             with st.expander("📅 Ver Calendario Visual de Vencimientos", expanded=True):
-                deuda_vencida = df_deudas[df_deudas['Fecha Vencimiento'] < hoy_date]['total'].sum()
-                deuda_7d = df_deudas[(df_deudas['Fecha Vencimiento'] >= hoy_date) & (df_deudas['Fecha Vencimiento'] <= hoy_date + pd.Timedelta(days=7))]['total'].sum()
-                deuda_30d = df_deudas[(df_deudas['Fecha Vencimiento'] > hoy_date + pd.Timedelta(days=7)) & (df_deudas['Fecha Vencimiento'] <= hoy_date + pd.Timedelta(days=30))]['total'].sum()
-                deuda_futura = df_deudas[df_deudas['Fecha Vencimiento'] > hoy_date + pd.Timedelta(days=30)]['total'].sum()
+                deuda_vencida = df_deudas[df_deudas['Fecha Vencimiento'] < hoy_date]['pendiente'].sum()
+                deuda_7d = df_deudas[(df_deudas['Fecha Vencimiento'] >= hoy_date) & (df_deudas['Fecha Vencimiento'] <= hoy_date + pd.Timedelta(days=7))]['pendiente'].sum()
+                deuda_30d = df_deudas[(df_deudas['Fecha Vencimiento'] > hoy_date + pd.Timedelta(days=7)) & (df_deudas['Fecha Vencimiento'] <= hoy_date + pd.Timedelta(days=30))]['pendiente'].sum()
+                deuda_futura = df_deudas[df_deudas['Fecha Vencimiento'] > hoy_date + pd.Timedelta(days=30)]['pendiente'].sum()
                 
                 c_cal1, c_cal2, c_cal3, c_cal4 = st.columns(4)
                 with c_cal1: st.metric("🔴 Vencido", f"{deuda_vencida:.2f} €")
@@ -589,15 +600,15 @@ def render_pestana_facturacion(client):
                     st.markdown("<p style='font-size: 13px; color: gray; margin-top: 10px;'>Previsión semanal de pagos:</p>", unsafe_allow_html=True)
                     # Agrupar por la semana del año
                     df_chart['Semana'] = df_chart['Fecha Vencimiento'].dt.to_period('W').apply(lambda r: f"Semana {r.start_time.strftime('%d/%m')}")
-                    chart_data = df_chart.groupby('Semana')['total'].sum().reset_index()
+                    chart_data = df_chart.groupby('Semana')['pendiente'].sum().reset_index()
                     chart_data = chart_data.set_index('Semana')
                     st.bar_chart(chart_data, color="#005275")
                     
             st.markdown("---")
 
             # Crear vista con checkbox para seleccionar las facturas a pagar
-            df_vista_p = df_deudas[['id', 'tipo', 'Proveedor', 'total', 'Vence', 'Estado Vencimiento']].copy()
-            df_vista_p.insert(0, "Pagar", False)
+            df_vista_p = df_deudas[['id', 'tipo', 'Proveedor', 'total', 'pendiente', 'Vence', 'Estado Vencimiento']].copy()
+            df_vista_p.insert(0, "A Pagar Hoy (€)", 0.0)
             
             # Ordenar para que los caducados salgan arriba
             df_vista_p = df_vista_p.sort_values(by='Estado Vencimiento', ascending=False)
@@ -612,57 +623,77 @@ def render_pestana_facturacion(client):
             ed_deudas = st.data_editor(
                 df_vista_p.style.map(highlight_vencidos, subset=['Estado Vencimiento']), 
                 hide_index=True, use_container_width=True, key="ed_deudas",
-                column_config={"Pagar": st.column_config.CheckboxColumn("Pagar Ahora"), "id": None, "tipo": "Documento", "total": st.column_config.NumberColumn("Total (€)", format="%.2f")}
+                column_config={
+                    "A Pagar Hoy (€)": st.column_config.NumberColumn("A Pagar Hoy (€)", min_value=0.0, format="%.2f"), 
+                    "id": None, "tipo": "Documento", 
+                    "total": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True),
+                    "pendiente": st.column_config.NumberColumn("Pendiente (€)", format="%.2f", disabled=True)
+                }
             )
             
-            filas_pagar = df_vista_p[ed_deudas["Pagar"] == True] # Recuperar del dataframe original guiado por la edición
+            filas_pagar = ed_deudas[ed_deudas["A Pagar Hoy (€)"] > 0]
             if not filas_pagar.empty:
-                total_a_pagar = filas_pagar['total'].sum()
-                st.markdown("---")
-                st.markdown(f"**Has seleccionado {len(filas_pagar)} factura(s) por un total de <span style='color: #005275; font-size: 1.2em;'>{total_a_pagar:.2f} €</span>**", unsafe_allow_html=True)
-                
-                # Cargar bancos
-                res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
-                opciones_pago = ["💵 Caja Fuerte (Efectivo de la tienda)"]
-                mapa_bancos = {}
-                if res_b.data:
-                    for b in res_b.data:
-                        etiqueta = f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)"
-                        opciones_pago.append(etiqueta)
-                        mapa_bancos[etiqueta] = b['id']
+                errores_exceso = filas_pagar[filas_pagar["A Pagar Hoy (€)"] > filas_pagar["pendiente"]]
+                if not errores_exceso.empty:
+                    st.error("⚠️ Has introducido un importe a pagar superior a la deuda pendiente en alguna factura. Por favor, corrígelo antes de continuar.")
+                else:
+                    total_a_pagar = filas_pagar['A Pagar Hoy (€)'].sum()
+                    st.markdown("---")
+                    st.markdown(f"**Has indicado pagos para {len(filas_pagar)} factura(s) por un total de <span style='color: #005275; font-size: 1.2em;'>{total_a_pagar:.2f} €</span>**", unsafe_allow_html=True)
+                    
+                    # Cargar bancos
+                    res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+                    opciones_pago = ["💵 Caja Fuerte (Efectivo de la tienda)"]
+                    mapa_bancos = {}
+                    if res_b.data:
+                        for b in res_b.data:
+                            etiqueta = f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)"
+                            opciones_pago.append(etiqueta)
+                            mapa_bancos[etiqueta] = b['id']
 
-                sel_origen = st.selectbox("💳 Selecciona el origen de los fondos para el pago:", [""] + opciones_pago)
-                
-                if sel_origen and st.button("✅ Confirmar Pago", type="primary", use_container_width=True):
-                    # Nombres de proveedores para el motivo de la caja
-                    nombres_pagados = ", ".join(filas_pagar['Proveedor'].unique()[:2])
-                    if len(filas_pagar['Proveedor'].unique()) > 2: nombres_pagados += " y otros..."
+                    sel_origen = st.selectbox("💳 Selecciona el origen de los fondos para el pago:", [""] + opciones_pago)
                     
-                    pago_exitoso = False
-                    
-                    if "Caja Fuerte" in sel_origen:
-                        res_caja = client.table("control_caja").select("*").eq("estado", "Abierta").execute()
-                        if res_caja.data:
-                            id_caja = res_caja.data[0]['id']
-                            client.table("movimientos_caja").insert({
-                                "id_caja": id_caja, "tipo": "Retirada", "cantidad": float(total_a_pagar), 
-                                "motivo": f"Pago de facturas/gastos: {nombres_pagados}"
-                            }).execute()
-                            pago_exitoso = True
-                        else:
-                            st.error("⚠️ No puedes pagar con la caja porque no hay ningún turno abierto. Abre la caja primero en la pestaña 5.")
-                    else:
-                        banco_id = mapa_bancos[sel_origen]
-                        banco_data = [b for b in res_b.data if b['id'] == banco_id][0]
-                        nuevo_saldo = banco_data['saldo_actual'] - total_a_pagar
-                        client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo}).eq("id", banco_id).execute()
-                        pago_exitoso = True
+                    if sel_origen and st.button("✅ Confirmar Pago", type="primary", use_container_width=True):
+                        nombres_pagados = ", ".join(filas_pagar['Proveedor'].unique()[:2])
+                        if len(filas_pagar['Proveedor'].unique()) > 2: nombres_pagados += " y otros..."
                         
-                    if pago_exitoso:
-                        # Actualizar estado de las compras
-                        for _, row in filas_pagar.iterrows():
-                            client.table("compras").update({"estado": "Pagado"}).eq("id", row['id']).execute()
-                        st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!"); time.sleep(1.5); st.rerun()
+                        pago_exitoso = False
+                        
+                        if "Caja Fuerte" in sel_origen:
+                            res_caja = client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+                            if res_caja.data:
+                                id_caja = res_caja.data[0]['id']
+                                client.table("movimientos_caja").insert({
+                                    "id_caja": id_caja, "tipo": "Retirada", "cantidad": float(total_a_pagar), 
+                                    "motivo": f"Pago facturas: {nombres_pagados}"
+                                }).execute()
+                                pago_exitoso = True
+                            else:
+                                st.error("⚠️ No puedes pagar con la caja porque no hay ningún turno abierto. Abre la caja primero en la pestaña 5.")
+                        else:
+                            banco_id = mapa_bancos[sel_origen]
+                            banco_data = [b for b in res_b.data if b['id'] == banco_id][0]
+                            nuevo_saldo = banco_data['saldo_actual'] - total_a_pagar
+                            client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo}).eq("id", banco_id).execute()
+                            pago_exitoso = True
+                            
+                        if pago_exitoso:
+                            for _, row in filas_pagar.iterrows():
+                                c_id = row['id']
+                                pago_hoy = float(row['A Pagar Hoy (€)'])
+                                
+                                actual_row = df_deudas[df_deudas['id'] == c_id].iloc[0]
+                                nuevo_pagado = float(actual_row['pagado']) + pago_hoy
+                                nuevo_pendiente = float(actual_row['pendiente']) - pago_hoy
+                                
+                                nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else "Pago Parcial"
+                                
+                                client.table("compras").update({
+                                    "estado": nuevo_estado,
+                                    "pagado": nuevo_pagado,
+                                    "pendiente": nuevo_pendiente
+                                }).eq("id", c_id).execute()
+                            st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!"); time.sleep(1.5); st.rerun()
         else:
             st.success("¡Genial! No tienes deudas pendientes.")
             st.success("¡Genial! No tienes deudas pendientes.")
