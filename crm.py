@@ -341,7 +341,7 @@ def render_pestana_crm(client):
                         }).execute()
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
-        sub_cli, sub_masc, sub_alertas, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", "🔔 Centro de Recordatorios", "🛍️ Encargos", "💸 Pagos Pendientes"])
+        sub_cli, sub_masc, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "💸 Pagos Pendientes"])
         
         with sub_cli:
             res_clientes = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).execute()
@@ -585,137 +585,6 @@ def render_pestana_crm(client):
                     m_nombre = m_data['nombre']
                     mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix="ind")
             else: st.info("No hay mascotas registradas.")
-
-        with sub_alertas:
-            st.markdown("#### 🔔 Centro de Recordatorios (Citas y Mantenimiento)")
-            st.info("Espacio centralizado para gestionar las confirmaciones de citas y mantenimientos diarios (vía WhatsApp o llamada telefónica).")
-            
-            # --- 1. CONFIRMACIONES DEL PRÓXIMO DÍA HÁBIL ---
-            hoy_dt = pd.to_datetime('today')
-            manana_dt = hoy_dt + pd.Timedelta(days=1)
-            
-            # Si el próximo día es domingo (6), saltamos automáticamente al lunes
-            if manana_dt.weekday() == 6:
-                manana_dt += pd.Timedelta(days=1)
-                
-            dias_es = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
-            nombre_dia_obj = dias_es[manana_dt.weekday()]
-            
-            st.markdown(f"##### 📅 1. Confirmaciones para el {nombre_dia_obj} ({manana_dt.strftime('%d/%m')})")
-            
-            manana_str_ini = manana_dt.strftime('%Y-%m-%dT00:00:00')
-            manana_str_fin = manana_dt.strftime('%Y-%m-%dT23:59:59')
-            
-            res_manana = client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto))").gte("fecha_hora", manana_str_ini).lte("fecha_hora", manana_str_fin).execute()
-            
-            citas_manana = []
-            if res_manana.data:
-                for c in res_manana.data:
-                    if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
-                    mascota_info = c.get('mascotas', {}) or {}
-                    cliente_info = mascota_info.get('clientes', {}) or {}
-                    dueno = cliente_info.get('nombre_dueno', 'Dueño')
-                    telefono = cliente_info.get('telefono', '')
-                    pref_contacto = cliente_info.get('metodo_contacto') or 'WhatsApp'
-                    nombre_m = mascota_info.get('nombre', 'tu mascota')
-                    
-                    dt_obj = pd.to_datetime(c['fecha_hora'])
-                    hora_str = dt_obj.strftime('%H:%M')
-                    
-                    tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
-                    url_wa = None
-                    if tel_limpio:
-                        if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
-                        
-                        dias_diff = (manana_dt.date() - hoy_dt.date()).days
-                        texto_dia = "mañana" if dias_diff == 1 else f"el próximo {nombre_dia_obj.lower()}"
-                        
-                        msg = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium para recordarte que {texto_dia} a las {hora_str} tenemos una cita reservada para {nombre_m}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias y un saludo! ✂️🐶"
-                        url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg)}"
-                        
-                    import re
-                    s_raw = c.get('servicio', '')
-                    s_clean = re.sub(r'\[ESTADO:\s*.*?\]\s*', '', s_raw).strip()
-                    
-                    citas_manana.append({
-                        "Hora": hora_str,
-                        "Mascota": nombre_m,
-                        "Dueño": dueno,
-                        "Canal Pref.": pref_contacto,
-                        "Servicio": s_clean,
-                        "WhatsApp": url_wa
-                    })
-                    
-            if citas_manana:
-                df_manana = pd.DataFrame(citas_manana).sort_values("Hora")
-                st.dataframe(df_manana, use_container_width=True, hide_index=True, column_config={"WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Pedir Confirmación")})
-            else:
-                st.success(f"No hay citas programadas para el {nombre_dia_obj.lower()} o ya están todas canceladas.")
-
-            st.markdown("---")
-            
-            # --- 2. RECORDATORIOS DE MANTENIMIENTO ---
-            st.markdown("##### ✂️ 2. Recordatorios de Mantenimiento")
-            st.markdown("<p style='color:gray; font-size:14px;'>Clientes que superan los días sin venir y <b>NO tienen ya una cita futura agendada</b>.</p>", unsafe_allow_html=True)
-            
-            c_al1, c_al2 = st.columns([1, 2])
-            with c_al1:
-                dias_aviso = st.slider("Mostrar mascotas sin venir en más de (días):", min_value=15, max_value=180, value=45, step=5)
-            
-            # Obtener mascotas que YA tienen cita futura
-            hoy_str = hoy_dt.strftime('%Y-%m-%dT00:00:00')
-            res_futuras = client.table("citas").select("mascotas_id, servicio").gte("fecha_hora", hoy_str).execute()
-            mascotas_con_cita = set()
-            if res_futuras.data:
-                for c in res_futuras.data:
-                    if "[ESTADO: Cancelada]" not in c.get("servicio", ""):
-                        mascotas_con_cita.add(c["mascotas_id"])
-            
-            res_m_alertas = client.table("mascotas").select("id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, metodo_contacto)").execute()
-            
-            if res_m_alertas.data:
-                alertas = []
-                
-                for m in res_m_alertas.data:
-                    if m['id'] in mascotas_con_cita:
-                        continue # Excluir si ya tiene cita futura
-                        
-                    hist = m.get('historial_trabajos', [])
-                    if isinstance(hist, list) and len(hist) > 0:
-                        try:
-                            fechas = [pd.to_datetime(h['Fecha'], format='%d/%m/%Y', errors='coerce') for h in hist if h.get('Fecha')]
-                            fechas = [f for f in fechas if pd.notna(f)]
-                            if fechas:
-                                ultima_visita = max(fechas)
-                                dias_transcurridos = (hoy_dt - ultima_visita).days
-                                
-                                if dias_transcurridos >= dias_aviso:
-                                    cliente_info = m.get('clientes') or {}
-                                    dueno = cliente_info.get('nombre_dueno', 'Dueño')
-                                    telefono = cliente_info.get('telefono', '')
-                                    pref_contacto = cliente_info.get('metodo_contacto') or 'WhatsApp'
-                                    
-                                    tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
-                                    if tel_limpio and len(tel_limpio) == 9 and not tel_limpio.startswith('34'):
-                                        tel_limpio = '34' + tel_limpio
-                                        
-                                    mensaje = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium porque, revisando la ficha de {m['nombre']}, hemos visto que ya le va tocando su sesión de peluquería para mantener el manto perfecto. Recuerda que si reservas antes de que se cumplan los 2 meses de su última visita, te aplicamos un 10% de descuento en el servicio. ¿Te buscamos un huequito para estos días? ¡Un abrazo! 🐶✂️"
-                                    url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje)}" if tel_limpio else None
-                                    
-                                    alertas.append({
-                                        "Mascota": m['nombre'], "Dueño": dueno,
-                                        "Canal Pref.": pref_contacto,
-                                        "Última Visita": ultima_visita.strftime('%d/%m/%Y'),
-                                        "Días Sin Venir": dias_transcurridos, "WhatsApp": url_wa
-                                    })
-                        except Exception as e: pass
-                
-                if alertas:
-                    df_alertas = pd.DataFrame(alertas).sort_values(by="Días Sin Venir", ascending=False)
-                    st.warning(f"⚠️ Tienes **{len(alertas)}** clientes pendientes de contactar para mantenimiento.")
-                    st.dataframe(df_alertas, use_container_width=True, hide_index=True, column_config={"WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Enviar WhatsApp")})
-                else:
-                    st.success("✨ ¡Genial! Tienes la agenda al día. Ninguna mascota supera los días de alerta o ya tienen su cita.")
 
         with sub_encargos:
             col_en1, col_en2 = st.columns([1, 2])

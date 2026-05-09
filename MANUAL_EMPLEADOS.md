@@ -41,7 +41,6 @@ Aquí gestionarás las fichas de las familias y sus perros/gatos.
 - **Historial de la Mascota:** Dentro de la familia, marca "👁️ Ver Ficha" en la mascota específica.
   - Verás su historial de peluquería.
   - Al añadir un nuevo servicio al historial, **selecciona tu nombre en la columna "Realizado por"** para dejar constancia de quién hizo el trabajo. Pulsa "Guardar Historial".
-- **🔔 Centro de Recordatorios (Rutina Matutina):** En la pestaña "Centro de Recordatorios", verás automáticamente a los perros citados para el próximo día laborable (saltando los domingos). Fíjate en la columna **"Canal Pref."** para saber si el cliente prefiere ser contactado por WhatsApp, Llamada o SMS. Utiliza la lista para llamarles por teléfono o pulsa en "Pedir Confirmación" para enviarles el mensaje automático por WhatsApp si procede. Justo debajo tendrás recordatorios de mantenimiento.
 - **Encargos:** Si un cliente pide un artículo que no hay en tienda, anótalo en "🛍️ Encargos". Cuando el producto llegue, pulsa el botón **"💬 WhatsApp"** para avisarle automáticamente. El sistema te alertará si un encargo se retrasa o si el cliente tarda mucho en recogerlo.
 - **💸 Pagos Pendientes:** En esta subpestaña verás qué clientes deben dinero en la tienda, con un botón directo a WhatsApp para reclamarlo a partir de los 14 días.
 
@@ -52,6 +51,9 @@ El sistema de citas está conectado con nuestros turnos de trabajo y las fichas 
 
 ### Cómo dar una cita:
 Puedes hacerlo desde la ficha de la mascota (en Clientes) o desde la pestaña "Agenda".
+
+- **🔔 Centro de Recordatorios (Rutina Matutina):** En la pestaña "Recordatorios", verás automáticamente a los perros citados para el próximo día laborable. Fíjate en la columna **"Canal Pref."** para contactar al cliente por WhatsApp, Llamada o SMS. Justo debajo tendrás recordatorios para clientes que llevan tiempo sin venir.
+
 1. Selecciona la **Fecha** y la **Duración** estimada (ej. 60 min).
 2. Selecciona la **Peluquera/o**.
    - *Importante:* Si seleccionas a Marina, el sistema revisará a qué hora trabaja Marina ese día. Si tiene el día libre, te avisará con un mensaje en rojo y no te dejará dar la cita.
