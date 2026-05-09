@@ -98,6 +98,24 @@ def render_pestana_inventario(client):
                     # --- TABLA DE PRODUCTOS MEJORADA ---
                     st.markdown("#### 📦 Inventario de Productos")
 
+                    c_busq1, c_busq2 = st.columns([2, 1])
+                    with c_busq1:
+                        b_inv = st.text_input("🔍 Buscar producto (Nombre o SKU):", key="b_inv_p").strip().lower()
+                    with c_busq2:
+                        ord_inv = st.selectbox("↕️ Ordenar por:", ["Nombre (A-Z)", "SKU", "Mayor Stock", "Menor Stock", "Mayor Precio"], key="ord_inv_p")
+
+                    if b_inv:
+                        df_solo_productos = df_solo_productos[
+                            df_solo_productos['nombre'].str.lower().str.contains(b_inv, na=False) |
+                            df_solo_productos['sku'].str.lower().str.contains(b_inv, na=False)
+                        ]
+
+                    if ord_inv == "Nombre (A-Z)": df_solo_productos = df_solo_productos.sort_values(by="nombre")
+                    elif ord_inv == "SKU": df_solo_productos = df_solo_productos.sort_values(by="sku")
+                    elif ord_inv == "Mayor Stock": df_solo_productos = df_solo_productos.sort_values(by="stock_actual", ascending=False)
+                    elif ord_inv == "Menor Stock": df_solo_productos = df_solo_productos.sort_values(by="stock_actual", ascending=True)
+                    elif ord_inv == "Mayor Precio": df_solo_productos = df_solo_productos.sort_values(by="precio_pvp", ascending=False)
+
                     # Ahora permitimos borrar filas con num_rows="dynamic"
                     edit_p = st.data_editor(
                         df_solo_productos,
@@ -154,6 +172,23 @@ def render_pestana_inventario(client):
                     st.markdown("#### ✂️ Catálogo de Servicios")
                     df_solo_servicios = df_inv[df_inv['categoria_filt'] == 'Servicio'].copy()
                     
+                    c_busqs1, c_busqs2 = st.columns([2, 1])
+                    with c_busqs1:
+                        b_serv = st.text_input("🔍 Buscar servicio (Nombre o Código):", key="b_inv_s").strip().lower()
+                    with c_busqs2:
+                        ord_serv = st.selectbox("↕️ Ordenar por:", ["Nombre (A-Z)", "Código", "Mayor Precio", "Menor Precio"], key="ord_inv_s")
+
+                    if b_serv:
+                        df_solo_servicios = df_solo_servicios[
+                            df_solo_servicios['nombre'].str.lower().str.contains(b_serv, na=False) |
+                            df_solo_servicios['sku'].str.lower().str.contains(b_serv, na=False)
+                        ]
+
+                    if ord_serv == "Nombre (A-Z)": df_solo_servicios = df_solo_servicios.sort_values(by="nombre")
+                    elif ord_serv == "Código": df_solo_servicios = df_solo_servicios.sort_values(by="sku")
+                    elif ord_serv == "Mayor Precio": df_solo_servicios = df_solo_servicios.sort_values(by="precio_pvp", ascending=False)
+                    elif ord_serv == "Menor Precio": df_solo_servicios = df_solo_servicios.sort_values(by="precio_pvp", ascending=True)
+
                     # Añadimos la columna calculada de Cuota de IGIC para mostrar el desglose
                     df_solo_servicios['Cuota IGIC (€)'] = df_solo_servicios['precio_pvp'] - df_solo_servicios['precio_base']
 
