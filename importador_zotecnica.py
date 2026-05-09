@@ -28,12 +28,12 @@ res_prod = client.table("productos").select("id, sku, nombre").execute()
 skus_existentes = {str(p.get('sku', '')).strip().upper() for p in res_prod.data} if res_prod.data else set()
 nombres_existentes = {str(p.get('nombre', '')).strip().lower() for p in res_prod.data} if res_prod.data else set()
 
-# 3. Generador inteligente de SKU correlativo (ZT-001, ZT-002...)
+# 3. Generador inteligente de SKU correlativo (AM-001, AM-002...) para Amanova
 contador_sku = 1
 def generar_sku():
     global contador_sku
     while True:
-        nuevo_sku = f"ZT-{contador_sku:03d}"
+        nuevo_sku = f"AM-{contador_sku:03d}"
         if nuevo_sku not in skus_existentes:
             return nuevo_sku
         contador_sku += 1
