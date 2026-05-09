@@ -337,7 +337,13 @@ def render_pestana_agenda(client):
                 
     with sub_diario:
         st.markdown("#### 🕒 Cuadrante de Trabajo Diario (Intervalos de 5 min)")
-        dia_ver = st.date_input("Selecciona un día para ver los huecos libres:", value=date.today())
+        
+        c_diario1, c_diario2 = st.columns(2)
+        with c_diario1:
+            dia_ver = st.date_input("Selecciona un día para ver los huecos libres:", value=date.today())
+        with c_diario2:
+            st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
+            ocultar_libres = st.checkbox("Ocultar tramos libres (Vista compacta)", value=False)
         
         # Creamos una cuadrícula estricta de 5 en 5 minutos (09:00 a 20:55)
         horas_trabajo = [f"{h:02d}:{m:02d}" for h in range(9, 21) for m in range(0, 60, 5)]
@@ -362,17 +368,36 @@ def render_pestana_agenda(client):
                         detalle_texto = f"{emoji} [{assigned_e}] {mascota} ({dur} min) - {s_clean}"
                         
                         # Recorremos la cuadrícula y rellenamos los huecos afectados
+                        primer_bloque = True
                         for idx, row in df_cuadrante.iterrows():
                             q_time = pd.to_datetime(f"{dia_ver} {row['Hora']}")
                             if dt_start <= q_time < dt_end:
-                                df_cuadrante.loc[idx, "Estado"] = f"{emoji} OCUPADO"
-                                if df_cuadrante.loc[idx, "Detalle"]:
-                                    df_cuadrante.loc[idx, "Detalle"] += " | " + detalle_texto
+                                # Estado dinámico (Soporta múltiples peluqueros a la vez)
+                                if df_cuadrante.loc[idx, "Estado"] == "🟩 Libre":
+                                    df_cuadrante.loc[idx, "Estado"] = "🔴 Ocupado"
+                                elif "Ocupado" in df_cuadrante.loc[idx, "Estado"]:
+                                    df_cuadrante.loc[idx, "Estado"] = "⚠️ Múltiple"
+                                
+                                # Texto compacto si la cita ocupa muchos tramos
+                                if primer_bloque:
+                                    texto_add = detalle_texto
+                                    primer_bloque = False
                                 else:
-                                    df_cuadrante.loc[idx, "Detalle"] = detalle_texto
+                                    texto_add = f"⏬ (Continúa {mascota})"
+                                
+                                if df_cuadrante.loc[idx, "Detalle"]:
+                                    df_cuadrante.loc[idx, "Detalle"] += "  |  " + texto_add
+                                else:
+                                    df_cuadrante.loc[idx, "Detalle"] = texto_add
                 except: pass
                 
         df_cuadrante = df_cuadrante.sort_values("Hora").reset_index(drop=True)
+        
+        if ocultar_libres:
+            df_cuadrante = df_cuadrante[df_cuadrante["Estado"] != "🟩 Libre"]
+            if df_cuadrante.empty:
+                st.info("No hay citas programadas para este día.")
+                
         st.dataframe(df_cuadrante, use_container_width=True, hide_index=True, height=600)
 
     with sub_semanal:
