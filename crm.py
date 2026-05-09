@@ -590,10 +590,19 @@ def render_pestana_crm(client):
             st.markdown("#### 🔔 Centro de Recordatorios (Citas y Mantenimiento)")
             st.info("Espacio centralizado para gestionar las confirmaciones de citas y mantenimientos diarios (vía WhatsApp o llamada telefónica).")
             
-            # --- 1. CONFIRMACIONES DE MAÑANA ---
-            st.markdown("##### 📅 1. Confirmaciones para Mañana")
+            # --- 1. CONFIRMACIONES DEL PRÓXIMO DÍA HÁBIL ---
             hoy_dt = pd.to_datetime('today')
             manana_dt = hoy_dt + pd.Timedelta(days=1)
+            
+            # Si el próximo día es domingo (6), saltamos automáticamente al lunes
+            if manana_dt.weekday() == 6:
+                manana_dt += pd.Timedelta(days=1)
+                
+            dias_es = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
+            nombre_dia_obj = dias_es[manana_dt.weekday()]
+            
+            st.markdown(f"##### 📅 1. Confirmaciones para el {nombre_dia_obj} ({manana_dt.strftime('%d/%m')})")
+            
             manana_str_ini = manana_dt.strftime('%Y-%m-%dT00:00:00')
             manana_str_fin = manana_dt.strftime('%Y-%m-%dT23:59:59')
             
@@ -617,7 +626,11 @@ def render_pestana_crm(client):
                     url_wa = None
                     if tel_limpio:
                         if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
-                        msg = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium para recordarte que mañana a las {hora_str} tenemos una cita reservada para {nombre_m}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias y un saludo! ✂️🐶"
+                        
+                        dias_diff = (manana_dt.date() - hoy_dt.date()).days
+                        texto_dia = "mañana" if dias_diff == 1 else f"el próximo {nombre_dia_obj.lower()}"
+                        
+                        msg = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium para recordarte que {texto_dia} a las {hora_str} tenemos una cita reservada para {nombre_m}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias y un saludo! ✂️🐶"
                         url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg)}"
                         
                     import re
@@ -637,7 +650,7 @@ def render_pestana_crm(client):
                 df_manana = pd.DataFrame(citas_manana).sort_values("Hora")
                 st.dataframe(df_manana, use_container_width=True, hide_index=True, column_config={"WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Pedir Confirmación")})
             else:
-                st.success("No hay citas programadas para mañana o ya están todas canceladas.")
+                st.success(f"No hay citas programadas para el {nombre_dia_obj.lower()} o ya están todas canceladas.")
 
             st.markdown("---")
             
