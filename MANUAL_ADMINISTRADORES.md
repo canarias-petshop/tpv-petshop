@@ -41,12 +41,13 @@ Control de la relación con tus distribuidores y gestión de stock automático.
 Preparación fácil de los impuestos y libros contables.
 
 - **Gastos Puntuales vs Gastos Fijos:** Registra las reparaciones o compras menores en "Gastos Puntuales". Registra el alquiler, luz, nóminas y préstamos en "Gastos Fijos", indicando qué día del mes se cobran.
+  - *Truco:* Si un gasto fijo se cobra siempre a final de mes, pon el día **31**. El sistema lo ajustará automáticamente a 28 o 30 según el mes.
 - *Nota de Automatización:* Los gastos menores (limpieza, pagos a repartidores en metálico) **los registran las empleadas directamente desde la Caja** al hacer la retirada, enviándose a este panel automáticamente sin que tú tengas que apuntarlos de nuevo.
-- **Calendario Predictivo y Alertas:** En la pestaña "Calendario y Alertas", el sistema dibuja una previsión a 60 días de todo el dinero que va a salir por gastos fijos. Puedes configurar una alarma para que te avise con X días de antelación de forma visual.
+- **Calendario Predictivo y Alertas:** En la pestaña "Calendario y Alertas", verás dividido lo que tienes que pagar **esta semana** y lo que tienes que pagar **este mes**, junto con un gráfico de esfuerzo económico.
 - **Archivo Inteligente:** En la pestaña Facturación -> Archivo, puedes usar el **filtro de categorías** para ver únicamente un tipo de gasto (ej. Solo "Impuestos y Tasas" o "Nóminas").
 - **Exportación a Excel (Asesoría):** 
-  - Genera archivos `.xlsx` profesionales a final del trimestre.
-  - El Excel ya viene con formato moneda, celdas de totales y columnas separadas de Base Imponible, IGIC y Cuotas, listo para que tu asesor lo importe en su programa.
+  - Para la asesoría, usa el botón de **"Solo Facturas (IGIC)"**. Te generará un Excel con dos pestañas: Facturas Emitidas y Facturas Recibidas, descartando automáticamente los gastos menores.
+  - Puedes generar listados independientes para Tickets sin IVA y para el Cuadro de Gastos Fijos.
 
 ---
 

@@ -35,7 +35,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 
 📜 **4. Historial Operativo**
 - Registro en vivo de todos los tickets con **generación de Hash SHA-256 encadenado**.
-- **Bloqueo Ley Antifraude (VeriFactu):** Borrado de tickets desactivado de forma inmediata. Edición limitada exclusivamente a corregir el método de pago en tickets del turno actual (Caja Abierta). Al hacer el Cierre Z, los tickets quedan bloqueados criptográficamente (Candado 🔒).
+- **Bloqueo Ley Antifraude (VeriFactu):** Borrado de tickets desactivado. Edición limitada exclusivamente a corregir el método de pago en tickets del turno actual, forzando la selección del datáfono/banco específico (Caixa, CajaSiete...) para evitar descuadres. Al hacer el Cierre Z, los tickets quedan bloqueados (Candado 🔒).
 - Sistema de devoluciones (Abonos) que restaura el stock automáticamente y deja trazabilidad legal.
 - Reimpresión de tickets antiguos conservando método de pago original.
 
@@ -60,13 +60,14 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - *Sub-1 Emisión:* Emisión de facturas a clientes calculando dinámicamente el desglose interno de Base Imponible y Cuota de IGIC, aunque el empleado solo introduzca el PVP Público.
 - **Generación de Hash SHA-256 por factura y bloqueo total de borrado (Cumplimiento VeriFactu).**
 - *Sub-2 Compras:* Registro de facturas de proveedores: al archivar una compra, el sistema actualiza automáticamente el stock, el precio de coste y el PVP en el inventario.
-- *Sub-3 Archivo:* Archivo histórico de documentos con **Filtros Dinámicos por Categoría** (Nóminas, Gastos Fijos, Mercancía, Impuestos, Servicios Externos).
+- *Sub-3 Archivo:* Archivo histórico de documentos con **Filtros Dinámicos Flexibles** (ignoran mayúsculas y plurales para encontrar siempre el gasto) y columna de **Fecha de Registro** exacta.
 - *Sub-4 Pagos Pendientes:* Control para deudas a proveedores con **Calendario Visual de Vencimientos** y gráfico de previsión semanal. Capacidad de pagar seleccionando múltiples facturas y descontando el importe del saldo de un Banco o de la Caja Fuerte.
 
 📊 **9. Contabilidad e Informes para Asesoría**
 - **Gestión Separada de Gastos:** Sub-pestaña para "Gastos Puntuales" (compras, reparaciones) y "Gastos Fijos" (alquileres, luz, nóminas, impuestos, préstamos).
-- **Calendario Predictivo y Alertas:** Panel visual a 60 días que proyecta los vencimientos de gastos fijos recurrentes, incluyendo un configurador de alarmas para avisar con los días de antelación deseados.
-- **Generador nativo de archivos Excel Inteligentes (.xlsx):** Escanea el carrito exacto de tickets y facturas. Aplica la regla fiscal correcta: **0% de IGIC forzado para venta de Productos** (solo Base Imponible) y **desglose real de IGIC para la venta de Servicios**. Todo protegido con lectura tolerante a fallos (`safe_float`) para tickets antiguos y datos corrompidos.
+- **Calendario Predictivo y Alertas:** Panel dividido en **Vista Semanal (7 días) y Mensual (30 días)** con gráfico de esfuerzo económico para controlar la liquidez. Incluye ajuste automático para pagos a fin de mes (día 31).
+- **Generador nativo de archivos Excel Inteligentes (.xlsx):** Separación total de la contabilidad en 4 bloques descargables:
+  1. Ventas globales. 2. **Facturas para IGIC (Pestaña Emitidas y Recibidas separadas)**. 3. Tickets y Gastos menores. 4. Informe de Gastos Fijos actuales.
 
 🎯 **Módulo Extra: Marketing y Ofertas (Admin)**
 - **Planificador Anual:** Calendario visual de campañas con alarma predictiva (30-45 días) para evitar quedarse sin contenido.
@@ -104,6 +105,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 
 ## 3. Estado Actual del Desarrollo (UI Optimizada y Automatizaciones Completadas)
 Los hitos de refactorización y conexión inteligente entre módulos se dan por cerrados. Las últimas características clave integradas son:
+- **Sistemas de Importación y Limpieza (NUEVO):** Creación de scripts independientes (`importador_excel.py`, `importador_gastos.py`, `1_limpieza_segura.py`) para migrar bases de datos externas de forma segura y fusionar historiales sin duplicidades.
 - **Gestión de Bancos y Transferencias** (Pestaña 11).
 - **Pago de Deudas** integrando las opciones de usar saldo de bancos o saldo en caja (Pestaña 8, Sub-Pestaña 4).
 - **Conexión transparente de hardware de impresión** evitando bloqueos o apertura de múltiples pestañas en el navegador de la tablet.
