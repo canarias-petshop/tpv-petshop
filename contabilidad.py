@@ -108,13 +108,12 @@ def render_pestana_contabilidad(client):
             dias_alerta = st.slider("🔔 Días de antelación para alarmas:", min_value=1, max_value=30, value=7)
             
         try:
-            # Para evitar error si la tabla no existe aún, se carga dentro del try-except principal
             res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
             
             hoy_dt = pd.Timestamp(date.today())
-            futuro_dt = hoy_dt + pd.Timedelta(days=60)
+            futuro_dt = hoy_dt + pd.Timedelta(days=60) # Mantenemos proyección a 60 días para cálculos
             proyeccion = []
-            # 1. Proyectar gastos fijos
+            
             if res_gf.data:
                 for gf in res_gf.data:
                     for mes_offset in [0, 1, 2]:
@@ -129,31 +128,43 @@ def render_pestana_contabilidad(client):
                             
             if proyeccion:
                 df_proy = pd.DataFrame(proyeccion).sort_values("Fecha Vencimiento")
-                c_cal1, c_cal2, c_cal3 = st.columns(3)
                 
                 with c_alerta2:
-                    # Mostrar alarmas
                     df_alarmas = df_proy[df_proy['Fecha Vencimiento'] <= (hoy_dt + pd.Timedelta(days=dias_alerta))]
                     if not df_alarmas.empty:
                         st.error(f"🚨 **¡ATENCIÓN!** Tienes {len(df_alarmas)} cargo(s) fijo(s) previsto(s) en los próximos {dias_alerta} días.")
-                        for _, al in df_alarmas.iterrows():
-                            st.markdown(f"- **{al['Fecha Vencimiento'].strftime('%d/%m/%Y')}**: {al['Concepto']} ({al['Importe']:.2f} €)")
                     else:
                         st.success(f"✅ Sin cargos fijos en los próximos {dias_alerta} días.")
                         
                 st.markdown("---")
-                c_cal1, c_cal2, c_cal3, c_cal4 = st.columns(4)
-                with c_cal1: st.metric("🟠 Previsión 7 días", f"{df_proy[(df_proy['Fecha Vencimiento'] >= hoy_dt) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=7))]['Importe'].sum():.2f} €")
-                with c_cal2: st.metric("🟡 Previsión 30 días", f"{df_proy[(df_proy['Fecha Vencimiento'] > hoy_dt + pd.Timedelta(days=7)) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=30))]['Importe'].sum():.2f} €")
-                with c_cal3: st.metric("🟢 Previsión 30-60 días", f"{df_proy[df_proy['Fecha Vencimiento'] > hoy_dt + pd.Timedelta(days=30)]['Importe'].sum():.2f} €")
-                with c_cal4: st.metric("📋 Total a 60 días", f"{df_proy['Importe'].sum():.2f} €")
                 
-                df_chart = df_proy.copy()
-                st.markdown("<p style='font-size: 13px; color: gray; margin-top: 10px;'>Previsión semanal de gastos recurrentes:</p>", unsafe_allow_html=True)
-                df_chart['Semana'] = df_chart['Fecha Vencimiento'].dt.to_period('W').apply(lambda r: f"Semana {r.start_time.strftime('%d/%m')}")
-                st.bar_chart(df_chart.groupby('Semana')['Importe'].sum().reset_index().set_index('Semana'), color="#d32f2f")
-                df_proy['Fecha Vencimiento'] = df_proy['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
-                st.dataframe(df_proy, use_container_width=True, hide_index=True)
+                # SEPARACIÓN EN PESTAÑAS (SEMANAL / MENSUAL)
+                t_sem, t_mes = st.tabs(["📆 Próximos 7 Días", "📅 Próximos 30 Días"])
+                
+                with t_sem:
+                    df_sem = df_proy[(df_proy['Fecha Vencimiento'] >= hoy_dt) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=7))]
+                    st.metric("Total a pagar esta semana", f"{df_sem['Importe'].sum():.2f} €")
+                    if not df_sem.empty:
+                        df_sem_v = df_sem.copy()
+                        df_sem_v['Fecha Vencimiento'] = df_sem_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
+                        st.dataframe(df_sem_v, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No hay pagos previstos para los próximos 7 días.")
+                        
+                with t_mes:
+                    df_mes = df_proy[(df_proy['Fecha Vencimiento'] >= hoy_dt) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=30))]
+                    st.metric("Total a pagar este mes", f"{df_mes['Importe'].sum():.2f} €")
+                    if not df_mes.empty:
+                        df_chart = df_mes.copy()
+                        st.markdown("<p style='font-size: 13px; color: gray; margin-top: 10px;'>Gráfica de esfuerzo económico por semana:</p>", unsafe_allow_html=True)
+                        df_chart['Semana'] = df_chart['Fecha Vencimiento'].dt.to_period('W').apply(lambda r: f"Semana {r.start_time.strftime('%d/%m')}")
+                        st.bar_chart(df_chart.groupby('Semana')['Importe'].sum().reset_index().set_index('Semana'), color="#d32f2f")
+                        
+                        df_mes_v = df_mes.copy()
+                        df_mes_v['Fecha Vencimiento'] = df_mes_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
+                        st.dataframe(df_mes_v, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No hay pagos previstos para los próximos 30 días.")
             else: st.success("No hay previsiones de gastos fijos para los próximos 60 días.")
         except Exception as e: pass
 
