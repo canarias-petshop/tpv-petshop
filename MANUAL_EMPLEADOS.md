@@ -75,7 +75,8 @@ Al abrir y cerrar la tienda, hay que llevar el control del dinero en metálico.
 - **Gastos de Tienda (Ej. Fregasuelos, Proveedor en metálico):** Si sacas dinero del cajón para pagar algo:
   1. En el panel de "Entradas y Salidas", selecciona "Retirada".
   2. Pon el importe y el motivo.
-  3. En "¿Enviar a Contabilidad?", elige la categoría exacta (Gasto de tienda, Servicio Exterior/Técnico, Impuestos o Pago a proveedor). El sistema restará el dinero de la caja y lo registrará en la contabilidad automáticamente.
+  3. En "¿Enviar a Contabilidad?", elige la categoría exacta. 
+     - *⚠️ OJO con los Proveedores:* Si estás pagando una factura nueva en mano, elige "Sí, como Pago a Proveedor". Si estás pagando a plazos una **factura atrasada**, elige "No", anota el número de factura en el motivo y avisa para que se descuente en la pestaña de Pagos Pendientes.
 - **Cierre Z:** Al final del día, ve a la sección "Cierre de Turno (Arqueo Z)".
   - Usa la calculadora de monedas y billetes contando físicamente lo que hay en el cajón portamonedas.
   - El sistema te dirá si sobra dinero (Descuadre Positivo) o si falta (Descuadre Negativo).

@@ -60,7 +60,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Generación de Hash SHA-256 por factura y bloqueo total de borrado (Cumplimiento VeriFactu).**
 - *Sub-2 Compras:* Registro de facturas de proveedores: al archivar una compra, el sistema actualiza automáticamente el stock, el precio de coste y el PVP en el inventario.
 - *Sub-3 Archivo:* Archivo histórico de documentos con **Filtros Dinámicos Flexibles** (ignoran mayúsculas y plurales para encontrar siempre el gasto) y columna de **Fecha de Registro** exacta.
-- *Sub-4 Pagos Pendientes:* Control para deudas a proveedores con **Calendario Visual de Vencimientos** y gráfico de previsión semanal. Capacidad de pagar seleccionando múltiples facturas y descontando el importe del saldo de un Banco o de la Caja Fuerte.
+- *Sub-4 Pagos Pendientes:* Control para deudas a proveedores con **Calendario Visual de Vencimientos** y gráfico de previsión semanal. Capacidad de realizar **Pagos Parciales** indicando la cantidad exacta entregada hoy, descontándola del saldo de un Banco o de la Caja Fuerte, manteniendo la factura abierta hasta su liquidación total.
 
 📊 **9. Contabilidad e Informes para Asesoría**
 - **Gestión Separada de Gastos:** Sub-pestaña para "Gastos Puntuales" (compras, reparaciones) y "Gastos Fijos" (alquileres, luz, nóminas, impuestos, préstamos).
@@ -105,7 +105,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 
 ## 3. Estado Actual del Desarrollo (UI Optimizada y Automatizaciones Completadas)
 Los hitos de refactorización y conexión inteligente entre módulos se dan por cerrados. Las últimas características clave integradas son:
-- **Ecosistema de Scripts Auxiliares (NUEVO):** Creación de scripts independientes para migraciones (`importador_excel.py`, `importador_gastos.py`), limpieza segura (`1_limpieza_segura.py`), rescate de datos huérfanos (`2_rescate_clientes_tienda.py`, `3_rescate_fichas_rebeldes.py`) y un sistema de **Copias de Seguridad Automáticas** (`backup_total_automatico.py` / `descargar_todos_los_datos.bat`) que permite extraer toda la base de datos de la nube a local en un clic.
+- **Ecosistema de Scripts Auxiliares (NUEVO):** Creación de scripts independientes para migraciones masivas (`importador_excel.py`, `importador_gastos.py`, `importador_productos.py`), limpieza segura (`1_limpieza_segura.py`), rescate de datos huérfanos (`2_rescate_clientes_tienda.py`, `3_rescate_fichas_rebeldes.py`) y un sistema de **Copias de Seguridad Automáticas** (`backup_total_automatico.py` / `descargar_todos_los_datos.bat`) que permite extraer toda la base de datos de la nube a local en un clic.
 - **Gestión de Bancos y Transferencias** (Pestaña 11).
 - **Pago de Deudas** integrando las opciones de usar saldo de bancos o saldo en caja (Pestaña 8, Sub-Pestaña 4).
 - **Conexión transparente de hardware de impresión** evitando bloqueos o apertura de múltiples pestañas en el navegador de la tablet.

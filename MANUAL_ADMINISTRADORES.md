@@ -32,7 +32,7 @@ Control de la relación con tus distribuidores y gestión de stock automático.
   - Ve a **"Facturación y Stock > Registro de Compras"**.
   - Al introducir la factura de un proveedor, el sistema te permite actualizar el Precio de Coste de los productos e incluir descuentos por Pronto Pago.
   - Al "Archivar" esa compra, **el stock del Inventario sube automáticamente**.
-- **Pago de Deudas a Proveedores:** En "Pagos Pendientes", puedes saldar facturas atrasadas descontando el dinero directamente de un Banco o de la Caja Fuerte.
+- **Pago de Deudas a Proveedores:** En "Pagos Pendientes", puedes saldar facturas atrasadas total o **parcialmente** (ej: pagando solo 50€ de una factura de 100€) descontando el dinero directamente de un Banco o de la Caja Fuerte.
   - En esta sección dispones de un **Calendario Visual** que te muestra qué pagos están vencidos, cuáles vencen esta semana y cuáles en los próximos 30 días.
 
 ---
@@ -66,6 +66,7 @@ Control estricto de la liquidez en las cuentas de la empresa.
 Aunque los empleados pueden vender, la estructura del catálogo recae en la administración.
 
 - **Familias y Subfamilias:** Mantén el catálogo ordenado por categorías (Pienso, Accesorios, Peluquería) para facilitar las estadísticas.
+- **Importación Masiva de Catálogos:** Utiliza el script `importador_productos.py` para subir Excels de tus proveedores, añadiendo cientos de productos nuevos de golpe sin duplicar los ya existentes.
 - **Modificación Manual de Stock:** Solo usar en caso de robos, mermas o inventario físico anual (ya que las ventas y las devoluciones modifican el stock automáticamente).
 
 ---
