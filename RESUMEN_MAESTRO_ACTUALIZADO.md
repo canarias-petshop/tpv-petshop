@@ -30,7 +30,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - Fichas de familias y mascotas con cálculo de edad automático, asignación de **Peluquero/a Preferido** y un **Diario de Observaciones Clínicas** independiente.
 - Historial clínico y de peluquería con cálculo de tiempo medio por servicio y registro del empleado ("Realizado por") para trazabilidad.
 - **Registro de Cancelaciones (Políticas Estrictas):** El CRM detecta automáticamente cuántas veces ha cancelado una mascota y muestra una alerta roja en su ficha para que los empleados lo tengan en cuenta al darle cita.
-- **Centro de Recordatorios (Automatización Matutina):** Panel unificado que escanea la agenda para mostrar las citas del día siguiente y las alertas de mantenimiento (filtrando inteligentemente a quienes ya tienen cita futura). Permite contactar a los clientes por llamada o mediante enlaces automáticos a WhatsApp. También notifica encargos recibidos.
+- **Centro de Recordatorios (Automatización Matutina):** Panel unificado que escanea la agenda para mostrar las citas del día siguiente y las alertas de mantenimiento. Incluye un **indicador de Canal Preferido** (WhatsApp, Llamada, SMS) en la ficha del cliente, para contactar a los dueños respetando su vía de comunicación deseada. También notifica encargos recibidos.
 - **Gestor de Deudas de Tienda (Pagos Pendientes):** Nueva sub-pestaña que agrupa automáticamente a los clientes morosos del TPV. Suma sus deudas, alerta visualmente a los 14 días y genera un mensaje de WhatsApp para recordarles el pago.
 
 📜 **4. Historial Operativo**

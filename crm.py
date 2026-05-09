@@ -25,7 +25,9 @@ def render_pestana_crm(client):
         st.markdown("#### 👤 Nuevo Cliente")
         with st.form("nuevo_cliente", clear_on_submit=True):
             c_nom = st.text_input("Nombre y Apellidos *")
-            c_tel = st.text_input("Teléfono")
+            c_t1, c_t2 = st.columns(2)
+            with c_t1: c_tel = st.text_input("Teléfono")
+            with c_t2: c_cont = st.selectbox("Canal Preferido", ["WhatsApp", "Llamada", "SMS"])
             c_ema = st.text_input("Email")
             c_nac = st.date_input("F. Nacimiento", value=None)
             c_rgpd = st.checkbox("📝 Acepta LOPD/RGPD (Envío info y promos)", value=True)
@@ -46,8 +48,8 @@ def render_pestana_crm(client):
             if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
                 if c_nom:
                     res_cli = client.table("clientes").insert({
-                        "nombre_dueno": c_nom, "telefono": c_tel, "email": c_ema, "fecha_nacimiento": str(c_nac) if c_nac else "",
-                        "rgpd_consent": c_rgpd, "puntos": 0
+                        "nombre_dueno": c_nom, "telefono": c_tel, "email": c_ema, "metodo_contacto": c_cont, 
+                        "fecha_nacimiento": str(c_nac) if c_nac else "", "rgpd_consent": c_rgpd, "puntos": 0
                     }).execute()
 
                     if res_cli.data and m_nom:
@@ -360,8 +362,9 @@ def render_pestana_crm(client):
                 b_cli = st.text_input("🔍 Buscar cliente (Nombre o Teléfono):", placeholder="Escribe para filtrar...", key="b_cli").strip().lower()
                 
                 if 'fecha_nacimiento' not in df_cli.columns: df_cli['fecha_nacimiento'] = ""
+                if 'metodo_contacto' not in df_cli.columns: df_cli['metodo_contacto'] = "WhatsApp"
                 df_cli['Tipo Cliente'] = df_cli['mascotas'].apply(lambda x: "🐾 Con mascota" if isinstance(x, list) and len(x) > 0 else "🛍️ Solo tienda")
-                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'email', 'fecha_nacimiento', 'Tipo Cliente']].copy()
+                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'email', 'metodo_contacto', 'fecha_nacimiento', 'Tipo Cliente']].copy()
                 
                 if b_cli:
                     df_cli_vista = df_cli_vista[
@@ -384,7 +387,7 @@ def render_pestana_crm(client):
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), 
                         "id": None, "nombre_dueno": "Nombre Cliente", "telefono": "Tel.", 
-                        "email": "Email", "fecha_nacimiento": "F. Nac",
+                        "email": "Email", "metodo_contacto": st.column_config.SelectboxColumn("Canal Pref.", options=["WhatsApp", "Llamada", "SMS"]), "fecha_nacimiento": "F. Nac",
                         "RGPD": st.column_config.CheckboxColumn("LOPD"),
                         "Puntos": st.column_config.NumberColumn("🌟 Ptos"),
                         "Tipo Cliente": st.column_config.TextColumn("Perfil", disabled=True)
@@ -401,7 +404,8 @@ def render_pestana_crm(client):
                         if pd.notna(row['id']):
                             client.table("clientes").update({
                                 "nombre_dueno": str(row['nombre_dueno']), "telefono": str(row['telefono']),
-                                "email": str(row['email']), "fecha_nacimiento": str(row['fecha_nacimiento']),
+                                "email": str(row['email']), "metodo_contacto": str(row.get('metodo_contacto', 'WhatsApp')), 
+                                "fecha_nacimiento": str(row['fecha_nacimiento']),
                                 "rgpd_consent": bool(row.get('RGPD', True)), "puntos": int(row.get('Puntos', 0))
                             }).eq("id", row['id']).execute()
                     st.success("Directorio de clientes actualizado."); time.sleep(0.5); st.rerun()
@@ -593,7 +597,7 @@ def render_pestana_crm(client):
             manana_str_ini = manana_dt.strftime('%Y-%m-%dT00:00:00')
             manana_str_fin = manana_dt.strftime('%Y-%m-%dT23:59:59')
             
-            res_manana = client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").gte("fecha_hora", manana_str_ini).lte("fecha_hora", manana_str_fin).execute()
+            res_manana = client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto))").gte("fecha_hora", manana_str_ini).lte("fecha_hora", manana_str_fin).execute()
             
             citas_manana = []
             if res_manana.data:
@@ -603,6 +607,7 @@ def render_pestana_crm(client):
                     cliente_info = mascota_info.get('clientes', {}) or {}
                     dueno = cliente_info.get('nombre_dueno', 'Dueño')
                     telefono = cliente_info.get('telefono', '')
+                    pref_contacto = cliente_info.get('metodo_contacto') or 'WhatsApp'
                     nombre_m = mascota_info.get('nombre', 'tu mascota')
                     
                     dt_obj = pd.to_datetime(c['fecha_hora'])
@@ -623,6 +628,7 @@ def render_pestana_crm(client):
                         "Hora": hora_str,
                         "Mascota": nombre_m,
                         "Dueño": dueno,
+                        "Canal Pref.": pref_contacto,
                         "Servicio": s_clean,
                         "WhatsApp": url_wa
                     })
@@ -652,7 +658,7 @@ def render_pestana_crm(client):
                     if "[ESTADO: Cancelada]" not in c.get("servicio", ""):
                         mascotas_con_cita.add(c["mascotas_id"])
             
-            res_m_alertas = client.table("mascotas").select("id, nombre, historial_trabajos, clientes(nombre_dueno, telefono)").execute()
+            res_m_alertas = client.table("mascotas").select("id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, metodo_contacto)").execute()
             
             if res_m_alertas.data:
                 alertas = []
@@ -674,6 +680,7 @@ def render_pestana_crm(client):
                                     cliente_info = m.get('clientes') or {}
                                     dueno = cliente_info.get('nombre_dueno', 'Dueño')
                                     telefono = cliente_info.get('telefono', '')
+                                    pref_contacto = cliente_info.get('metodo_contacto') or 'WhatsApp'
                                     
                                     tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
                                     if tel_limpio and len(tel_limpio) == 9 and not tel_limpio.startswith('34'):
@@ -684,6 +691,7 @@ def render_pestana_crm(client):
                                     
                                     alertas.append({
                                         "Mascota": m['nombre'], "Dueño": dueno,
+                                        "Canal Pref.": pref_contacto,
                                         "Última Visita": ultima_visita.strftime('%d/%m/%Y'),
                                         "Días Sin Venir": dias_transcurridos, "WhatsApp": url_wa
                                     })
