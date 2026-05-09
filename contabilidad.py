@@ -62,7 +62,7 @@ def render_pestana_contabilidad(client):
                         "Impuestos y Tasas (IGIC, IRPF, tributos...)"
                     ])
                     f_imp = st.number_input("Importe Estimado/Fijo (€)", min_value=0.0, format="%.2f")
-                    f_dia = st.number_input("Día del mes de cargo", min_value=1, max_value=31, value=1)
+                    f_dia = st.number_input("Día del mes de cargo", min_value=1, max_value=31, value=1, help="Pon 31 si quieres que se cobre el último día del mes (el programa lo ajustará a 28 o 30 según corresponda automáticamente).")
                     f_frec = st.selectbox("Frecuencia", ["Mensual", "Bimestral", "Trimestral", "Anual"])
                     
                     if st.form_submit_button("Guardar Gasto Fijo", type="primary", use_container_width=True):
