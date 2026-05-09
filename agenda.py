@@ -128,8 +128,12 @@ def render_pestana_agenda(client):
                         h_ini = pd.to_datetime(f"{fecha_c} {times[0]}")
                         h_fin = pd.to_datetime(f"{fecha_c} {times[1]}")
                     else:
-                        h_ini = pd.to_datetime(f"{fecha_c} 09:00")
-                        h_fin = pd.to_datetime(f"{fecha_c} 21:00")
+                        if fecha_c.weekday() < 5: # Lunes a Viernes
+                            h_ini = pd.to_datetime(f"{fecha_c} 09:00")
+                            h_fin = pd.to_datetime(f"{fecha_c} 21:00")
+                        else: # Sábados y Domingos
+                            h_ini = pd.to_datetime(f"{fecha_c} 10:00")
+                            h_fin = pd.to_datetime(f"{fecha_c} 14:00")
                         
                     for h in range(0, 24):
                         for m in range(0, 60, 5):
@@ -338,15 +342,18 @@ def render_pestana_agenda(client):
     with sub_diario:
         st.markdown("#### 🕒 Cuadrante de Trabajo Diario (Intervalos de 5 min)")
         
-        c_diario1, c_diario2 = st.columns(2)
+        c_diario1, c_diario2, c_diario3 = st.columns([1, 1.5, 1])
         with c_diario1:
             dia_ver = st.date_input("Selecciona un día para ver los huecos libres:", value=date.today())
         with c_diario2:
+            rango_defecto = (9, 21) if dia_ver.weekday() < 5 else (10, 14)
+            rango_horas = st.slider("⏱️ Rango de horas visible:", min_value=6, max_value=23, value=rango_defecto, format="%d:00")
+        with c_diario3:
             st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
             ocultar_libres = st.checkbox("Ocultar tramos libres (Vista compacta)", value=False)
         
-        # Creamos una cuadrícula estricta de 5 en 5 minutos (09:00 a 20:55)
-        horas_trabajo = [f"{h:02d}:{m:02d}" for h in range(9, 21) for m in range(0, 60, 5)]
+        # Creamos una cuadrícula estricta adaptada a la selección
+        horas_trabajo = [f"{h:02d}:{m:02d}" for h in range(rango_horas[0], rango_horas[1]) for m in range(0, 60, 5)]
         df_cuadrante = pd.DataFrame({"Hora": horas_trabajo})
         df_cuadrante["Estado"] = "🟩 Libre"
         df_cuadrante["Detalle"] = ""

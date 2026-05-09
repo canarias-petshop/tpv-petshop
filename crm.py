@@ -241,8 +241,12 @@ def render_pestana_crm(client):
                     h_ini = pd.to_datetime(f"{f_fecha} {times[0]}")
                     h_fin = pd.to_datetime(f"{f_fecha} {times[1]}")
                 else:
-                    h_ini = pd.to_datetime(f"{f_fecha} 09:00")
-                    h_fin = pd.to_datetime(f"{f_fecha} 21:00")
+                    if f_fecha.weekday() < 5:
+                        h_ini = pd.to_datetime(f"{f_fecha} 09:00")
+                        h_fin = pd.to_datetime(f"{f_fecha} 21:00")
+                    else:
+                        h_ini = pd.to_datetime(f"{f_fecha} 10:00")
+                        h_fin = pd.to_datetime(f"{f_fecha} 14:00")
                     
                 for h in range(0, 24):
                     for m in range(0, 60, 5):
