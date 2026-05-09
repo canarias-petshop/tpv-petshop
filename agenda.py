@@ -51,7 +51,7 @@ def render_pestana_agenda(client):
         return estado, servicio_raw.strip(), emp
     
     # --- PESTAÑAS DE VISTAS ---
-    sub_agenda, sub_diario, sub_semanal, sub_cancelaciones = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal", "🚫 Cancelaciones"])
+    sub_agenda, sub_diario, sub_semanal, sub_recordatorios, sub_cancelaciones = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal", "🔔 Recordatorios", "🚫 Cancelaciones"])
     
     with sub_agenda:
         c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
