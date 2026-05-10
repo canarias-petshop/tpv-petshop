@@ -72,7 +72,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 🚚 **7. Gestión de Proveedores y Pedidos**
 - Directorio de proveedores con sus datos fiscales, de reparto y **control de Pedido Mínimo** para portes gratis.
 - **Centro de Envíos:** Panel de alertas visuales en tiempo real que indica las horas de corte de los proveedores para envíos pendientes.
-- **Smart Restock Centralizado:** Sistema de detección de stock bajo con casillas de verificación para desmarcar productos y un botón de "Auto-distribuir" que genera borradores automáticos.
+- **Smart Restock Centralizado (Auto-Distribuidor Inteligente):** Sistema de detección de stock bajo con casillas de verificación para desmarcar productos y un botón de "Auto-distribuir" que genera borradores automáticos. **Novedad: Si un producto tiene varios proveedores, el sistema rastrea y escoge automáticamente al que tenga el precio de coste más bajo para maximizar la rentabilidad.**
 - Integración de buscador de catálogo y formularios de artículos manuales *dentro* del detalle de cada borrador para evitar duplicidades de botones en la interfaz.
 
 📑 **8. Facturación Legal y Stock**
@@ -144,6 +144,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Saneamiento Fiscal y Contable (Completado):** Corrección de la lógica de Base Imponible e IGIC. Los tickets y facturas ahora diferencian la venta de "Servicios" (que desglosa IGIC) de la venta de "Productos" (que reporta todo como Base Imponible). Todo a prueba de fallos mediante parseo seguro de datos legados.
 - **Automatizaciones Finales y Deep Linking (Completado):** Implementación del "Centro WhatsApp" y "Centro de Envíos" para establecer una rutina matutina clara.
 - **Reorganización ERP (Completado):** Separación total de Catálogo (Inventario) y Compras (Proveedores y Pedidos), logrando un flujo de trabajo profesional sin botones duplicados ni sobrecarga visual.
+- **Auto-Distribuidor Inteligente de Pedidos (Completado):** Se implementó una lógica de selección automática que, al generar borradores de reposición, compara precios entre proveedores para un mismo artículo y asigna la compra al que ofrece el menor coste.
 - **Bloqueo Fiscal VeriFactu - Fase 2 (Completado):** Implementación de inalterabilidad en tickets y facturas. Generación de Hash SHA-256 encadenado y bloqueo de edición post-Cierre Z, cumpliendo la Ley Antifraude española.
 - **Contabilidad Predictiva y Eventos (Completado):** Implementación del calendario visual a 60 días para gastos recurrentes en Contabilidad y creación del gestor de aforos para Talleres presenciales.
 - **Plan de Marketing Anual (Completado):** Despliegue del calendario de campañas 2026 con textos redactados por temporadas y alarmas de contenido.

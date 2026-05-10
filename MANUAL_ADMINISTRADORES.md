@@ -26,7 +26,7 @@ Control de la relación con tus distribuidores y gestión de stock automático.
 
 - **Gestión de Proveedores:** Registra los comerciales, días de reparto y el **Pedido Mínimo (€)**. Si el proveedor exige un mínimo para no cobrar portes, el sistema te avisará al hacer un borrador.
 - **Borradores de Pedido (Smart Restock):** 
-  - Desde "Inventario", el sistema te avisa del stock bajo. Pulsando "Auto-distribuir", el sistema reparte esos artículos pendientes a sus respectivos proveedores.
+  - Desde "Inventario", el sistema te avisa del stock bajo. Pulsando "Auto-distribuir", el sistema reparte esos artículos pendientes a sus respectivos proveedores. **Si un producto tiene varios proveedores, el sistema elegirá automáticamente al que tenga el precio de coste más bajo.**
   - Desde "Proveedores", puedes revisar el borrador y pulsar el botón **"📧 Enviar Pedido"** para generar automáticamente un correo con la lista lista para mandar.
 - **Registro de Compras (Albaranes y Facturas):**
   - Ve a **"Facturación y Stock > Registro de Compras"**.
