@@ -144,7 +144,7 @@ def render_pestana_agenda(client):
                             
                             solapa = False
                             for c in citas_dia:
-                                if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
+                                if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Cambio" in c.get('servicio', ''): continue
                                 c_ini = pd.to_datetime(c['fecha_hora'])
                                 if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                                 c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
@@ -175,7 +175,7 @@ def render_pestana_agenda(client):
                         dt_ini_man = pd.to_datetime(f"{fecha_c} {hora_manual.strftime('%H:%M')}")
                         dt_fin_man = dt_ini_man + pd.Timedelta(minutes=duracion_c)
                         for c in citas_dia:
-                            if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
+                            if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Cambio" in c.get('servicio', ''): continue
                             c_ini = pd.to_datetime(c['fecha_hora'])
                             if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                             c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
@@ -380,10 +380,14 @@ def render_pestana_agenda(client):
                             q_time = pd.to_datetime(f"{dia_ver} {row['Hora']}")
                             if dt_start <= q_time < dt_end:
                                 # Estado dinámico (Soporta múltiples peluqueros a la vez)
-                                if df_cuadrante.loc[idx, "Estado"] == "🟩 Libre":
-                                    df_cuadrante.loc[idx, "Estado"] = "🔴 Ocupado"
-                                elif "Ocupado" in df_cuadrante.loc[idx, "Estado"]:
-                                    df_cuadrante.loc[idx, "Estado"] = "⚠️ Múltiple"
+                                if "Cambio" in estado_c:
+                                    if df_cuadrante.loc[idx, "Estado"] == "🟩 Libre":
+                                        df_cuadrante.loc[idx, "Estado"] = "🔵 Liberado"
+                                else:
+                                    if df_cuadrante.loc[idx, "Estado"] in ["� Libre", "🔵 Liberado"]:
+                                        df_cuadrante.loc[idx, "Estado"] = "🔴 Ocupado"
+                                    elif "Ocupado" in df_cuadrante.loc[idx, "Estado"]:
+                                        df_cuadrante.loc[idx, "Estado"] = "⚠️ Múltiple"
                                 
                                 # Texto compacto si la cita ocupa muchos tramos
                                 if primer_bloque:
