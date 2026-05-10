@@ -285,12 +285,14 @@ def render_pestana_agenda(client):
                     })
                     
                 df_citas = pd.DataFrame(citas_formateadas)
+                df_citas.insert(0, "Borrar", False)
                 
                 ed_citas = st.data_editor(
-                    df_citas[['id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Observaciones', 'Mascota', 'Dueño', 'Teléfono', 'WhatsApp']],
+                    df_citas[['Borrar', 'id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Observaciones', 'Mascota', 'Dueño', 'Teléfono', 'WhatsApp']],
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
-                    column_order=["Día", "Hora", "Estado", "Peluquero/a", "Mascota", "Servicio", "Observaciones", "Duración (min)", "Dueño", "Teléfono", "WhatsApp"],
+                    column_order=["Borrar", "Día", "Hora", "Estado", "Peluquero/a", "Mascota", "Servicio", "Observaciones", "Duración (min)", "Dueño", "Teléfono", "WhatsApp"],
                     column_config={
+                        "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
                         "id": None,
                         "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)", width="small"),
                         "Hora": st.column_config.TextColumn("Hora", width="small"),
@@ -313,28 +315,31 @@ def render_pestana_agenda(client):
                     
                     for _, row in ed_citas.iterrows():
                         if pd.notna(row['id']):
-                            try:
-                                dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}", format='%d/%m/%Y %H:%M').strftime('%Y-%m-%d %H:%M:%S')
-                            except:
-                                dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}").strftime('%Y-%m-%d %H:%M:%S')
-                                
-                            srv = str(row['Servicio'])
-                            pelu = str(row['Peluquero/a'])
-                            est_raw = str(row['Estado'])
-                            est = est_raw.split(" ", 1)[1] if " " in est_raw else est_raw
-                            if pelu != "Sin Asignar":
-                                srv_base = f"{srv} ({pelu})"
+                            if row.get('Borrar', False) == True:
+                                client.table("citas").delete().eq("id", row['id']).execute()
                             else:
-                                srv_base = srv
-                                
-                            srv_final = f"[ESTADO: {est}] {srv_base}"
-                                
-                            client.table("citas").update({
-                                "fecha_hora": dt_str,
-                                "duracion_minutos": int(row['Duración (min)']),
-                                "servicio": srv_final,
-                                "observaciones": str(row.get('Observaciones', ''))
-                            }).eq("id", row['id']).execute()
+                                try:
+                                    dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}", format='%d/%m/%Y %H:%M').strftime('%Y-%m-%d %H:%M:%S')
+                                except:
+                                    dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}").strftime('%Y-%m-%d %H:%M:%S')
+                                    
+                                srv = str(row['Servicio'])
+                                pelu = str(row['Peluquero/a'])
+                                est_raw = str(row['Estado'])
+                                est = est_raw.split(" ", 1)[1] if " " in est_raw else est_raw
+                                if pelu != "Sin Asignar":
+                                    srv_base = f"{srv} ({pelu})"
+                                else:
+                                    srv_base = srv
+                                    
+                                srv_final = f"[ESTADO: {est}] {srv_base}"
+                                    
+                                client.table("citas").update({
+                                    "fecha_hora": dt_str,
+                                    "duracion_minutos": int(row['Duración (min)']),
+                                    "servicio": srv_final,
+                                    "observaciones": str(row.get('Observaciones', ''))
+                                }).eq("id", row['id']).execute()
                     st.success("Agenda actualizada."); time.sleep(0.8); st.rerun()
             else:
                 st.info("No hay citas agendadas en el sistema.")
