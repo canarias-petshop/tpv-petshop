@@ -38,12 +38,12 @@ def render_pestana_agenda(client):
 
     def parse_cita_estado(servicio_raw):
         estado = "Confirmada"
-        if "[ESTADO:" in servicio_raw:
-            import re
-            m_est = re.match(r'\[ESTADO:\s*(.*?)\]\s*(.*)', servicio_raw)
-            if m_est:
-                estado = m_est.group(1)
-                servicio_raw = m_est.group(2)
+        import re
+        m_est = re.search(r'\[ESTADO:\s*(.*?)\]', servicio_raw)
+        if m_est:
+            estado = m_est.group(1).strip()
+            servicio_raw = re.sub(r'\[ESTADO:\s*.*?\]\s*', '', servicio_raw)
+            
         emp = "Sin Asignar"
         for e in empleados_lista:
             if f"({e})" in servicio_raw:
