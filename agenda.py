@@ -236,7 +236,7 @@ def render_pestana_agenda(client):
                                 motivo_final = motivo_extra if motivo_solape == "Otro motivo" else motivo_solape
                                 servicio_final += f" [Forzado: {motivo_final}]"
                                 
-                            servicio_final = f"[ESTADO: Confirmada] {servicio_final}"
+                            servicio_final = f"[ESTADO: Pendiente] {servicio_final}"
                             fecha_hora_str = f"{fecha_c} {hora_final_str}"
                             
                             client.table("citas").insert({
