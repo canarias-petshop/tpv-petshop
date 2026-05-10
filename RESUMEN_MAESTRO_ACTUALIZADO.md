@@ -10,11 +10,12 @@ El sistema se encuentra estable, optimizado para tablets y con los módulos func
 - **Backend (Base de Datos):** Supabase (PostgreSQL en la nube).
 - **Hardware Integrado:** Lector de códigos de barras de pistola e integración nativa con impresoras térmicas Star Micronics (vía protocolo PassPRNT).
 
-### 🏆 Reglas de Oro del Inventario
+### 🏆 Reglas de Oro del Inventario y Fiscalidad
 1. **Nomenclatura Unificada:** El proveedor siempre se referenciará como **"Proveedor"** (nunca "Empresa"), tanto en la interfaz como en las comunicaciones.
 2. **Vínculo por Proveedor:** Todo producto nuevo importado debe enlazarse estrictamente al nombre exacto de su proveedor para que funcione el Centro de Envíos.
-3. **Impuestos por Defecto:** Toda importación masiva de productos (scripts) llevará un **3% de IGIC** predeterminado.
-4. **SKU Automático:** Los códigos de barras internos se generan automáticamente (Ej: `OW-001` para Ownat) respetando un correlativo único continuo.
+3. **Fiscalidad de Productos:** La venta de artículos al público está exenta de impuestos (0% IGIC en ventas). El IGIC (ej. 3%) solo se registra como dato interno para compras a proveedores.
+4. **Fiscalidad de Servicios:** Los servicios (peluquería, etc.) **SÍ llevan IGIC (ej. 7%)**. Sus tarifas se configuran siempre como **Precio Cerrado (PVP)** y el sistema extrae automáticamente la base imponible hacia abajo.
+5. **SKU Automático:** Los códigos de barras internos se generan automáticamente (Ej: `OW-001` para Ownat) respetando un correlativo único continuo.
 
 ## 2. Módulos Completados (14 Pestañas Funcionales)
 El sistema cuenta con **14 módulos principales operativos** en el código (`app.py`):
