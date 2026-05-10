@@ -14,7 +14,7 @@ def render_pestana_proveedores(client):
             st.markdown("#### ➕ Nuevo Proveedor")
             with st.form("n_prov_full", clear_on_submit=True):
                 st.markdown("**Datos Principales**")
-                n_emp = st.text_input("Nombre Empresa *")
+                n_emp = st.text_input("Nombre Proveedor *")
                 c_np1, c_np2 = st.columns(2)
                 with c_np1: n_cif = st.text_input("CIF / NIF")
                 with c_np2: n_tel = st.text_input("Teléfono Fijo")
@@ -66,7 +66,7 @@ def render_pestana_proveedores(client):
                     column_config={
                         "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
                         "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
-                        "id": None, "nombre_empresa": "Empresa", "movil": "Móvil",
+                        "id": None, "nombre_empresa": "Proveedor", "movil": "Móvil",
                         "telefono": "Teléfono Fijo", "email": "Email"
                     }
                 )
@@ -108,7 +108,7 @@ def render_pestana_proveedores(client):
                 with st.form(f"ficha_prov_{p_id}", border=True):
                     st.markdown("**1. Información Fiscal y de Contacto**")
                     cf1, cf2, cf3 = st.columns([1.5, 1, 1])
-                    with cf1: f_nom = st.text_input("Nombre Empresa *", value=p_data.get('nombre_empresa',''))
+                    with cf1: f_nom = st.text_input("Nombre Proveedor *", value=p_data.get('nombre_empresa',''))
                     with cf2: f_cif = st.text_input("CIF / NIF", value=p_data.get('cif',''))
                     with cf3: f_per = st.text_input("Persona de Contacto", value=p_data.get('persona_contacto',''))
                     

@@ -10,6 +10,12 @@ El sistema se encuentra estable, optimizado para tablets y con los módulos func
 - **Backend (Base de Datos):** Supabase (PostgreSQL en la nube).
 - **Hardware Integrado:** Lector de códigos de barras de pistola e integración nativa con impresoras térmicas Star Micronics (vía protocolo PassPRNT).
 
+### 🏆 Reglas de Oro del Inventario
+1. **Nomenclatura Unificada:** El proveedor siempre se referenciará como **"Proveedor"** (nunca "Empresa"), tanto en la interfaz como en las comunicaciones.
+2. **Vínculo por Proveedor:** Todo producto nuevo importado debe enlazarse estrictamente al nombre exacto de su proveedor para que funcione el Centro de Envíos.
+3. **Impuestos por Defecto:** Toda importación masiva de productos (scripts) llevará un **3% de IGIC** predeterminado.
+4. **SKU Automático:** Los códigos de barras internos se generan automáticamente (Ej: `OW-001` para Ownat) respetando un correlativo único continuo.
+
 ## 2. Módulos Completados (14 Pestañas Funcionales)
 El sistema cuenta con **14 módulos principales operativos** en el código (`app.py`):
 
