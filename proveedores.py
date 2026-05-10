@@ -226,12 +226,19 @@ def render_pestana_proveedores(client):
                     if st.button("🚀 AUTO-DISTRIBUIR SELECCIONADOS A BORRADORES", type="primary", use_container_width=True):
                         prods_a_pedir_auto = ed_bajo_stock[ed_bajo_stock["Pedir"] == True]
                         if not prods_a_pedir_auto.empty:
-                            res_rels = client.table("productos_proveedores").select("producto_id, proveedor_id").execute()
-                            mapa_provs = {r['producto_id']: r['proveedor_id'] for r in res_rels.data} if res_rels.data else {}
+                            res_rels = client.table("productos_proveedores").select("producto_id, proveedor_id, precio_coste").execute()
+                            mapa_provs = {}
+                            if res_rels.data:
+                                for r in res_rels.data:
+                                    p_id = r['producto_id']
+                                    coste = float(r.get('precio_coste') or 0.0)
+                                    if p_id not in mapa_provs or coste < mapa_provs[p_id]['coste']:
+                                        mapa_provs[p_id] = {'prov_id': r['proveedor_id'], 'coste': coste}
                             pedidos_a_crear = {}
                             for _, row in prods_a_pedir_auto.iterrows():
-                                prov_id = mapa_provs.get(row['id'])
-                                if prov_id:
+                                best_prov = mapa_provs.get(row['id'])
+                                if best_prov:
+                                    prov_id = best_prov['prov_id']
                                     if prov_id not in pedidos_a_crear: pedidos_a_crear[prov_id] = []
                                     pedidos_a_crear[prov_id].append({"Producto": row['nombre'], "Cantidad": int(row['cantidad_reponer'])})
                             if pedidos_a_crear:
