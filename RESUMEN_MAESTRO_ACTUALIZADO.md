@@ -1,13 +1,7 @@
 # RESUMEN MAESTRO DE PROYECTO: ANIMALARIUM ERP / TPV (Actualizado)
 
-## ⚠️ ESTADO ACTUAL (PARADA TÉCNICA) ⚠️
-**Situación a resolver tras reiniciar VS Code:**
-1. Han quedado proveedores duplicados llamados `"Argomanza, S.L."` (con coma) creados por error. 
-2. Los productos importados de la marca Ownat no se han asociado correctamente por fallos en los scripts previos de Web Scraping y VS Code.
-3. Se ha implementado un botón de "🗑️ Borrar" en el directorio de `proveedores.py` para poder purgar los proveedores duplicados manualmente.
-4. **Próximo paso tras reiniciar:** Entrar a la app, borrar los Argomanza duplicados, limpiar los rastros de Ownat y re-ejecutar el script `importador_ownat.py` arreglado apuntando hacia el nombre limpio `"Argomanza S.L."`.
-
----
+## ✅ ESTADO ACTUAL
+El sistema se encuentra estable, optimizado para tablets y con los módulos funcionando al 100%. Se han purgado los scripts residuales y la base de datos está limpia a la espera de nuevas importaciones de catálogo (vía CSV) cuando el usuario lo decida.
 
 ## 1. Visión General del Proyecto
 **Animalarium ERP / TPV** es un sistema de planificación de recursos empresariales (ERP) y Terminal de Punto de Venta (TPV) diseñado a medida para una tienda de mascotas y peluquería canina. Su objetivo es unificar todas las operativas del negocio (ventas, stock, agenda, contabilidad y CRM) en una única plataforma adaptada al uso táctil en tablets.
