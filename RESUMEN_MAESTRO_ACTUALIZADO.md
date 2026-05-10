@@ -101,12 +101,13 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Anotaciones / Observaciones Especiales:** Campo dedicado para anotar las peticiones de corte o trato específico de la mascota que pide el cliente al llamar.
 - **Estado "Pendiente" por Defecto:** Las citas nacen en un estado neutro (Pendiente 🟡) para adaptarse al flujo real de llamadas de confirmación unos días antes.
 - **Filtro por Peluquero/a Preferido:** Si el cliente tiene un profesional asignado en su ficha, el sistema detecta automáticamente su preferencia y limita la sugerencia de huecos exclusivamente al horario de esa persona concreta.
-- **Leyenda de Colores y Políticas de Cancelación:** Las citas incluyen estados dinámicos (Confirmada 🟢, Cancelada 💖, Cambio de cita 🔵, etc.). Al marcar una cita como "Cancelada", se libera su hueco en el calendario y viaja a una pestaña específica de "🚫 Cancelaciones".
+- **Liberación Inteligente de Huecos y Cancelaciones:** Las citas incluyen estados dinámicos (Confirmada 🟢, Cancelada 💖, Cambio de cita 🔵, etc.). Al marcar una cita como "Cancelada" o "Cambio", **el sistema libera su hueco automáticamente** en el buscador y el cuadrante.
 - **Carga Dinámica de Servicios:** El desplegable de servicios en la agenda lee en tiempo real el catálogo de servicios de la pestaña de Inventario.
 - **Creación Rápida de Fichas:** Permite agendar una cita para una mascota no registrada, generando automáticamente su familia y ficha básica en la base de datos sin tener que salir de la agenda.
-- **Directorio Editable Avanzado:** Tabla interactiva que exige la asignación de un/a Peluquero/a. Las citas "Sin Asignar" bloquean preventivamente el calendario. Si el usuario fuerza manualmente una cita en una hora ocupada, el sistema obliga a registrar un motivo justificativo.
+- **Directorio Editable Avanzado:** Tabla interactiva con casilla de **Borrado Seguro Definitivo** y que exige la asignación de un/a Peluquero/a. Si el usuario fuerza manualmente una cita en una hora ocupada, el sistema obliga a registrar un motivo justificativo.
 - Cuadrante diario interactivo con vista de bloques de 5 minutos.
 - Cuadrante semanal en formato "tarjetas" visuales.
+- **Módulo de Estadísticas:** Panel de análisis de rendimiento con KPIs (Tasa de Cancelación, Horas trabajadas) y gráficas interactivas de volumen por día, carga por peluquero y servicios top.
 
 🏦 **11. Bancos y Tesorería**
 - Directorio de cuentas bancarias de la empresa (CaixaBank, Caja Siete, etc.).
