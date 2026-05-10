@@ -23,34 +23,32 @@ else:
     res_ins_p = client.table("proveedores").insert({"nombre_empresa": NOMBRE_PROV}).execute()
     prov_id = res_ins_p.data[0]['id']
 
+# --- NUEVO: AUTO-LIMPIEZA DE RASTROS DE OWNAT ---
+print("🧹 Haciendo limpieza previa de cualquier producto de Ownat que se quedara atascado...")
+res_basura = client.table("productos").select("id").ilike("nombre", "OWNAT%").execute()
+borrados = 0
+if res_basura.data:
+    for p in res_basura.data:
+        client.table("productos_proveedores").delete().eq("producto_id", p['id']).execute()
+        client.table("productos").delete().eq("id", p['id']).execute()
+        borrados += 1
+if borrados > 0:
+    print(f"✅ Se eliminaron {borrados} registros antiguos para empezar 100% en limpio.")
+
 # 2. Cargar productos existentes para no duplicar
 res_prod = client.table("productos").select("id, sku, nombre").execute()
 skus_existentes = {str(p.get('sku', '')).strip().upper() for p in res_prod.data} if res_prod.data else set()
 nombres_existentes = {str(p.get('nombre', '')).strip().lower() for p in res_prod.data} if res_prod.data else set()
 
-# 3. Generador de SKU a prueba de fallos: busca el último número usado y continúa desde ahí
-def get_next_sku_counter():
-    res = client.table("productos").select("sku").like("sku", "OW-%").execute()
-    if not res.data:
-        return 1
-    
-    max_num = 0
-    for item in res.data:
-        try:
-            num = int(item['sku'].split('-')[1])
-            if num > max_num:
-                max_num = num
-        except (IndexError, ValueError):
-            continue
-    return max_num + 1
-
-contador_sku = get_next_sku_counter()
-
+# 3. Generador de SKU BLINDADO
+contador_sku = 1
 def generar_sku():
     global contador_sku
-    nuevo_sku = f"OW-{contador_sku:03d}"
-    contador_sku += 1
-    return nuevo_sku
+    while True:
+        nuevo_sku = f"OW-{contador_sku:03d}"
+        if nuevo_sku not in skus_existentes:
+            return nuevo_sku
+        contador_sku += 1
 
 # 4. El texto bruto copiado directamente de tu PDF
 datos_pdf = """
