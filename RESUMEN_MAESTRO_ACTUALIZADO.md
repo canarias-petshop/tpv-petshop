@@ -17,6 +17,16 @@ El sistema se encuentra estable, optimizado para tablets y con los módulos func
 4. **Fiscalidad de Servicios:** Los servicios (peluquería, etc.) **SÍ llevan IGIC (ej. 7%)**. Sus tarifas se configuran siempre como **Precio Cerrado (PVP)** y el sistema extrae automáticamente la base imponible hacia abajo.
 5. **SKU Automático:** Los códigos de barras internos se generan automáticamente (Ej: `OW-001` para Ownat) respetando un correlativo único continuo.
 
+### 📥 Formato Estándar de Importación de Catálogos
+Para futuras importaciones masivas, el sistema utiliza scripts extractores inteligentes con la siguiente lógica unificada:
+1. **Origen de Datos:** Se copia el texto directamente de las columnas del Excel del proveedor y se pega en el script.
+2. **Lectura Inversa (Derecha a Izquierda):** El script lee cada línea al revés para ignorar cabeceras o textos basura.
+3. **Extracción de Precios:** El último número detectado (ej: `15,30`) es siempre el **Precio de Coste**. El penúltimo número detectado es siempre el **PVP**.
+4. **Extracción de Código de Barras (EAN):** Busca de izquierda a derecha la primera cadena numérica que tenga 8 o más dígitos. Si existe, la asigna al campo `codigo_barras` para que funcione la pistola escáner automáticamente.
+5. **Extracción de Nombre:** Todo el texto restante entre el código EAN y los precios se fusiona para crear el Nombre del artículo.
+6. **Filtro Anti-Duplicados:** El script lee toda la base de datos de Supabase antes de empezar y omite cualquier línea cuyo Nombre o Código EAN ya exista en el TPV, evitando fallos en la caja.
+7. **Categorización y Vínculos:** Asigna el IGIC (3% en productos), enlaza directamente con la ID exacta del proveedor y pone los stocks a 0 listos para el Centro de Envíos.
+
 ## 2. Módulos Completados (14 Pestañas Funcionales)
 El sistema cuenta con **14 módulos principales operativos** en el código (`app.py`):
 
@@ -115,7 +125,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 
 ## 3. Estado Actual del Desarrollo (UI Optimizada y Automatizaciones Completadas)
 Los hitos de refactorización y conexión inteligente entre módulos se dan por cerrados. Las últimas características clave integradas son:
-- **Migración de Datos y Limpieza Histórica (Completado):** Se finalizó con éxito la importación masiva de catálogos de proveedores (Zootecnia, Elanco, Ceva, etc.) mediante parsing inteligente de PDFs, así como el rescate de clientes históricos y facturación antigua. Todo el código de uso único (scripts importadores y limpiadores) ha sido eliminado del repositorio para mantener la arquitectura del proyecto ligera, segura y ordenada.
+- **Migración de Datos y Limpieza Histórica (Completado):** Se finalizó con éxito la importación masiva de catálogos exactos (Ownat/Argomanza S.L. y todo el portfolio de Zootecnia S.L.: Amanova, Cevas, Gloria, Imagine, Julius K9, Kong Clásico y Holiday, SP Veterinaria, Vetnova, Zoetis, Bioiberica, Cunipic, Earth Rated). Se recuperó también el catálogo de Servicios (peluquería) con cálculo de IGIC 7% inverso. Todo el código de uso único (scripts importadores) ha sido eliminado del repositorio para mantener la arquitectura limpia.
 - **Copias de Seguridad Automáticas:** Mantenimiento activo del sistema de copias de seguridad blindado (`backup_total_automatico.py` / `descargar_base_datos.py` / `descargar_todos_los_datos.bat`) que permite extraer toda la base de datos de la nube a local en un clic, 100% compatible con el Programador de Tareas de Windows.
 - **Testeo Técnico Integral:** Inclusión de una suite de pruebas visuales independientes (**`test_tecnico.py`**) para validar la conexión a la base de datos, verificar la integridad de las columnas (Ley Antifraude) y simular la lógica de actualización del stock en tiempo real.
 - **Gestión de Bancos y Transferencias** (Pestaña 11).
