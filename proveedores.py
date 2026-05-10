@@ -56,25 +56,38 @@ def render_pestana_proveedores(client):
                     if col not in df_p.columns: df_p[col] = ""
                     
                 df_p_vista = df_p[['id', 'nombre_empresa', 'telefono', 'movil', 'email']].copy()
+                df_p_vista.insert(0, "Borrar", False)
                 df_p_vista.insert(0, "Ver Ficha", False)
                 
-                st.markdown("💡 *Marca **'👁️ Ver Ficha'** para acceder a todos los datos de contacto y facturación.*")
+                st.markdown("💡 *Marca **'👁️ Ver Ficha'** para acceder a los datos. Marca **'🗑️ Borrar'** para eliminar el proveedor.*")
                 
                 ed_p = st.data_editor(
                     df_p_vista, hide_index=True, use_container_width=True, key="ed_prov", height=250,
                     column_config={
                         "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
-                        "id": None, "nombre_empresa": "Empresa", "frecuencia_reparto": "Días Reparto", 
-                        "telefono": "Teléfono", "email": "Email"
+                        "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
+                        "id": None, "nombre_empresa": "Empresa", "movil": "Móvil",
+                        "telefono": "Teléfono Fijo", "email": "Email"
                     }
                 )
                 
+                filas_borrar = ed_p[ed_p["Borrar"] == True]
+                if not filas_borrar.empty:
+                    st.error(f"⚠️ Has marcado {len(filas_borrar)} proveedor(es) para eliminar.")
+                    if st.button("🚨 CONFIRMAR ELIMINACIÓN", type="primary", use_container_width=True):
+                        for _, row in filas_borrar.iterrows():
+                            client.table("productos_proveedores").delete().eq("proveedor_id", row['id']).execute()
+                            client.table("pedidos_proveedores").delete().eq("proveedor_id", row['id']).execute()
+                            client.table("proveedores").delete().eq("id", row['id']).execute()
+                        st.success("Proveedor(es) eliminado(s) correctamente."); time.sleep(1.5); st.rerun()
+
                 if st.button("💾 Guardar Cambios Rápidos", type="primary"):
-                    for _, row in ed_p.iterrows():
+                    filas_validas = ed_p[ed_p["Borrar"] == False]
+                    for _, row in filas_validas.iterrows():
                         if pd.notna(row['id']):
                             client.table("proveedores").update({
                                 "nombre_empresa": str(row['nombre_empresa']),
-                                "telefono": str(row['telefono']), "frecuencia_reparto": str(row['frecuencia_reparto']), "hora_limite": str(row['hora_limite']), "email": str(row['email'])
+                                "telefono": str(row['telefono']), "movil": str(row.get('movil', '')), "email": str(row['email'])
                             }).eq("id", row['id']).execute()
                     st.success("Directorio actualizado."); time.sleep(0.5); st.rerun()
                     
