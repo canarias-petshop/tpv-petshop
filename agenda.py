@@ -51,7 +51,7 @@ def render_pestana_agenda(client):
         return estado, servicio_raw.strip(), emp
     
     # --- PESTAÑAS DE VISTAS ---
-    sub_agenda, sub_diario, sub_semanal, sub_recordatorios, sub_cancelaciones = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal", "🔔 Recordatorios", "🚫 Cancelaciones"])
+    sub_agenda, sub_diario, sub_semanal, sub_recordatorios, sub_cancelaciones, sub_estadisticas = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal", "🔔 Recordatorios", "🚫 Cancelaciones", "📊 Estadísticas"])
     
     with sub_agenda:
         c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
@@ -620,3 +620,77 @@ def render_pestana_agenda(client):
                     })
         if canceladas: st.dataframe(pd.DataFrame(canceladas), use_container_width=True, hide_index=True)
         else: st.success("No hay cancelaciones registradas en el sistema.")
+
+    with sub_estadisticas:
+        st.markdown("#### 📊 Análisis y Rendimiento de la Agenda")
+        
+        if res_citas.data:
+            datos_est = []
+            for c in res_citas.data:
+                try:
+                    dt_obj = pd.to_datetime(c['fecha_hora'])
+                    if dt_obj.tzinfo: dt_obj = dt_obj.tz_localize(None)
+                    
+                    estado_c, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
+                    dur = c.get('duracion_minutos') if c.get('duracion_minutos') is not None else 60
+                    
+                    datos_est.append({
+                        "Fecha": dt_obj.date(),
+                        "Estado": estado_c,
+                        "Servicio": s_clean,
+                        "Peluquero/a": assigned_e,
+                        "Duración (min)": dur
+                    })
+                except: pass
+                
+            df_est = pd.DataFrame(datos_est)
+            
+            if not df_est.empty:
+                st.markdown("<p style='font-size: 14px; color: gray;'>Selecciona el rango de fechas que deseas analizar:</p>", unsafe_allow_html=True)
+                min_date = df_est["Fecha"].min()
+                max_date = df_est["Fecha"].max()
+                default_start = max(min_date, date.today() - timedelta(days=30))
+                rango_fechas = st.date_input("Filtro de fechas", value=(default_start, max_date), min_value=min_date, max_value=max_date, label_visibility="collapsed")
+                
+                if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
+                    df_filtrado = df_est[(df_est["Fecha"] >= rango_fechas[0]) & (df_est["Fecha"] <= rango_fechas[1])]
+                    
+                    if not df_filtrado.empty:
+                        total_citas = len(df_filtrado)
+                        canceladas = len(df_filtrado[df_filtrado["Estado"] == "Cancelada"])
+                        tasa_cancelacion = (canceladas / total_citas) * 100 if total_citas > 0 else 0
+                        horas_totales = df_filtrado[df_filtrado["Estado"] != "Cancelada"]["Duración (min)"].sum() / 60
+                        
+                        st.markdown("##### 📌 Resumen de Rendimiento")
+                        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+                        kpi1.metric("Citas Agendadas", total_citas)
+                        kpi2.metric("Cancelaciones", canceladas)
+                        kpi3.metric("Tasa de Cancelación", f"{tasa_cancelacion:.1f}%")
+                        kpi4.metric("Horas de Trabajo (Aprox.)", f"{horas_totales:.1f} h")
+                        st.markdown("<hr style='margin: 15px 0px; border-top: 1px solid #ddd;'>", unsafe_allow_html=True)
+                        
+                        col_graf1, col_graf2 = st.columns(2, gap="large")
+                        with col_graf1:
+                            st.markdown("**📈 Volumen de Citas por Día**")
+                            citas_dia = df_filtrado.groupby("Fecha").size().reset_index(name="Citas").set_index("Fecha")
+                            st.line_chart(citas_dia)
+                            
+                            st.markdown("**💈 Carga por Peluquero/a (Sin canceladas)**")
+                            df_validas = df_filtrado[df_filtrado["Estado"] != "Cancelada"]
+                            citas_emp = df_validas.groupby("Peluquero/a").size().reset_index(name="Citas").set_index("Peluquero/a")
+                            st.bar_chart(citas_emp)
+                            
+                        with col_graf2:
+                            st.markdown("**✂️ Top 5 Servicios Más Demandados**")
+                            top_serv = df_validas.groupby("Servicio").size().sort_values(ascending=False).head(5).reset_index(name="Citas").set_index("Servicio")
+                            st.bar_chart(top_serv)
+                            
+                            st.markdown("**🚦 Distribución de Estados**")
+                            estados_dist = df_filtrado.groupby("Estado").size().reset_index(name="Cantidad").set_index("Estado")
+                            st.bar_chart(estados_dist)
+                    else:
+                        st.info("No hay datos en el rango de fechas seleccionado.")
+            else:
+                st.info("Datos insuficientes para generar gráficas.")
+        else:
+            st.info("Aún no hay citas registradas en el sistema para analizar.")
