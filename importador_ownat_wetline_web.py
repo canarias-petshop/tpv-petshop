@@ -54,7 +54,7 @@ try:
     time.sleep(4)
     
     # --- ENLACE A LA CATEGORÍA DE WETLINE (HÚMEDO) ---
-    URL_CATEGORIA = "https://b2b.argomanza.com/perros/pienso-humedo/gear"
+    URL_CATEGORIA = "https://b2b.argomanza.com/gatos/alimento-humedo/wetline"
     # -----------------------------------------------------------
     
     print(f"🚀 Extrayendo productos de: {URL_CATEGORIA}")
