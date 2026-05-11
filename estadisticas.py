@@ -23,6 +23,21 @@ def render_pestana_estadisticas(client):
         fecha_fin = f"{anio_sel}-{mes_sel+1:02d}-01T00:00:00"
 
     try:
+        # CÁLCULO MES ANTERIOR (MoM)
+        if mes_sel == 1:
+            mes_prev = 12
+            anio_prev = anio_sel - 1
+        else:
+            mes_prev = mes_sel - 1
+            anio_prev = anio_sel
+            
+        fecha_ini_prev = f"{anio_prev}-{mes_prev:02d}-01T00:00:00"
+        res_ventas_prev = client.table("ventas_historial").select("total, estado").gte("created_at", fecha_ini_prev).lt("created_at", fecha_ini).execute()
+        total_ventas_prev = 0.0
+        if res_ventas_prev.data:
+            df_vp = pd.DataFrame(res_ventas_prev.data)
+            total_ventas_prev = df_vp[df_vp['estado'] != 'DEVUELTO']['total'].sum() if not df_vp.empty else 0.0
+
         # 1. INGRESOS (Ventas del mes)
         res_ventas = client.table("ventas_historial").select("created_at, total, estado, productos, metodo_pago").gte("created_at", fecha_ini).lt("created_at", fecha_fin).execute()
         total_ventas = 0.0
@@ -66,7 +81,9 @@ def render_pestana_estadisticas(client):
         
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         with col_m1: 
-            st.metric(label="Ingresos (Ventas TPV)", value=f"{total_ventas:.2f} €")
+            crecimiento_mom = ((total_ventas - total_ventas_prev) / total_ventas_prev) * 100 if total_ventas_prev > 0 else 0.0
+            delta_str_mom = f"{crecimiento_mom:.1f}% vs Mes Ant." if total_ventas_prev > 0 else None
+            st.metric(label="Ingresos (Ventas TPV)", value=f"{total_ventas:.2f} €", delta=delta_str_mom)
         with col_m2: 
             st.metric(label="Prov. y Variables (Facturas)", value=f"-{total_compras:.2f} €", help="Facturas de proveedores, mercancía y gastos puntuales registrados este mes.")
         with col_m3: 
@@ -189,6 +206,28 @@ def render_pestana_estadisticas(client):
                 st.bar_chart(dist_pagos, color="#f9a825", height=350)
             else:
                 st.info("No hay datos de métodos de pago este mes.")
+
+        st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
+        st.markdown("#### 👩‍💼 Rendimiento y ROI Laboral (Servicios por Empleado)")
+        if not df_v.empty and 'productos' in df_v.columns:
+            rendimiento_empleados = {}
+            for prods in df_v['productos'].dropna():
+                if isinstance(prods, list):
+                    for p in prods:
+                        import re
+                        m = re.search(r'\((.*?)\)', str(p.get('Producto', '')))
+                        if m:
+                            empleado = m.group(1)
+                            if empleado not in rendimiento_empleados:
+                                rendimiento_empleados[empleado] = 0.0
+                            rendimiento_empleados[empleado] += float(p.get('Subtotal', 0.0))
+            if rendimiento_empleados:
+                df_roi = pd.DataFrame(list(rendimiento_empleados.items()), columns=['Empleado', 'Ingresos Generados']).sort_values(by='Ingresos Generados', ascending=False)
+                c_roi1, c_roi2 = st.columns([1, 2])
+                with c_roi1: st.dataframe(df_roi, use_container_width=True, hide_index=True, column_config={"Ingresos Generados": st.column_config.NumberColumn("Ingresos (€)", format="%.2f")})
+                with c_roi2: st.bar_chart(df_roi.set_index('Empleado'), color="#9c27b0", height=200)
+            else: st.info("No hay servicios asignados a empleados específicos en los tickets de este mes.")
+        else: st.info("No hay datos suficientes para calcular el rendimiento laboral.")
 
     except Exception as e:
         st.error(f"Error al cargar las estadísticas: {e}")
