@@ -173,7 +173,8 @@ def render_pestana_historial(client):
                     with c_tot2:
                         st.metric("Dto. Global (%)", f"{t_info.get('descuento_global', 0)}%")
                     
-                    total_final_calculado = float(t_info.get('total', 0.0))
+                    total_raw = t_info.get('total', 0.0)
+                    total_final_calculado = float(total_raw) if total_raw is not None else 0.0
                     
                     with c_tot3:
                         st.metric("TOTAL FINAL", f"{total_final_calculado:.2f}€")
@@ -226,7 +227,8 @@ def render_pestana_historial(client):
                         for p in prods:
                             cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€\n"
                         
-                        desc_g_re = float(t_info.get('descuento_global', 0.0))
+                        desc_g_re_raw = t_info.get('descuento_global', 0.0)
+                        desc_g_re = float(desc_g_re_raw) if desc_g_re_raw is not None else 0.0
                         if desc_g_re > 0:
                             cuerpo_email += f"\nDescuento global aplicado: {desc_g_re}%\n"
                             
@@ -282,7 +284,11 @@ def render_pestana_historial(client):
                                 <table style="width: 100%; font-size: 22px; text-align: left; font-weight: bold;">
                         """
                         for p in prods:
-                            desc_item = p.get('Desc. %', p.get('Desc %', 0.0))
+                            desc_item_raw = p.get('Desc. %', p.get('Desc %', 0.0))
+                            try:
+                                desc_item = float(desc_item_raw) if desc_item_raw is not None else 0.0
+                            except (ValueError, TypeError):
+                                desc_item = 0.0
                             if desc_item > 0:
                                 precio_orig = p.get('Precio', p.get('Base Ud', 0) * (1 + p.get('IGIC %', 0)/100)) * p['Cantidad']
                                 html_reprint += f"<tr><td style='padding-bottom: 0px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 0px;'><del>{precio_orig:.2f}€</del> {p['Subtotal']:.2f}€</td></tr>"
@@ -293,7 +299,8 @@ def render_pestana_historial(client):
                                 </table>
                                 <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
                         """
-                        desc_g_re = float(t_info.get('descuento_global', 0.0))
+                        desc_g_re_raw = t_info.get('descuento_global', 0.0)
+                        desc_g_re = float(desc_g_re_raw) if desc_g_re_raw is not None else 0.0
                         if desc_g_re > 0:
                             subt_re = total_final_calculado / (1 - desc_g_re / 100) if (1 - desc_g_re / 100) > 0 else total_final_calculado
                             descuento_eur = subt_re - total_final_calculado
