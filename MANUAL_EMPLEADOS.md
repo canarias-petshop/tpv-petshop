@@ -35,12 +35,13 @@ Esta es la pantalla principal para cobrar a los clientes.
 Aquí gestionarás las fichas de las familias y sus perros/gatos.
 
 - **Nuevo Cliente:** Rellena los datos en el panel izquierdo. Si tiene mascota, rellena también la sección "Añadir mascota".
+  - *Novedad:* Ahora puedes registrar un **Segundo Contacto (Alternativo)** con su propio teléfono para familias. Ambos números funcionarán en el buscador general.
   - *Truco:* Puedes asignar un **"Peluquero/a Preferido"** si el cliente siempre pide cita con la misma persona.
 - **Ver Fichas y Editar:** En la tabla de la derecha, busca al cliente y marca la casilla **"👁️ Ver"**. Se abrirá su ficha completa.
   - Para guardar los cambios de texto, asegúrate de pulsar "💾 Guardar Cambios en Clientes/Mascotas".
 - **Historial de la Mascota:** Dentro de la familia, marca "👁️ Ver Ficha" en la mascota específica.
   - Verás su historial de peluquería.
-  - Al añadir un nuevo servicio al historial, **selecciona tu nombre en la columna "Realizado por"** para dejar constancia de quién hizo el trabajo. Pulsa "Guardar Historial".
+  - Al añadir un nuevo servicio, **indica la hora de Inicio y Fin; el sistema calculará automáticamente la duración en minutos**. Selecciona tu nombre en la columna "Realizado por" y pulsa "Guardar Historial".
 - **Encargos:** Si un cliente pide un artículo que no hay en tienda, anótalo en "🛍️ Encargos". Cuando el producto llegue, pulsa el botón **"💬 WhatsApp"** para avisarle automáticamente. El sistema te alertará si un encargo se retrasa o si el cliente tarda mucho en recogerlo.
 - **💸 Pagos Pendientes:** En esta subpestaña verás qué clientes deben dinero en la tienda, con un botón directo a WhatsApp para reclamarlo a partir de los 14 días.
 
@@ -56,6 +57,7 @@ Puedes hacerlo desde la ficha de la mascota (en Clientes) o desde la pestaña "A
 
 1. Selecciona la **Fecha** y la **Duración** estimada (ej. 60 min).
 2. Selecciona la **Peluquera/o**.
+   - *Atención:* En el desplegable de seleccionar mascota, **ahora verás el teléfono del dueño al lado del nombre**. Fíjate bien para no confundir a perritos que se llamen igual (ej. Luna o Kira).
    - *Importante:* Si seleccionas a Marina, el sistema revisará a qué hora trabaja Marina ese día. Si tiene el día libre, te avisará con un mensaje en rojo y no te dejará dar la cita.
 3. El sistema buscará automáticamente los **Tramos Libres** y te los mostrará en verde.
 4. Selecciona la **Hora de Inicio** exacta del menú desplegable y el **Servicio** (ej. Baño y Corte).
@@ -63,6 +65,8 @@ Puedes hacerlo desde la ficha de la mascota (en Clientes) o desde la pestaña "A
 6. Pulsa **"➕ Confirmar Cita"**.
 
 **Recordatorios:** Desde el directorio de la agenda, puedes pulsar **"💬 Recordatorio"** para enviar un WhatsApp al cliente confirmando la fecha y hora de su cita.
+**Ocultar citas pasadas:** En el directorio tienes un interruptor activado por defecto para que las citas de días anteriores se oculten solas y no tengas que hacer tanto scroll.
+**Servicios de Recogida:** Tienes nuevos estados en la agenda para identificar visualmente si un servicio a domicilio está 'pendiente 🟣🟡' o 'confirmado 🟣🟢'.
 ### Ver el Cuadrante:
 - **Vista Diaria:** Te muestra el día dividido en bloques de 5 minutos para ver los huecos libres exactos.
 - **Vista Semanal:** Te muestra los próximos 7 días en un formato visual tipo "tarjetas".
