@@ -24,10 +24,15 @@ def render_pestana_crm(client):
     with col_c1:
         st.markdown("#### 👤 Nuevo Cliente")
         with st.form("nuevo_cliente", clear_on_submit=True):
-            c_nom = st.text_input("Nombre y Apellidos *")
+            c_nom = st.text_input("Nombre del Contacto Principal *")
             c_t1, c_t2 = st.columns(2)
-            with c_t1: c_tel = st.text_input("Teléfono")
+            with c_t1: c_tel = st.text_input("Tel. Principal (Avisos) *")
             with c_t2: c_cont = st.selectbox("Canal Preferido", ["WhatsApp", "Llamada", "SMS"])
+            
+            st.markdown("<p style='margin: 0; font-size: 13px; color: gray;'>Segundo contacto (Opcional)</p>", unsafe_allow_html=True)
+            c_t3, c_t4 = st.columns(2)
+            with c_t3: c_nom2 = st.text_input("Nombre Contacto Alt.")
+            with c_t4: c_tel2 = st.text_input("Teléfono Alt.")
             c_ema = st.text_input("Email")
             c_nac = st.date_input("F. Nacimiento", value=None)
             c_rgpd = st.checkbox("📝 Acepta LOPD/RGPD (Envío info y promos)", value=True)
@@ -48,7 +53,8 @@ def render_pestana_crm(client):
             if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
                 if c_nom:
                     res_cli = client.table("clientes").insert({
-                        "nombre_dueno": c_nom, "telefono": c_tel, "email": c_ema, "metodo_contacto": c_cont, 
+                        "nombre_dueno": c_nom, "telefono": c_tel, "nombre_dueno_2": c_nom2, "telefono_2": c_tel2,
+                        "email": c_ema, "metodo_contacto": c_cont, 
                         "fecha_nacimiento": str(c_nac) if c_nac else "", "rgpd_consent": c_rgpd, "puntos": 0
                     }).execute()
 
@@ -374,13 +380,19 @@ def render_pestana_crm(client):
                 
                 if 'fecha_nacimiento' not in df_cli.columns: df_cli['fecha_nacimiento'] = ""
                 if 'metodo_contacto' not in df_cli.columns: df_cli['metodo_contacto'] = "WhatsApp"
+                
+                if 'nombre_dueno_2' not in df_cli.columns: df_cli['nombre_dueno_2'] = ""
+                if 'telefono_2' not in df_cli.columns: df_cli['telefono_2'] = ""
+                
                 df_cli['Tipo Cliente'] = df_cli['mascotas'].apply(lambda x: "🐾 Con mascota" if isinstance(x, list) and len(x) > 0 else "🛍️ Solo tienda")
-                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'email', 'metodo_contacto', 'fecha_nacimiento', 'Tipo Cliente']].copy()
+                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'nombre_dueno_2', 'telefono_2', 'email', 'metodo_contacto', 'fecha_nacimiento', 'Tipo Cliente']].copy()
                 
                 if b_cli:
                     df_cli_vista = df_cli_vista[
                         df_cli_vista['nombre_dueno'].str.lower().str.contains(b_cli, na=False) |
-                        df_cli_vista['telefono'].astype(str).str.contains(b_cli, na=False)
+                        df_cli_vista['telefono'].astype(str).str.contains(b_cli, na=False) |
+                        df_cli_vista['nombre_dueno_2'].str.lower().str.contains(b_cli, na=False) |
+                        df_cli_vista['telefono_2'].astype(str).str.contains(b_cli, na=False)
                     ]
                 
                 # Aseguramos columnas nuevas por si acaban de ejecutarse en SQL
@@ -397,7 +409,8 @@ def render_pestana_crm(client):
                     df_cli_vista,
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), 
-                        "id": None, "nombre_dueno": "Nombre Cliente", "telefono": "Tel.", 
+                        "id": None, "nombre_dueno": "Contacto Principal", "telefono": "Tel. Principal", 
+                        "nombre_dueno_2": "Contacto Alt.", "telefono_2": "Tel. Alt.",
                         "email": "Email", "metodo_contacto": st.column_config.SelectboxColumn("Canal Pref.", options=["WhatsApp", "Llamada", "SMS"]), "fecha_nacimiento": "F. Nac",
                         "RGPD": st.column_config.CheckboxColumn("LOPD"),
                         "Puntos": st.column_config.NumberColumn("🌟 Ptos"),
@@ -415,6 +428,7 @@ def render_pestana_crm(client):
                         if pd.notna(row['id']):
                             client.table("clientes").update({
                                 "nombre_dueno": str(row['nombre_dueno']), "telefono": str(row['telefono']),
+                                "nombre_dueno_2": str(row.get('nombre_dueno_2', '')), "telefono_2": str(row.get('telefono_2', '')),
                                 "email": str(row['email']), "metodo_contacto": str(row.get('metodo_contacto', 'WhatsApp')), 
                                 "fecha_nacimiento": str(row['fecha_nacimiento']),
                                 "rgpd_consent": bool(row.get('RGPD', True)), "puntos": int(row.get('Puntos', 0))
