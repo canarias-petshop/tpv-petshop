@@ -1,11 +1,19 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime
+import re
 
 def render_pestana_estadisticas(client):
     st.markdown("<h3 style='margin-bottom: 5px;'>📈 Estadísticas y Salud Financiera</h3>", unsafe_allow_html=True)
     st.write("Análisis realista del balance: Ingresos por ventas vs Facturas, Proveedores y Gastos Fijos.")
     
+    # Cargar lista de empleados reales para evitar errores de lectura
+    try:
+        res_emp_est = client.table("personal_empleados").select("nombre").execute()
+        empleados_reales = [e['nombre'] for e in res_emp_est.data] if res_emp_est.data else []
+    except:
+        empleados_reales = []
+
     # Filtros de mes y año
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     hoy = date.today()
@@ -65,7 +73,8 @@ def render_pestana_estadisticas(client):
         total_fijos_mes = 0.0
         if res_fijos.data:
             for gf in res_fijos.data:
-                imp = float(gf.get('importe_estimado', 0.0))
+                imp_raw = gf.get('importe_estimado', 0.0)
+                imp = float(imp_raw) if imp_raw is not None else 0.0
                 frec = gf.get('frecuencia', 'Mensual')
                 if frec == 'Bimestral': imp = imp / 2
                 elif frec == 'Trimestral': imp = imp / 3
@@ -176,14 +185,25 @@ def render_pestana_estadisticas(client):
             st.markdown("**⭐ Top 10 Productos y Servicios (Por Ingresos €)**")
             if not df_v.empty and 'productos' in df_v.columns:
                 lista_prods = []
+                
+                def limpiar_producto(nombre):
+                    n = str(nombre)
+                    n = re.sub(r'(?i)^producto\s+', '', n)
+                    n = re.sub(r'\(.*?\)', '', n)
+                    return n.strip().capitalize()
+
                 for prods in df_v['productos'].dropna():
                     if isinstance(prods, list):
-                        lista_prods.extend(prods)
+                        for p in prods:
+                            p_clean = p.copy()
+                            p_clean['Producto_Limpio'] = limpiar_producto(p.get('Producto', 'Desc.'))
+                            lista_prods.append(p_clean)
                 
                 if lista_prods:
                     df_p = pd.DataFrame(lista_prods)
-                    if 'Producto' in df_p.columns and 'Subtotal' in df_p.columns:
-                        top_prods = df_p.groupby('Producto')['Subtotal'].sum().sort_values(ascending=False).head(10)
+                    if 'Producto_Limpio' in df_p.columns and 'Subtotal' in df_p.columns:
+                        df_p['Subtotal'] = pd.to_numeric(df_p['Subtotal'], errors='coerce').fillna(0.0)
+                        top_prods = df_p.groupby('Producto_Limpio')['Subtotal'].sum().sort_values(ascending=False).head(10)
                         st.bar_chart(top_prods, color="#2e7d32", height=350)
                     else:
                         st.info("Formato de productos no compatible en histórico antiguo.")
@@ -211,12 +231,12 @@ def render_pestana_estadisticas(client):
         st.markdown("#### 👩‍💼 Rendimiento y ROI Laboral (Servicios por Empleado)")
         if not df_v.empty and 'productos' in df_v.columns:
             rendimiento_empleados = {}
-            import re
             for prods in df_v['productos'].dropna():
                 if isinstance(prods, list):
                     for p in prods:
                         prod_nombre = str(p.get('Producto', ''))
-                        subtotal = float(p.get('Subtotal', 0.0))
+                        subt_raw = p.get('Subtotal', 0.0)
+                        subtotal = float(subt_raw) if subt_raw is not None else 0.0
                         
                         m = re.search(r'\((.*?)\)', prod_nombre)
                         if m and empleados_reales:
