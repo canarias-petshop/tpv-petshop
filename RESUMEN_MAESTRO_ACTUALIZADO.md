@@ -53,7 +53,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - Historial clínico y de peluquería con cálculo de tiempo medio por servicio y registro del empleado ("Realizado por") para trazabilidad.
 - **Cálculo Automático de Tiempo:** La ficha clínica calcula sola la duración del servicio en minutos al introducir la hora de inicio y fin de la sesión.
 - **Registro de Cancelaciones (Políticas Estrictas):** El CRM detecta automáticamente cuántas veces ha cancelado una mascota y muestra una alerta roja en su ficha para que los empleados lo tengan en cuenta al darle cita.
-- **Gestor de Deudas de Tienda (Pagos Pendientes):** Nueva sub-pestaña que agrupa automáticamente a los clientes morosos del TPV. Suma sus deudas, alerta visualmente a los 14 días y genera un mensaje de WhatsApp para recordarles el pago.
+- **Gestor de Deudas de Tienda (Pagos Pendientes):** Nueva sub-pestaña que agrupa automáticamente a los clientes morosos del TPV. Alerta visualmente a los 14 días y genera un mensaje de WhatsApp para reclamarlo. Además, incluye un **Sistema de Cobro Integrado** que actualiza la Caja Fuerte y suma los Puntos VIP correspondientes en un solo paso.
 
 📜 **4. Historial Operativo**
 - Registro en vivo de todos los tickets con **generación de Hash SHA-256 encadenado**.
@@ -71,8 +71,11 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 
 📈 **6. Estadísticas y Salud Financiera**
 - **Dashboard interactivo por Mes y Año:** Análisis realista del balance financiero cruzando datos de 3 fuentes.
+- **Seguridad de Acceso:** Panel oculto a empleados y restringido **exclusivamente para el rol Administrador**.
 - **Cálculo de Beneficio Neto Real:** Suma los ingresos (Ventas TPV), resta los gastos variables (Facturas de compras) y resta el **prorrateo inteligente de Gastos Fijos** (calcula la parte proporcional mensual de seguros anuales o impuestos trimestrales).
-- Gráficas visuales de la evolución de ingresos diarios y de la proporción de gastos (Variables vs Fijos).
+- **Métricas Avanzadas de Crecimiento:** Cálculo automático del Crecimiento Mensual (MoM), Ticket Medio y N.º de Operaciones.
+- **Rendimiento y ROI Laboral:** Cruce inteligente entre el historial de ventas del TPV y la Agenda de citas para calcular exactamente los ingresos generados por cada empleado.
+- **Business Intelligence:** Gráficos multiproyección (diario, semanal, mensual), desglose de métodos de pago y un "limpiador semántico" que agrupa servicios por familias (Baños, Cortes) para depurar el Top 10 de Ventas.
 
 🚚 **7. Gestión de Proveedores y Pedidos**
 - Directorio de proveedores con sus datos fiscales, de reparto y **control de Pedido Mínimo** para portes gratis.
@@ -161,6 +164,10 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Estabilización de Interfaz y Prevención de Errores (Completado):** Implementados parches de seguridad en el TPV para evitar bucles infinitos por filas vacías, manejo seguro de tickets antiguos con datos nulos en Historial, soporte para un segundo contacto familiar en el CRM, y cálculos automáticos de tiempo en fichas clínicas.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
+
+### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
+*   **Inventario:** Añadir control y alertas de **Fechas de Caducidad** para los productos perecederos.
+*   **Gestión de Recogidas a Domicilio:** (*Nota: La BD ya está preparada con las columnas `direccion` y `servicio_domicilio`*). Queda pendiente añadir los campos visuales en la ficha del cliente (`crm.py`) y programar la alerta en el panel de Recordatorios de la Agenda (`agenda.py`).
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
