@@ -280,9 +280,16 @@ def render_pestana_tpv(client):
                 )
                 
                 if not edited_df.equals(df_car):
+                    original_len = len(edited_df)
+                    
                     # --- FIX: Eliminar filas vacías añadidas por error con el botón '+' ---
                     edited_df = edited_df.dropna(subset=['Producto'])
                     edited_df = edited_df[edited_df['Producto'].astype(str).str.strip() != '']
+                    
+                    # --- FIX: Romper el bucle infinito borrando la memoria del widget ---
+                    if len(edited_df) < original_len:
+                        if "ed_car_ticket" in st.session_state:
+                            del st.session_state["ed_car_ticket"]
                     
                     edited_df["Subtotal"] = (edited_df["Cantidad"] * edited_df["Precio"]) * (1 - edited_df["Desc. %"] / 100)
                     st.session_state.carrito = json.loads(edited_df.to_json(orient='records'))
