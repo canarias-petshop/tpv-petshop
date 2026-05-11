@@ -178,6 +178,25 @@ def render_pestana_estadisticas(client):
                 
         st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
         
+        def limpiar_producto(nombre):
+            n = str(nombre)
+            n = re.sub(r'(?i)^producto\s+', '', n)
+            n = re.sub(r'(?i)^art[íi]culo\s+', '', n)
+            n = re.sub(r'\(.*?\)', '', n)
+            n = n.strip()
+            
+            n_low = n.lower()
+            if 'baño' in n_low: return 'Servicio: Baños'
+            if 'corte' in n_low or 'corta' in n_low: return 'Servicio: Cortes'
+            if 'deslanado' in n_low: return 'Servicio: Deslanados'
+            if 'arreglo' in n_low: return 'Servicio: Arreglos'
+            if 'stripping' in n_low: return 'Servicio: Stripping'
+            if 'higiene' in n_low: return 'Servicio: Higiene'
+            
+            if n_low in ['servicio', 'servicio pelu', 'servicio peluqueria', 'servicio peluquería', 'peluqueria', 'peluquería']: return 'Servicio: Genérico'
+            if n_low in ['venta', 'venta manual', 'artículo manual', 'desc.', 'varios', 'kiko', 'auna']: return 'Venta Manual (Genérica)'
+            return n.capitalize()
+
         # NUEVA FILA DE GRÁFICAS: TOP VENTAS Y MÉTODOS DE PAGO
         col_g3, col_g4 = st.columns([1.5, 1])
         
@@ -186,32 +205,10 @@ def render_pestana_estadisticas(client):
             if not df_v.empty and 'productos' in df_v.columns:
                 lista_prods = []
                 
-                def limpiar_producto(nombre):
-                    n = str(nombre)
-                    n = re.sub(r'(?i)^producto\s+', '', n)
-                    n = re.sub(r'\(.*?\)', '', n)
-                    n = n.strip()
-                    
-                    n_low = n.lower()
-                    
-                    # 1. Agrupación por familias de servicios
-                    if 'baño' in n_low: return 'Servicio: Baños'
-                    if 'corte' in n_low or 'corta' in n_low: return 'Servicio: Cortes'
-                    if 'deslanado' in n_low: return 'Servicio: Deslanados'
-                    if 'arreglo' in n_low: return 'Servicio: Arreglos'
-                    if 'stripping' in n_low: return 'Servicio: Stripping'
-                    if 'higiene' in n_low: return 'Servicio: Higiene'
-                    
-                    # 2. Agrupación de errores de escritura
-                    if n_low in ['servicio', 'servicio pelu', 'servicio peluqueria', 'servicio peluquería', 'peluqueria', 'peluquería']:
-                        return 'Servicio: Genérico'
-                    if n_low in ['venta', 'venta manual', 'artículo manual', 'desc.', 'varios']:
-                        return 'Venta Manual (Genérica)'
-                    return n.capitalize()
-
                 for prods in df_v['productos'].dropna():
                     if isinstance(prods, list):
                         for p in prods:
+                            if not isinstance(p, dict): continue
                             p_clean = p.copy()
                             p_clean['Artículo'] = limpiar_producto(p.get('Producto', 'Desc.'))
                             lista_prods.append(p_clean)
@@ -246,24 +243,58 @@ def render_pestana_estadisticas(client):
 
         st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
         st.markdown("#### 👩‍💼 Rendimiento y ROI Laboral (Servicios por Empleado)")
+        
+        # 1. Cruzar con la Agenda para obtener el empleado real
+        res_citas_roi = client.table("citas").select("fecha_hora, servicio, mascotas(clientes(nombre_dueno))").gte("fecha_hora", fecha_ini).lt("fecha_hora", fecha_fin).execute()
+        citas_map = {}
+        if res_citas_roi.data:
+            for c in res_citas_roi.data:
+                s_raw = str(c.get('servicio', ''))
+                if "[ESTADO: Cancelada]" in s_raw: continue
+                emp_asig = next((e for e in empleados_reales if f"({e})" in s_raw), None)
+                if emp_asig:
+                    try:
+                        dt_c = pd.to_datetime(c['fecha_hora']).date()
+                        mascotas_data = c.get('mascotas')
+                        if isinstance(mascotas_data, dict):
+                            clientes_data = mascotas_data.get('clientes')
+                            if isinstance(clientes_data, dict):
+                                cliente_nom = str(clientes_data.get('nombre_dueno', '')).strip().lower()
+                                if cliente_nom:
+                                    citas_map[(dt_c, cliente_nom)] = emp_asig
+                    except: pass
+
         if not df_v.empty and 'productos' in df_v.columns:
             rendimiento_empleados = {}
-            for prods in df_v['productos'].dropna():
+            for idx, row in df_v.iterrows():
+                cliente_ticket = str(row.get('cliente_vip_nombre', '')).strip().lower()
+                fecha_ticket = row['Fecha']
+                
+                emp_agenda = citas_map.get((fecha_ticket, cliente_ticket))
+                
+                prods = row.get('productos')
                 if isinstance(prods, list):
                     for p in prods:
-                        prod_nombre = str(p.get('Producto', ''))
+                        if not isinstance(p, dict): continue
+                        prod_n = str(p.get('Producto', ''))
                         subt_raw = p.get('Subtotal', 0.0)
                         subtotal = float(subt_raw) if subt_raw is not None else 0.0
                         
-                        m = re.search(r'\((.*?)\)', prod_nombre)
+                        m = re.search(r'\((.*?)\)', prod_n)
+                        emp_manual = None
                         if m and empleados_reales:
                             posible_emp = m.group(1).strip().lower()
                             for emp_real in empleados_reales:
-                                if posible_emp == emp_real.lower() or f"({emp_real})" in prod_nombre:
-                                    if emp_real not in rendimiento_empleados:
-                                        rendimiento_empleados[emp_real] = 0.0
-                                    rendimiento_empleados[emp_real] += subtotal
-                                    break
+                                if posible_emp == emp_real.lower() or f"({emp_real})" in prod_n:
+                                    emp_manual = emp_real; break
+                                    
+                        emp_final = emp_manual if emp_manual else emp_agenda
+                        p_limpio = limpiar_producto(prod_n)
+                        
+                        if emp_final and p_limpio.startswith('Servicio:'):
+                            if emp_final not in rendimiento_empleados: rendimiento_empleados[emp_final] = 0.0
+                            rendimiento_empleados[emp_final] += subtotal
+                            
             if rendimiento_empleados:
                 df_roi = pd.DataFrame(list(rendimiento_empleados.items()), columns=['Empleado', 'Ingresos Generados']).sort_values(by='Ingresos Generados', ascending=False)
                 c_roi1, c_roi2 = st.columns([1, 2])
