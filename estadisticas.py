@@ -211,16 +211,22 @@ def render_pestana_estadisticas(client):
         st.markdown("#### 👩‍💼 Rendimiento y ROI Laboral (Servicios por Empleado)")
         if not df_v.empty and 'productos' in df_v.columns:
             rendimiento_empleados = {}
+            import re
             for prods in df_v['productos'].dropna():
                 if isinstance(prods, list):
                     for p in prods:
-                        import re
-                        m = re.search(r'\((.*?)\)', str(p.get('Producto', '')))
-                        if m:
-                            empleado = m.group(1)
-                            if empleado not in rendimiento_empleados:
-                                rendimiento_empleados[empleado] = 0.0
-                            rendimiento_empleados[empleado] += float(p.get('Subtotal', 0.0))
+                        prod_nombre = str(p.get('Producto', ''))
+                        subtotal = float(p.get('Subtotal', 0.0))
+                        
+                        m = re.search(r'\((.*?)\)', prod_nombre)
+                        if m and empleados_reales:
+                            posible_emp = m.group(1).strip().lower()
+                            for emp_real in empleados_reales:
+                                if posible_emp == emp_real.lower() or f"({emp_real})" in prod_nombre:
+                                    if emp_real not in rendimiento_empleados:
+                                        rendimiento_empleados[emp_real] = 0.0
+                                    rendimiento_empleados[emp_real] += subtotal
+                                    break
             if rendimiento_empleados:
                 df_roi = pd.DataFrame(list(rendimiento_empleados.items()), columns=['Empleado', 'Ingresos Generados']).sort_values(by='Ingresos Generados', ascending=False)
                 c_roi1, c_roi2 = st.columns([1, 2])
