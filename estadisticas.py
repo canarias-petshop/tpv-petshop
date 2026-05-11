@@ -190,20 +190,28 @@ def render_pestana_estadisticas(client):
                     n = str(nombre)
                     n = re.sub(r'(?i)^producto\s+', '', n)
                     n = re.sub(r'\(.*?\)', '', n)
-                    return n.strip().capitalize()
+                    n = n.strip().capitalize()
+                    
+                    # Agrupar nombres genéricos de tickets antiguos
+                    n_low = n.lower()
+                    if n_low in ['servicio', 'servicio pelu', 'servicio peluqueria', 'servicio peluquería', 'peluqueria', 'peluquería']:
+                        return 'Peluquería (Genérico)'
+                    if n_low in ['venta', 'venta manual', 'artículo manual', 'desc.']:
+                        return 'Venta Manual (Genérica)'
+                    return n
 
                 for prods in df_v['productos'].dropna():
                     if isinstance(prods, list):
                         for p in prods:
                             p_clean = p.copy()
-                            p_clean['Producto_Limpio'] = limpiar_producto(p.get('Producto', 'Desc.'))
+                            p_clean['Artículo'] = limpiar_producto(p.get('Producto', 'Desc.'))
                             lista_prods.append(p_clean)
                 
                 if lista_prods:
                     df_p = pd.DataFrame(lista_prods)
-                    if 'Producto_Limpio' in df_p.columns and 'Subtotal' in df_p.columns:
+                    if 'Artículo' in df_p.columns and 'Subtotal' in df_p.columns:
                         df_p['Subtotal'] = pd.to_numeric(df_p['Subtotal'], errors='coerce').fillna(0.0)
-                        top_prods = df_p.groupby('Producto_Limpio')['Subtotal'].sum().sort_values(ascending=False).head(10)
+                        top_prods = df_p.groupby('Artículo')['Subtotal'].sum().sort_values(ascending=False).head(10)
                         st.bar_chart(top_prods, color="#2e7d32", height=350)
                     else:
                         st.info("Formato de productos no compatible en histórico antiguo.")
