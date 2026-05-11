@@ -128,6 +128,17 @@ def render_pestana_crm(client):
             df_hist["Inicio de sesión"] = df_hist["Inicio de sesión"].apply(parse_time_safe)
             df_hist["Fin de sesión"] = df_hist["Fin de sesión"].apply(parse_time_safe)
             
+            # --- FIX: Calcular duración automáticamente en la vista si hay horas ---
+            for idx, row in df_hist.iterrows():
+                ini = row.get('Inicio de sesión')
+                fin = row.get('Fin de sesión')
+                if pd.notnull(ini) and pd.notnull(fin):
+                    minutos = (fin.hour * 60 + fin.minute) - (ini.hour * 60 + ini.minute)
+                    if minutos < 0: minutos += 24 * 60
+                    df_hist.at[idx, 'Duración (min)'] = minutos
+
+            st.markdown("💡 *Nota: Si indicas **Inicio** y **Fin**, la **Duración** se calculará sola al guardar.*")
+            
             ed_hist = st.data_editor(
                 df_hist, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_hist_{prefix}_{m_id}",
                 column_config={
@@ -137,7 +148,7 @@ def render_pestana_crm(client):
                     "Peluquera/o": st.column_config.SelectboxColumn("Realizado por", options=[""] + empleados_lista),
                     "Inicio de sesión": st.column_config.TimeColumn("Inicio", format="HH:mm"),
                     "Fin de sesión": st.column_config.TimeColumn("Fin", format="HH:mm"),
-                    "Duración (min)": st.column_config.NumberColumn("Duración (min)", min_value=0, step=5),
+                    "Duración (min)": st.column_config.NumberColumn("Duración (Auto)", min_value=0, step=5, help="Se calcula automáticamente al guardar si indicas Inicio y Fin"),
                     "Importe (€)": st.column_config.NumberColumn("Importe Cobrado (€)", format="%.2f", min_value=0.0),
                     "Nota Sesión": st.column_config.TextColumn("Nota Sesión")
                 }
