@@ -29,10 +29,11 @@ def render_pestana_agenda(client):
     except: 
         servicios_lista = ["Otro"]
 
-    ESTADOS_CITA = ["Confirmada", "Cancelada", "Cambio de cita", "Servicio de recogida", "Cambio (día antes)", "Cambio (mismo día)", "Oferta / Descuento", "Pendiente"]
+    ESTADOS_CITA = ["Confirmada", "Cancelada", "Cambio de cita", "Servicio de recogida pendiente", "Servicio de recogida confirmado", "Cambio (día antes)", "Cambio (mismo día)", "Oferta / Descuento", "Pendiente"]
     EMOJIS_ESTADO = {
         "Confirmada": "🟢", "Cancelada": "💖", "Cambio de cita": "🔵", 
-        "Servicio de recogida": "🟣", "Cambio (día antes)": "🟠", 
+        "Servicio de recogida": "🟣", "Servicio de recogida pendiente": "🟣🟡", "Servicio de recogida confirmado": "🟣🟢",
+        "Cambio (día antes)": "🟠", 
         "Cambio (mismo día)": "⚪", "Oferta / Descuento": "🟩", "Pendiente": "🟡"
     }
 
@@ -42,6 +43,9 @@ def render_pestana_agenda(client):
         m_est = re.search(r'\[ESTADO:\s*(.*?)\]', servicio_raw)
         if m_est:
             estado = m_est.group(1).strip()
+            # Migración automática de estados antiguos
+            if estado == "Servicio de recogida":
+                estado = "Servicio de recogida pendiente"
             servicio_raw = re.sub(r'\[ESTADO:\s*.*?\]\s*', '', servicio_raw)
             
         emp = "Sin Asignar"
