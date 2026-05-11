@@ -190,15 +190,24 @@ def render_pestana_estadisticas(client):
                     n = str(nombre)
                     n = re.sub(r'(?i)^producto\s+', '', n)
                     n = re.sub(r'\(.*?\)', '', n)
-                    n = n.strip().capitalize()
+                    n = n.strip()
                     
-                    # Agrupar nombres genéricos de tickets antiguos
                     n_low = n.lower()
+                    
+                    # 1. Agrupación por familias de servicios
+                    if 'baño' in n_low: return 'Servicio: Baños'
+                    if 'corte' in n_low or 'corta' in n_low: return 'Servicio: Cortes'
+                    if 'deslanado' in n_low: return 'Servicio: Deslanados'
+                    if 'arreglo' in n_low: return 'Servicio: Arreglos'
+                    if 'stripping' in n_low: return 'Servicio: Stripping'
+                    if 'higiene' in n_low: return 'Servicio: Higiene'
+                    
+                    # 2. Agrupación de errores de escritura
                     if n_low in ['servicio', 'servicio pelu', 'servicio peluqueria', 'servicio peluquería', 'peluqueria', 'peluquería']:
-                        return 'Peluquería (Genérico)'
-                    if n_low in ['venta', 'venta manual', 'artículo manual', 'desc.']:
+                        return 'Servicio: Genérico'
+                    if n_low in ['venta', 'venta manual', 'artículo manual', 'desc.', 'varios']:
                         return 'Venta Manual (Genérica)'
-                    return n
+                    return n.capitalize()
 
                 for prods in df_v['productos'].dropna():
                     if isinstance(prods, list):
