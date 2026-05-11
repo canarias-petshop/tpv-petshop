@@ -248,8 +248,11 @@ def render_pestana_agenda(client):
 
         with c_agenda2:
             st.markdown("#### 🗓️ Directorio de Citas (Editable)")
+            mostrar_pasadas = st.toggle("🕰️ Mostrar citas pasadas", value=False)
+            
             if res_citas.data:
                 citas_formateadas = []
+                hoy_fecha = date.today()
                 for c in res_citas.data:
                     mascota_info = c.get('mascotas', {})
                     cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
@@ -281,66 +284,74 @@ def render_pestana_agenda(client):
                         "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
                         "Teléfono": cliente_info.get('telefono', 'N/A'),
                         "Observaciones": c.get('observaciones', ''),
-                        "WhatsApp": url_wa
+                        "WhatsApp": url_wa,
+                        "Es_Pasada": dt_obj.date() < hoy_fecha
                     })
                     
                 df_citas = pd.DataFrame(citas_formateadas)
-                df_citas.insert(0, "Borrar", False)
                 
-                ed_citas = st.data_editor(
-                    df_citas[['Borrar', 'id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Observaciones', 'Mascota', 'Dueño', 'Teléfono', 'WhatsApp']],
-                    use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
-                    column_order=["Borrar", "Día", "Hora", "Estado", "Peluquero/a", "Mascota", "Servicio", "Observaciones", "Duración (min)", "Dueño", "Teléfono", "WhatsApp"],
-                    column_config={
-                        "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
-                        "id": None,
-                        "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)", width="small"),
-                        "Hora": st.column_config.TextColumn("Hora", width="small"),
-                        "Estado": st.column_config.SelectboxColumn("🎨 Estado", options=[f"{EMOJIS_ESTADO.get(e, '')} {e}" for e in ESTADOS_CITA], required=True),
-                        "Peluquero/a": st.column_config.SelectboxColumn("👩‍🦰 Peluquero/a", options=["Sin Asignar"] + empleados_lista, required=True),
-                        "Mascota": st.column_config.TextColumn(disabled=True),
-                        "Dueño": st.column_config.TextColumn(disabled=True),
-                        "Teléfono": st.column_config.TextColumn(disabled=True),
-                        "Observaciones": st.column_config.TextColumn("Anotación"),
-                        "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 Recordatorio")
-                    }
-                )
+                if not mostrar_pasadas:
+                    df_citas = df_citas[df_citas["Es_Pasada"] == False]
                 
-                if st.button("💾 Guardar Cambios en Agenda", type="primary"):
-                    ids_actuales = ed_citas['id'].dropna().tolist()
-                    ids_orig = df_citas['id'].tolist()
-                    ids_borrar = [i for i in ids_orig if i not in ids_actuales]
+                if df_citas.empty:
+                    st.info("No hay citas próximas agendadas. Activa 'Mostrar citas pasadas' para ver el historial antiguo.")
+                else:
+                    df_citas.insert(0, "Borrar", False)
                     
-                    for id_b in ids_borrar: client.table("citas").delete().eq("id", id_b).execute()
+                    ed_citas = st.data_editor(
+                        df_citas[['Borrar', 'id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Observaciones', 'Mascota', 'Dueño', 'Teléfono', 'WhatsApp']],
+                        use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
+                        column_order=["Borrar", "Día", "Hora", "Estado", "Peluquero/a", "Mascota", "Servicio", "Observaciones", "Duración (min)", "Dueño", "Teléfono", "WhatsApp"],
+                        column_config={
+                            "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
+                            "id": None,
+                            "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)", width="small"),
+                            "Hora": st.column_config.TextColumn("Hora", width="small"),
+                            "Estado": st.column_config.SelectboxColumn("🎨 Estado", options=[f"{EMOJIS_ESTADO.get(e, '')} {e}" for e in ESTADOS_CITA], required=True),
+                            "Peluquero/a": st.column_config.SelectboxColumn("👩‍🦰 Peluquero/a", options=["Sin Asignar"] + empleados_lista, required=True),
+                            "Mascota": st.column_config.TextColumn(disabled=True),
+                            "Dueño": st.column_config.TextColumn(disabled=True),
+                            "Teléfono": st.column_config.TextColumn(disabled=True),
+                            "Observaciones": st.column_config.TextColumn("Anotación"),
+                            "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 Recordatorio")
+                        }
+                    )
                     
-                    for _, row in ed_citas.iterrows():
-                        if pd.notna(row['id']):
-                            if row.get('Borrar', False) == True:
-                                client.table("citas").delete().eq("id", row['id']).execute()
-                            else:
-                                try:
-                                    dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}", format='%d/%m/%Y %H:%M').strftime('%Y-%m-%d %H:%M:%S')
-                                except:
-                                    dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}").strftime('%Y-%m-%d %H:%M:%S')
-                                    
-                                srv = str(row['Servicio'])
-                                pelu = str(row['Peluquero/a'])
-                                est_raw = str(row['Estado'])
-                                est = est_raw.split(" ", 1)[1] if " " in est_raw else est_raw
-                                if pelu != "Sin Asignar":
-                                    srv_base = f"{srv} ({pelu})"
+                    if st.button("💾 Guardar Cambios en Agenda", type="primary"):
+                        ids_actuales = ed_citas['id'].dropna().tolist()
+                        ids_orig = df_citas['id'].tolist()
+                        ids_borrar = [i for i in ids_orig if i not in ids_actuales]
+                        
+                        for id_b in ids_borrar: client.table("citas").delete().eq("id", id_b).execute()
+                        
+                        for _, row in ed_citas.iterrows():
+                            if pd.notna(row['id']):
+                                if row.get('Borrar', False) == True:
+                                    client.table("citas").delete().eq("id", row['id']).execute()
                                 else:
-                                    srv_base = srv
-                                    
-                                srv_final = f"[ESTADO: {est}] {srv_base}"
-                                    
-                                client.table("citas").update({
-                                    "fecha_hora": dt_str,
-                                    "duracion_minutos": int(row['Duración (min)']),
-                                    "servicio": srv_final,
-                                    "observaciones": str(row.get('Observaciones', ''))
-                                }).eq("id", row['id']).execute()
-                    st.success("Agenda actualizada."); time.sleep(0.8); st.rerun()
+                                    try:
+                                        dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}", format='%d/%m/%Y %H:%M').strftime('%Y-%m-%d %H:%M:%S')
+                                    except:
+                                        dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}").strftime('%Y-%m-%d %H:%M:%S')
+                                        
+                                    srv = str(row['Servicio'])
+                                    pelu = str(row['Peluquero/a'])
+                                    est_raw = str(row['Estado'])
+                                    est = est_raw.split(" ", 1)[1] if " " in est_raw else est_raw
+                                    if pelu != "Sin Asignar":
+                                        srv_base = f"{srv} ({pelu})"
+                                    else:
+                                        srv_base = srv
+                                        
+                                    srv_final = f"[ESTADO: {est}] {srv_base}"
+                                        
+                                    client.table("citas").update({
+                                        "fecha_hora": dt_str,
+                                        "duracion_minutos": int(row['Duración (min)']),
+                                        "servicio": srv_final,
+                                        "observaciones": str(row.get('Observaciones', ''))
+                                    }).eq("id", row['id']).execute()
+                        st.success("Agenda actualizada."); time.sleep(0.8); st.rerun()
             else:
                 st.info("No hay citas agendadas en el sistema.")
                 
