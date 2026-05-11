@@ -65,9 +65,10 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - Generación e impresión del Cierre Z desglosando las tarjetas de forma **100% dinámica por cada datáfono/banco** registrado que haya tenido movimientos.
 - **Sumatorio Automático:** El resumen del Cierre Z incluye la suma total de las ventas (Efectivo + Tarjetas + Bizum) calculada y mostrada en un bloque destacado.
 
-📈 **6. Estadísticas**
-- Dashboard financiero con balance neto (Ingresos vs Gastos).
-- Gráfica visual de la evolución de las ventas diarias.
+📈 **6. Estadísticas y Salud Financiera**
+- **Dashboard interactivo por Mes y Año:** Análisis realista del balance financiero cruzando datos de 3 fuentes.
+- **Cálculo de Beneficio Neto Real:** Suma los ingresos (Ventas TPV), resta los gastos variables (Facturas de compras) y resta el **prorrateo inteligente de Gastos Fijos** (calcula la parte proporcional mensual de seguros anuales o impuestos trimestrales).
+- Gráficas visuales de la evolución de ingresos diarios y de la proporción de gastos (Variables vs Fijos).
 
 🚚 **7. Gestión de Proveedores y Pedidos**
 - Directorio de proveedores con sus datos fiscales, de reparto y **control de Pedido Mínimo** para portes gratis.
@@ -83,7 +84,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - *Sub-4 Pagos Pendientes:* Control para deudas a proveedores con **Calendario Visual de Vencimientos** y gráfico de previsión semanal. Capacidad de realizar **Pagos Parciales** indicando la cantidad exacta entregada hoy, descontándola del saldo de un Banco o de la Caja Fuerte, manteniendo la factura abierta hasta su liquidación total.
 
 📊 **9. Contabilidad e Informes para Asesoría**
-- **Gestión Separada de Gastos:** Sub-pestaña para "Gastos Puntuales" (compras, reparaciones) y "Gastos Fijos" (alquileres, luz, nóminas, impuestos, préstamos).
+- **Gestión Separada y Estructurada de Gastos:** Sub-pestaña para "Gastos Puntuales" y un sistema avanzado de "Gastos Fijos" dividido en 5 categorías maestras: Gastos de Tienda, Personal, Financiación, Publicidad e Impuestos.
 - **Calendario Predictivo y Alertas:** Panel dividido en **Vista Semanal (7 días) y Mensual (30 días)** con gráfico de esfuerzo económico para controlar la liquidez. Incluye ajuste automático para pagos a fin de mes (día 31).
 - **Generador nativo de archivos Excel Inteligentes (.xlsx):** Separación total de la contabilidad en 4 bloques descargables:
   1. Ventas globales. 2. **Facturas para IGIC (Pestaña Emitidas y Recibidas separadas)**. 3. Tickets y Gastos menores. 4. Informe de Gastos Fijos actuales.
@@ -148,6 +149,8 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Bloqueo Fiscal VeriFactu - Fase 2 (Completado):** Implementación de inalterabilidad en tickets y facturas. Generación de Hash SHA-256 encadenado y bloqueo de edición post-Cierre Z, cumpliendo la Ley Antifraude española.
 - **Contabilidad Predictiva y Eventos (Completado):** Implementación del calendario visual a 60 días para gastos recurrentes en Contabilidad y creación del gestor de aforos para Talleres presenciales.
 - **Plan de Marketing Anual (Completado):** Despliegue del calendario de campañas 2026 con textos redactados por temporadas y alarmas de contenido.
+- **Refactorización de Estadísticas y Salud Financiera (Completado):** Panel rediseñado para cruzar automáticamente las ventas del TPV con las facturas de proveedores y el prorrateo exacto de gastos fijos (mensualizando cuotas anuales o trimestrales), proporcionando un Beneficio Neto estimado real mes a mes.
+- **Estructuración Contable Avanzada (Completado):** Reorganización de las categorías de gastos fijos para alinearlas con los estándares de la asesoría y mejorar la lectura financiera del negocio.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
