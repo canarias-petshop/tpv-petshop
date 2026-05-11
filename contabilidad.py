@@ -57,9 +57,11 @@ def render_pestana_contabilidad(client):
                 with st.form("nuevo_gasto_fijo", clear_on_submit=True):
                     f_conc = st.text_input("Concepto (Ej: Alquiler, Luz, Préstamo)")
                     f_cat = st.selectbox("Categoría", [
-                        "Suministros y Operativos (Alquiler, Luz, Agua, Teléfono, Seguros, Préstamos...)", 
-                        "Personal y autónomos (Nóminas, SS...)", 
-                        "Impuestos y Tasas (IGIC, IRPF, tributos...)"
+                        "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)",
+                        "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)",
+                        "Financiación y Seguros (Préstamos, Tarjetas, Pólizas, Comisiones...)",
+                        "Publicidad y Marketing (Redes sociales, Promociones, Web...)",
+                        "Impuestos y Tasas (IGIC, IRPF, Tributos...)"
                     ])
                     f_imp = st.number_input("Importe Estimado/Fijo (€)", min_value=0.0, format="%.2f")
                     f_dia = st.number_input("Día del mes de cargo", min_value=1, max_value=31, value=1, help="Pon 31 si quieres que se cobre el último día del mes (el programa lo ajustará a 28 o 30 según corresponda automáticamente).")
