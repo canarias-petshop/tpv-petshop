@@ -280,6 +280,10 @@ def render_pestana_tpv(client):
                 )
                 
                 if not edited_df.equals(df_car):
+                    # --- FIX: Eliminar filas vacías añadidas por error con el botón '+' ---
+                    edited_df = edited_df.dropna(subset=['Producto'])
+                    edited_df = edited_df[edited_df['Producto'].astype(str).str.strip() != '']
+                    
                     edited_df["Subtotal"] = (edited_df["Cantidad"] * edited_df["Precio"]) * (1 - edited_df["Desc. %"] / 100)
                     st.session_state.carrito = json.loads(edited_df.to_json(orient='records'))
                     st.rerun()
@@ -399,6 +403,12 @@ def render_pestana_tpv(client):
                     bloqueo = (pendiente > 0 and "Ninguno" in cliente_fidelidad)
                     if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
                         carrito_limpio = json.loads(edited_df.to_json(orient='records'))
+                        
+                        # --- FIX: Limpieza final por seguridad antes de guardar ---
+                        carrito_limpio = [item for item in carrito_limpio if item.get('Producto') and str(item.get('Producto')).strip() != '']
+                        if not carrito_limpio:
+                            st.warning("El carrito está vacío o contiene líneas no válidas.")
+                            st.stop()
                         
                         try:
                             # ASIGNACIÓN DE PUNTOS

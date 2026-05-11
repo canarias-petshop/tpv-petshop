@@ -149,6 +149,10 @@ def render_pestana_historial(client):
                     
                 prods = t_info.get('productos', [])
                 
+                # --- FIX: Filtro de seguridad para tickets antiguos con líneas vacías ---
+                if isinstance(prods, list):
+                    prods = [p for p in prods if isinstance(p, dict) and p.get('Producto') and str(p.get('Producto')).strip() != "" and p.get('Subtotal') is not None]
+
                 if prods:
                     df_prods = pd.DataFrame(prods)
                     if 'Desc. %' not in df_prods.columns:
