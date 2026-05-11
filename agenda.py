@@ -8,12 +8,13 @@ def render_pestana_agenda(client):
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
     
     # --- DATOS COMUNES PARA TODAS LAS SUB-PESTAÑAS DE AGENDA ---
-    res_m = client.table("mascotas").select("id, nombre, clientes(nombre_dueno)").execute()
+    res_m = client.table("mascotas").select("id, nombre, clientes(nombre_dueno, telefono)").execute()
     dict_mascotas = {}
     if res_m.data:
         for m in res_m.data:
             dueno = m['clientes']['nombre_dueno'] if m.get('clientes') else "Desconocido"
-            dict_mascotas[f"🐾 {m['nombre']} (De: {dueno})"] = m['id']
+            telefono = m['clientes']['telefono'] if m.get('clientes') and m['clientes'].get('telefono') else "Sin teléfono"
+            dict_mascotas[f"🐾 {m['nombre']} (De: {dueno} - 📱 {telefono})"] = m['id']
             
     res_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
     
