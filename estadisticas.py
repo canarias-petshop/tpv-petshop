@@ -94,25 +94,61 @@ def render_pestana_estadisticas(client):
         col_g1, col_g2 = st.columns([1.5, 1])
         
         with col_g1:
-            st.markdown("**📊 Evolución de Ingresos por Día**")
-            if not df_v.empty:
-                ventas_diarias = df_v.groupby('Fecha')['total'].sum().reset_index()
-                ventas_diarias.set_index('Fecha', inplace=True)
-                st.bar_chart(ventas_diarias, color="#005275", height=280)
+            c_tit, c_sel = st.columns([1.5, 1])
+            with c_tit: st.markdown("**📊 Evolución de Ingresos**")
+            with c_sel: rango_evo = st.selectbox("Ver por:", ["Mes actual (Diario)", "Últimos 3 meses (Semana)", "Año actual (Mensual)"], label_visibility="collapsed")
+            
+            if rango_evo == "Mes actual (Diario)":
+                if not df_v.empty:
+                    ventas_diarias = df_v.groupby('Fecha')['total'].sum().reset_index()
+                    ventas_diarias.set_index('Fecha', inplace=True)
+                    st.bar_chart(ventas_diarias, color="#005275", height=280)
+                else:
+                    st.info("Aún no hay ventas registradas en este mes.")
             else:
-                st.info("Aún no hay ventas registradas en este mes para generar el gráfico.")
+                if rango_evo == "Últimos 3 meses (Semana)":
+                    f_inicio_evo = (pd.to_datetime('today') - pd.Timedelta(days=90)).strftime('%Y-%m-%dT00:00:00')
+                else:
+                    f_inicio_evo = f"{anio_sel}-01-01T00:00:00"
+                    
+                res_evo = client.table("ventas_historial").select("created_at, total, estado").gte("created_at", f_inicio_evo).neq("estado", "DEVUELTO").execute()
+                if res_evo.data:
+                    df_evo = pd.DataFrame(res_evo.data)
+                    df_evo['created_at'] = pd.to_datetime(df_evo['created_at'])
+                    if rango_evo == "Últimos 3 meses (Semana)":
+                        df_evo['Semana'] = df_evo['created_at'].dt.to_period('W').apply(lambda r: r.start_time.strftime('%d/%m'))
+                        evo_chart = df_evo.groupby('Semana')['total'].sum()
+                    else:
+                        meses_es_map = {1:"Ene", 2:"Feb", 3:"Mar", 4:"Abr", 5:"May", 6:"Jun", 7:"Jul", 8:"Ago", 9:"Sep", 10:"Oct", 11:"Nov", 12:"Dic"}
+                        df_evo['MesNum'] = df_evo['created_at'].dt.month
+                        df_evo['Mes'] = df_evo['MesNum'].map(meses_es_map)
+                        evo_chart = df_evo.groupby(['MesNum', 'Mes'])['total'].sum().reset_index().set_index('Mes')['total']
+                        
+                    st.bar_chart(evo_chart, color="#005275", height=280)
+                else:
+                    st.info("No hay datos para este periodo.")
                 
         with col_g2:
-            st.markdown("**💸 Proporción de Gastos**")
-            if total_compras > 0 or total_fijos_mes > 0:
-                df_gastos_pie = pd.DataFrame({
-                    "Categoría": ["Proveedores y Variables", "Fijos Mensualizados"],
-                    "Importe": [total_compras, total_fijos_mes]
-                }).set_index("Categoría")
-                
-                st.bar_chart(df_gastos_pie, color="#d32f2f", height=280)
+            c_tit2, c_sel2 = st.columns([1, 1.2])
+            with c_tit2: st.markdown("**💸 Estructura Gastos**")
+            with c_sel2: vista_gastos = st.selectbox("Detalle:", ["Resumen Fijos vs Variables", "Desglose Variables"], label_visibility="collapsed")
+            
+            if vista_gastos == "Resumen Fijos vs Variables":
+                if total_compras > 0 or total_fijos_mes > 0:
+                    df_gastos_pie = pd.DataFrame({
+                        "Categoría": ["Variables/Proveedores", "Fijos Mensualizados"],
+                        "Importe": [total_compras, total_fijos_mes]
+                    }).set_index("Categoría")
+                    st.bar_chart(df_gastos_pie, color="#d32f2f", height=280)
+                else:
+                    st.info("No hay gastos registrados.")
             else:
-                st.info("No hay gastos variables registrados ni fijos activos.")
+                if not df_c.empty:
+                    df_c['Categoria'] = df_c['tipo'].apply(lambda x: str(x).split(" | ")[0] if " | " in str(x) else "Otros")
+                    gastos_cat = df_c.groupby('Categoria')['total'].sum()
+                    st.bar_chart(gastos_cat, color="#e57373", height=280)
+                else:
+                    st.info("No hay facturas variables este mes.")
                 
         st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
         
