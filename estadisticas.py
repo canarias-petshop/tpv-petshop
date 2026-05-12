@@ -178,22 +178,14 @@ def render_pestana_estadisticas(client):
                 
         st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
         
-        def limpiar_producto(nombre):
-            n = str(nombre)
+        def limpiar_producto(n):
+            import re
+            n = str(n)
             n = re.sub(r'(?i)^producto\s+', '', n)
-            n = re.sub(r'(?i)^art[íi]culo\s+', '', n)
-            n = re.sub(r'\(.*?\)', '', n)
-            n = n.strip()
-            
+            # Eliminar notas de peluqueros o estados entre paréntesis/corchetes para unificar el nombre real del producto/servicio
+            n = re.sub(r'\s*\([^)]*\)', '', n).strip()
+            n = re.sub(r'\s*\[.*?\]', '', n).strip()
             n_low = n.lower()
-            if 'baño' in n_low: return 'Servicio: Baños'
-            if 'corte' in n_low or 'corta' in n_low: return 'Servicio: Cortes'
-            if 'deslanado' in n_low: return 'Servicio: Deslanados'
-            if 'arreglo' in n_low: return 'Servicio: Arreglos'
-            if 'stripping' in n_low: return 'Servicio: Stripping'
-            if 'higiene' in n_low: return 'Servicio: Higiene'
-            
-            if n_low in ['servicio', 'servicio pelu', 'servicio peluqueria', 'servicio peluquería', 'peluqueria', 'peluquería']: return 'Servicio: Genérico'
             if n_low in ['venta', 'venta manual', 'artículo manual', 'desc.', 'varios', 'kiko', 'auna']: return 'Venta Manual (Genérica)'
             return n.capitalize()
 
@@ -242,66 +234,86 @@ def render_pestana_estadisticas(client):
                 st.info("No hay datos de métodos de pago este mes.")
 
         st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
-        st.markdown("#### 👩‍💼 Rendimiento y ROI Laboral (Servicios por Empleado)")
         
-        # 1. Cruzar con la Agenda para obtener el empleado real
-        res_citas_roi = client.table("citas").select("fecha_hora, servicio, mascotas(clientes(nombre_dueno))").gte("fecha_hora", fecha_ini).lt("fecha_hora", fecha_fin).execute()
-        citas_map = {}
-        if res_citas_roi.data:
-            for c in res_citas_roi.data:
-                s_raw = str(c.get('servicio', ''))
-                if "[ESTADO: Cancelada]" in s_raw: continue
-                emp_asig = next((e for e in empleados_reales if f"({e})" in s_raw), None)
-                if emp_asig:
-                    try:
-                        dt_c = pd.to_datetime(c['fecha_hora']).date()
-                        mascotas_data = c.get('mascotas')
-                        if isinstance(mascotas_data, dict):
-                            clientes_data = mascotas_data.get('clientes')
-                            if isinstance(clientes_data, dict):
-                                cliente_nom = str(clientes_data.get('nombre_dueno', '')).strip().lower()
-                                if cliente_nom:
-                                    citas_map[(dt_c, cliente_nom)] = emp_asig
-                    except: pass
+        # === NUEVO CÁLCULO DE ROI LABORAL BASADO EN EL HISTORIAL CLÍNICO Y CITAS CONFIRMADAS ===
+        st.markdown("#### 👩‍💼 Rendimiento y ROI Laboral (Según Historial Clínico)")
+        st.markdown("<p style='font-size: 13px; color: gray;'>Ingresos generados por cada empleado extraídos directamente del historial de las mascotas.</p>", unsafe_allow_html=True)
+        
+        fecha_ini_dt = pd.to_datetime(fecha_ini).date()
+        fecha_fin_dt = pd.to_datetime(fecha_fin).date()
+        
+        res_masc = client.table("mascotas").select("id, nombre, historial_trabajos").execute()
+        rendimiento_empleados = {}
+        
+        if res_masc.data:
+            for m in res_masc.data:
+                hist = m.get('historial_trabajos')
+                if isinstance(hist, list):
+                    for t in hist:
+                        try:
+                            f_str = str(t.get('Fecha', ''))
+                            if not f_str: continue
+                            dt_t = pd.to_datetime(f_str, format="%d/%m/%Y").date()
+                            if fecha_ini_dt <= dt_t < fecha_fin_dt:
+                                emp = str(t.get('Peluquera/o', '')).strip()
+                                imp = t.get('Importe (€)')
+                                if emp and imp is not None and str(imp).strip():
+                                    val = float(imp)
+                                    if emp not in rendimiento_empleados: rendimiento_empleados[emp] = 0.0
+                                    rendimiento_empleados[emp] += val
+                        except: pass
+        
+        if rendimiento_empleados:
+            df_roi = pd.DataFrame(list(rendimiento_empleados.items()), columns=['Empleado', 'Ingresos Generados (€)']).sort_values(by='Ingresos Generados (€)', ascending=False)
+            c_roi1, c_roi2 = st.columns([1, 2])
+            with c_roi1: st.dataframe(df_roi, use_container_width=True, hide_index=True, column_config={"Ingresos Generados (€)": st.column_config.NumberColumn("Ingresos (€)", format="%.2f")})
+            with c_roi2: st.bar_chart(df_roi.set_index('Empleado'), color="#9c27b0", height=200)
+        else:
+            st.info("No hay importes registrados en los historiales de las mascotas para este mes.")
 
-        if not df_v.empty and 'productos' in df_v.columns:
-            rendimiento_empleados = {}
-            for idx, row in df_v.iterrows():
-                cliente_ticket = str(row.get('cliente_vip_nombre', '')).strip().lower()
-                fecha_ticket = row['Fecha']
+        st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
+        st.markdown("#### 🚨 Alertas Operativas: Citas sin Registro en Historial")
+        st.info("Estas son las citas **confirmadas** de días pasados a las que aún **no se les ha rellenado el importe o el registro del trabajo** en la ficha de la mascota.")
+        
+        hoy_str = str(date.today())
+        # Buscamos citas confirmadas anteriores a hoy
+        res_citas = client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", hoy_str).like("servicio", "%[ESTADO: Confirmada]%").execute()
+        
+        alertas = []
+        if res_citas.data:
+            for c in res_citas.data:
+                try:
+                    dt_c_raw = pd.to_datetime(c['fecha_hora'])
+                    dt_c = dt_c_raw.date()
+                    
+                    masc = c.get('mascotas')
+                    if not isinstance(masc, dict): continue
+                    
+                    hist = masc.get('historial_trabajos')
+                    encontrado = False
+                    if isinstance(hist, list):
+                        for t in hist:
+                            try:
+                                f_str = str(t.get('Fecha', ''))
+                                if f_str:
+                                    dt_t = pd.to_datetime(f_str, format="%d/%m/%Y").date()
+                                    if dt_t == dt_c:
+                                        encontrado = True; break
+                            except: pass
+                    
+                    if not encontrado:
+                        alertas.append({
+                            "Fecha Cita": dt_c.strftime("%d/%m/%Y"),
+                            "Mascota": masc.get('nombre', 'Desconocida'),
+                            "Servicio": c.get('servicio', '').replace("[ESTADO: Confirmada]", "").strip()
+                        })
+                except: pass
                 
-                emp_agenda = citas_map.get((fecha_ticket, cliente_ticket))
-                
-                prods = row.get('productos')
-                if isinstance(prods, list):
-                    for p in prods:
-                        if not isinstance(p, dict): continue
-                        prod_n = str(p.get('Producto', ''))
-                        subt_raw = p.get('Subtotal', 0.0)
-                        subtotal = float(subt_raw) if subt_raw is not None else 0.0
-                        
-                        m = re.search(r'\((.*?)\)', prod_n)
-                        emp_manual = None
-                        if m and empleados_reales:
-                            posible_emp = m.group(1).strip().lower()
-                            for emp_real in empleados_reales:
-                                if posible_emp == emp_real.lower() or f"({emp_real})" in prod_n:
-                                    emp_manual = emp_real; break
-                                    
-                        emp_final = emp_manual if emp_manual else emp_agenda
-                        p_limpio = limpiar_producto(prod_n)
-                        
-                        if emp_final and p_limpio.startswith('Servicio:'):
-                            if emp_final not in rendimiento_empleados: rendimiento_empleados[emp_final] = 0.0
-                            rendimiento_empleados[emp_final] += subtotal
-                            
-            if rendimiento_empleados:
-                df_roi = pd.DataFrame(list(rendimiento_empleados.items()), columns=['Empleado', 'Ingresos Generados']).sort_values(by='Ingresos Generados', ascending=False)
-                c_roi1, c_roi2 = st.columns([1, 2])
-                with c_roi1: st.dataframe(df_roi, use_container_width=True, hide_index=True, column_config={"Ingresos Generados": st.column_config.NumberColumn("Ingresos (€)", format="%.2f")})
-                with c_roi2: st.bar_chart(df_roi.set_index('Empleado'), color="#9c27b0", height=200)
-            else: st.info("No hay servicios asignados a empleados específicos en los tickets de este mes.")
-        else: st.info("No hay datos suficientes para calcular el rendimiento laboral.")
+        if alertas:
+            st.warning(f"⚠️ Hay {len(alertas)} citas pasadas confirmadas sin historial rellenado.")
+            st.dataframe(pd.DataFrame(alertas), use_container_width=True, hide_index=True)
+        else:
+            st.success("¡Todo al día! Todas las citas pasadas tienen su historial registrado correctamente.")
 
     except Exception as e:
         st.error(f"Error al cargar las estadísticas: {e}")
