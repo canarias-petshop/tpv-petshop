@@ -18,32 +18,31 @@ Al abrir la aplicación en la tablet o el ordenador, deberás introducir tu **PI
 Esta es la pantalla principal para cobrar a los clientes.
 
 1. **Añadir Productos:**
-   - **Escáner:** Dispara con la pistola de códigos de barras al producto. Se añadirá automáticamente al ticket.
+   - **Escáner:** Dispara con la pistola de códigos de barras al producto. Se añadirá automáticamente al ticket y la casilla de búsqueda se vaciará sola para que dispares al siguiente al instante.
    - **Buscador Manual:** Escribe el nombre del producto en el cuadro de búsqueda y pulsa "Añadir".
    - **Servicios:** Selecciona servicios como Peluquería o Veterinaria desde el menú desplegable "Añadir Servicio Rápido".
 2. **Modificar Ticket:** Si te equivocas, usa el botón "🗑️" junto al producto en el ticket para eliminarlo, o cambia la cantidad manualmente.
 3. **Fidelización VIP:** Si el cliente está registrado, búscalo por nombre o teléfono en "Cliente VIP". Al cobrar, ganará 1 punto por cada 10€ de compra. Al canjearlos, cada punto equivale a 0.50€ de descuento.
 4. **Cobrar:**
-   - Selecciona el método de pago (Efectivo, Tarjeta, Bizum).
-  - **Dejar a deber:** Si el cliente no te paga la totalidad, asegúrate de **seleccionar su nombre en el desplegable de "Cliente VIP"**. El sistema NO te dejará finalizar el cobro si la venta está como anónima. *Ojo: No ganará puntos hasta que venga a saldar la deuda.*
+   - Selecciona el método de pago (Efectivo, Tarjeta, Bizum). Al elegir tarjeta o pago mixto, **deberás indicar en qué datáfono o banco lo estás cobrando** para que luego cuadre el Cierre Z.
+   - **Dejar a deber:** Si el cliente no te paga la totalidad, asegúrate de **seleccionar su nombre en el desplegable de "Cliente VIP"**. El sistema NO te dejará finalizar el cobro si la venta está como anónima. *Ojo: No ganará puntos hasta que venga a saldar la deuda.*
    - Pulsa el botón verde **"💳 COBRAR TICKET"**.
-  - El cajón portamonedas se abrirá (si es efectivo) y el ticket se imprimirá automáticamente. Pasados 30 segundos, la pantalla volverá sola a una Nueva Venta.
+   - El cajón portamonedas se abrirá (si es efectivo) y el ticket se imprimirá automáticamente. Pasados 30 segundos, la pantalla volverá sola a una Nueva Venta.
 
 ---
 
 ## 3. 👥 Clientes y Mascotas (CRM)
 Aquí gestionarás las fichas de las familias y sus perros/gatos.
 
-- **Nuevo Cliente:** Rellena los datos en el panel izquierdo. Si tiene mascota, rellena también la sección "Añadir mascota".
-  - *Novedad:* Ahora puedes registrar un **Segundo Contacto (Alternativo)** con su propio teléfono para familias. Ambos números funcionarán en el buscador general.
-  - *Truco:* Puedes asignar un **"Peluquero/a Preferido"** si el cliente siempre pide cita con la misma persona.
-- **Ver Fichas y Editar:** En la tabla de la derecha, busca al cliente y marca la casilla **"👁️ Ver"**. Se abrirá su ficha completa.
-  - Para guardar los cambios de texto, asegúrate de pulsar "💾 Guardar Cambios en Clientes/Mascotas".
-- **Historial de la Mascota:** Dentro de la familia, marca "👁️ Ver Ficha" en la mascota específica.
-  - Verás su historial de peluquería.
-  - Al añadir un nuevo servicio, **indica la hora de Inicio y Fin; el sistema calculará automáticamente la duración en minutos**. Selecciona tu nombre en la columna "Realizado por" y pulsa "Guardar Historial".
-- **Encargos:** Si un cliente pide un artículo que no hay en tienda, anótalo en "🛍️ Encargos". Cuando el producto llegue, pulsa el botón **"💬 WhatsApp"** para avisarle automáticamente. El sistema te alertará si un encargo se retrasa o si el cliente tarda mucho en recogerlo.
-- **💸 Pagos Pendientes:** En esta subpestaña verás qué clientes deben dinero en la tienda, con un botón directo a WhatsApp para reclamarlo a partir de los 14 días.
+- **Nuevo Cliente:** Rellena los datos en el panel izquierdo. Puedes añadir el **peso** de la mascota al registrarla.
+  - *Novedad:* Puedes registrar un **Segundo Contacto (Alternativo)** con su propio teléfono para familias. Ambos números funcionarán en el buscador general.
+  - *Truco:* Asigna un **"Peluquero/a Preferido"** si el cliente siempre pide cita con la misma persona.
+- **Historial Clínico Inteligente:** Dentro de la familia, marca "👁️ Ver Ficha" en la mascota específica.
+  - **Desplegable de Servicios:** Al registrar un trabajo, ya no tienes que escribir el servicio, escógelo de la lista oficial de la tienda.
+  - **Precio y Descuentos Automáticos:** Si dejas la casilla de *Importe (€)* en blanco y guardas el historial, el sistema buscará el precio oficial del servicio y te lo asignará. ¡Ojo! Si el cliente ha venido hace 2 meses o menos, el sistema **le aplicará automáticamente un descuento del 10% por mantenimiento** y lo registrará en las observaciones para que se lo comentes al cobrarle.
+  - **Duración automática:** Indica la hora de Inicio y Fin; al pulsar el botón de guardar, el sistema calculará automáticamente los minutos que has tardado.
+- **Encargos:** Si un cliente pide un artículo que no hay en tienda, anótalo en "🛍️ Encargos". Cuando el producto llegue, pulsa el botón **"💬 WhatsApp"** para avisarle.
+- **💸 Pagos Pendientes:** En esta subpestaña verás qué clientes deben dinero en la tienda, con un botón directo a WhatsApp para reclamarlo a partir de los 14 días. Si el cliente te paga hoy una deuda, busca su ticket viejo, págalo e inmediatamente sus puntos VIP se sumarán a su ficha.
 
 ---
 
@@ -53,55 +52,46 @@ El sistema de citas está conectado con nuestros turnos de trabajo y las fichas 
 ### Cómo dar una cita:
 Puedes hacerlo desde la ficha de la mascota (en Clientes) o desde la pestaña "Agenda".
 
-- **🔔 Centro de Recordatorios (Rutina Matutina):** En la pestaña "Recordatorios", verás automáticamente a los perros citados para el próximo día laborable. Fíjate en la columna **"Canal Pref."** para contactar al cliente por WhatsApp, Llamada o SMS. Justo debajo tendrás recordatorios para clientes que llevan tiempo sin venir.
+- **🔔 Centro de Recordatorios (Rutina Matutina):** En la pestaña "Recordatorios", verás automáticamente a los perros citados para el próximo día laborable. Pulsa el botón para pedirles que te confirmen por WhatsApp.
+- **🚨 Alertas Sin Historial:** Verás una alerta bloqueante en rojo en la ficha del cliente y una pestaña dedicada en la Agenda si un cliente tuvo una cita y te olvidaste de rellenarle la sesión en su Historial Clínico. Rellénalo cuanto antes para que las estadísticas y sueldos se calculen bien.
 
-1. Selecciona la **Fecha** y la **Duración** estimada (ej. 60 min).
+1. Selecciona la **Fecha** y la **Duración** estimada.
 2. Selecciona la **Peluquera/o**.
-   - *Atención:* En el desplegable de seleccionar mascota, **ahora verás el teléfono del dueño al lado del nombre**. Fíjate bien para no confundir a perritos que se llamen igual (ej. Luna o Kira).
-   - *Importante:* Si seleccionas a Marina, el sistema revisará a qué hora trabaja Marina ese día. Si tiene el día libre, te avisará con un mensaje en rojo y no te dejará dar la cita.
-3. El sistema buscará automáticamente los **Tramos Libres** y te los mostrará en verde.
-4. Selecciona la **Hora de Inicio** exacta del menú desplegable y el **Servicio** (ej. Baño y Corte).
+   - *Atención:* En el desplegable de seleccionar mascota, **ahora verás el teléfono del dueño al lado del nombre**. Fíjate bien para no confundir a perritos que se llamen igual.
+3. El sistema buscará automáticamente los **Tramos Libres** y te los mostrará en el desplegable de "Hora recomendada". Si el peluquero que pide el cliente no trabaja, te avisará.
+4. Selecciona el **Servicio** de la lista (ej. Baño y Corte).
 5. (Opcional) Usa el campo de **Observaciones** para anotar peticiones específicas ("Corte a máquina", "Dejar más largo", etc.).
 6. Pulsa **"➕ Confirmar Cita"**.
 
-**Recordatorios:** Desde el directorio de la agenda, puedes pulsar **"💬 Recordatorio"** para enviar un WhatsApp al cliente confirmando la fecha y hora de su cita.
-**Ocultar citas pasadas:** En el directorio tienes un interruptor activado por defecto para que las citas de días anteriores se oculten solas y no tengas que hacer tanto scroll.
-**Servicios de Recogida:** Tienes nuevos estados en la agenda para identificar visualmente si un servicio a domicilio está 'pendiente 🟣🟡' o 'confirmado 🟣🟢'.
 ### Ver el Cuadrante:
-- **Vista Diaria:** Te muestra el día dividido en bloques de 5 minutos para ver los huecos libres exactos.
-- **Vista Semanal:** Te muestra los próximos 7 días en un formato visual tipo "tarjetas".
+- **Vista Diaria:** Muestra el día dividido en bloques de 5 minutos.
+- **Vista Semanal:** Muestra los próximos 7 días en un formato "tarjetas".
 
 ---
 
 ## 5. 💰 Caja Fuerte y Turnos
 Al abrir y cerrar la tienda, hay que llevar el control del dinero en metálico.
-- **Abrir Turno:** Ve a "Control de Caja". El sistema te sugerirá automáticamente el **Fondo Inicial** basado en lo que quedó en el arqueo de la noche anterior. Revísalo físicamente y pulsa "Apertura de Turno".
+- **Abrir Turno:** Ve a "Control de Caja". El sistema te sugerirá automáticamente el **Fondo Inicial** basado en lo que quedó la noche anterior. Revísalo físicamente y pulsa "Apertura de Turno".
 - **Gastos de Tienda (Ej. Fregasuelos, Proveedor en metálico):** Si sacas dinero del cajón para pagar algo:
   1. En el panel de "Entradas y Salidas", selecciona "Retirada".
   2. Pon el importe y el motivo.
   3. En "¿Enviar a Contabilidad?", elige la categoría exacta. 
-     - *⚠️ OJO con los Proveedores:* Si estás pagando una factura nueva en mano, elige "Sí, como Pago a Proveedor". Si estás pagando a plazos una **factura atrasada**, elige "No", anota el número de factura en el motivo y avisa para que se descuente en la pestaña de Pagos Pendientes.
+     - *⚠️ OJO con los Proveedores:* Si estás pagando una factura nueva en mano, elige "Sí, como Pago a Proveedor". Si estás pagando a plazos una **factura atrasada**, elige "No", anota el número de factura en el motivo y avisa al gerente para que la descuente de Pagos Pendientes.
 - **Cierre Z:** Al final del día, ve a la sección "Cierre de Turno (Arqueo Z)".
-  - Usa la calculadora de monedas y billetes contando físicamente lo que hay en el cajón portamonedas.
-  - El sistema te dirá si sobra dinero (Descuadre Positivo) o si falta (Descuadre Negativo).
-  - Selecciona la impresora y pulsa **"Imprimir Cierre Z"**.
+  - Usa la calculadora contando físicamente lo que hay en el cajón.
+  - El sistema te dirá si cuadra. Además, te imprimirá un resumen con **lo cobrado en cada datáfono/banco individualmente**.
+  - Pulsa **"Imprimir Cierre Z"**.
 
 ---
 
 ## 6. 📜 Historial Operativo (Devoluciones y Errores)
-Por la nueva **Ley Antifraude de Hacienda**, está terminantemente prohibido borrar tickets emitidos. Si te equivocas, esto es lo que debes hacer:
-- **Error en la forma de pago:** Si cobraste en efectivo pero era con tarjeta, ve a "Historial Operativo", busca el ticket y cambia el desplegable a "Tarjeta" (Solo puedes hacer esto si aún NO has hecho el Cierre Z de hoy).
-- **Pagar una Deuda Pendiente:** Cuando el cliente venga a pagar lo que debía, busca su ticket aquí y cambia el estado de "Deuda" a "Completado". El sistema le inyectará los puntos en su ficha automáticamente.
-- **Error en los artículos o Devolución:** Si cobraste mal un producto o un cliente lo devuelve, ve a "Historial Operativo", busca el ticket, marca la casilla "👁️ Ver" y pulsa el botón **"↩️ Devolver y Restaurar Stock"**. Esto generará un abono legal y el artículo volverá al inventario de la tienda automáticamente.
+Por la nueva **Ley Antifraude de Hacienda (VeriFactu)**, está **terminantemente prohibido borrar tickets emitidos**. 
+- **Error en la forma de pago:** Si cobraste en efectivo pero era con tarjeta Caixa, ve a "Historial Operativo", busca el ticket y edita el método de pago al datáfono correcto (Solo puedes hacerlo si NO has hecho aún el Cierre Z de hoy).
+- **Error en los artículos o Devolución:** Si cobraste mal un producto o un cliente lo devuelve, busca el ticket, dale a "👁️ Ver" y pulsa **"↩️ Devolver y Restaurar Stock"**. Esto generará un abono legal, le devolverá el dinero en el formato original y devolverá la lata de pienso a la estantería del programa.
 
 ---
 
 ## 7. 🚚 Gestión de Pedidos y Proveedores
-En esta sección controlamos qué mercancía falta en la tienda y preparamos los pedidos.
-
-- **🔔 Centro de Envíos (Alertas):** Al entrar en la pestaña, el sistema te avisará arriba si tienes borradores pendientes de enviar a proveedores y te indicará la **hora límite de corte** del comercial.
-- **Alerta de Stock Bajo (Auto-Distribuir):** Si hay artículos bajo mínimos, aparecerá una lista sugerida debajo. 
-  1. Desmarca los productos que NO quieras pedir.
-  2. Pulsa **"🚀 AUTO-DISTRIBUIR"**. El sistema agrupará cada producto con su proveedor correspondiente y creará los borradores listos.
-- **Añadir Artículos Extra:** Abre un borrador marcando "👁️ Ver". Justo debajo, usa el buscador para añadir cualquier otro producto del inventario, o usa la pestaña "Artículo Manual" para incluir cosas fuera de catálogo (como encargos raros de clientes).
-- **Enviar Pedido:** Cuando el borrador esté listo, pulsa el botón azul **"✉️ Generar Email"** para abrir tu correo con toda la lista preparada en un formato formal de empresa y envíalo. ¡Importante: Una vez enviado, cambia el Estado del pedido a "Enviado"!
+- **🔔 Centro de Envíos (Alertas):** Al entrar, el sistema te avisará arriba si tienes borradores pendientes de enviar a los comerciales y te dirá su hora límite (ej: "Royal Canin cierra pedidos a las 17:00").
+- **Auto-Distribuir:** Si el sistema avisa de stock bajo, revisa la lista, quita lo que no quieras y dale al cohete. El programa rellenará los carritos de cada proveedor él solo, y elegirá siempre la opción más barata si el producto lo venden varias marcas.
+- **Enviar Pedido:** Entra a ver el borrador. Cuando todo esté bien, pulsa **"✉️ Generar Email"** y se abrirá el correo escrito, listo para mandar.
