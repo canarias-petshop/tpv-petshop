@@ -70,12 +70,13 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Sumatorio Automático:** El resumen del Cierre Z incluye la suma total de las ventas (Efectivo + Tarjetas + Bizum) calculada y mostrada en un bloque destacado.
 
 📈 **6. Estadísticas y Salud Financiera**
-- **Dashboard interactivo por Mes y Año:** Análisis realista del balance financiero cruzando datos de 3 fuentes.
+- **Estructura en Pestañas:** Ahora organizado en dos grandes bloques para mayor claridad visual: "Salud Financiera" y "Estadísticas Comerciales y Operativas".
+- **Salud Financiera (Dashboard):** Análisis realista del balance financiero cruzando datos de ventas TPV vs Facturas de proveedores y Gastos Fijos mensualizados.
 - **Seguridad de Acceso:** Panel oculto a empleados y restringido **exclusivamente para el rol Administrador**.
-- **Cálculo de Beneficio Neto Real:** Suma los ingresos (Ventas TPV), resta los gastos variables (Facturas de compras) y resta el **prorrateo inteligente de Gastos Fijos** (calcula la parte proporcional mensual de seguros anuales o impuestos trimestrales).
 - **Métricas Avanzadas de Crecimiento:** Cálculo automático del Crecimiento Mensual (MoM), Ticket Medio y N.º de Operaciones.
-- **Rendimiento y ROI Laboral Exacto:** Se calcula de forma estricta sumando el importe (€) directamente desde el historial clínico real de las mascotas para cada empleado, garantizando precisión absoluta en peluquería.
-- **Business Intelligence:** Gráficos multiproyección (diario, semanal, mensual), desglose de métodos de pago y un **Top 10 de Ventas depurado** que respeta el nombre exacto de los productos/servicios al eliminar únicamente las marcas de empleados.
+- **Rendimiento y ROI Laboral Exacto:** Se calcula cruzando el importe cobrado en la ficha de la mascota con el peluquero asignado originalmente en la agenda, garantizando precisión absoluta.
+- **Análisis y Rendimiento de Agenda:** Gráficos multiproyección para analizar volumen de citas, distribución de estados y rendimiento temporal directamente integrado junto a las estadísticas de caja.
+- **Top 10 de Ventas:** Business Intelligence depurado que respeta el nombre exacto de los productos/servicios para mantener congruencia con el catálogo.
 
 🚚 **7. Gestión de Proveedores y Pedidos**
 - Directorio de proveedores con sus datos fiscales, de reparto y **control de Pedido Mínimo** para portes gratis.
