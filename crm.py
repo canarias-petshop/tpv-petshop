@@ -221,11 +221,44 @@ def render_pestana_crm(client):
                         except:
                             pass
                             
-                    # AUTO PRECIO
+                    # AUTO PRECIO Y DESCUENTO MANTENIMIENTO
                     srv = row.get('Trabajo / Servicio')
                     imp = row.get('Importe (€)')
                     if srv in precios_servicios and (pd.isna(imp) or str(imp).strip() == "" or float(imp) == 0.0):
-                        df_save.at[idx, 'Importe (€)'] = precios_servicios[srv]
+                        precio_base = float(precios_servicios[srv])
+                        
+                        # Detectar si aplica descuento por mantenimiento (< 60 días desde última cita)
+                        if srv != "Otro":
+                            fecha_actual_str = df_save.at[idx, 'Fecha']
+                            try:
+                                if fecha_actual_str:
+                                    fecha_actual_dt = pd.to_datetime(fecha_actual_str, format='%d/%m/%Y')
+                                    prev_dates = []
+                                    for i, r in df_save.iterrows():
+                                        if i != idx and str(r.get('Trabajo / Servicio')).strip() not in ["", "Otro", "None"]:
+                                            f_str = str(r.get('Fecha')).strip()
+                                            if f_str:
+                                                fd = pd.to_datetime(f_str, format='%d/%m/%Y')
+                                                if fd < fecha_actual_dt:
+                                                    prev_dates.append(fd)
+                                    
+                                    if prev_dates:
+                                        last_visit = max(prev_dates)
+                                        days_diff = (fecha_actual_dt - last_visit).days
+                                        if 0 < days_diff <= 60:
+                                            precio_base = round(precio_base * 0.90, 2)
+                                            ahorro = round(float(precios_servicios[srv]) - precio_base, 2)
+                                            
+                                            nota_act = str(df_save.at[idx, 'Nota Sesión']).strip()
+                                            if nota_act == "None" or nota_act == "nan": nota_act = ""
+                                            nota_desc = f"[Desc. 10% Mantenimiento aplicado. Ahorro: {ahorro}€]"
+                                            if nota_desc not in nota_act:
+                                                df_save.at[idx, 'Nota Sesión'] = f"{nota_act} {nota_desc}".strip()
+                                                st.success(f"🎉 ¡Descuento de Mantenimiento (10%) aplicado automáticamente a la sesión del {fecha_actual_str}! Ahorro: {ahorro}€")
+                            except Exception as e:
+                                pass
+                        
+                        df_save.at[idx, 'Importe (€)'] = precio_base
                             
                 df_save = df_save.fillna("")
                 
@@ -482,13 +515,35 @@ def render_pestana_crm(client):
                     c_id = filas_c_marcadas.iloc[0]['id']
                     c_data = df_cli[df_cli['id'] == c_id].iloc[0]
                     c_nombre = c_data['nombre_dueno']
-                    
+
+                    mascotas_lista = c_data.get('mascotas', [])
+                    ahorro_total = 0.0
+                    import re
+                    if isinstance(mascotas_lista, list):
+                        for m in mascotas_lista:
+                            hist = m.get('historial_trabajos')
+                            if isinstance(hist, list):
+                                for t in hist:
+                                    nota = str(t.get('Nota Sesión', ''))
+                                    m_ahorro = re.search(r'\[Desc\. 10% Mantenimiento aplicado\. Ahorro: ([\d.]+)€\]', nota)
+                                    if m_ahorro:
+                                        try: ahorro_total += float(m_ahorro.group(1))
+                                        except: pass
+
                     col_ficha1, col_ficha2 = st.columns([3, 1])
                     with col_ficha1:
                         st.markdown(f"#### 📖 Ficha de Cliente: **{c_nombre}**")
+                        if ahorro_total > 0:
+                            st.success(f"💰 **Ahorro Acumulado:** Este cliente ha ahorrado un total de **{ahorro_total:.2f}€** en mantenimientos.")
+                            c_tel = ''.join(filter(str.isdigit, str(c_data.get('telefono', ''))))
+                            if c_tel:
+                                if len(c_tel) == 9 and not c_tel.startswith('34'): c_tel = '34' + c_tel
+                                msg_ahorro = f"¡Hola {c_nombre}! 🐾 Te escribimos de Animalarium para agradecerte tu confianza. Gracias a traer a tu mascota a sus citas de mantenimiento a tiempo, ya llevas acumulado un ahorro total de {ahorro_total:.2f}€. ¡Sigue así! Un saludo."
+                                url_wa = f"https://wa.me/{c_tel}?text={urllib.parse.quote(msg_ahorro)}"
+                                st.markdown(f"<a href='{url_wa}' target='_blank' style='text-decoration:none;'><div style='background-color:#25D366; color:white; padding:6px 12px; border-radius:6px; display:inline-block; font-size:14px; font-weight:bold;'>📱 Enviar WhatsApp de Ahorro</div></a>", unsafe_allow_html=True)
+
                     with col_ficha2:
-                        if st.button("🗑️ Anonimizar Cliente (RGPD)", help="Borra los datos personales manteniendo el historial de ventas", type="secondary", key=f"anon_cli_{c_id}"):
-                            client.table("clientes").update({
+                        if st.button("🗑️ Anonimizar Cliente (RGPD)", help="Borra los datos personales manteniendo el historial de ventas", type="secondary", key=f"anon_cli_{c_id}"):                            client.table("clientes").update({
                                 "nombre_dueno": "Cliente Borrado",
                                 "telefono": "",
                                 "email": "",

@@ -235,33 +235,57 @@ def render_pestana_estadisticas(client):
 
         st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
         
-        # === NUEVO CÁLCULO DE ROI LABORAL BASADO EN EL HISTORIAL CLÍNICO Y CITAS CONFIRMADAS ===
-        st.markdown("#### 👩‍💼 Rendimiento y ROI Laboral (Según Historial Clínico)")
-        st.markdown("<p style='font-size: 13px; color: gray;'>Ingresos generados por cada empleado extraídos directamente del historial de las mascotas.</p>", unsafe_allow_html=True)
+        # === NUEVO CÁLCULO DE ROI LABORAL CRUZANDO AGENDA CON HISTORIAL CLÍNICO ===
+        st.markdown("#### 👩‍💼 Rendimiento y ROI Laboral (Agenda + Historial Clínico)")
+        st.markdown("<p style='font-size: 13px; color: gray;'>Ingresos reales por empleado basados en las citas agendadas y el importe final cobrado en la ficha.</p>", unsafe_allow_html=True)
         
         fecha_ini_dt = pd.to_datetime(fecha_ini).date()
         fecha_fin_dt = pd.to_datetime(fecha_fin).date()
-        
-        res_masc = client.table("mascotas").select("id, nombre, historial_trabajos").execute()
-        rendimiento_empleados = {}
-        
-        if res_masc.data:
-            for m in res_masc.data:
-                hist = m.get('historial_trabajos')
-                if isinstance(hist, list):
-                    for t in hist:
-                        try:
-                            f_str = str(t.get('Fecha', ''))
-                            if not f_str: continue
-                            dt_t = pd.to_datetime(f_str, format="%d/%m/%Y").date()
-                            if fecha_ini_dt <= dt_t < fecha_fin_dt:
-                                emp = str(t.get('Peluquera/o', '')).strip()
-                                imp = t.get('Importe (€)')
-                                if emp and imp is not None and str(imp).strip():
-                                    val = float(imp)
-                                    if emp not in rendimiento_empleados: rendimiento_empleados[emp] = 0.0
-                                    rendimiento_empleados[emp] += val
-                        except: pass
+
+        res_emp = client.table("personal_empleados").select("nombre").eq("activo", True).execute()
+        empleados_lista = [str(e['nombre']).strip() for e in res_emp.data] if res_emp.data else []
+        rendimiento_empleados = {emp: 0.0 for emp in empleados_lista}
+
+        # Extraemos las citas del mes (que no estén canceladas)
+        res_citas_roi = client.table("citas").select("fecha_hora, servicio, mascotas(id, historial_trabajos)").gte("fecha_hora", fecha_ini).lt("fecha_hora", fecha_fin).execute()
+
+        if res_citas_roi.data:
+            import re
+            for c in res_citas_roi.data:
+                servicio_raw = c.get('servicio', '')
+                if "[ESTADO: Cancelada]" in servicio_raw: continue
+                
+                # Averiguar a qué empleado pertenece la cita según la agenda
+                emp_cita = None
+                for e in empleados_lista:
+                    if f"({e})" in servicio_raw:
+                        emp_cita = e; break
+                
+                if not emp_cita: continue # Si no tiene empleado asignado, la saltamos
+
+                try:
+                    dt_c_raw = pd.to_datetime(c['fecha_hora'])
+                    dt_c = dt_c_raw.date()
+                    
+                    masc = c.get('mascotas')
+                    if not isinstance(masc, dict): continue
+                    
+                    hist = masc.get('historial_trabajos')
+                    if isinstance(hist, list):
+                        # Buscamos en el historial una entrada con esa misma fecha
+                        for t in hist:
+                            try:
+                                f_str = str(t.get('Fecha', ''))
+                                if f_str:
+                                    dt_t = pd.to_datetime(f_str, format="%d/%m/%Y").date()
+                                    if dt_t == dt_c:
+                                        # ¡Match! Extraemos el dinero de esta sesión y se lo sumamos al empleado de la cita
+                                        imp = t.get('Importe (€)')
+                                        if imp is not None and str(imp).strip():
+                                            rendimiento_empleados[emp_cita] += float(imp)
+                                            break # Ya encontramos el importe de este día, paramos de buscar en el historial
+                            except: pass
+                except: pass
         
         if rendimiento_empleados:
             df_roi = pd.DataFrame(list(rendimiento_empleados.items()), columns=['Empleado', 'Ingresos Generados (€)']).sort_values(by='Ingresos Generados (€)', ascending=False)

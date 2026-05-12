@@ -49,9 +49,9 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 👥 **3. Clientes y Mascotas (CRM)**
 - Directorio principal mejorado con la visibilidad del **teléfono del dueño** directamente en el listado de mascotas.
 - **Soporte para Familias:** Capacidad de registrar un Contacto Principal (para avisos automáticos) y un Contacto Secundario (Alternativo) con sus respectivos teléfonos, ambos reconocibles por el buscador.
-- Fichas de familias y mascotas con cálculo de edad automático, asignación de **Peluquero/a Preferido** y un **Diario de Observaciones Clínicas** independiente.
-- Historial clínico y de peluquería con cálculo de tiempo medio por servicio y registro del empleado ("Realizado por") para trazabilidad.
-- **Cálculo Automático de Tiempo:** La ficha clínica calcula sola la duración del servicio en minutos al introducir la hora de inicio y fin de la sesión.
+- Fichas de familias y mascotas con cálculo de edad automático, inclusión del nuevo campo **Peso** editable, asignación de **Peluquero/a Preferido** y un **Diario de Observaciones Clínicas** independiente.
+- **Historial Clínico Inteligente:** Registro de sesiones de peluquería con **desplegable de servicios vinculado al inventario en tiempo real**, **auto-asignación de precios** si se deja en blanco y cálculo de duración exacto al guardar la sesión.
+- **Alerta de Citas Sin Cerrar:** El sistema detecta si hay citas pasadas confirmadas en la agenda que no se han registrado en el historial de la mascota, mostrando una alerta roja bloqueante hasta que se guarde la sesión clínica.
 - **Registro de Cancelaciones (Políticas Estrictas):** El CRM detecta automáticamente cuántas veces ha cancelado una mascota y muestra una alerta roja en su ficha para que los empleados lo tengan en cuenta al darle cita.
 - **Gestor de Deudas de Tienda (Pagos Pendientes):** Nueva sub-pestaña que agrupa automáticamente a los clientes morosos del TPV. Alerta visualmente a los 14 días y genera un mensaje de WhatsApp para reclamarlo. Además, incluye un **Sistema de Cobro Integrado** que actualiza la Caja Fuerte y suma los Puntos VIP correspondientes en un solo paso.
 
@@ -74,8 +74,8 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Seguridad de Acceso:** Panel oculto a empleados y restringido **exclusivamente para el rol Administrador**.
 - **Cálculo de Beneficio Neto Real:** Suma los ingresos (Ventas TPV), resta los gastos variables (Facturas de compras) y resta el **prorrateo inteligente de Gastos Fijos** (calcula la parte proporcional mensual de seguros anuales o impuestos trimestrales).
 - **Métricas Avanzadas de Crecimiento:** Cálculo automático del Crecimiento Mensual (MoM), Ticket Medio y N.º de Operaciones.
-- **Rendimiento y ROI Laboral:** Cruce inteligente entre el historial de ventas del TPV y la Agenda de citas para calcular exactamente los ingresos generados por cada empleado.
-- **Business Intelligence:** Gráficos multiproyección (diario, semanal, mensual), desglose de métodos de pago y un "limpiador semántico" que agrupa servicios por familias (Baños, Cortes) para depurar el Top 10 de Ventas.
+- **Rendimiento y ROI Laboral Exacto:** Se calcula de forma estricta sumando el importe (€) directamente desde el historial clínico real de las mascotas para cada empleado, garantizando precisión absoluta en peluquería.
+- **Business Intelligence:** Gráficos multiproyección (diario, semanal, mensual), desglose de métodos de pago y un **Top 10 de Ventas depurado** que respeta el nombre exacto de los productos/servicios al eliminar únicamente las marcas de empleados.
 
 🚚 **7. Gestión de Proveedores y Pedidos**
 - Directorio de proveedores con sus datos fiscales, de reparto y **control de Pedido Mínimo** para portes gratis.
@@ -168,6 +168,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
 *   **Inventario:** Añadir control y alertas de **Fechas de Caducidad** para los productos perecederos.
 *   **Gestión de Recogidas a Domicilio:** (*Nota: La BD ya está preparada con las columnas `direccion` y `servicio_domicilio`*). Queda pendiente añadir los campos visuales en la ficha del cliente (`crm.py`) y programar la alerta en el panel de Recordatorios de la Agenda (`agenda.py`).
+*   **Automatización de Descuentos (Mantenimiento Peluquería):** Implementar lógica para aplicar automáticamente un 10% de descuento si el cliente vuelve antes de 2 meses. Debe reflejarse en la ficha, enviar un recordatorio del "dinero ahorrado" y considerar su integración con el sistema de puntos.
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
