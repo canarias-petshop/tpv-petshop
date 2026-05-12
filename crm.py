@@ -14,10 +14,16 @@ def render_pestana_crm(client):
         empleados_lista = []
             
     try:
-        serv_res = client.table("productos").select("nombre").eq("categoria", "Servicio").order("nombre").execute()
-        servicios_lista = [s['nombre'] for s in serv_res.data] + ["Otro"] if serv_res.data else ["Peluquería", "Otro"]
+        serv_res = client.table("productos").select("nombre, precio_pvp, precio_base").eq("categoria", "Servicio").order("nombre").execute()
+        if serv_res.data:
+            servicios_lista = [s['nombre'] for s in serv_res.data] + ["Otro"]
+            precios_servicios = {s['nombre']: float(s.get('precio_pvp') or s.get('precio_base') or 0.0) for s in serv_res.data}
+        else:
+            servicios_lista = ["Peluquería", "Otro"]
+            precios_servicios = {}
     except:
         servicios_lista = ["Otro"]
+        precios_servicios = {}
 
     col_c1, col_c2 = st.columns([1.2, 2.5])
 
@@ -111,8 +117,34 @@ def render_pestana_crm(client):
             """Renderiza la ficha clínica, el historial y el sistema inteligente de reservas."""
             st.markdown(f"#### 📖 Ficha e Historial Clínico/Peluquería: **{m_nombre}**")
             
+            # --- ALERTA CITA CONFIRMADA SIN HISTORIAL ---
+            hoy_str = str(date.today())
+            res_alertas = client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", m_id).lt("fecha_hora", hoy_str).like("servicio", "%[ESTADO: Confirmada]%").execute()
+            
             historial = m_data.get('historial_trabajos')
             if not isinstance(historial, list): historial = []
+            
+            if res_alertas.data:
+                citas_faltantes = []
+                for c in res_alertas.data:
+                    try:
+                        dt_c_raw = pd.to_datetime(c['fecha_hora'])
+                        dt_c_date = dt_c_raw.date()
+                        encontrado = False
+                        for t in historial:
+                            try:
+                                if t.get('Fecha'):
+                                    dt_t = pd.to_datetime(t['Fecha'], format="%d/%m/%Y").date()
+                                    if dt_t == dt_c_date:
+                                        encontrado = True; break
+                            except: pass
+                        if not encontrado:
+                            citas_faltantes.append(dt_c_date.strftime("%d/%m/%Y"))
+                    except: pass
+                
+                if citas_faltantes:
+                    fechas_str = ", ".join(citas_faltantes)
+                    st.error(f"🚨 **¡ATENCIÓN!** Hay cita(s) confirmada(s) los días: **{fechas_str}** pero no se ha cerrado la ficha. Rellena el historial abajo y añade el importe para que las estadísticas sean correctas y desaparezca este aviso.")
             
             df_hist = pd.DataFrame(historial)
             columnas_hist = ["Fecha", "Trabajo / Servicio", "Tratamiento", "Peluquera/o", "Inicio de sesión", "Fin de sesión", "Duración (min)", "Importe (€)", "Nota Sesión"]
@@ -144,13 +176,13 @@ def render_pestana_crm(client):
                     if minutos < 0: minutos += 24 * 60
                     df_hist.at[idx, 'Duración (min)'] = minutos
 
-            st.markdown("💡 *Nota: Si indicas **Inicio** y **Fin**, la **Duración** se calculará sola al guardar.*")
+            st.markdown("💡 *Nota: Si indicas **Inicio** y **Fin**, la **Duración** se calculará sola al guardar. El **Importe** se rellenará automáticamente al guardar si seleccionas un Servicio y lo dejas vacío.*")
             
             ed_hist = st.data_editor(
                 df_hist, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_hist_{prefix}_{m_id}",
                 column_config={
                     "Fecha": st.column_config.DateColumn("Fecha (D/M/A)", format="DD/MM/YYYY"),
-                    "Trabajo / Servicio": st.column_config.TextColumn("Servicio Realizado"),
+                    "Trabajo / Servicio": st.column_config.SelectboxColumn("Servicio Realizado", options=[""] + servicios_lista),
                     "Tratamiento": st.column_config.TextColumn("Tratamiento"),
                     "Peluquera/o": st.column_config.SelectboxColumn("Realizado por", options=[""] + empleados_lista),
                     "Inicio de sesión": st.column_config.TimeColumn("Inicio", format="HH:mm"),
@@ -188,6 +220,12 @@ def render_pestana_crm(client):
                             df_save.at[idx, 'Duración (min)'] = minutos
                         except:
                             pass
+                            
+                    # AUTO PRECIO
+                    srv = row.get('Trabajo / Servicio')
+                    imp = row.get('Importe (€)')
+                    if srv in precios_servicios and (pd.isna(imp) or str(imp).strip() == "" or float(imp) == 0.0):
+                        df_save.at[idx, 'Importe (€)'] = precios_servicios[srv]
                             
                 df_save = df_save.fillna("")
                 
