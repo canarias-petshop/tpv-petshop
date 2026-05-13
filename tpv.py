@@ -76,6 +76,23 @@ def render_pestana_tpv(client):
 
         st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
+        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>✍️ Artículo manual</p>", unsafe_allow_html=True)
+        with st.form("f_man", clear_on_submit=True, border=False):
+            cm1, cm2, cm3 = st.columns([1.3, 1, 1]) 
+            with cm1: m_nom = st.text_input("Artículo", placeholder="Nombre...", label_visibility="visible", key=f"m_nom_{st.session_state.llave_busqueda_tpv}")
+            with cm2: m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", value=None, label_visibility="visible", key=f"m_pre_{st.session_state.llave_busqueda_tpv}")
+            with cm3: m_can = st.number_input("Cant.", min_value=1, value=1, label_visibility="visible", key=f"m_can_{st.session_state.llave_busqueda_tpv}")
+            if st.form_submit_button("➕ Añadir Manual al Carrito", use_container_width=True):
+                if m_nom and m_pre is not None and m_pre >= 0:
+                    st.session_state.carrito.append({
+                        "Producto": m_nom, "Cantidad": m_can, "Precio": m_pre,
+                        "Subtotal": m_can * float(m_pre), "IGIC": 0, "Manual": True
+                    })
+                    st.session_state.llave_busqueda_tpv += 1
+                    st.rerun()
+
+        st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+
         with st.expander("📅 Peluquerías de Hoy (Cobro Rápido)", expanded=False):
             hoy_date = datetime.now().date()
             hoy_ini = f"{hoy_date}T00:00:00"
@@ -133,23 +150,6 @@ def render_pestana_tpv(client):
                             st.rerun()
                 else: st.info("No hay citas activas hoy.")
             else: st.info("No hay citas hoy.")
-
-        st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
-        
-        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>✍️ Artículo manual</p>", unsafe_allow_html=True)
-        with st.form("f_man", clear_on_submit=True, border=False):
-            cm1, cm2, cm3 = st.columns([1.3, 1, 1]) 
-            with cm1: m_nom = st.text_input("Artículo", placeholder="Nombre...", label_visibility="visible", key=f"m_nom_{st.session_state.llave_busqueda_tpv}")
-            with cm2: m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", value=None, label_visibility="visible", key=f"m_pre_{st.session_state.llave_busqueda_tpv}")
-            with cm3: m_can = st.number_input("Cant.", min_value=1, value=1, label_visibility="visible", key=f"m_can_{st.session_state.llave_busqueda_tpv}")
-            if st.form_submit_button("➕ Añadir Manual al Carrito", use_container_width=True):
-                if m_nom and m_pre is not None and m_pre >= 0:
-                    st.session_state.carrito.append({
-                        "Producto": m_nom, "Cantidad": m_can, "Precio": m_pre,
-                        "Subtotal": m_can * float(m_pre), "IGIC": 0, "Manual": True
-                    })
-                    st.session_state.llave_busqueda_tpv += 1
-                    st.rerun()
 
     with col_carrito:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
