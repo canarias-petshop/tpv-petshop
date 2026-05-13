@@ -537,6 +537,12 @@ def render_pestana_crm(client):
                     col_ficha1, col_ficha2 = st.columns([3, 1])
                     with col_ficha1:
                         st.markdown(f"#### 📖 Ficha de Cliente: **{c_nombre}**")
+                        
+                        if c_data.get('servicio_domicilio'):
+                            st.info(f"🚚 **Servicio a domicilio activo:** {c_data.get('direccion', 'Sin dirección especificada')}")
+                        elif c_data.get('direccion'):
+                            st.markdown(f"📍 **Dirección:** {c_data.get('direccion')}")
+                            
                         if ahorro_total > 0:
                             st.success(f"💰 **Ahorro Acumulado:** Este cliente ha ahorrado un total de **{ahorro_total:.2f}€** en mantenimientos.")
                             c_tel = ''.join(filter(str.isdigit, str(c_data.get('telefono', ''))))

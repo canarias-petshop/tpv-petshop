@@ -325,6 +325,7 @@ def render_pestana_agenda(client):
                             "Peluquero/a": st.column_config.SelectboxColumn("👩‍🦰 Peluquero/a", options=["Sin Asignar"] + empleados_lista, required=True),
                             "Mascota": st.column_config.TextColumn(disabled=True),
                             "Dueño": st.column_config.TextColumn(disabled=True),
+                            "Dirección": st.column_config.TextColumn(disabled=True),
                             "Teléfono": st.column_config.TextColumn(disabled=True),
                             "Observaciones": st.column_config.TextColumn("Anotación"),
                             "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 Recordatorio")
