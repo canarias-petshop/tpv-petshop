@@ -102,8 +102,8 @@ def render_pestana_contabilidad(client):
                 st.info("🔧 Ejecuta el código SQL en Supabase para activar esta función.")
 
     with sec_calendario:
-        st.markdown("#### 📅 Calendario Visual y Alertas de Vencimiento")
-        st.info("Visualiza de forma predictiva cuándo llegarán los próximos pagos de tus Gastos Fijos.")
+        st.markdown("#### 📅 Calendario Visual y Gestión de Pagos (Gastos Fijos)")
+        st.info("Controla los pagos previstos de tus Gastos Fijos y márcalos como pagados.")
         
         c_alerta1, c_alerta2 = st.columns([1, 2])
         with c_alerta1:
@@ -111,64 +111,111 @@ def render_pestana_contabilidad(client):
             
         try:
             res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
+            res_compras_gf = client.table("compras").select("tipo").ilike("tipo", "Gastos Fijos | %").execute()
+            pagos_registrados = [c['tipo'] for c in res_compras_gf.data] if res_compras_gf.data else []
             
             hoy_dt = pd.Timestamp(date.today())
-            futuro_dt = hoy_dt + pd.Timedelta(days=60) # Mantenemos proyección a 60 días para cálculos
+            futuro_dt = hoy_dt + pd.Timedelta(days=60)
+            pasado_dt = hoy_dt - pd.Timedelta(days=30) # Miramos también un mes atrás para ver los atrasados
             proyeccion = []
             
             if res_gf.data:
                 for gf in res_gf.data:
-                    for mes_offset in [0, 1, 2]:
+                    for mes_offset in [-1, 0, 1, 2]:
                         target_month = hoy_dt.month + mes_offset
                         target_year = hoy_dt.year
                         if target_month > 12:
                             target_month -= 12; target_year += 1
+                        elif target_month < 1:
+                            target_month += 12; target_year -= 1
+                            
                         dia_c = min(gf['dia_cargo'], pd.Period(year=target_year, month=target_month, freq='M').days_in_month)
                         fecha_cargo = pd.to_datetime(f"{target_year}-{target_month:02d}-{dia_c:02d}")
-                        if hoy_dt <= fecha_cargo <= futuro_dt:
-                            proyeccion.append({"Fecha Vencimiento": fecha_cargo, "Concepto": gf['concepto'], "Importe": float(gf['importe_estimado']), "Tipo": "Gasto Fijo (Previsión)"})
+                        
+                        if pasado_dt <= fecha_cargo <= futuro_dt:
+                            tipo_id = f"Gastos Fijos | {gf['concepto']} - {target_month:02d}/{target_year}"
+                            estado_pago = "Pagado ✅" if tipo_id in pagos_registrados else "Pendiente ❌"
+                            
+                            proyeccion.append({
+                                "Fecha Vencimiento": fecha_cargo,
+                                "Concepto": gf['concepto'],
+                                "Importe": float(gf['importe_estimado']),
+                                "Estado": estado_pago,
+                                "ID_Pago": tipo_id
+                            })
                             
             if proyeccion:
                 df_proy = pd.DataFrame(proyeccion).sort_values("Fecha Vencimiento")
                 
                 with c_alerta2:
-                    df_alarmas = df_proy[df_proy['Fecha Vencimiento'] <= (hoy_dt + pd.Timedelta(days=dias_alerta))]
+                    df_alarmas = df_proy[(df_proy['Estado'] == "Pendiente ❌") & (df_proy['Fecha Vencimiento'] <= (hoy_dt + pd.Timedelta(days=dias_alerta)))]
                     if not df_alarmas.empty:
-                        st.error(f"🚨 **¡ATENCIÓN!** Tienes {len(df_alarmas)} cargo(s) fijo(s) previsto(s) en los próximos {dias_alerta} días.")
+                        st.error(f"🚨 **¡ATENCIÓN!** Tienes {len(df_alarmas)} cargo(s) fijo(s) PENDIENTES de pago (vencidos o próximos).")
+                        for _, r in df_alarmas.iterrows():
+                            dias_diff = (r['Fecha Vencimiento'] - hoy_dt).days
+                            texto_dias = "HOY" if dias_diff == 0 else (f"VENCIDO hace {abs(dias_diff)} días" if dias_diff < 0 else f"en {dias_diff} días")
+                            st.markdown(f"<span style='color:#d32f2f; font-size:14px;'>• {r['Concepto']} - {r['Importe']}€ ({texto_dias})</span>", unsafe_allow_html=True)
                     else:
-                        st.success(f"✅ Sin cargos fijos en los próximos {dias_alerta} días.")
+                        st.success(f"✅ Sin cargos fijos pendientes cercanos o atrasados.")
                         
                 st.markdown("---")
                 
-                # SEPARACIÓN EN PESTAÑAS (SEMANAL / MENSUAL)
-                t_sem, t_mes = st.tabs(["📆 Próximos 7 Días", "📅 Próximos 30 Días"])
+                # Formulario para marcar pagos
+                pendientes_list = df_proy[df_proy['Estado'] == "Pendiente ❌"]
+                if not pendientes_list.empty:
+                    with st.expander("💸 **Marcar Gasto Fijo como Pagado**", expanded=False):
+                        with st.form("form_pagar_gf"):
+                            opciones_pago = [f"{r['ID_Pago']} ({r['Importe']}€)" for _, r in pendientes_list.iterrows()]
+                            sel_pago = st.selectbox("Selecciona el gasto a marcar como pagado:", opciones_pago)
+                            if st.form_submit_button("Confirmar Pago", type="primary"):
+                                id_sel = sel_pago.split(" (")[0]
+                                importe_sel = float(sel_pago.split("(")[1].replace("€)", ""))
+                                client.table("compras").insert({
+                                    "tipo": id_sel, "total": importe_sel, 
+                                    "estado": "Pagado", "fecha_vencimiento": str(date.today())
+                                }).execute()
+                                st.success("Pago registrado correctamente."); time.sleep(1); st.rerun()
+
+                # SEPARACIÓN EN PESTAÑAS (SEMANAL / MENSUAL / HISTÓRICO)
+                t_sem, t_mes, t_hist = st.tabs(["📆 Próximos 7 Días", "📅 Próximos 30 Días", "⏪ Mes Anterior"])
                 
                 with t_sem:
                     df_sem = df_proy[(df_proy['Fecha Vencimiento'] >= hoy_dt) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=7))]
-                    st.metric("Total a pagar esta semana", f"{df_sem['Importe'].sum():.2f} €")
+                    pendientes_sem = df_sem[df_sem['Estado'] == "Pendiente ❌"]
+                    st.metric("Total PENDIENTE esta semana", f"{pendientes_sem['Importe'].sum():.2f} €")
                     if not df_sem.empty:
-                        df_sem_v = df_sem.copy()
+                        df_sem_v = df_sem[['Fecha Vencimiento', 'Concepto', 'Importe', 'Estado']].copy()
                         df_sem_v['Fecha Vencimiento'] = df_sem_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
                         st.dataframe(df_sem_v, use_container_width=True, hide_index=True)
                     else:
-                        st.info("No hay pagos previstos para los próximos 7 días.")
+                        st.info("No hay previsiones para los próximos 7 días.")
                         
                 with t_mes:
                     df_mes = df_proy[(df_proy['Fecha Vencimiento'] >= hoy_dt) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=30))]
-                    st.metric("Total a pagar este mes", f"{df_mes['Importe'].sum():.2f} €")
+                    pendientes_mes = df_mes[df_mes['Estado'] == "Pendiente ❌"]
+                    st.metric("Total PENDIENTE este mes", f"{pendientes_mes['Importe'].sum():.2f} €")
                     if not df_mes.empty:
                         df_chart = df_mes.copy()
-                        st.markdown("<p style='font-size: 13px; color: gray; margin-top: 10px;'>Gráfica de esfuerzo económico por semana:</p>", unsafe_allow_html=True)
                         df_chart['Semana'] = df_chart['Fecha Vencimiento'].dt.to_period('W').apply(lambda r: f"Semana {r.start_time.strftime('%d/%m')}")
                         st.bar_chart(df_chart.groupby('Semana')['Importe'].sum().reset_index().set_index('Semana'), color="#d32f2f")
                         
-                        df_mes_v = df_mes.copy()
+                        df_mes_v = df_mes[['Fecha Vencimiento', 'Concepto', 'Importe', 'Estado']].copy()
                         df_mes_v['Fecha Vencimiento'] = df_mes_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
                         st.dataframe(df_mes_v, use_container_width=True, hide_index=True)
                     else:
-                        st.info("No hay pagos previstos para los próximos 30 días.")
-            else: st.success("No hay previsiones de gastos fijos para los próximos 60 días.")
-        except Exception as e: pass
+                        st.info("No hay previsiones para los próximos 30 días.")
+                        
+                with t_hist:
+                    df_hist = df_proy[(df_proy['Fecha Vencimiento'] < hoy_dt)]
+                    if not df_hist.empty:
+                        df_hist_v = df_hist[['Fecha Vencimiento', 'Concepto', 'Importe', 'Estado']].copy()
+                        df_hist_v['Fecha Vencimiento'] = df_hist_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
+                        st.dataframe(df_hist_v, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No hay registros del mes anterior.")
+            else: st.success("No hay previsiones de gastos fijos.")
+        except Exception as e:
+            st.error(f"Error al cargar calendario: {e}")
 
     with sec_informes:
         st.markdown("#### 📥 Selector de Fechas Personalizado")

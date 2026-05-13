@@ -110,23 +110,70 @@ def render_pestana_caja(client):
         col_izq, col_der = st.columns([1, 1.2], gap="large")
         
         with col_izq:
+            # Buscar gastos fijos pendientes para el selectbox
+            pendientes_opciones = ["Ninguno (No enlazar a gasto fijo)"]
+            try:
+                from datetime import date
+                res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
+                res_compras_gf = client.table("compras").select("tipo").ilike("tipo", "Gastos Fijos | %").execute()
+                pagos_reg = [c['tipo'] for c in res_compras_gf.data] if res_compras_gf.data else []
+                
+                hoy_dt = pd.Timestamp(date.today())
+                if res_gf.data:
+                    for gf in res_gf.data:
+                        for mes_offset in [-1, 0, 1]:
+                            tm = hoy_dt.month + mes_offset
+                            ty = hoy_dt.year
+                            if tm > 12: tm -= 12; ty += 1
+                            elif tm < 1: tm += 12; ty -= 1
+                            dia_c = min(gf['dia_cargo'], pd.Period(year=ty, month=tm, freq='M').days_in_month)
+                            fc = pd.to_datetime(f"{ty}-{tm:02d}-{dia_c:02d}")
+                            
+                            if (hoy_dt - pd.Timedelta(days=30)) <= fc <= (hoy_dt + pd.Timedelta(days=30)):
+                                tipo_id = f"Gastos Fijos | {gf['concepto']} - {tm:02d}/{ty}"
+                                if tipo_id not in pagos_reg:
+                                    pendientes_opciones.append(f"{tipo_id} (Aprox: {gf['importe_estimado']}€)")
+            except: pass
+
             with st.form("form_movimientos", clear_on_submit=True, border=True):
                 c_tipo, c_cant = st.columns([1, 1])
                 with c_tipo: tipo_mov = st.selectbox("Tipo", ["Retirada 🔻", "Ingreso 🔺"])
                 with c_cant: cant_mov = st.number_input("Euros €", min_value=0.01, step=1.0, value=None)
-                motivo_mov = st.text_input("Motivo", placeholder="Ej: Pago proveedor, cambio...")
                 
-                conta_opt = st.selectbox("¿Enviar a Contabilidad? (Solo retiradas)", [
+                enlace_gf = st.selectbox("¿Liquidar Gasto Fijo Pendiente? (Solo Retiradas)", pendientes_opciones)
+                
+                motivo_mov = st.text_input("Motivo (o déjalo en blanco si eliges un gasto fijo arriba)", placeholder="Ej: Pago proveedor, cambio...")
+                
+                conta_opt = st.selectbox("¿Enviar a Contabilidad? (Si NO eliges un gasto fijo arriba)", [
                     "No (Solo movimiento de caja interno)", 
                     "Sí, como Gasto (Limpieza, consumibles...)", 
                     "Sí, como Servicio Exterior (Técnico, reparación...)",
                     "Sí, como Impuestos y Tasas (Tributos...)",
                     "Sí, como Pago a Proveedor (Mercancía)"
-                ], help="⚠️ ESCENARIO 1 (Factura nueva en mano): Elige 'Sí, como Pago a Proveedor'.\n⚠️ ESCENARIO 2 (Factura ya pendiente en sistema): Elige 'No', anota el Nº de Factura en el motivo para cuadrar la caja, y luego avisa para que se marque como Pagada en Facturación.")
+                ], help="⚠️ Si seleccionas un 'Gasto Fijo Pendiente' arriba, esto se ignora y se liquida el gasto fijo directamente.")
                 
                 if st.form_submit_button("Registrar Movimiento", use_container_width=True):
-                    if motivo_mov and cant_mov is not None:
-                        tipo_limpio = "Retirada" if "Retirada" in tipo_mov else "Ingreso"
+                    tipo_limpio = "Retirada" if "Retirada" in tipo_mov else "Ingreso"
+                    
+                    if enlace_gf != "Ninguno (No enlazar a gasto fijo)" and tipo_limpio == "Retirada" and cant_mov is not None:
+                        # Liquidar gasto fijo
+                        id_gf_sel = enlace_gf.split(" (Aprox:")[0]
+                        motivo_final = id_gf_sel
+                        
+                        client.table("movimientos_caja").insert({"id_caja": id_caja, "tipo": tipo_limpio, "cantidad": float(cant_mov), "motivo": f"Pago {motivo_final}"}).execute()
+                        
+                        client.table("compras").insert({
+                            "tipo": id_gf_sel,
+                            "total": float(cant_mov),
+                            "estado": "Pagado",
+                            "pagado": float(cant_mov),
+                            "pendiente": 0.0,
+                            "fecha_vencimiento": str(date.today())
+                        }).execute()
+                        st.rerun()
+                        
+                    elif motivo_mov and cant_mov is not None:
+                        # Lógica original para otros gastos
                         client.table("movimientos_caja").insert({"id_caja": id_caja, "tipo": tipo_limpio, "cantidad": float(cant_mov), "motivo": motivo_mov}).execute()
                         
                         if tipo_limpio == "Retirada" and "Sí" in conta_opt:
