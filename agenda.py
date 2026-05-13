@@ -527,7 +527,7 @@ def render_pestana_agenda(client):
         manana_str_ini = manana_dt.strftime('%Y-%m-%dT00:00:00')
         manana_str_fin = manana_dt.strftime('%Y-%m-%dT23:59:59')
         
-        res_manana = client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto))").gte("fecha_hora", manana_str_ini).lte("fecha_hora", manana_str_fin).execute()
+        res_manana = client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto, direccion, servicio_domicilio))").gte("fecha_hora", manana_str_ini).lte("fecha_hora", manana_str_fin).execute()
         
         citas_manana = []
         if res_manana.data:
@@ -538,6 +538,8 @@ def render_pestana_agenda(client):
                 dueno = cliente_info.get('nombre_dueno', 'Dueño')
                 telefono = cliente_info.get('telefono', '')
                 pref_contacto = cliente_info.get('metodo_contacto') or 'WhatsApp'
+                domicilio = cliente_info.get('servicio_domicilio', False)
+                direccion = cliente_info.get('direccion', '')
                 nombre_m = mascota_info.get('nombre', 'tu mascota')
                 
                 dt_obj = pd.to_datetime(c['fecha_hora'])
@@ -551,7 +553,11 @@ def render_pestana_agenda(client):
                     dias_diff = (manana_dt.date() - hoy_dt.date()).days
                     texto_dia = "mañana" if dias_diff == 1 else f"el próximo {nombre_dia_obj.lower()}"
                     
-                    msg = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium para recordarte que {texto_dia} a las {hora_str} tenemos una cita reservada para {nombre_m}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias y un saludo! ✂️🐶"
+                    if domicilio:
+                        msg = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium para recordarte que {texto_dia} a las {hora_str} pasaremos por tu domicilio ({direccion}) a recoger a {nombre_m} para su cita. Por favor, ¿nos confirmas que estaréis en casa? ¡Muchas gracias y un saludo! ✂️🐶🚗"
+                    else:
+                        msg = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium para recordarte que {texto_dia} a las {hora_str} tenemos una cita reservada para {nombre_m}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias y un saludo! ✂️🐶"
+                        
                     url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg)}"
                     
                 import re
@@ -561,7 +567,8 @@ def render_pestana_agenda(client):
                 citas_manana.append({
                     "Hora": hora_str,
                     "Mascota": nombre_m,
-                    "Dueño": dueno,
+                    "Dueño": dueno + (" 🚚" if domicilio else ""),
+                    "Dirección": direccion if domicilio else "En local",
                     "Canal Pref.": pref_contacto,
                     "Servicio": s_clean,
                     "WhatsApp": url_wa

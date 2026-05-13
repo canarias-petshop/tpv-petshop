@@ -484,8 +484,10 @@ def render_pestana_crm(client):
                         "id": None, "nombre_dueno": "Contacto Principal", "telefono": "Tel. Principal", 
                         "nombre_dueno_2": "Contacto Alt.", "telefono_2": "Tel. Alt.",
                         "email": "Email", "metodo_contacto": st.column_config.SelectboxColumn("Canal Pref.", options=["WhatsApp", "Llamada", "SMS"]), "fecha_nacimiento": "F. Nac",
+                        "direccion": "Dirección",
                         "RGPD": st.column_config.CheckboxColumn("LOPD"),
                         "Puntos": st.column_config.NumberColumn("🌟 Ptos"),
+                        "Domicilio": st.column_config.CheckboxColumn("🚚 Domicilio"),
                         "Tipo Cliente": st.column_config.TextColumn("Perfil", disabled=True)
                     },
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_clientes", height=250
@@ -503,7 +505,9 @@ def render_pestana_crm(client):
                                 "nombre_dueno_2": str(row.get('nombre_dueno_2', '')), "telefono_2": str(row.get('telefono_2', '')),
                                 "email": str(row['email']), "metodo_contacto": str(row.get('metodo_contacto', 'WhatsApp')), 
                                 "fecha_nacimiento": str(row['fecha_nacimiento']),
-                                "rgpd_consent": bool(row.get('RGPD', True)), "puntos": int(row.get('Puntos', 0))
+                                "direccion": str(row.get('direccion', '')),
+                                "rgpd_consent": bool(row.get('RGPD', True)), "puntos": int(row.get('Puntos', 0)),
+                                "servicio_domicilio": bool(row.get('Domicilio', False))
                             }).eq("id", row['id']).execute()
                     st.success("Directorio de clientes actualizado."); time.sleep(0.5); st.rerun()
                     
