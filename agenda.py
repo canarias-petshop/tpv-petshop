@@ -521,6 +521,7 @@ def render_pestana_agenda(client):
             manana_dt += pd.Timedelta(days=1)
             
         dias_es = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
+        meses_es = {1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio", 7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"}
         nombre_dia_obj = dias_es[manana_dt.weekday()]
         
         st.markdown(f"##### 📅 1. Confirmaciones para el {nombre_dia_obj} ({manana_dt.strftime('%d/%m')})")
@@ -551,13 +552,12 @@ def render_pestana_agenda(client):
                 if tel_limpio:
                     if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
                     
-                    dias_diff = (manana_dt.date() - hoy_dt.date()).days
-                    texto_dia = "mañana" if dias_diff == 1 else f"el próximo {nombre_dia_obj.lower()}"
+                    fecha_str_wa = f"{nombre_dia_obj.lower()} {manana_dt.day} {meses_es[manana_dt.month]}"
                     
                     if domicilio:
-                        msg = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium para recordarte que {texto_dia} a las {hora_str} pasaremos por tu domicilio ({direccion}) a recoger a {nombre_m} para su cita. Por favor, ¿nos confirmas que estaréis en casa? ¡Muchas gracias y un saludo! ✂️🐶🚗"
+                        msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería para {nombre_m}\nHora: {hora_str}\nDía: {fecha_str_wa}\nDirección de recogida: {direccion}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶🚗"
                     else:
-                        msg = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium para recordarte que {texto_dia} a las {hora_str} tenemos una cita reservada para {nombre_m}. Por favor, ¿nos confirmas tu asistencia? ¡Muchas gracias y un saludo! ✂️🐶"
+                        msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería para {nombre_m}\nHora: {hora_str}\nDía: {fecha_str_wa}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶"
                         
                     url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg)}"
                     
