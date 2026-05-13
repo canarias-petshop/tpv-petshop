@@ -225,7 +225,17 @@ def render_pestana_historial(client):
                         # --- PREPARACIÓN DEL EMAIL (HISTORIAL) ---
                         cuerpo_email = f"Hola,\n\nAdjuntamos la copia de su ticket #{t_id}:\n\n"
                         for p in prods:
-                            cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€\n"
+                            desc_item_raw = p.get('Desc. %', p.get('Desc %', 0.0))
+                            try:
+                                desc_item = float(desc_item_raw) if desc_item_raw is not None else 0.0
+                            except (ValueError, TypeError):
+                                desc_item = 0.0
+                            motivo = p.get('Motivo_Desc', '')
+                            if desc_item > 0:
+                                motivo_str = f" (Dto. {desc_item}% por {motivo})" if motivo else f" (Dto. {desc_item}%)"
+                                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€{motivo_str}\n"
+                            else:
+                                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€\n"
                         
                         desc_g_re_raw = t_info.get('descuento_global', 0.0)
                         desc_g_re = float(desc_g_re_raw) if desc_g_re_raw is not None else 0.0
@@ -290,9 +300,11 @@ def render_pestana_historial(client):
                             except (ValueError, TypeError):
                                 desc_item = 0.0
                             if desc_item > 0:
+                                motivo = p.get('Motivo_Desc', '')
+                                motivo_str = f" por {motivo}" if motivo else ""
                                 precio_orig = p.get('Precio', p.get('Base Ud', 0) * (1 + p.get('IGIC %', 0)/100)) * p['Cantidad']
                                 html_reprint += f"<tr><td style='padding-bottom: 0px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 0px;'><del>{precio_orig:.2f}€</del> {p['Subtotal']:.2f}€</td></tr>"
-                                html_reprint += f"<tr><td colspan='2' style='font-size: 16px; padding-bottom: 5px; color: #555;'>  ↳ Dto. {desc_item}% aplicado</td></tr>"
+                                html_reprint += f"<tr><td colspan='2' style='font-size: 16px; padding-bottom: 5px; color: #555;'>  ↳ Dto. {desc_item}% aplicado{motivo_str}</td></tr>"
                             else:
                                 html_reprint += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
                         html_reprint += f"""

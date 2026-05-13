@@ -19,6 +19,9 @@ def render_pestana_tpv(client):
     if 'llave_busqueda_tpv' not in st.session_state: 
         st.session_state.llave_busqueda_tpv = 0
         
+    if 'cliente_cobro_tpv' not in st.session_state:
+        st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
+        
     st.markdown("""
         <div style='display: flex; justify-content: space-between; margin-top: 10px; margin-bottom: 10px; padding: 0 5px;'>
             <h4 style='margin:0; color: #333; white-space: nowrap;'>🛒 Terminal de Venta</h4>
@@ -31,6 +34,67 @@ def render_pestana_tpv(client):
     with col_busqueda:
         res_inv = client.table("productos").select("id, nombre, precio_pvp, stock_actual, sku, igic_tipo").execute()
         df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
+        
+        st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>📅 Peluquerías de Hoy</p>", unsafe_allow_html=True)
+        
+        hoy_date = datetime.now().date()
+        hoy_ini = f"{hoy_date}T00:00:00"
+        hoy_fin = f"{hoy_date}T23:59:59"
+        res_citas_hoy = client.table("citas").select("id, servicio, mascotas(id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, puntos))").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
+        
+        if res_citas_hoy.data:
+            citas_validas = [c for c in res_citas_hoy.data if "[ESTADO: Cancelada]" not in c.get('servicio', '')]
+            if citas_validas:
+                for c in citas_validas:
+                    masc = c.get('mascotas')
+                    if not masc: continue
+                    cli = masc.get('clientes')
+                    if not cli: continue
+                    
+                    servicio_nom = c.get('servicio', 'Peluquería')
+                    import re
+                    servicio_nom = re.sub(r'\[ESTADO:\s*.*?\]\s*', '', servicio_nom).strip()
+                    s_clean = servicio_nom.split(" (")[0] if " (" in servicio_nom else servicio_nom
+                    
+                    hist = masc.get('historial_trabajos', [])
+                    aplica_desc = False
+                    hoy_str_hist = hoy_date.strftime("%d/%m/%Y")
+                    if isinstance(hist, list):
+                        fechas_previas = []
+                        for t in hist:
+                            f_str = t.get('Fecha')
+                            if f_str and f_str != hoy_str_hist:
+                                try: fechas_previas.append(pd.to_datetime(f_str, format="%d/%m/%Y").date())
+                                except: pass
+                        if fechas_previas:
+                            ult_visita = max(fechas_previas)
+                            if (hoy_date - ult_visita).days <= 60:
+                                aplica_desc = True
+                                
+                    btn_label = f"✂️ {s_clean} ({masc['nombre']})"
+                    if aplica_desc: btn_label += " 🎁 Dto 10%"
+                    
+                    if st.button(btn_label, use_container_width=True, key=f"btn_cita_{c['id']}_{st.session_state.llave_busqueda_tpv}"):
+                        precio_final = 0.0
+                        igic_final = 7.0
+                        if not df_inv.empty:
+                            res_precio = df_inv[df_inv['nombre'] == s_clean]
+                            if not res_precio.empty:
+                                precio_final = float(res_precio.iloc[0]['precio_pvp'] or 0.0)
+                                igic_final = float(res_precio.iloc[0].get('igic_tipo', 7.0))
+                        
+                        desc_pct = 10.0 if aplica_desc else 0.0
+                        motivo_desc = "Visita < 2 meses" if aplica_desc else ""
+                        nombre_linea = f"{s_clean} ({masc['nombre']})"
+                            
+                        st.session_state.carrito.append({"id": f"cita_{c['id']}", "Producto": nombre_linea, "Cantidad": 1, "Precio": precio_final, "Subtotal": precio_final * (1 - desc_pct/100), "IGIC": igic_final, "Manual": False, "Desc. %": desc_pct, "Motivo_Desc": motivo_desc})
+                        st.session_state.cliente_cobro_tpv = f"{cli['nombre_dueno']} ({cli.get('telefono', '')}) - Puntos: {cli.get('puntos') or 0}"
+                        st.session_state.llave_busqueda_tpv += 1
+                        st.rerun()
+            else: st.info("No hay citas activas hoy.")
+        else: st.info("No hay citas hoy.")
+        
+        st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
         
         st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>🔍 Buscar producto o servicio</p>", unsafe_allow_html=True)
         if not df_inv.empty:
@@ -106,7 +170,13 @@ def render_pestana_tpv(client):
             # --- PREPARACIÓN DEL EMAIL ---
             cuerpo_email = "Hola,\n\nGracias por su compra en Animalarium. Adjuntamos el detalle de su ticket:\n\n"
             for p in t['productos']:
-                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€\n"
+                desc_item = p.get('Desc. %', p.get('Desc %', 0.0))
+                motivo = p.get('Motivo_Desc', '')
+                if desc_item > 0:
+                    motivo_str = f" (Dto. {desc_item}% por {motivo})" if motivo else f" (Dto. {desc_item}%)"
+                    cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€{motivo_str}\n"
+                else:
+                    cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€\n"
             
             desc_global = t.get('descuento_global', 0.0)
             if desc_global > 0:
@@ -176,10 +246,13 @@ def render_pestana_tpv(client):
             
             for p in t['productos']:
                 desc_item = p.get('Desc. %', p.get('Desc %', 0.0))
+                motivo = p.get('Motivo_Desc', '')
+                motivo_str = f" por {motivo}" if motivo else ""
+                
                 if desc_item > 0:
                     precio_orig = p.get('Precio', 0.0) * p['Cantidad']
                     html_ticket += f"<tr><td style='padding-bottom: 0px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 0px;'><del>{precio_orig:.2f}€</del> {p['Subtotal']:.2f}€</td></tr>"
-                    html_ticket += f"<tr><td colspan='2' style='font-size: 16px; padding-bottom: 5px; color: #555;'>  ↳ Dto. {desc_item}% aplicado</td></tr>"
+                    html_ticket += f"<tr><td colspan='2' style='font-size: 16px; padding-bottom: 5px; color: #555;'>  ↳ Dto. {desc_item}% aplicado{motivo_str}</td></tr>"
                 else:
                     html_ticket += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
 
@@ -484,6 +557,7 @@ def render_pestana_tpv(client):
                 with c_vac:
                     if st.button("🗑️ Vaciar", use_container_width=True):
                         st.session_state.carrito = []
+                        st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
                         st.session_state.llave_busqueda_tpv += 1
                         st.rerun()
             else:

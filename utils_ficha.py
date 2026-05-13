@@ -175,10 +175,10 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
                                     
                                     nota_act = str(df_save.at[idx, 'Nota Sesión']).strip()
                                     if nota_act == "None" or nota_act == "nan": nota_act = ""
-                                    nota_desc = f"[Desc. 10% Mantenimiento aplicado. Ahorro: {ahorro}€]"
+                                    nota_desc = f"[Desc. 10% (Visita < 2 meses) aplicado. Ahorro: {ahorro}€]"
                                     if nota_desc not in nota_act:
                                         df_save.at[idx, 'Nota Sesión'] = f"{nota_act} {nota_desc}".strip()
-                                        st.success(f"🎉 ¡Descuento de Mantenimiento (10%) aplicado automáticamente a la sesión del {fecha_actual_str}! Ahorro: {ahorro}€")
+                                        st.success(f"🎉 ¡Descuento por Visita Frecuente (< 2 meses) del 10% aplicado automáticamente a la sesión del {fecha_actual_str}! Ahorro: {ahorro}€")
                     except Exception as e:
                         pass
                 
