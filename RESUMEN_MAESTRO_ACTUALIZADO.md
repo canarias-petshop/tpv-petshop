@@ -171,7 +171,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 *   **Bancos y Tesorería (EN CURSO):** Crear las cuentas "Revolut (Negocio)" (solo para pagos y ahorro, sin relación con datáfonos de TPV) y "Revolut (Nómina)" (cuenta exclusiva para transferencias de sueldo, aislada del pago a proveedores). Aislar estas cuentas de las opciones de cobro de caja.
 *   **Inventario:** Añadir control y alertas de **Fechas de Caducidad** para los productos perecederos.
 *   **Gestión de Recogidas a Domicilio:** (*Nota: La BD ya está preparada con las columnas `direccion` y `servicio_domicilio`*). Queda pendiente añadir los campos visuales en la ficha del cliente (`crm.py`) y programar la alerta en el panel de Recordatorios de la Agenda (`agenda.py`).
-*   **Automatización de Descuentos (Mantenimiento Peluquería):** Implementar lógica para aplicar automáticamente un 10% de descuento si el cliente vuelve antes de 2 meses. Debe reflejarse en la ficha, enviar un recordatorio del "dinero ahorrado" y considerar su integración con el sistema de puntos.
+*   **Automatización de Descuentos (Mantenimiento Peluquería):** El sistema calcula automáticamente un 10% de descuento si el cliente vuelve antes de 2 meses, para evitar errores del empleado al cobrar. Se va sumando y guardando el dato del "dinero ahorrado" en su ficha para enviarle mensajes de agradecimiento por WhatsApp. **Aclaración importante:** Esto es totalmente independiente del sistema de Puntos VIP (que se calculan y canjean en caja al pagar y siguen funcionando exactamente igual, sin mezclarse con este descuento).
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
