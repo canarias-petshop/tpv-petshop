@@ -16,7 +16,7 @@ def render_pestana_agenda(client):
             telefono = m['clientes']['telefono'] if m.get('clientes') and m['clientes'].get('telefono') else "Sin teléfono"
             dict_mascotas[f"🐾 {m['nombre']} (De: {dueno} - 📱 {telefono})"] = m['id']
             
-    res_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, clientes(nombre_dueno, telefono))").order("fecha_hora", desc=False).execute()
+    res_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).execute()
     
     # --- DATOS COMUNES ---
     try:

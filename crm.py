@@ -40,6 +40,12 @@ def render_pestana_crm(client):
             with c_t3: c_nom2 = st.text_input("Nombre Contacto Alt.")
             with c_t4: c_tel2 = st.text_input("Teléfono Alt.")
             c_ema = st.text_input("Email")
+            
+            c_d1, c_d2 = st.columns([3, 1])
+            with c_d1: c_dir = st.text_input("Dirección (Para recogidas a domicilio)")
+            with c_d2:
+                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                c_domicilio = st.checkbox("🚚 Recogida a Domicilio")
             c_nac = st.date_input("F. Nacimiento", value=None)
             c_rgpd = st.checkbox("📝 Acepta LOPD/RGPD (Envío info y promos)", value=True)
             
@@ -62,7 +68,8 @@ def render_pestana_crm(client):
                     res_cli = client.table("clientes").insert({
                         "nombre_dueno": c_nom, "telefono": c_tel, "nombre_dueno_2": c_nom2, "telefono_2": c_tel2,
                         "email": c_ema, "metodo_contacto": c_cont, 
-                        "fecha_nacimiento": str(c_nac) if c_nac else "", "rgpd_consent": c_rgpd, "puntos": 0
+                        "fecha_nacimiento": str(c_nac) if c_nac else "", "rgpd_consent": c_rgpd, "puntos": 0,
+                        "direccion": c_dir, "servicio_domicilio": c_domicilio
                     }).execute()
 
                     if res_cli.data and m_nom:
@@ -455,9 +462,11 @@ def render_pestana_crm(client):
                 
                 if 'nombre_dueno_2' not in df_cli.columns: df_cli['nombre_dueno_2'] = ""
                 if 'telefono_2' not in df_cli.columns: df_cli['telefono_2'] = ""
+                if 'direccion' not in df_cli.columns: df_cli['direccion'] = ""
+                if 'servicio_domicilio' not in df_cli.columns: df_cli['servicio_domicilio'] = False
                 
                 df_cli['Tipo Cliente'] = df_cli['mascotas'].apply(lambda x: "🐾 Con mascota" if isinstance(x, list) and len(x) > 0 else "🛍️ Solo tienda")
-                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'nombre_dueno_2', 'telefono_2', 'email', 'metodo_contacto', 'fecha_nacimiento', 'Tipo Cliente']].copy()
+                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'nombre_dueno_2', 'telefono_2', 'email', 'metodo_contacto', 'direccion', 'fecha_nacimiento', 'Tipo Cliente']].copy()
                 
                 if b_cli:
                     df_cli_vista = df_cli_vista[
@@ -473,6 +482,7 @@ def render_pestana_crm(client):
                 
                 df_cli_vista['RGPD'] = df_cli['rgpd_consent']
                 df_cli_vista['Puntos'] = df_cli['puntos']
+                df_cli_vista['Domicilio'] = df_cli['servicio_domicilio']
 
                 df_cli_vista.insert(0, "Ver", False)
                 st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir la ficha del cliente y ver sus mascotas.*")
@@ -537,12 +547,6 @@ def render_pestana_crm(client):
                     col_ficha1, col_ficha2 = st.columns([3, 1])
                     with col_ficha1:
                         st.markdown(f"#### 📖 Ficha de Cliente: **{c_nombre}**")
-                        
-                        if c_data.get('servicio_domicilio'):
-                            st.info(f"🚚 **Servicio a domicilio activo:** {c_data.get('direccion', 'Sin dirección especificada')}")
-                        elif c_data.get('direccion'):
-                            st.markdown(f"📍 **Dirección:** {c_data.get('direccion')}")
-                            
                         if ahorro_total > 0:
                             st.success(f"💰 **Ahorro Acumulado:** Este cliente ha ahorrado un total de **{ahorro_total:.2f}€** en mantenimientos.")
                             c_tel = ''.join(filter(str.isdigit, str(c_data.get('telefono', ''))))
