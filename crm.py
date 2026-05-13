@@ -455,7 +455,11 @@ def render_pestana_crm(client):
                 with c_met3: st.metric("🛍️ Solo Tienda", clientes_sin_mascota)
                 st.markdown("<hr style='margin: 5px 0px 15px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-                b_cli = st.text_input("🔍 Buscar cliente (Nombre o Teléfono):", placeholder="Escribe para filtrar...", key="b_cli").strip().lower()
+                c_busqc1, c_busqc2 = st.columns([2, 1])
+                with c_busqc1:
+                    b_cli = st.text_input("🔍 Buscar cliente (Nombre o Teléfono):", placeholder="Escribe para filtrar...", key="b_cli").strip().lower()
+                with c_busqc2:
+                    ord_cli = st.selectbox("↕️ Ordenar por:", ["Más recientes", "Nombre (A-Z)", "Mayor saldo de puntos"], key="ord_cli")
                 
                 if 'fecha_nacimiento' not in df_cli.columns: df_cli['fecha_nacimiento'] = ""
                 if 'metodo_contacto' not in df_cli.columns: df_cli['metodo_contacto'] = "WhatsApp"
@@ -483,6 +487,11 @@ def render_pestana_crm(client):
                 df_cli_vista['RGPD'] = df_cli['rgpd_consent']
                 df_cli_vista['Puntos'] = df_cli['puntos']
                 df_cli_vista['Domicilio'] = df_cli['servicio_domicilio']
+
+                if ord_cli == "Nombre (A-Z)":
+                    df_cli_vista = df_cli_vista.sort_values(by="nombre_dueno", key=lambda col: col.fillna('').astype(str).str.lower())
+                elif ord_cli == "Mayor saldo de puntos":
+                    df_cli_vista = df_cli_vista.sort_values(by="Puntos", ascending=False)
 
                 df_cli_vista.insert(0, "Ver", False)
                 st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir la ficha del cliente y ver sus mascotas.*")
