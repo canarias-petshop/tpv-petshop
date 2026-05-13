@@ -225,6 +225,11 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 *   **Comercialización y Escalabilidad (Vender el programa):**
     *   *Objetivo:* Preparar el sistema para venderlo a otras tiendas o clínicas (Modelo SaaS).
     *   *Pasos a dar:* Crear una estructura de "Multitienda" o un proceso de instalación para que cada cliente (otra clínica) tenga su base de datos totalmente separada y privada.
+*   **Gestor de Proyectos Internos:**
+    *   *Objetivo:* Añadir una pestaña dedicada a planificar y estructurar los proyectos futuros de la tienda a medio y largo plazo.
+*   **Calendario de Tareas para Trabajadores:**
+    *   *Objetivo:* Crear una sección (pestaña o subpestaña) de "Tareas Pendientes" específica para los empleados.
+    *   *Pasos a dar:* Integrar un gestor visual donde la administración pueda asignar rutinas o tareas concretas, llevando un registro y control de lo mandado. Así queda constancia para todos, ellos pueden consultarlo, marcarlo al terminar y no se pierde nada de vista.
 
 ## 5. MANUAL DE DESPLIEGUE EN TIENDA (Paso a Paso)
 
