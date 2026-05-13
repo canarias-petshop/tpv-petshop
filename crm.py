@@ -921,10 +921,4 @@ def render_pestana_crm(client):
                 else:
                     st.success("¡Genial! Ningún cliente tiene pagos pendientes en el TPV.")
             except Exception as e:
-                st.error(f"Error al cargar módulo de deudas: {e}")s pendientes en el TPV.")
-            except Exception as e:
-                st.error(f"Error al cargar módulo de deudas: {e}")s pendientes en el TPV.")
-            except Exception as e:
-                st.error(f"Error al cargar módulo de deudas: {e}")s pendientes en el TPV.")
-            except Exception as e:
                 st.error(f"Error al cargar módulo de deudas: {e}")
