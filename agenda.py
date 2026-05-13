@@ -697,12 +697,14 @@ def render_pestana_agenda(client):
                             except: pass
                     
                     if not encontrado:
+                        _, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
                         alertas.append({
                             "Ver Ficha": False,
                             "mascota_id": masc.get('id'),
                             "Fecha Cita": dt_c.strftime("%d/%m/%Y"),
+                            "Peluquero/a": assigned_e,
                             "Mascota": masc.get('nombre', 'Desconocida'),
-                            "Servicio": c.get('servicio', '').replace("[ESTADO: Confirmada]", "").strip()
+                            "Servicio": s_clean
                         })
                 except: pass
                 
