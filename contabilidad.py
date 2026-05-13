@@ -151,10 +151,11 @@ def render_pestana_contabilidad(client):
                     df_alarmas = df_proy[(df_proy['Estado'] == "Pendiente ❌") & (df_proy['Fecha Vencimiento'] <= (hoy_dt + pd.Timedelta(days=dias_alerta)))]
                     if not df_alarmas.empty:
                         st.error(f"🚨 **¡ATENCIÓN!** Tienes {len(df_alarmas)} cargo(s) fijo(s) PENDIENTES de pago (vencidos o próximos).")
-                        for _, r in df_alarmas.iterrows():
-                            dias_diff = (r['Fecha Vencimiento'] - hoy_dt).days
-                            texto_dias = "HOY" if dias_diff == 0 else (f"VENCIDO hace {abs(dias_diff)} días" if dias_diff < 0 else f"en {dias_diff} días")
-                            st.markdown(f"<span style='color:#d32f2f; font-size:14px;'>• {r['Concepto']} - {r['Importe']}€ ({texto_dias})</span>", unsafe_allow_html=True)
+                        with st.expander("👀 Ver detalle de cargos pendientes", expanded=False):
+                            for _, r in df_alarmas.iterrows():
+                                dias_diff = (r['Fecha Vencimiento'] - hoy_dt).days
+                                texto_dias = "HOY" if dias_diff == 0 else (f"VENCIDO hace {abs(dias_diff)} días" if dias_diff < 0 else f"en {dias_diff} días")
+                                st.markdown(f"<span style='color:#d32f2f; font-size:14px;'>• {r['Concepto']} - {r['Importe']}€ ({texto_dias})</span>", unsafe_allow_html=True)
                     else:
                         st.success(f"✅ Sin cargos fijos pendientes cercanos o atrasados.")
                         
