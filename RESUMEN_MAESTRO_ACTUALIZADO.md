@@ -164,14 +164,15 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Estructuración Contable Avanzada (Completado):** Reorganización de las categorías de gastos fijos para alinearlas con los estándares de la asesoría y mejorar la lectura financiera del negocio.
 - **Estabilización de Interfaz y Prevención de Errores (Completado):** Implementados parches de seguridad en el TPV para evitar bucles infinitos por filas vacías, manejo seguro de tickets antiguos con datos nulos en Historial, soporte para un segundo contacto familiar en el CRM, y cálculos automáticos de tiempo en fichas clínicas.
 - **Integración Avanzada de Gastos Fijos y Agenda (Completado):** Se implementó el cruce de estados (Pagado/Pendiente) para los gastos fijos directamente con la tabla de compras en Contabilidad, y se extrajo la lógica de la Ficha Clínica a un módulo independiente (`ficha_clinica.py`), lo que permite abrir y editar el historial completo de cualquier mascota directamente desde las tablas de la Agenda ("Ver Ficha").
+- **Optimización Interfaz CRM (Completado):** Se ha añadido la funcionalidad de ordenar alfabéticamente (A-Z), por más recientes o por puntos, tanto los directorios de clientes como de mascotas.
+- **Gestión Integral de Recogidas a Domicilio (Completado):** Incorporadas alertas visuales automáticas en la Agenda y el CRM para avisar cuando una mascota requiere recogida, con textos de WhatsApp adaptados (con soporte de formato estricto y emojis) incluyendo la dirección del dueño.
+- **Cobro Rápido de Citas y Descuento por Visita Frecuente (Completado):** Desplegable integrado en el TPV que permite volcar las citas del día directamente al carrito de cobro. Si la mascota ha visitado la peluquería en los últimos 2 meses, aplica automáticamente un 10% de descuento detallado en el ticket ("Dto. por Visita < 2 meses") conservando el nombre original del servicio.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
 *   **Bancos y Tesorería (EN CURSO):** Crear las cuentas "Revolut (Negocio)" (solo para pagos y ahorro, sin relación con datáfonos de TPV) y "Revolut (Nómina)" (cuenta exclusiva para transferencias de sueldo, aislada del pago a proveedores). Aislar estas cuentas de las opciones de cobro de caja.
 *   **Inventario:** Añadir control y alertas de **Fechas de Caducidad** para los productos perecederos.
-*   **Gestión de Recogidas a Domicilio:** (*Nota: La BD ya está preparada con las columnas `direccion` y `servicio_domicilio`*). Queda pendiente añadir los campos visuales en la ficha del cliente (`crm.py`) y programar la alerta en el panel de Recordatorios de la Agenda (`agenda.py`).
-*   **Automatización de Descuentos (Mantenimiento Peluquería):** El sistema calcula automáticamente un 10% de descuento si el cliente vuelve antes de 2 meses, para evitar errores del empleado al cobrar. Se va sumando y guardando el dato del "dinero ahorrado" en su ficha para enviarle mensajes de agradecimiento por WhatsApp. **Aclaración importante:** Esto es totalmente independiente del sistema de Puntos VIP (que se calculan y canjean en caja al pagar y siguen funcionando exactamente igual, sin mezclarse con este descuento).
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
