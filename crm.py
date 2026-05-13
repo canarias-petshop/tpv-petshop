@@ -667,7 +667,11 @@ def render_pestana_crm(client):
             if res_mascotas.data:
                 df_m = pd.DataFrame(res_mascotas.data)
                 
-                b_masc = st.text_input("🔍 Buscar mascota por nombre:", placeholder="Escribe para filtrar...", key="b_masc").strip().lower()
+                c_busqm1, c_busqm2 = st.columns([2, 1])
+                with c_busqm1:
+                    b_masc = st.text_input("🔍 Buscar mascota por nombre:", placeholder="Escribe para filtrar...", key="b_masc").strip().lower()
+                with c_busqm2:
+                    ord_masc = st.selectbox("↕️ Ordenar por:", ["Más recientes", "Nombre (A-Z)", "Especie", "Dueño (A-Z)"], key="ord_masc")
                 
                 df_m['Dueño'] = df_m['clientes'].apply(lambda x: x.get('nombre_dueno', '') if isinstance(x, dict) else '')
                 df_m['Teléfono'] = df_m['clientes'].apply(lambda x: x.get('telefono', '') if isinstance(x, dict) else '')
@@ -686,6 +690,13 @@ def render_pestana_crm(client):
                 if b_masc:
                     df_m_vista = df_m_vista[df_m_vista['nombre'].str.lower().str.contains(b_masc, na=False)]
                     
+                if ord_masc == "Nombre (A-Z)":
+                    df_m_vista = df_m_vista.sort_values(by="nombre", key=lambda col: col.fillna('').astype(str).str.lower())
+                elif ord_masc == "Especie":
+                    df_m_vista = df_m_vista.sort_values(by="especie", key=lambda col: col.fillna('').astype(str).str.lower())
+                elif ord_masc == "Dueño (A-Z)":
+                    df_m_vista = df_m_vista.sort_values(by="Dueño", key=lambda col: col.fillna('').astype(str).str.lower())
+
                 df_m_vista.insert(0, "Ver", False)
                 
                 st.markdown("💡 *Marca la casilla **'👁️ Ver'** para abrir la ficha completa y el historial de la mascota.*")
@@ -909,5 +920,11 @@ def render_pestana_crm(client):
                         st.success("No hay deudas registradas asociadas a clientes.")
                 else:
                     st.success("¡Genial! Ningún cliente tiene pagos pendientes en el TPV.")
+            except Exception as e:
+                st.error(f"Error al cargar módulo de deudas: {e}")s pendientes en el TPV.")
+            except Exception as e:
+                st.error(f"Error al cargar módulo de deudas: {e}")s pendientes en el TPV.")
+            except Exception as e:
+                st.error(f"Error al cargar módulo de deudas: {e}")s pendientes en el TPV.")
             except Exception as e:
                 st.error(f"Error al cargar módulo de deudas: {e}")
