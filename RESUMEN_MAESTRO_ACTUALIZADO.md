@@ -163,10 +163,12 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Refactorización de Estadísticas y Salud Financiera (Completado):** Panel rediseñado para cruzar automáticamente las ventas del TPV con las facturas de proveedores y el prorrateo exacto de gastos fijos (mensualizando cuotas anuales o trimestrales), proporcionando un Beneficio Neto estimado real mes a mes.
 - **Estructuración Contable Avanzada (Completado):** Reorganización de las categorías de gastos fijos para alinearlas con los estándares de la asesoría y mejorar la lectura financiera del negocio.
 - **Estabilización de Interfaz y Prevención de Errores (Completado):** Implementados parches de seguridad en el TPV para evitar bucles infinitos por filas vacías, manejo seguro de tickets antiguos con datos nulos en Historial, soporte para un segundo contacto familiar en el CRM, y cálculos automáticos de tiempo en fichas clínicas.
+- **Integración Avanzada de Gastos Fijos y Agenda (Completado):** Se implementó el cruce de estados (Pagado/Pendiente) para los gastos fijos directamente con la tabla de compras en Contabilidad, y se extrajo la lógica de la Ficha Clínica a un módulo independiente (`ficha_clinica.py`), lo que permite abrir y editar el historial completo de cualquier mascota directamente desde las tablas de la Agenda ("Ver Ficha").
 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
+*   **Bancos y Tesorería (EN CURSO):** Crear las cuentas "Revolut (Negocio)" (solo para pagos y ahorro, sin relación con datáfonos de TPV) y "Revolut (Nómina)" (cuenta exclusiva para transferencias de sueldo, aislada del pago a proveedores). Aislar estas cuentas de las opciones de cobro de caja.
 *   **Inventario:** Añadir control y alertas de **Fechas de Caducidad** para los productos perecederos.
 *   **Gestión de Recogidas a Domicilio:** (*Nota: La BD ya está preparada con las columnas `direccion` y `servicio_domicilio`*). Queda pendiente añadir los campos visuales en la ficha del cliente (`crm.py`) y programar la alerta en el panel de Recordatorios de la Agenda (`agenda.py`).
 *   **Automatización de Descuentos (Mantenimiento Peluquería):** Implementar lógica para aplicar automáticamente un 10% de descuento si el cliente vuelve antes de 2 meses. Debe reflejarse en la ficha, enviar un recordatorio del "dinero ahorrado" y considerar su integración con el sistema de puntos.
