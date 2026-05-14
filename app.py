@@ -92,6 +92,37 @@ components.html("""
                 input.setAttribute('data-autoselect', 'true');
             }
         });
+            
+            // Protección Global contra Doble Clic en Botones
+            const buttons = doc.querySelectorAll('button');
+            buttons.forEach(btn => {
+                if (!btn.hasAttribute('data-dblclick-prot')) {
+                    btn.setAttribute('data-dblclick-prot', 'true');
+                    btn.addEventListener('click', function() {
+                        if (this.getAttribute('data-baseweb') === 'tab') return;
+                        
+                        const text = this.innerText.toUpperCase();
+                        const isAction = text.includes('GUARDAR') || text.includes('COBRAR') || 
+                                         text.includes('REGISTRAR') || text.includes('CONFIRMAR') || 
+                                         text.includes('EMITIR') || text.includes('AÑADIR') || 
+                                         text.includes('FINALIZAR') || text.includes('ARCHIVAR') || 
+                                         text.includes('ABRIR') || text.includes('CERRAR') ||
+                                         text.includes('CREAR');
+                                         
+                        if (isAction || this.getAttribute('type') === 'submit' || this.getAttribute('kind') === 'primary') {
+                            setTimeout(() => {
+                                this.style.pointerEvents = 'none';
+                                this.style.opacity = '0.5';
+                            }, 20);
+                            
+                            setTimeout(() => {
+                                this.style.pointerEvents = 'auto';
+                                this.style.opacity = '1';
+                            }, 4000);
+                        }
+                    });
+                }
+            });
     }
     const observer = new MutationObserver(disableAuto);
     observer.observe(doc.body, { childList: true, subtree: true });

@@ -176,6 +176,12 @@ def render_pestana_facturacion(client):
                 """, unsafe_allow_html=True)
             
             if st.button(" 🚀  EMITIR FACTURA", type="primary", use_container_width=True):
+                # --- PROTECCIÓN DOBLE CLIC BACKEND ---
+                current_time = time.time()
+                if current_time - st.session_state.get('last_fac_time', 0) < 3:
+                    st.stop()
+                st.session_state['last_fac_time'] = current_time
+
                 if sel_c:
                     c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
                     
@@ -346,6 +352,12 @@ def render_pestana_facturacion(client):
             """, unsafe_allow_html=True)
                 
             if st.button(" 📥  ARCHIVAR COMPRA Y SUMAR STOCK", type="primary", use_container_width=True):
+                # --- PROTECCIÓN DOBLE CLIC BACKEND ---
+                current_time = time.time()
+                if current_time - st.session_state.get('last_compra_time', 0) < 3:
+                    st.stop()
+                st.session_state['last_compra_time'] = current_time
+
                 if sel_p and n_fac:
                     p_id = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
                     client.table("compras").insert({
@@ -679,6 +691,12 @@ def render_pestana_facturacion(client):
                     sel_origen = st.selectbox("💳 Selecciona el origen de los fondos para el pago:", [""] + opciones_pago)
                     
                     if sel_origen and st.button("✅ Confirmar Pago", type="primary", use_container_width=True):
+                        # --- PROTECCIÓN DOBLE CLIC BACKEND ---
+                        current_time = time.time()
+                        if current_time - st.session_state.get('last_pago_time', 0) < 3:
+                            st.stop()
+                        st.session_state['last_pago_time'] = current_time
+
                         nombres_pagados = ", ".join(filas_pagar['Proveedor'].unique()[:2])
                         if len(filas_pagar['Proveedor'].unique()) > 2: nombres_pagados += " y otros..."
                         

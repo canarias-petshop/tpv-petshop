@@ -555,6 +555,14 @@ def render_pestana_tpv(client):
                 with c_cob:
                     bloqueo = (pendiente > 0 and "Ninguno" in cliente_fidelidad)
                     if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
+                        # --- PROTECCIÓN DOBLE CLIC BACKEND ---
+                        import time
+                        current_time = time.time()
+                        if current_time - st.session_state.get('last_cobro_time', 0) < 3:
+                            st.warning("⏳ Procesando cobro, por favor espera...")
+                            st.stop()
+                        st.session_state['last_cobro_time'] = current_time
+
                         carrito_limpio = json.loads(edited_df.to_json(orient='records'))
                         
                         # --- FIX: Limpieza final por seguridad antes de guardar ---

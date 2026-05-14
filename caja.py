@@ -94,6 +94,12 @@ def render_pestana_caja(client):
             st.info(f"💡 **Fondo Automático:** Según el último arqueo, en la caja deben quedar **{ultimo_fondo_sugerido:.2f}€**.")
             fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=0.01, value=ultimo_fondo_sugerido, format="%.2f")
             if st.form_submit_button("ABRIR CAJA AHORA", type="primary", use_container_width=True):
+                # --- PROTECCIÓN DOBLE CLIC BACKEND ---
+                current_time = time.time()
+                if current_time - st.session_state.get('last_caja_abrir', 0) < 3:
+                    st.stop()
+                st.session_state['last_caja_abrir'] = current_time
+
                 fondo_val = fondo_ini or 0.0
                 client.table("control_caja").insert({"fondo_inicial": float(fondo_val), "estado": "Abierta"}).execute()
                 st.success("¡Caja abierta!"); time.sleep(1); st.rerun()
@@ -131,6 +137,12 @@ def render_pestana_caja(client):
                 ], help="⚠️ ESCENARIO 1 (Factura nueva en mano): Elige 'Sí, como Pago a Proveedor'.\n⚠️ ESCENARIO 2 (Factura ya pendiente en sistema): Elige 'No', anota el Nº de Factura en el motivo para cuadrar la caja, y luego avisa para que se marque como Pagada en Facturación.")
                 
                 if st.form_submit_button("Registrar Movimiento", use_container_width=True):
+                    # --- PROTECCIÓN DOBLE CLIC BACKEND ---
+                    current_time = time.time()
+                    if current_time - st.session_state.get('last_mov_caja', 0) < 3:
+                        st.stop()
+                    st.session_state['last_mov_caja'] = current_time
+
                     if motivo_mov and cant_mov is not None:
                         tipo_limpio = "Retirada" if "Retirada" in tipo_mov else "Ingreso"
                         client.table("movimientos_caja").insert({"id_caja": id_caja, "tipo": tipo_limpio, "cantidad": float(cant_mov), "motivo": motivo_mov}).execute()
@@ -194,6 +206,12 @@ def render_pestana_caja(client):
                 with c_f2: submit_cierre = st.form_submit_button("CERRAR CAJA DEFINITIVA", type="primary", use_container_width=True)
                     
                 if submit_cierre:
+                    # --- PROTECCIÓN DOBLE CLIC BACKEND ---
+                    current_time = time.time()
+                    if current_time - st.session_state.get('last_caja_cerrar', 0) < 3:
+                        st.stop()
+                    st.session_state['last_caja_cerrar'] = current_time
+
                     ef_val = efectivo_final if efectivo_final is not None else total_calc
                     ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0.0
                     retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
