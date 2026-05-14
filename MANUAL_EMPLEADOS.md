@@ -24,7 +24,7 @@ Esta es la pantalla principal para cobrar a los clientes.
 2. **Modificar Ticket:** Si te equivocas, usa el botón "🗑️" junto al producto en el ticket para eliminarlo, o cambia la cantidad manualmente.
 3. **Fidelización VIP:** Si el cliente está registrado, búscalo por nombre o teléfono en "Cliente VIP". Al cobrar, ganará 1 punto por cada 10€ de compra. Al canjearlos, cada punto equivale a 0.50€ de descuento.
 4. **Cobrar:**
-   - Selecciona el método de pago (Efectivo, Tarjeta, Bizum). Al elegir tarjeta o pago mixto, **deberás indicar en qué datáfono o banco lo estás cobrando** para que luego cuadre el Cierre Z.
+   - Selecciona el método de pago (Efectivo, Tarjeta, Bizum). **¡Novedad!** Ahora puedes introducir la cantidad exacta que te entrega el cliente no solo en Efectivo, sino también en **Tarjeta o Bizum**. Esto facilita muchísimo los pagos parciales o mixtos. Al elegir tarjeta o pago mixto, **deberás indicar en qué datáfono o banco lo estás cobrando** para que luego cuadre el Cierre Z.
    - **Dejar a deber:** Si el cliente no te paga la totalidad, asegúrate de **seleccionar su nombre en el desplegable de "Cliente VIP"**. El sistema NO te dejará finalizar el cobro si la venta está como anónima. *Ojo: No ganará puntos hasta que venga a saldar la deuda.*
    - Pulsa el botón verde **"💳 COBRAR TICKET"**.
    - El cajón portamonedas se abrirá (si es efectivo) y el ticket se imprimirá automáticamente. Pasados 30 segundos, la pantalla volverá sola a una Nueva Venta.
@@ -42,7 +42,7 @@ Aquí gestionarás las fichas de las familias y sus perros/gatos.
   - **Precio y Descuentos Automáticos:** Si dejas la casilla de *Importe (€)* en blanco y guardas el historial, el sistema buscará el precio oficial del servicio y te lo asignará. ¡Ojo! Si el cliente ha venido hace 2 meses o menos, el sistema **le aplicará automáticamente un descuento del 10% por mantenimiento** y lo registrará en las observaciones para que se lo comentes al cobrarle.
   - **Duración automática:** Indica la hora de Inicio y Fin; al pulsar el botón de guardar, el sistema calculará automáticamente los minutos que has tardado.
 - **Encargos:** Si un cliente pide un artículo que no hay en tienda, anótalo en "🛍️ Encargos". Cuando el producto llegue, pulsa el botón **"💬 WhatsApp"** para avisarle.
-- **💸 Pagos Pendientes:** En esta subpestaña verás qué clientes deben dinero en la tienda, con un botón directo a WhatsApp para reclamarlo a partir de los 14 días. Si el cliente te paga hoy una deuda, busca su ticket viejo, págalo e inmediatamente sus puntos VIP se sumarán a su ficha.
+- **💸 Pagos Pendientes:** En esta subpestaña verás qué clientes deben dinero en la tienda, con un botón directo a WhatsApp para reclamarlo a partir de los 14 días. Si el cliente viene a pagar una deuda, selecciónalo, **introduce la cantidad exacta a abonar** (pudiendo hacer un pago parcial) y escoge el método (Caja Fuerte para efectivo o el Banco/Datáfono correspondiente para tarjeta). Al instante, la deuda se actualizará y sus puntos VIP se sumarán a su ficha de forma proporcional.
 
 ---
 
@@ -95,3 +95,8 @@ Por la nueva **Ley Antifraude de Hacienda (VeriFactu)**, está **terminantemente
 - **🔔 Centro de Envíos (Alertas):** Al entrar, el sistema te avisará arriba si tienes borradores pendientes de enviar a los comerciales y te dirá su hora límite (ej: "Royal Canin cierra pedidos a las 17:00").
 - **Auto-Distribuir:** Si el sistema avisa de stock bajo, revisa la lista, quita lo que no quieras y dale al cohete. El programa rellenará los carritos de cada proveedor él solo, y elegirá siempre la opción más barata si el producto lo venden varias marcas.
 - **Enviar Pedido:** Entra a ver el borrador. Cuando todo esté bien, pulsa **"✉️ Generar Email"** y se abrirá el correo escrito, listo para mandar.
+
+---
+
+## 8. 📖 Ayuda y Manuales
+Si alguna vez tienes una duda sobre cómo usar una función, dirígete a la pestaña **"Ayuda"**. Tienes a tu disposición un buscador inteligente; simplemente escribe palabras como *"devolución"*, *"caja"* o *"cita"* y este manual se abrirá automáticamente en la sección que necesitas.

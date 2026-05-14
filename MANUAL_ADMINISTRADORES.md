@@ -37,7 +37,7 @@ Control de la relación con tus distribuidores y gestión de stock automático.
 - **Registro de Compras (Albaranes y Facturas):**
   - Al introducir la factura de un proveedor y "Archivarla", **el stock del Inventario sube automáticamente** y el precio de coste se actualiza para los futuros cálculos de rentabilidad.
 - **Pago de Deudas a Proveedores (Calendario de Vencimientos):**
-  - Puedes saldar facturas atrasadas total o **parcialmente** (ej: pagando solo 50€ de una factura de 100€) descontando el dinero directamente de un Banco o de la Caja Fuerte, lo que mantiene el flujo contable 100% exacto.
+  - Puedes saldar facturas atrasadas total o **parcialmente** (ej: pagando solo 50€ de una factura de 100€). El sistema te pedirá introducir la **cantidad exacta entregada hoy** y elegir de dónde sale el dinero (un Banco concreto o la Caja Fuerte en metálico). Esto mantiene la factura abierta por el importe restante y el flujo contable 100% exacto en tiempo real.
 
 ---
 
@@ -55,7 +55,7 @@ Preparación fácil de los impuestos y libros contables.
 ## 5. 🏦 Bancos y Tesorería
 Control estricto de la liquidez en las cuentas de la empresa.
 
-- **Visualización de Saldo en Vivo:** El saldo de los bancos sube automáticamente cuando los clientes pagan con tarjeta por el TPV, seleccionando ese banco específico, o cuando archivas facturas. El saldo baja al registrar gastos bancarios o pagar proveedores.
+- **Visualización de Saldo en Vivo:** El saldo de los bancos sube automáticamente cuando los clientes pagan con tarjeta por el TPV, o cuando abonan **deudas atrasadas (parciales o totales)** seleccionando ese banco específico. El saldo baja al registrar transferencias o pagar a proveedores.
 - **Transferencias Internas e Ingresos:** Puedes mover dinero entre bancos o registrar el ingreso del sobrante del cajón de efectivo directamente en tu cuenta de banco.
 
 ---
@@ -85,3 +85,8 @@ Para garantizar que tus datos nunca se pierdan:
 1. **VeriFactu:** El sistema inyecta un código criptográfico (Hash SHA-256) en cada ticket y factura, bloqueando su borrado permanentemente. Si un empleado comete un error grave post-Cierre Z, debes generar una Devolución legal.
 2. **Sistema de Roles:** Tus empleados solo deben conocer su propio PIN de 4 dígitos. El sistema de ruteo bloqueará automáticamente su acceso a las vistas contables, sueldos de empleados o cuentas bancarias.
 3. El archivo `RESUMEN_MAESTRO_ACTUALIZADO.md` detalla el funcionamiento interno del software y es la Biblia de referencia en caso de mantenimiento.
+
+---
+
+## 10. 📖 Manuales de Usuario Integrados
+Este documento y el de los empleados están incrustados directamente en la pestaña **"Ayuda"** del programa. El sistema cuenta con privacidad por rol: tus empleados solo ven la guía de operativas de tienda, mientras que tú tienes acceso a este manual gerencial completo. Aprovecha su buscador en tiempo real para encontrar soluciones rápidas a dudas del día a día.
