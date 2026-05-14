@@ -39,7 +39,8 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Estabilización de Componentes:** Prevención de "filas fantasma" vacías en el carrito para evitar bloqueos del sistema o bucles de recarga infinitos.
 - **Optimización TPV Tablet:** Código JS global inyectado para desactivar el texto predictivo y autocorrector del teclado. Interfaz de ticket de cobro compactada (`zoom`) para mantener los botones de imprimir/email siempre visibles sin scroll.
 - **Simetría y Alineación UI:** Cajas de cobro en efectivo alineadas a la base (`vertical_alignment="bottom"`) para mantener proporciones perfectas en pantallas táctiles.
-- Pagos mixtos (Efectivo, Tarjeta, Bizum).
+- **Pagos Parciales Multicanal:** Permite introducir cantidades exactas no solo en efectivo, sino también en Tarjeta y Bizum, gestionando sobrepagos o dejando el resto como deuda pendiente (sin crear la deuda ni guardarla hasta finalizar el cobro).
+- **Cobro Rápido Inteligente:** Los botones de las citas del día pre-calculan el precio exacto directamente del catálogo, aplican descuentos por mantenimiento automáticamente y **auto-seleccionan al dueño en el panel VIP**.
 - **Detalle en Tickets:** El método de pago exacto (y su desglose en caso de ser mixto) se imprime y envía por email en el ticket al cliente.
 - **Bloqueo Inteligente de Deudas y Contraseñas:** Se ha desactivado el autocompletado nativo del navegador para evitar que salten gestores de contraseñas. No se puede fiar dinero a clientes anónimos; el sistema obliga a seleccionar al cliente desde el panel VIP.
 - **Selector dinámico de banco/datáfono:** Al cobrar con tarjeta o de forma mixta, permite enviar el dinero directamente a la cuenta bancaria seleccionada (y su datáfono) en tiempo real.
@@ -48,12 +49,13 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 
 👥 **3. Clientes y Mascotas (CRM)**
 - Directorio principal mejorado con la visibilidad del **teléfono del dueño** directamente en el listado de mascotas.
+- **Unificación Inteligente de Dueños (Merge):** Desde la tabla editable de mascotas, al corregir o asignar el nombre del dueño, el sistema detecta si ya existe en la base de datos y fusiona automáticamente sus mascotas, teléfonos, puntos y deudas, eliminando duplicados sin dejar registros huérfanos.
 - **Soporte para Familias:** Capacidad de registrar un Contacto Principal (para avisos automáticos) y un Contacto Secundario (Alternativo) con sus respectivos teléfonos, ambos reconocibles por el buscador.
-- Fichas de familias y mascotas con cálculo de edad automático, inclusión del nuevo campo **Peso** editable, asignación de **Peluquero/a Preferido** y un **Diario de Observaciones Clínicas** independiente.
+- Fichas de familias y mascotas con cálculo de edad automático, inclusión de los campos **Sexo** (Macho/Hembra) y **Peso** editables, asignación de **Peluquero/a Preferido** y un **Diario de Observaciones Clínicas** independiente.
 - **Historial Clínico Inteligente:** Registro de sesiones de peluquería con **desplegable de servicios vinculado al inventario en tiempo real**, **auto-asignación de precios** si se deja en blanco y cálculo de duración exacto al guardar la sesión.
 - **Alerta de Citas Sin Cerrar:** El sistema detecta si hay citas pasadas confirmadas en la agenda que no se han registrado en el historial de la mascota, mostrando una alerta roja bloqueante hasta que se guarde la sesión clínica.
 - **Registro de Cancelaciones (Políticas Estrictas):** El CRM detecta automáticamente cuántas veces ha cancelado una mascota y muestra una alerta roja en su ficha para que los empleados lo tengan en cuenta al darle cita.
-- **Gestor de Deudas de Tienda (Pagos Pendientes):** Nueva sub-pestaña que agrupa automáticamente a los clientes morosos del TPV. Alerta visualmente a los 14 días y genera un mensaje de WhatsApp para reclamarlo. Además, incluye un **Sistema de Cobro Integrado** que actualiza la Caja Fuerte y suma los Puntos VIP correspondientes en un solo paso.
+- **Gestor de Deudas de Tienda (Pagos Pendientes):** Nueva sub-pestaña que agrupa automáticamente a los clientes morosos del TPV. Alerta visualmente a los 14 días y genera un mensaje de WhatsApp para reclamarlo. Además, incluye un **Sistema de Cobro Integrado con Pagos Fraccionados** que permite abonar partes de la deuda introduciendo la cantidad exacta y seleccionando el método (Efectivo/Bancos), actualizando saldos y sumando Puntos VIP proporcionalmente de forma automática.
 
 📜 **4. Historial Operativo**
 - Registro en vivo de todos los tickets con **generación de Hash SHA-256 encadenado**.
@@ -116,7 +118,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Liberación Inteligente de Huecos y Cancelaciones:** Las citas incluyen estados dinámicos (Confirmada 🟢, Cancelada 💖, Cambio de cita 🔵, etc.). Al marcar una cita como "Cancelada" o "Cambio", **el sistema libera su hueco automáticamente** en el buscador y el cuadrante.
 - **Carga Dinámica de Servicios:** El desplegable de servicios en la agenda lee en tiempo real el catálogo de servicios de la pestaña de Inventario.
 - **Creación Rápida de Fichas:** Permite agendar una cita para una mascota no registrada, generando automáticamente su familia y ficha básica en la base de datos sin tener que salir de la agenda.
-- **Directorio Editable Avanzado:** Tabla interactiva con casilla de **Borrado Seguro Definitivo** y que exige la asignación de un/a Peluquero/a. Si el usuario fuerza manualmente una cita en una hora ocupada, el sistema obliga a registrar un motivo justificativo.
+- **Directorio Editable Avanzado:** Tabla interactiva con casilla de **Borrado Seguro Definitivo**, asignación de Peluquero/a y un **desplegable de Servicios conectado al inventario** para correcciones rápidas. Si el usuario fuerza una cita manualmente en una hora ocupada, el sistema obliga a registrar un motivo justificativo.
 - Cuadrante diario interactivo con vista de bloques de 5 minutos.
 - Cuadrante semanal en formato "tarjetas" visuales.
 - **Módulo de Estadísticas:** Panel de análisis de rendimiento con KPIs (Tasa de Cancelación, Horas trabajadas) y gráficas interactivas de volumen por día, carga por peluquero y servicios top.
@@ -163,6 +165,8 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Refactorización de Estadísticas y Salud Financiera (Completado):** Panel rediseñado para cruzar automáticamente las ventas del TPV con las facturas de proveedores y el prorrateo exacto de gastos fijos (mensualizando cuotas anuales o trimestrales), proporcionando un Beneficio Neto estimado real mes a mes.
 - **Estructuración Contable Avanzada (Completado):** Reorganización de las categorías de gastos fijos para alinearlas con los estándares de la asesoría y mejorar la lectura financiera del negocio.
 - **Estabilización de Interfaz y Prevención de Errores (Completado):** Implementados parches de seguridad en el TPV para evitar bucles infinitos por filas vacías, manejo seguro de tickets antiguos con datos nulos en Historial, soporte para un segundo contacto familiar en el CRM, y cálculos automáticos de tiempo en fichas clínicas.
+- **Paginación Ilimitada (Bypass Límite 1000 filas de Supabase) (Completado):** Implementado un sistema de bucle de lectura en todos los módulos (Inventario, TPV, Facturación, Agenda, CRM) garantizando que el sistema escale sin perder productos o clientes independientemente del tamaño de la base de datos.
+- **Precisión Decimal Global (Completado):** Habilitada la entrada de decimales en todos los campos numéricos del ERP para permitir precios y saldos exactos.
 - **Integración Avanzada de Gastos Fijos y Agenda (Completado):** Se implementó el cruce de estados (Pagado/Pendiente) para los gastos fijos directamente con la tabla de compras en Contabilidad, y se extrajo la lógica de la Ficha Clínica a un módulo independiente (`ficha_clinica.py`), lo que permite abrir y editar el historial completo de cualquier mascota directamente desde las tablas de la Agenda ("Ver Ficha").
 - **Optimización Interfaz CRM (Completado):** Se ha añadido la funcionalidad de ordenar alfabéticamente (A-Z), por más recientes o por puntos, tanto los directorios de clientes como de mascotas.
 - **Gestión Integral de Recogidas a Domicilio (Completado):** Incorporadas alertas visuales automáticas en la Agenda y el CRM para avisar cuando una mascota requiere recogida, con textos de WhatsApp adaptados (con soporte de formato estricto y emojis) incluyendo la dirección del dueño.
