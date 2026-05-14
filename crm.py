@@ -694,7 +694,7 @@ def render_pestana_crm(client):
                 df_m['Pref'] = df_m['observaciones'].apply(get_pref)
                 df_m['observaciones'] = df_m['observaciones'].apply(strip_pref)
                 
-                df_m_vista = df_m[['id', 'nombre', 'Dueño', 'Teléfono', 'especie', 'raza', 'peso', 'fecha_nacimiento', 'Edad', 'Duración Media', 'Pref', 'observaciones']].copy()
+                df_m_vista = df_m[['id', 'cliente_id', 'nombre', 'Dueño', 'Teléfono', 'especie', 'raza', 'peso', 'fecha_nacimiento', 'Edad', 'Duración Media', 'Pref', 'observaciones']].copy()
                 
                 if b_masc:
                     df_m_vista = df_m_vista[df_m_vista['nombre'].str.lower().str.contains(b_masc, na=False)]
@@ -712,7 +712,7 @@ def render_pestana_crm(client):
                 
                 ed_m = st.data_editor(
                     df_m_vista,
-                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "Dueño": st.column_config.TextColumn(disabled=True), "Teléfono": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "peso": "Peso", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
+                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "cliente_id": None, "Dueño": st.column_config.TextColumn("Dueño (Editar)", disabled=False), "Teléfono": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "peso": "Peso", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_mascotas", height=400
                 )
                 if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
@@ -729,7 +729,49 @@ def render_pestana_crm(client):
                                 "raza": str(row['raza']), "peso": str(row.get('peso', '')), "fecha_nacimiento": str(row['fecha_nacimiento']),
                                 "observaciones": final_obs_edit
                             }).eq("id", row['id']).execute()
-                    st.success("Fichas de mascotas actualizadas."); time.sleep(0.5); st.rerun()
+                            
+                            # --- LÓGICA INTELIGENTE DE UNIFICACIÓN DE DUEÑOS ---
+                            if pd.notna(row.get('cliente_id')) and pd.notna(row.get('Dueño')):
+                                nombre_orig = str(df_m_vista.loc[df_m_vista['id'] == row['id'], 'Dueño'].iloc[0]).strip()
+                                nuevo_nombre = str(row['Dueño']).strip()
+                                
+                                if nuevo_nombre and nuevo_nombre != nombre_orig:
+                                    # Buscar si ya existe un cliente con ese nombre exacto
+                                    res_existente = client.table("clientes").select("id").eq("nombre_dueno", nuevo_nombre).execute()
+                                    
+                                    if res_existente.data:
+                                        # 1. EXISTE EL CLIENTE: Reasignamos y Unificamos (Merge)
+                                        id_existente = res_existente.data[0]['id']
+                                        
+                                        # Rescatar puntos y teléfono del cliente provisional (viejo) por si tuviera
+                                        res_viejo = client.table("clientes").select("puntos, telefono").eq("id", row['cliente_id']).execute()
+                                        if res_viejo.data:
+                                            puntos_viejos = res_viejo.data[0].get('puntos', 0)
+                                            tel_viejo = res_viejo.data[0].get('telefono', '')
+                                            
+                                            res_nuevo = client.table("clientes").select("puntos, telefono").eq("id", id_existente).execute()
+                                            if res_nuevo.data:
+                                                puntos_nuevos = res_nuevo.data[0].get('puntos', 0)
+                                                tel_nuevo = res_nuevo.data[0].get('telefono', '')
+                                                
+                                                puntos_finales = puntos_nuevos + puntos_viejos
+                                                tel_final = tel_nuevo if tel_nuevo else tel_viejo
+                                                client.table("clientes").update({"puntos": puntos_finales, "telefono": tel_final}).eq("id", id_existente).execute()
+                                                
+                                        # Reasignar TODAS las mascotas del cliente viejo al cliente unificado
+                                        client.table("mascotas").update({"cliente_id": id_existente}).eq("cliente_id", row['cliente_id']).execute()
+                                        
+                                        # Eliminar el cliente viejo que ha quedado vacío
+                                        client.table("clientes").delete().eq("id", row['cliente_id']).execute()
+                                    else:
+                                        # 2. NO EXISTE EL CLIENTE: Simplemente lo renombramos
+                                        client.table("clientes").update({"nombre_dueno": nuevo_nombre}).eq("id", row['cliente_id']).execute()
+                                        
+                                    # 3. Unificamos siempre las referencias en Deudas y Encargos para no dejar registros huérfanos
+                                    client.table("ventas_historial").update({"cliente_deuda": nuevo_nombre}).eq("cliente_deuda", nombre_orig).execute()
+                                    client.table("encargos_clientes").update({"nombre_cliente": nuevo_nombre}).eq("nombre_cliente", nombre_orig).execute()
+
+                    st.success("Fichas de mascotas y dueños actualizados y unificados correctamente."); time.sleep(1); st.rerun()
                     
                 st.markdown("---")
                 
