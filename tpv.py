@@ -490,7 +490,6 @@ def render_pestana_tpv(client):
                             pagado_hoy = total_f
                             p_efectivo = total_f
                         else:
-                        st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>FALTA (Se anotará como Deuda al finalizar)</p><h3 style='margin:0; color:orange;'>{-cambio:.2f}€</h3>", unsafe_allow_html=True)
                             st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>FALTA (Se anotará como Deuda al finalizar)</p><h3 style='margin:0; color:orange;'>{-cambio:.2f}€</h3>", unsafe_allow_html=True)
                             pagado_hoy = ent_val; pendiente = -cambio
                             p_efectivo = ent_val
