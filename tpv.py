@@ -99,6 +99,12 @@ def render_pestana_tpv(client):
             hoy_fin = f"{hoy_date}T23:59:59"
             res_citas_hoy = client.table("citas").select("id, servicio, mascotas(id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, puntos))").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
             
+            try:
+                res_emp_tpv = client.table("personal_empleados").select("nombre").execute()
+                empleados_tpv = [e['nombre'] for e in res_emp_tpv.data] if res_emp_tpv.data else []
+            except:
+                empleados_tpv = []
+
             if res_citas_hoy.data:
                 citas_validas = [c for c in res_citas_hoy.data if "[ESTADO: Cancelada]" not in c.get('servicio', '')]
                 if citas_validas:
@@ -111,7 +117,13 @@ def render_pestana_tpv(client):
                         servicio_nom = c.get('servicio', 'Peluquería')
                         import re
                         servicio_nom = re.sub(r'\[ESTADO:\s*.*?\]\s*', '', servicio_nom).strip()
-                        s_clean = servicio_nom.split(" (")[0] if " (" in servicio_nom else servicio_nom
+                        servicio_nom = re.sub(r'\[Forzado:\s*.*?\]\s*', '', servicio_nom).strip()
+                        
+                        s_clean = servicio_nom
+                        for emp in empleados_tpv:
+                            if f"({emp})" in s_clean:
+                                s_clean = s_clean.replace(f"({emp})", "").replace("  ", " ").strip()
+                                break
                         
                         hist = masc.get('historial_trabajos', [])
                         aplica_desc = False
