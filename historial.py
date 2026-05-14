@@ -90,7 +90,7 @@ def render_pestana_historial(client):
                     "🔒 Candado": st.column_config.TextColumn("Z", disabled=True),
                     "id": st.column_config.NumberColumn("Nº", disabled=True, width="small"),
                     "Fecha": st.column_config.TextColumn("Fecha", disabled=True),
-                    "total": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f"),
+                    "total": st.column_config.NumberColumn("Total (€)", disabled=True, format="%.2f", step=0.01),
                     "metodo_pago": st.column_config.SelectboxColumn("Método", options=opciones_pago_hist),
                     "estado": st.column_config.SelectboxColumn("Estado", options=["Completado", "Deuda", "DEVUELTO"]),
                     "cliente_deuda": st.column_config.TextColumn("Cliente (Si debe)")
@@ -380,9 +380,9 @@ def render_pestana_historial(client):
                         "Seleccionar": st.column_config.CheckboxColumn("🖨️ Seleccionar", default=False),
                         "id": None,
                         "Fecha Apertura": "Apertura",
-                        "fondo_inicial": st.column_config.NumberColumn("Fondo Inicial (€)", format="%.2f"),
-                        "total_contado": st.column_config.NumberColumn("Efectivo Final (€)", format="%.2f"),
-                        "descuadre": st.column_config.NumberColumn("Descuadre (€)", format="%.2f")
+                        "fondo_inicial": st.column_config.NumberColumn("Fondo Inicial (€)", format="%.2f", step=0.01),
+                        "total_contado": st.column_config.NumberColumn("Efectivo Final (€)", format="%.2f", step=0.01),
+                        "descuadre": st.column_config.NumberColumn("Descuadre (€)", format="%.2f", step=0.01)
                     },
                     hide_index=True, use_container_width=True, height=200
                 )

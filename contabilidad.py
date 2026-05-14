@@ -20,7 +20,7 @@ def render_pestana_contabilidad(client):
                     "Servicios exteriores (Reparaciones, técnicos, profesionales...)"
                 ])
                 concepto = st.text_input("Concepto / Proveedor detallado")
-                importe = st.number_input("Importe Total (€)", min_value=0.0, value=None)
+                importe = st.number_input("Importe Total (€)", min_value=0.0, value=None, step=0.01, format="%.2f")
                 f_vence = st.date_input("Fecha de Vencimiento")
                 estado_g = st.selectbox("Estado", ["Pagado", "Pendiente"])
                 
@@ -63,7 +63,7 @@ def render_pestana_contabilidad(client):
                         "Publicidad y Marketing (Redes sociales, Promociones, Web...)",
                         "Impuestos y Tasas (IGIC, IRPF, Tributos...)"
                     ])
-                    f_imp = st.number_input("Importe Estimado/Fijo (€)", min_value=0.0, format="%.2f")
+                    f_imp = st.number_input("Importe Estimado/Fijo (€)", min_value=0.0, format="%.2f", step=0.01)
                     f_dia = st.number_input("Día del mes de cargo", min_value=1, max_value=31, value=1, help="Pon 31 si quieres que se cobre el último día del mes (el programa lo ajustará a 28 o 30 según corresponda automáticamente).")
                     f_frec = st.selectbox("Frecuencia", ["Mensual", "Bimestral", "Trimestral", "Anual"])
                     
@@ -88,7 +88,7 @@ def render_pestana_contabilidad(client):
                     ed_gf = st.data_editor(df_gf_vista, hide_index=True, use_container_width=True, height=210,
                         column_config={
                             "Desactivar": st.column_config.CheckboxColumn("🛑 Quitar"),
-                            "concepto": "Concepto", "importe_estimado": st.column_config.NumberColumn("Importe (€)", format="%.2f"),
+                            "concepto": "Concepto", "importe_estimado": st.column_config.NumberColumn("Importe (€)", format="%.2f", step=0.01),
                             "dia_cargo": "Día del Mes", "frecuencia": "Frecuencia", "id": None
                         })
                     if st.button("💾 Guardar Cambios en Gastos Fijos"):

@@ -123,8 +123,8 @@ def render_pestana_inventario(client):
                             "id": None, "categoria": None, "categoria_filt": None, "productos_proveedores": None,
                             "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
                             "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
-                            "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f"),
-                            "igic_tipo": "IGIC %", "precio_pvp": "PVP (€)", "stock_actual": "Stock",
+                            "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f", step=0.01),
+                            "igic_tipo": "IGIC %", "precio_pvp": st.column_config.NumberColumn("PVP (€)", format="%.2f", step=0.01), "stock_actual": "Stock",
                             "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
                             "cantidad_reponer": st.column_config.NumberColumn("Reponer Ud", step=1)
                         },
@@ -198,10 +198,10 @@ def render_pestana_inventario(client):
                         column_config={
                             "id": None, "categoria": None, "categoria_filt": None,
                             "sku": "Código", "nombre": "Descripción del Servicio",
-                            "precio_base": st.column_config.NumberColumn("Base Real sin IGIC (€)", format="%.2f", disabled=True),
+                            "precio_base": st.column_config.NumberColumn("Base Real sin IGIC (€)", format="%.2f", disabled=True, step=0.01),
                             "igic_tipo": st.column_config.SelectboxColumn("IGIC %", options=[7.0, 0.0, 3.0, 15.0]),
-                            "Cuota IGIC (€)": st.column_config.NumberColumn("Cuota IGIC (€)", format="%.2f", disabled=True),
-                            "precio_pvp": st.column_config.NumberColumn("Precio Cerrado (PVP) (€)", format="%.2f")
+                            "Cuota IGIC (€)": st.column_config.NumberColumn("Cuota IGIC (€)", format="%.2f", disabled=True, step=0.01),
+                            "precio_pvp": st.column_config.NumberColumn("Precio Cerrado (PVP) (€)", format="%.2f", step=0.01)
                         },
                         column_order=["sku", "nombre", "precio_base", "igic_tipo", "Cuota IGIC (€)", "precio_pvp"],
                         hide_index=True, 

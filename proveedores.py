@@ -31,7 +31,7 @@ def render_pestana_proveedores(client):
                 
                 n_frec = st.text_input("Días de Reparto", placeholder="Ej: Todos los días, Los martes, Bajo demanda...", value="Bajo demanda")
                 n_hora = st.text_input("Hora límite de pedido", placeholder="Ej: 14:00, 20:00, Sin límite...", value="Sin límite")
-                n_min = st.number_input("Pedido Mínimo (€) para portes gratis", min_value=0.0, format="%.2f")
+                n_min = st.number_input("Pedido Mínimo (€) para portes gratis", min_value=0.0, format="%.2f", step=0.01)
                 
                 if st.form_submit_button("Guardar Proveedor", use_container_width=True, type="primary"):
                     if n_emp:
@@ -137,7 +137,7 @@ def render_pestana_proveedores(client):
                     with cf13: f_fpago = st.text_input("Forma de Pago", value=p_data.get('forma_pago',''))
                     with cf14: f_iban = st.text_input("IBAN", value=p_data.get('iban',''))
                     with cf15: f_swift = st.text_input("SWIFT", value=p_data.get('swift',''))
-                    with cf18: f_min = st.number_input("Pedido Mínimo (€)", value=float(p_data.get('pedido_minimo', 0.0)))
+                    with cf18: f_min = st.number_input("Pedido Mínimo (€)", value=float(p_data.get('pedido_minimo', 0.0)), step=0.01, format="%.2f")
                     
                     f_not = st.text_area("Fax / Otras Notas / Observaciones", value=p_data.get('notas',''))
                     

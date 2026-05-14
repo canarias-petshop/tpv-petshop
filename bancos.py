@@ -14,7 +14,7 @@ def render_pestana_bancos(client):
             b_nom = st.text_input("Nombre del Banco *", placeholder="Ej: CaixaBank, Caja Siete...")
             b_titular = st.text_input("Titular de la cuenta")
             b_iban = st.text_input("IBAN")
-            b_saldo = st.number_input("Saldo Actual Real (€)", value=0.0, format="%.2f")
+            b_saldo = st.number_input("Saldo Actual Real (€)", value=0.0, format="%.2f", step=0.01)
             
             if st.form_submit_button("💾 Guardar Cuenta", use_container_width=True, type="primary"):
                 if b_nom:
@@ -43,7 +43,7 @@ def render_pestana_bancos(client):
                 ed_bancos = st.data_editor(
                     df_bancos[['id', 'nombre_banco', 'titular', 'iban', 'saldo_actual']],
                     hide_index=True, use_container_width=True,
-                    column_config={"id": None, "nombre_banco": "Banco", "titular": "Titular", "iban": "IBAN", "saldo_actual": st.column_config.NumberColumn("Saldo Actual (€)", format="%.2f")}
+                    column_config={"id": None, "nombre_banco": "Banco", "titular": "Titular", "iban": "IBAN", "saldo_actual": st.column_config.NumberColumn("Saldo Actual (€)", format="%.2f", step=0.01)}
                 )
                 
                 if st.button("💾 Guardar Cambios en las Cuentas", type="primary"):
@@ -69,7 +69,7 @@ def render_pestana_bancos(client):
             col_t1, col_t2, col_t3 = st.columns(3)
             with col_t1: ori_sel = st.selectbox("Origen del Dinero 📤", opciones_origen)
             with col_t2: des_sel = st.selectbox("Destino del Dinero 📥", opciones_destino)
-            with col_t3: cant_trans = st.number_input("Cantidad a transferir (€) *", min_value=0.01, step=10.0, value=None)
+            with col_t3: cant_trans = st.number_input("Cantidad a transferir (€) *", min_value=0.01, step=0.01, value=None, format="%.2f")
             
             if st.form_submit_button("🚀 Realizar Transferencia", type="primary", use_container_width=True):
                 if cant_trans and ori_sel != des_sel:

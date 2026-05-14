@@ -65,7 +65,7 @@ def render_pestana_facturacion(client):
                 with col_m2: m_sku = st.text_input("SKU / Ref (Opcional si no se guarda)")
                 
                 col_m3, col_m4, col_m5 = st.columns(3)
-                with col_m3: m_pvp = st.number_input("Precio Venta Público (€) *", min_value=0.0, format="%.2f")
+                with col_m3: m_pvp = st.number_input("Precio Venta Público (€) *", min_value=0.0, format="%.2f", step=0.01)
                 with col_m4: m_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
                 with col_m5: m_cant = st.number_input("Cantidad a facturar", min_value=1, value=1)
                 
@@ -121,9 +121,9 @@ def render_pestana_facturacion(client):
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
                     "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1),
-                    "Precio Venta": st.column_config.NumberColumn("Precio Venta (€)", format="%.2f"),
-                    "Desc %": st.column_config.NumberColumn("Desc. %", min_value=0.0),
-                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
+                    "Precio Venta": st.column_config.NumberColumn("Precio Venta (€)", format="%.2f", step=0.01),
+                    "Desc %": st.column_config.NumberColumn("Desc. %", min_value=0.0, step=0.01, format="%.2f"),
+                    "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f", step=0.01)
                 }
             )
             
@@ -141,7 +141,7 @@ def render_pestana_facturacion(client):
             st.markdown("---")
             col_v1, col_v2 = st.columns([1, 2])
             with col_v1:
-                desc_g_v = st.number_input(" 🎁  Dto. Global (%)", 0.0, 100.0, value=None, key="desc_v_alta")
+                desc_g_v = st.number_input(" 🎁  Dto. Global (%)", 0.0, 100.0, value=None, key="desc_v_alta", step=0.01, format="%.2f")
             
             desc_g_val = float(desc_g_v or 0.0)
             total_base_final = suma_base_v * (1 - desc_g_val / 100)
@@ -247,12 +247,12 @@ def render_pestana_facturacion(client):
                 with col_m2: m_sku = st.text_input("SKU / Ref (Opcional)")
                 
                 col_m3, col_m4, col_m5 = st.columns(3)
-                with col_m3: m_base = st.number_input("Precio Base Compra (€) *", min_value=0.0, format="%.2f")
+                with col_m3: m_base = st.number_input("Precio Base Compra (€) *", min_value=0.0, format="%.2f", step=0.01)
                 with col_m4: m_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
                 with col_m5: m_cant = st.number_input("Cantidad a registrar", min_value=1, value=1)
                 
                 col_m6, col_m7 = st.columns(2)
-                with col_m6: m_pvp = st.number_input("PVP Venta Público (€) (Solo si se guarda)", min_value=0.0, format="%.2f")
+                with col_m6: m_pvp = st.number_input("PVP Venta Público (€) (Solo si se guarda)", min_value=0.0, format="%.2f", step=0.01)
                 with col_m7:
                     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
                     add_to_stock = st.checkbox("💾 Guardar permanentemente en Inventario", value=True)
@@ -301,9 +301,9 @@ def render_pestana_facturacion(client):
                     "id": None, "Base Neta": None, "IGIC €": None,
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
-                    "PVP (€)": st.column_config.NumberColumn("PVP Público (€)", format="%.2f"),
-                    "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True),
-                    "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True)
+                    "PVP (€)": st.column_config.NumberColumn("PVP Público (€)", format="%.2f", step=0.01),
+                    "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f", step=0.01),
+                    "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f", step=0.01)
                 }
             )
             
@@ -314,7 +314,7 @@ def render_pestana_facturacion(client):
             t_base_c = df_c['Base Neta'].sum()
             t_igic_c = df_c['IGIC €'].sum()
             suma_articulos_c = df_c['Total Línea'].sum()
-            desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", 0.0, 100.0, value=None)
+            desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", 0.0, 100.0, value=None, step=0.01, format="%.2f")
             
             desc_pp_val = float(desc_pp or 0.0)
             total_con_pp = suma_articulos_c * (1 - desc_pp_val / 100)
@@ -420,7 +420,7 @@ def render_pestana_facturacion(client):
                     ed_ph['IGIC €'] = (ed_ph['Base Neta'] * (ed_ph['IGIC %']/100)).round(2)
                     ed_ph['Total Línea'] = (ed_ph['Precio Venta'] * ed_ph['Cantidad']) * (1 - ed_ph.get('Desc %',0)/100)
                     
-                    desc_g_val = st.number_input("Dto. Global (%)", 0.0, 100.0, float(f_data.get('descuento_global',0)), key=f"dg_{f_id}")
+                    desc_g_val = st.number_input("Dto. Global (%)", 0.0, 100.0, float(f_data.get('descuento_global',0)), key=f"dg_{f_id}", step=0.01, format="%.2f")
                     
                     new_base = ed_ph['Base Neta'].sum() * (1 - desc_g_val/100)
                     new_igic = ed_ph['IGIC €'].sum() * (1 - desc_g_val/100)
@@ -529,7 +529,7 @@ def render_pestana_facturacion(client):
                     
                     val_pp = c_data.get('descuento_pp', 0.0)
                     val_pp = float(val_pp) if pd.notna(val_pp) and val_pp is not None and str(val_pp).strip() != "" else 0.0
-                    dto_pp = st.number_input("Dto. Pronto Pago (%)", 0.0, 100.0, val_pp, key=f"pp_{c_id}")
+                    dto_pp = st.number_input("Dto. Pronto Pago (%)", 0.0, 100.0, val_pp, key=f"pp_{c_id}", step=0.01, format="%.2f")
                     
                     if not ed_pc.empty:
                         new_total = ed_pc['Total Línea'].sum() * (1 - dto_pp/100)
@@ -624,10 +624,10 @@ def render_pestana_facturacion(client):
                 df_vista_p.style.map(highlight_vencidos, subset=['Estado Vencimiento']), 
                 hide_index=True, use_container_width=True, key="ed_deudas",
                 column_config={
-                    "A Pagar Hoy (€)": st.column_config.NumberColumn("A Pagar Hoy (€)", min_value=0.0, format="%.2f"), 
+                    "A Pagar Hoy (€)": st.column_config.NumberColumn("A Pagar Hoy (€)", min_value=0.0, format="%.2f", step=0.01), 
                     "id": None, "tipo": "Documento", 
-                    "total": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True),
-                    "pendiente": st.column_config.NumberColumn("Pendiente (€)", format="%.2f", disabled=True)
+                    "total": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True, step=0.01),
+                    "pendiente": st.column_config.NumberColumn("Pendiente (€)", format="%.2f", disabled=True, step=0.01)
                 }
             )
             

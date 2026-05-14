@@ -127,7 +127,7 @@ def render_pestana_marketing(client):
                     e_hora = st.text_input("Hora y Turno", placeholder="Ej: Sábado 10:00 - 12:00")
                     c_e1, c_e2 = st.columns(2)
                     with c_e1: e_plazas = st.number_input("Plazas totales", min_value=1, value=8)
-                    with c_e2: e_precio = st.number_input("Precio Reserva (€)", min_value=0.0, format="%.2f", value=15.0)
+                    with c_e2: e_precio = st.number_input("Precio Reserva (€)", min_value=0.0, format="%.2f", value=15.0, step=0.01)
                     e_desc = st.text_area("Descripción / Temario")
                     
                     if st.form_submit_button("Crear Evento", type="primary", use_container_width=True):

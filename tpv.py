@@ -80,7 +80,7 @@ def render_pestana_tpv(client):
         with st.form("f_man", clear_on_submit=True, border=False):
             cm1, cm2, cm3 = st.columns([1.3, 1, 1]) 
             with cm1: m_nom = st.text_input("Artículo", placeholder="Nombre...", label_visibility="visible", key=f"m_nom_{st.session_state.llave_busqueda_tpv}")
-            with cm2: m_pre = st.number_input("Precio €", min_value=0.0, step=0.1, format="%.2f", value=None, label_visibility="visible", key=f"m_pre_{st.session_state.llave_busqueda_tpv}")
+            with cm2: m_pre = st.number_input("Precio €", min_value=0.0, step=0.01, format="%.2f", value=None, label_visibility="visible", key=f"m_pre_{st.session_state.llave_busqueda_tpv}")
             with cm3: m_can = st.number_input("Cant.", min_value=1, value=1, label_visibility="visible", key=f"m_can_{st.session_state.llave_busqueda_tpv}")
             if st.form_submit_button("➕ Añadir Manual al Carrito", use_container_width=True):
                 if m_nom and m_pre is not None and m_pre >= 0:
@@ -344,9 +344,9 @@ def render_pestana_tpv(client):
                     column_config={
                         "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1, step=1, width="small"),
                         "Producto": st.column_config.TextColumn("Producto", disabled=True),
-                        "Precio": st.column_config.NumberColumn("Precio €", format="%.2f"),
-                        "Desc. %": st.column_config.NumberColumn("Desc. %", min_value=0, max_value=100, format="%d%%"),
-                        "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True),
+                        "Precio": st.column_config.NumberColumn("Precio €", format="%.2f", step=0.01),
+                        "Desc. %": st.column_config.NumberColumn("Desc. %", min_value=0.0, max_value=100.0, format="%.2f%%", step=0.01),
+                        "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True, step=0.01),
                     },
                     hide_index=True, use_container_width=True, num_rows="dynamic", height=250, key="ed_car_ticket"
                 )
@@ -376,7 +376,7 @@ def render_pestana_tpv(client):
                 opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} ({c.get('telefono', '')}) - Puntos: {c.get('puntos') or 0}" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
                 
                 c_desc, c_fid = st.columns(2)
-                with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0, max_value=100, value=None, step=1)
+                with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0.0, max_value=100.0, value=None, step=0.01, format="%.2f")
                 with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli)
                 
                 desc_g_val = float(desc_g or 0.0)
@@ -419,7 +419,7 @@ def render_pestana_tpv(client):
                 if metodo == "Efectivo":
                     c_tot, c_ent, c_cam = st.columns([0.8, 1, 1], vertical_alignment="bottom")
                     with c_tot: st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
-                    with c_ent: entregado = st.number_input("Entregado € (Intro)", min_value=0.0, value=float(total_f), format="%.2f")
+                    with c_ent: entregado = st.number_input("Entregado € (Intro)", min_value=0.0, value=float(total_f), format="%.2f", step=0.01)
                     with c_cam:
                         ent_val = float(entregado)
                         cambio = ent_val - total_f
@@ -435,9 +435,9 @@ def render_pestana_tpv(client):
                 elif metodo == "Mixto":
                     st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
                     cm1, cm2, cm3 = st.columns(3)
-                    with cm1: p_e = st.number_input("Efe. (Intro)", min_value=0.0, value=None)
-                    with cm2: p_t = st.number_input("Tar. (Intro)", min_value=0.0, value=None)
-                    with cm3: p_b = st.number_input("Biz. (Intro)", min_value=0.0, value=None)
+                    with cm1: p_e = st.number_input("Efe. (Intro)", min_value=0.0, value=None, step=0.01, format="%.2f")
+                    with cm2: p_t = st.number_input("Tar. (Intro)", min_value=0.0, value=None, step=0.01, format="%.2f")
+                    with cm3: p_b = st.number_input("Biz. (Intro)", min_value=0.0, value=None, step=0.01, format="%.2f")
                     
                     p_e_val = float(p_e or 0.0)
                     p_t_val = float(p_t or 0.0)

@@ -292,7 +292,7 @@ def render_pestana_estadisticas(client):
             if rendimiento_empleados:
                 df_roi = pd.DataFrame(list(rendimiento_empleados.items()), columns=['Empleado', 'Ingresos Generados (€)']).sort_values(by='Ingresos Generados (€)', ascending=False)
                 c_roi1, c_roi2 = st.columns([1, 2])
-                with c_roi1: st.dataframe(df_roi, use_container_width=True, hide_index=True, column_config={"Ingresos Generados (€)": st.column_config.NumberColumn("Ingresos (€)", format="%.2f")})
+                with c_roi1: st.dataframe(df_roi, use_container_width=True, hide_index=True, column_config={"Ingresos Generados (€)": st.column_config.NumberColumn("Ingresos (€)", format="%.2f", step=0.01)})
                 with c_roi2: st.bar_chart(df_roi.set_index('Empleado'), color="#9c27b0", height=200)
             else:
                 st.info("No hay importes registrados en los historiales de las mascotas para este mes.")

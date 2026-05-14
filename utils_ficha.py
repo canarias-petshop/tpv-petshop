@@ -112,7 +112,7 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
             "Inicio de sesión": st.column_config.TimeColumn("Inicio", format="HH:mm"),
             "Fin de sesión": st.column_config.TimeColumn("Fin", format="HH:mm"),
             "Duración (min)": st.column_config.NumberColumn("Duración (Auto)", min_value=0, step=5, help="Se calcula automáticamente al guardar si indicas Inicio y Fin"),
-            "Importe (€)": st.column_config.NumberColumn("Importe Cobrado (€)", format="%.2f", min_value=0.0),
+            "Importe (€)": st.column_config.NumberColumn("Importe Cobrado (€)", format="%.2f", min_value=0.0, step=0.01),
             "Nota Sesión": st.column_config.TextColumn("Nota Sesión")
         }
     )

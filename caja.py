@@ -89,7 +89,7 @@ def render_pestana_caja(client):
         with st.form("abrir_caja", border=True):
             st.markdown("<h4 style='margin: 0 0 10px 0;'>🔓 Apertura de Turno</h4>", unsafe_allow_html=True)
             st.info(f"💡 **Fondo Automático:** Según el último arqueo, en la caja deben quedar **{ultimo_fondo_sugerido:.2f}€**.")
-            fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=1.0, value=ultimo_fondo_sugerido)
+            fondo_ini = st.number_input("Fondo Inicial €", min_value=0.0, step=0.01, value=ultimo_fondo_sugerido, format="%.2f")
             if st.form_submit_button("ABRIR CAJA AHORA", type="primary", use_container_width=True):
                 fondo_val = fondo_ini or 0.0
                 client.table("control_caja").insert({"fondo_inicial": float(fondo_val), "estado": "Abierta"}).execute()
@@ -113,7 +113,7 @@ def render_pestana_caja(client):
             with st.form("form_movimientos", clear_on_submit=True, border=True):
                 c_tipo, c_cant = st.columns([1, 1])
                 with c_tipo: tipo_mov = st.selectbox("Tipo", ["Retirada 🔻", "Ingreso 🔺"])
-                with c_cant: cant_mov = st.number_input("Euros €", min_value=0.01, step=1.0, value=None)
+                with c_cant: cant_mov = st.number_input("Euros €", min_value=0.01, step=0.01, value=None, format="%.2f")
                 motivo_mov = st.text_input("Motivo", placeholder="Ej: Pago proveedor, cambio...")
                 
                 conta_opt = st.selectbox("¿Enviar a Contabilidad? (Solo retiradas)", [
@@ -184,7 +184,7 @@ def render_pestana_caja(client):
                 st.markdown("<p style='margin: 0 0 5px 0; font-weight: bold;'>🔒 Confirmar Cierre</p>", unsafe_allow_html=True)
                 
                 c_f1, c_f2 = st.columns([1, 1])
-                with c_f1: efectivo_final = st.number_input("Efectivo Final Real", min_value=0.0, value=None, placeholder=f"{total_calc:.2f}", label_visibility="collapsed")
+                with c_f1: efectivo_final = st.number_input("Efectivo Final Real", min_value=0.0, value=None, placeholder=f"{total_calc:.2f}", label_visibility="collapsed", step=0.01, format="%.2f")
                 with c_f2: submit_cierre = st.form_submit_button("CERRAR CAJA DEFINITIVA", type="primary", use_container_width=True)
                     
                 if submit_cierre:
