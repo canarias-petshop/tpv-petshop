@@ -134,17 +134,29 @@ def render_pestana_tpv(client):
                         if st.button(btn_label, use_container_width=True, key=f"btn_cita_{c['id']}_{st.session_state.llave_busqueda_tpv}"):
                             precio_final = 0.0
                             igic_final = 7.0
+                            id_servicio = f"cita_{c['id']}"
+                            
                             if not df_inv.empty:
-                                res_precio = df_inv[df_inv['nombre'] == s_clean]
-                                if not res_precio.empty:
-                                    precio_final = float(res_precio.iloc[0]['precio_pvp'] or 0.0)
-                                    igic_final = float(res_precio.iloc[0].get('igic_tipo', 7.0))
+                                # Búsqueda más flexible y tolerante a espacios/mayúsculas
+                                match = df_inv[df_inv['nombre'].str.strip().str.lower() == s_clean.strip().lower()]
+                                if match.empty:
+                                    # Si no hay match exacto, busca coincidencias parciales
+                                    match = df_inv[df_inv['nombre'].str.lower().str.contains(s_clean.strip().lower(), regex=False, na=False)]
+                                
+                                if not match.empty:
+                                    precio_final = float(match.iloc[0]['precio_pvp'] or 0.0)
+                                    igic_final = float(match.iloc[0].get('igic_tipo', 7.0))
+                                    id_servicio = str(match.iloc[0]['id'])
                             
                             desc_pct = 10.0 if aplica_desc else 0.0
                             motivo_desc = "Visita < 2 meses" if aplica_desc else ""
                             nombre_linea = f"{s_clean} ({masc['nombre']})"
                                 
-                            st.session_state.carrito.append({"id": f"cita_{c['id']}", "Producto": nombre_linea, "Cantidad": 1, "Precio": precio_final, "Subtotal": precio_final * (1 - desc_pct/100), "IGIC": igic_final, "Manual": False, "Desc. %": desc_pct, "Motivo_Desc": motivo_desc})
+                            st.session_state.carrito.append({
+                                "id": id_servicio, "Producto": nombre_linea, "Cantidad": 1, 
+                                "Precio": precio_final, "Subtotal": precio_final * (1 - desc_pct/100), 
+                                "IGIC": igic_final, "Manual": False, "Desc. %": desc_pct, "Motivo_Desc": motivo_desc
+                            })
                             st.session_state.cliente_cobro_tpv = f"{cli['nombre_dueno']} ({cli.get('telefono', '')}) - Puntos: {cli.get('puntos') or 0}"
                             st.session_state.llave_busqueda_tpv += 1
                             st.rerun()
@@ -375,9 +387,21 @@ def render_pestana_tpv(client):
                 res_cli_puntos = client.table("clientes").select("id, nombre_dueno, puntos, telefono").execute()
                 opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} ({c.get('telefono', '')}) - Puntos: {c.get('puntos') or 0}" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
                 
+                # --- AUTO-SELECCIÓN DE DUEÑO (Viene desde Cobro Rápido) ---
+                idx_cli = 0
+                cliente_actual = st.session_state.get('cliente_cobro_tpv', "Ninguno")
+                if cliente_actual in opc_cli:
+                    idx_cli = opc_cli.index(cliente_actual)
+                else:
+                    for i, opc in enumerate(opc_cli):
+                        if cliente_actual.split(" - Puntos:")[0].strip() in opc:
+                            idx_cli = i
+                            break
+                
                 c_desc, c_fid = st.columns(2)
                 with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0.0, max_value=100.0, value=None, step=0.01, format="%.2f")
-                with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli)
+                with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli, index=idx_cli)
+                st.session_state.cliente_cobro_tpv = cliente_fidelidad
                 
                 desc_g_val = float(desc_g or 0.0)
                 total_f = sub_antes * (1 - desc_g_val / 100)
