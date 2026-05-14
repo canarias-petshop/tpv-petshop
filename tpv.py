@@ -32,8 +32,17 @@ def render_pestana_tpv(client):
     col_busqueda, col_carrito = st.columns([1, 1.4], gap="small")
     
     with col_busqueda:
-        res_inv = client.table("productos").select("id, nombre, precio_pvp, stock_actual, sku, igic_tipo").execute()
-        df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
+        all_inv = []
+        offset = 0
+        while True:
+            res_inv = client.table("productos").select("id, nombre, precio_pvp, stock_actual, sku, igic_tipo").range(offset, offset + 999).execute()
+            if res_inv.data:
+                all_inv.extend(res_inv.data)
+                if len(res_inv.data) < 1000: break
+                offset += 1000
+            else: break
+            
+        df_inv = pd.DataFrame(all_inv) if all_inv else pd.DataFrame()
         
         st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>🔍 Buscar producto o servicio</p>", unsafe_allow_html=True)
         if not df_inv.empty:
@@ -400,7 +409,20 @@ def render_pestana_tpv(client):
                 sub_antes = edited_df["Subtotal"].sum()
                 
                 # --- FIDELIZACIÓN ---
-                res_cli_puntos = client.table("clientes").select("id, nombre_dueno, puntos, telefono").execute()
+                all_cli_puntos = []
+                offset = 0
+                while True:
+                    res_cli = client.table("clientes").select("id, nombre_dueno, puntos, telefono").range(offset, offset + 999).execute()
+                    if res_cli.data:
+                        all_cli_puntos.extend(res_cli.data)
+                        if len(res_cli.data) < 1000: break
+                        offset += 1000
+                    else: break
+                
+                class DummyRes: pass
+                res_cli_puntos = DummyRes()
+                res_cli_puntos.data = all_cli_puntos
+                
                 opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} ({c.get('telefono', '')}) - Puntos: {c.get('puntos') or 0}" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
                 
                 # --- AUTO-SELECCIÓN DE DUEÑO (Viene desde Cobro Rápido) ---

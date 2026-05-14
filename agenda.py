@@ -8,15 +8,36 @@ def render_pestana_agenda(client):
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
     
     # --- DATOS COMUNES PARA TODAS LAS SUB-PESTAÑAS DE AGENDA ---
-    res_m = client.table("mascotas").select("id, nombre, clientes(nombre_dueno, telefono)").execute()
+    all_mascotas = []
+    offset = 0
+    while True:
+        res_m = client.table("mascotas").select("id, nombre, clientes(nombre_dueno, telefono)").range(offset, offset + 999).execute()
+        if res_m.data:
+            all_mascotas.extend(res_m.data)
+            if len(res_m.data) < 1000: break
+            offset += 1000
+        else: break
+        
     dict_mascotas = {}
-    if res_m.data:
-        for m in res_m.data:
+    if all_mascotas:
+        for m in all_mascotas:
             dueno = m['clientes']['nombre_dueno'] if m.get('clientes') else "Desconocido"
             telefono = m['clientes']['telefono'] if m.get('clientes') and m['clientes'].get('telefono') else "Sin teléfono"
             dict_mascotas[f"🐾 {m['nombre']} (De: {dueno} - 📱 {telefono})"] = m['id']
             
-    res_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).execute()
+    all_citas = []
+    offset = 0
+    while True:
+        r_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(offset, offset + 999).execute()
+        if r_citas.data:
+            all_citas.extend(r_citas.data)
+            if len(r_citas.data) < 1000: break
+            offset += 1000
+        else: break
+        
+    class DummyRes: pass
+    res_citas = DummyRes()
+    res_citas.data = all_citas
     
     # --- DATOS COMUNES ---
     try:

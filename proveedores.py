@@ -202,8 +202,16 @@ def render_pestana_proveedores(client):
         st.markdown("---")
 
         # --- ALERTA DE STOCK BAJO E INTELIGENCIA DE REPOSICIÓN ---
-        res_prod = client.table("productos").select("id, sku, nombre, stock_actual, stock_minimo, cantidad_reponer, categoria").eq("categoria", "Producto").execute()
-        df_solo_productos = pd.DataFrame(res_prod.data) if res_prod.data else pd.DataFrame()
+        all_prods = []
+        offset = 0
+        while True:
+            r_prod = client.table("productos").select("id, sku, nombre, stock_actual, stock_minimo, cantidad_reponer, categoria").eq("categoria", "Producto").range(offset, offset + 999).execute()
+            if r_prod.data:
+                all_prods.extend(r_prod.data)
+                if len(r_prod.data) < 1000: break
+                offset += 1000
+            else: break
+        df_solo_productos = pd.DataFrame(all_prods) if all_prods else pd.DataFrame()
         if not df_solo_productos.empty:
             if 'stock_minimo' not in df_solo_productos.columns: df_solo_productos['stock_minimo'] = 2
             if 'cantidad_reponer' not in df_solo_productos.columns: df_solo_productos['cantidad_reponer'] = 5

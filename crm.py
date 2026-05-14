@@ -440,7 +440,20 @@ def render_pestana_crm(client):
         sub_cli, sub_masc, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "💸 Pagos Pendientes"])
         
         with sub_cli:
-            res_clientes = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).execute()
+            all_cli = []
+            offset = 0
+            while True:
+                r_cli = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).range(offset, offset + 999).execute()
+                if r_cli.data:
+                    all_cli.extend(r_cli.data)
+                    if len(r_cli.data) < 1000: break
+                    offset += 1000
+                else: break
+                
+            class DummyRes: pass
+            res_clientes = DummyRes()
+            res_clientes.data = all_cli
+            
             if res_clientes.data:
                 df_cli = pd.DataFrame(res_clientes.data)
                 
@@ -672,7 +685,20 @@ def render_pestana_crm(client):
                         st.warning("Falta el nombre de la mascota.")
                         
         with sub_masc:
-            res_mascotas = client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").order("id", desc=True).execute()
+            all_masc = []
+            offset = 0
+            while True:
+                r_masc = client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").order("id", desc=True).range(offset, offset + 999).execute()
+                if r_masc.data:
+                    all_masc.extend(r_masc.data)
+                    if len(r_masc.data) < 1000: break
+                    offset += 1000
+                else: break
+                
+            class DummyRes: pass
+            res_mascotas = DummyRes()
+            res_mascotas.data = all_masc
+            
             if res_mascotas.data:
                 df_m = pd.DataFrame(res_mascotas.data)
                 
@@ -892,7 +918,18 @@ def render_pestana_crm(client):
                     df_deudas['Fecha'] = pd.to_datetime(df_deudas['created_at'])
                     
                     resumen_deudas = []
-                    res_cli_d = client.table("clientes").select("nombre_dueno, telefono").execute()
+                    all_cli_d = []
+                    offset = 0
+                    while True:
+                        r_cli_d = client.table("clientes").select("nombre_dueno, telefono").range(offset, offset + 999).execute()
+                        if r_cli_d.data:
+                            all_cli_d.extend(r_cli_d.data)
+                            if len(r_cli_d.data) < 1000: break
+                            offset += 1000
+                        else: break
+                    class DummyRes: pass
+                    res_cli_d = DummyRes()
+                    res_cli_d.data = all_cli_d
                     mapa_telefonos = {c['nombre_dueno']: c['telefono'] for c in res_cli_d.data} if res_cli_d.data else {}
                     
                     for cliente, group in df_deudas.groupby("cliente_deuda"):

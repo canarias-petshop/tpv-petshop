@@ -15,10 +15,28 @@ def render_pestana_facturacion(client):
         " 💸  Pagos Pendientes"
     ])
     
-    res_inv = client.table("productos").select("id, sku, nombre, precio_base, igic_tipo, precio_pvp, stock_actual").execute()
-    df_inv = pd.DataFrame(res_inv.data) if res_inv.data else pd.DataFrame()
-    res_cli = client.table("clientes").select("id, nombre_dueno, cif").execute()
-    df_cli = pd.DataFrame(res_cli.data) if res_cli.data else pd.DataFrame()
+    all_inv = []
+    offset = 0
+    while True:
+        res_inv = client.table("productos").select("id, sku, nombre, precio_base, igic_tipo, precio_pvp, stock_actual").range(offset, offset + 999).execute()
+        if res_inv.data:
+            all_inv.extend(res_inv.data)
+            if len(res_inv.data) < 1000: break
+            offset += 1000
+        else: break
+    df_inv = pd.DataFrame(all_inv) if all_inv else pd.DataFrame()
+    
+    all_cli = []
+    offset = 0
+    while True:
+        res_cli = client.table("clientes").select("id, nombre_dueno, cif").range(offset, offset + 999).execute()
+        if res_cli.data:
+            all_cli.extend(res_cli.data)
+            if len(res_cli.data) < 1000: break
+            offset += 1000
+        else: break
+    df_cli = pd.DataFrame(all_cli) if all_cli else pd.DataFrame()
+    
     res_prov = client.table("proveedores").select("id, nombre_empresa, cif").execute()
     df_prov = pd.DataFrame(res_prov.data) if res_prov.data else pd.DataFrame()
 

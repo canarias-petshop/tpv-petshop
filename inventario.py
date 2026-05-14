@@ -67,10 +67,20 @@ def render_pestana_inventario(client):
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
-            res_prod = client.table("productos").select("*, productos_proveedores(proveedores(nombre_empresa))").order("nombre").execute()
+            all_prods = []
+            offset = 0
+            while True:
+                res_prod = client.table("productos").select("*, productos_proveedores(proveedores(nombre_empresa))").order("nombre").range(offset, offset + 999).execute()
+                if res_prod.data:
+                    all_prods.extend(res_prod.data)
+                    if len(res_prod.data) < 1000:
+                        break
+                    offset += 1000
+                else:
+                    break
             
-            if res_prod.data:
-                df_inv = pd.DataFrame(res_prod.data)
+            if all_prods:
+                df_inv = pd.DataFrame(all_prods)
                 
                 def extraer_proveedores(rels):
                     if isinstance(rels, list) and len(rels) > 0:
