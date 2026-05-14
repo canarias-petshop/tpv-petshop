@@ -917,7 +917,7 @@ def render_pestana_crm(client):
             st.markdown("#### 💸 Clientes con Pagos Pendientes (Deudas de Tienda)")
             st.info("Aquí se agrupan automáticamente los clientes que dejaron a deber alguna compra en el TPV.")
             try:
-                res_deudas = client.table("ventas_historial").select("id, created_at, cliente_deuda, pendiente, total").eq("estado", "Deuda").execute()
+                res_deudas = client.table("ventas_historial").select("id, created_at, cliente_deuda, pendiente, total, pagado").eq("estado", "Deuda").execute()
                 if res_deudas.data:
                     df_deudas = pd.DataFrame(res_deudas.data)
                     df_deudas['Fecha'] = pd.to_datetime(df_deudas['created_at'])
@@ -967,48 +967,86 @@ def render_pestana_crm(client):
                             
                         st.markdown("---")
                         st.markdown("#### 💰 Registrar Pago de Deuda")
-                        with st.form("form_saldar_deuda", border=True):
-                          col_d1, col_d2, col_d3 = st.columns([2, 1, 1])
-                          with col_d1:
-                             cli_saldar = st.selectbox("1. Selecciona el cliente:", [""] + df_resumen['Cliente'].tolist())
-                          with col_d2:
-                             metodo_saldar = st.selectbox("2. Método de cobro:", ["Efectivo", "Tarjeta / Bizum"])
-                          with col_d3:
-                             st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                             btn_saldar = st.form_submit_button("✅ Saldar Deuda", type="primary", use_container_width=True)
+                        cli_saldar = st.selectbox("1. Selecciona el cliente para abonar deuda:", [""] + df_resumen['Cliente'].tolist())
+                        
+                        if cli_saldar:
+                            deuda_cli = df_deudas[df_deudas['cliente_deuda'] == cli_saldar].sort_values("Fecha")
+                            total_debe = deuda_cli['pendiente'].sum()
+                            
+                            res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+                            opciones_pago = ["💵 Caja Fuerte (Efectivo)"]
+                            mapa_bancos = {}
+                            if res_b.data:
+                                for b in res_b.data:
+                                    etiqueta = f"🏦 Tarjeta ({b['nombre_banco']})"
+                                    opciones_pago.append(etiqueta)
+                                    mapa_bancos[etiqueta] = b
+                            opciones_pago.append("📱 Bizum")
+                            
+                            with st.form("form_saldar_deuda", border=True):
+                                st.info(f"Deuda total pendiente de **{cli_saldar}**: {total_debe:.2f}€")
+                                col_d1, col_d2 = st.columns([1, 1])
+                                with col_d1:
+                                    cantidad_abonar = st.number_input("2. Cantidad a abonar (€):", min_value=0.01, max_value=float(total_debe), value=float(total_debe), step=0.01, format="%.2f")
+                                with col_d2:
+                                    metodo_saldar = st.selectbox("3. Método de cobro:", opciones_pago)
+                                
+                                btn_saldar = st.form_submit_button("✅ Registrar Abono", type="primary", use_container_width=True)
+                                
+                                if btn_saldar:
+                                    pago_exitoso = False
                                     
-                          if btn_saldar:
-                             if cli_saldar:
-                                 res_caja = client.table("control_caja").select("id").eq("estado", "Abierta").execute()
-                                 if not res_caja.data:
-                                    st.error("⚠️ La caja está cerrada. Abre un turno en 'Control Caja' para poder registrar el pago.")
-                                 else:
-                                    id_caja = res_caja.data[0]['id']
-                                    deuda_cli = df_deudas[df_deudas['cliente_deuda'] == cli_saldar]
-                                    total_pagado = deuda_cli['pendiente'].sum()
+                                    if "Caja Fuerte" in metodo_saldar:
+                                        res_caja = client.table("control_caja").select("id").eq("estado", "Abierta").execute()
+                                        if not res_caja.data:
+                                            st.error("⚠️ La caja está cerrada. Abre un turno en 'Control Caja' para poder registrar el pago en efectivo.")
+                                        else:
+                                            id_caja = res_caja.data[0]['id']
+                                            client.table("movimientos_caja").insert({
+                                                "id_caja": id_caja, "tipo": "Ingreso", "cantidad": float(cantidad_abonar), 
+                                                "motivo": f"Cobro deuda: {cli_saldar}"
+                                            }).execute()
+                                            pago_exitoso = True
+                                    elif "Tarjeta" in metodo_saldar:
+                                        banco_data = mapa_bancos[metodo_saldar]
+                                        nuevo_saldo = banco_data['saldo_actual'] + cantidad_abonar
+                                        client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo}).eq("id", banco_data['id']).execute()
+                                        pago_exitoso = True
+                                    else: # Bizum
+                                        pago_exitoso = True
+                                        
+                                    if pago_exitoso:
+                                        cantidad_restante = float(cantidad_abonar)
+                                        puntos_ganados_total = 0
+                                        
+                                        for _, row in deuda_cli.iterrows():
+                                            if cantidad_restante <= 0:
+                                                break
+                                                
+                                            tk_id = row['id']
+                                            tk_pendiente = float(row['pendiente'])
+                                            tk_total = float(row['total'])
+                                            tk_pagado_ant = float(row.get('pagado', 0.0) or 0.0)
                                             
-                                    if metodo_saldar == "Efectivo":
-                                        client.table("movimientos_caja").insert({
-                                           "id_caja": id_caja, "tipo": "Ingreso", "cantidad": float(total_pagado), 
-                                           "motivo": f"Cobro deuda atrasada: {cli_saldar}"
-                                        }).execute()
+                                            if cantidad_restante >= tk_pendiente:
+                                                puntos_tk = int(tk_total // 10)
+                                                puntos_ganados_total += puntos_tk
+                                                client.table("ventas_historial").update({"estado": "Completado", "pendiente": 0.0, "pagado": tk_total, "puntos_ganados": puntos_tk}).eq("id", tk_id).execute()
+                                                cantidad_restante -= tk_pendiente
+                                            else:
+                                                nuevo_pendiente = tk_pendiente - cantidad_restante
+                                                nuevo_pagado = tk_pagado_ant + cantidad_restante
+                                                client.table("ventas_historial").update({"estado": "Deuda", "pendiente": round(nuevo_pendiente, 2), "pagado": round(nuevo_pagado, 2)}).eq("id", tk_id).execute()
+                                                cantidad_restante = 0
                                                 
-                                    res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cli_saldar).execute()
-                                    c_id = res_cli.data[0]['id'] if res_cli.data else None
-                                    c_pts = res_cli.data[0].get('puntos', 0) if res_cli.data else 0
-                                    puntos_ganados = 0
-                                            
-                                    for _, row in deuda_cli.iterrows():
-                                       pts_tk = int(float(row['total']) // 10)
-                                       puntos_ganados += pts_tk
-                                       client.table("ventas_historial").update({"estado": "Completado", "pendiente": 0.0, "pagado": float(row['total']), "puntos_ganados": pts_tk}).eq("id", row['id']).execute()
+                                        if puntos_ganados_total > 0:
+                                            res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cli_saldar).execute()
+                                            if res_cli.data:
+                                                c_id = res_cli.data[0]['id']
+                                                c_pts = res_cli.data[0].get('puntos', 0)
+                                                client.table("clientes").update({"puntos": c_pts + puntos_ganados_total}).eq("id", c_id).execute()
                                                 
-                                    if c_id and puntos_ganados > 0:
-                                        client.table("clientes").update({"puntos": c_pts + puntos_ganados}).eq("id", c_id).execute()
-                                                
-                                    st.success(f"¡Deuda saldada! Se han anotado {total_pagado:.2f}€ y el cliente ha ganado {puntos_ganados} puntos."); time.sleep(2); st.rerun()
-                          else:
-                             st.warning("Selecciona un cliente.")    
+                                        st.success(f"¡Abono de {cantidad_abonar:.2f}€ registrado! Puntos ganados: {puntos_ganados_total}."); time.sleep(2); st.rerun()
                     else:
                         st.success("No hay deudas registradas asociadas a clientes.")
                 else:
