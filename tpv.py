@@ -522,13 +522,25 @@ def render_pestana_tpv(client):
                     if pendiente > 0: st.warning(f"Pendiente: {pendiente:.2f}€")
                 
                 else:
-                    st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total: {total_f:.2f}€</h3>", unsafe_allow_html=True)
-                    pagado_hoy = total_f
+                    c_tot, c_ent, c_pen = st.columns([0.8, 1, 1], vertical_alignment="bottom")
+                    with c_tot: st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
+                    with c_ent: entregado = st.number_input("Cobrado € (Intro)", min_value=0.0, value=float(total_f), format="%.2f", step=0.01)
+                    with c_pen:
+                        ent_val = float(entregado)
+                        if ent_val < total_f:
+                            pendiente = total_f - ent_val
+                            pagado_hoy = ent_val
+                            st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>DEUDA PENDIENTE</p><h3 style='margin:0; color:orange;'>{pendiente:.2f}€</h3>", unsafe_allow_html=True)
+                        else:
+                            pendiente = 0.0
+                            pagado_hoy = ent_val
+                            if ent_val > total_f:
+                                st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>SOBREPAGO</p><h3 style='margin:0; color:green;'>+{ent_val - total_f:.2f}€</h3>", unsafe_allow_html=True)
                     
                     metodo_log = metodo
                     
                     if metodo.startswith("Tarjeta"): 
-                        p_tarjeta = total_f
+                        p_tarjeta = pagado_hoy
                         banco_sel_nombre = metodo.replace("Tarjeta (", "").replace(")", "") if "(" in metodo else "Tarjeta"
                         if lista_bancos:
                             banco_info = next((b for b in lista_bancos if b['nombre_banco'] == banco_sel_nombre), None)
@@ -536,7 +548,7 @@ def render_pestana_tpv(client):
                                 banco_sel_id = banco_info['id']
                                 banco_sel_saldo = banco_info['saldo_actual']
                         metodo_log = metodo
-                    if metodo == "Bizum": p_bizum = total_f
+                    if metodo == "Bizum": p_bizum = pagado_hoy
 
                 st.markdown("<div style='height: 2px;'></div>", unsafe_allow_html=True)
                 c_cob, c_vac = st.columns([2, 1])
