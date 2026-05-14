@@ -125,6 +125,24 @@ def render_pestana_tpv(client):
                                 s_clean = s_clean.replace(f"({emp})", "").replace("  ", " ").strip()
                                 break
                         
+                        # --- EXTRACCIÓN DE PRECIO ANTES DEL BOTÓN ---
+                        precio_final = 0.0
+                        igic_final = 7.0
+                        id_servicio = f"cita_{c['id']}"
+                        
+                        if not df_inv.empty:
+                            term = s_clean.strip().lower()
+                            match = df_inv[df_inv['nombre'].str.strip().str.lower() == term]
+                            if match.empty:
+                                match = df_inv[df_inv['nombre'].str.lower().str.contains(term, regex=False, na=False)]
+                            
+                            if not match.empty:
+                                pvp_raw = match.iloc[0]['precio_pvp']
+                                precio_final = float(pvp_raw) if pd.notna(pvp_raw) and pvp_raw is not None else 0.0
+                                igic_final = float(match.iloc[0].get('igic_tipo', 7.0))
+                                id_servicio = str(match.iloc[0]['id'])
+                                s_clean = match.iloc[0]['nombre'] # Rescata el nombre oficial limpio del catálogo
+                        
                         hist = masc.get('historial_trabajos', [])
                         aplica_desc = False
                         hoy_str_hist = hoy_date.strftime("%d/%m/%Y")
@@ -140,26 +158,12 @@ def render_pestana_tpv(client):
                                 if (hoy_date - ult_visita).days <= 60:
                                     aplica_desc = True
                                     
-                        btn_label = f"✂️ {s_clean} ({masc['nombre']})"
+                        # REDISEÑO DEL BOTÓN
+                        precio_mostrar = precio_final * 0.90 if aplica_desc else precio_final
+                        btn_label = f"🐾 {masc['nombre']} ➔ ✂️ {s_clean} ({precio_mostrar:.2f}€)"
                         if aplica_desc: btn_label += " 🎁 Dto 10%"
                         
                         if st.button(btn_label, use_container_width=True, key=f"btn_cita_{c['id']}_{st.session_state.llave_busqueda_tpv}"):
-                            precio_final = 0.0
-                            igic_final = 7.0
-                            id_servicio = f"cita_{c['id']}"
-                            
-                            if not df_inv.empty:
-                                # Búsqueda más flexible y tolerante a espacios/mayúsculas
-                                match = df_inv[df_inv['nombre'].str.strip().str.lower() == s_clean.strip().lower()]
-                                if match.empty:
-                                    # Si no hay match exacto, busca coincidencias parciales
-                                    match = df_inv[df_inv['nombre'].str.lower().str.contains(s_clean.strip().lower(), regex=False, na=False)]
-                                
-                                if not match.empty:
-                                    precio_final = float(match.iloc[0]['precio_pvp'] or 0.0)
-                                    igic_final = float(match.iloc[0].get('igic_tipo', 7.0))
-                                    id_servicio = str(match.iloc[0]['id'])
-                            
                             desc_pct = 10.0 if aplica_desc else 0.0
                             motivo_desc = "Visita < 2 meses" if aplica_desc else ""
                             nombre_linea = f"{s_clean} ({masc['nombre']})"
