@@ -33,8 +33,13 @@ def render_pestana_historial(client):
         
         if res_v.data:
             df_v = pd.DataFrame(res_v.data)
-            try: df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
-            except: df_v['Fecha'] = "---"
+            try: 
+                dt_parsed = pd.to_datetime(df_v['created_at'])
+                if dt_parsed.dt.tz is None:
+                    dt_parsed = dt_parsed.dt.tz_localize('UTC')
+                df_v['Fecha'] = dt_parsed.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
+            except: 
+                df_v['Fecha'] = "---"
             
             df_v['Es_Cerrado'] = pd.to_datetime(df_v['created_at'], utc=True) < inicio_caja_actual
             df_v['🔒 Candado'] = df_v['Es_Cerrado'].apply(lambda x: "🔒 Cerrado" if x else "🔓 Abierto")
@@ -44,9 +49,14 @@ def render_pestana_historial(client):
 
             # --- MÉTRICAS DE VENTAS ---
             df_validas = df_v[df_v['estado'] != 'DEVUELTO']
-            hoy_str = hoy.strftime('%Y-%m-%d')
+            
+            # Para comparar fechas, convertimos created_at al timezone de Canarias primero
+            dt_val = pd.to_datetime(df_validas['created_at'])
+            if dt_val.dt.tz is None:
+                dt_val = dt_val.dt.tz_localize('UTC')
+            hoy_str = hoy.strftime('%d/%m/%Y')
             try:
-                total_hoy = df_validas[pd.to_datetime(df_validas['created_at']).dt.strftime('%Y-%m-%d') == hoy_str]['total'].sum()
+                total_hoy = df_validas[dt_val.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y') == hoy_str]['total'].sum()
             except:
                 total_hoy = 0.0
             total_periodo = df_validas['total'].sum()
@@ -210,7 +220,10 @@ def render_pestana_historial(client):
                                 
                     with c3:
                         try:
-                            fecha_t_print = pd.to_datetime(t_info['created_at']).strftime('%d/%m/%Y %H:%M')
+                            dt_t = pd.to_datetime(t_info['created_at'])
+                            if dt_t.tzinfo is None:
+                                dt_t = dt_t.tz_localize('UTC')
+                            fecha_t_print = dt_t.tz_convert('Atlantic/Canary').strftime('%d/%m/%Y %H:%M')
                         except:
                             fecha_t_print = "Fecha desconocida"
                             
@@ -368,7 +381,10 @@ def render_pestana_historial(client):
 
             if res_cajas.data:
                 df_c = pd.DataFrame(res_cajas.data)
-                df_c['Fecha Apertura'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+                dt_parsed = pd.to_datetime(df_c['created_at'])
+                if dt_parsed.dt.tz is None:
+                    dt_parsed = dt_parsed.dt.tz_localize('UTC')
+                df_c['Fecha Apertura'] = dt_parsed.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
                 df_c_vista = df_c[['id', 'Fecha Apertura', 'fondo_inicial', 'total_contado', 'descuadre']].copy()
                 df_c_vista.insert(0, "Seleccionar", False)
                 
@@ -466,7 +482,10 @@ def render_pestana_historial(client):
                     if res_movs.data:
                         st.markdown("<p style='font-size:12px; color:gray;'>Detalle de Entradas/Salidas de este turno:</p>", unsafe_allow_html=True)
                         df_m = pd.DataFrame(res_movs.data)
-                        df_m['Hora'] = pd.to_datetime(df_m['created_at']).dt.strftime('%H:%M')
+                        dt_mov = pd.to_datetime(df_m['created_at'])
+                        if dt_mov.dt.tz is None:
+                            dt_mov = dt_mov.dt.tz_localize('UTC')
+                        df_m['Hora'] = dt_mov.dt.tz_convert('Atlantic/Canary').dt.strftime('%H:%M')
                         st.dataframe(df_m[['Hora', 'tipo', 'cantidad', 'motivo']], use_container_width=True, hide_index=True)
                     else: st.info("No hubo Entradas o Salidas manuales en este turno.")
             else: st.warning("No hay registros de cajas cerradas en este rango.")

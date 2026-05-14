@@ -59,7 +59,10 @@ def render_pestana_estadisticas(client):
                 total_ventas = df_v['total'].sum()
                 num_operaciones = len(df_v)
                 ticket_medio = total_ventas / num_operaciones if num_operaciones > 0 else 0.0
-                df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.date
+                dt_v = pd.to_datetime(df_v['created_at'])
+                if dt_v.dt.tz is None:
+                    dt_v = dt_v.dt.tz_localize('UTC')
+                df_v['Fecha'] = dt_v.dt.tz_convert('Atlantic/Canary').dt.date
                 
         # 2. GASTOS VARIABLES Y PROVEEDORES (Compras y Facturas del mes)
         res_compras = client.table("compras").select("created_at, total, tipo").gte("created_at", fecha_ini).lt("created_at", fecha_fin).execute()
@@ -143,9 +146,13 @@ def render_pestana_estadisticas(client):
                     res_evo = client.table("ventas_historial").select("created_at, total, estado").gte("created_at", f_inicio_evo).neq("estado", "DEVUELTO").execute()
                     if res_evo.data:
                         df_evo = pd.DataFrame(res_evo.data)
-                        df_evo['created_at'] = pd.to_datetime(df_evo['created_at'])
+                        dt_evo = pd.to_datetime(df_evo['created_at'])
+                        if dt_evo.dt.tz is None:
+                            dt_evo = dt_evo.dt.tz_localize('UTC')
+                        df_evo['created_at'] = dt_evo.dt.tz_convert('Atlantic/Canary')
+                        
                         if rango_evo == "Últimos 3 meses (Semana)":
-                            df_evo['Semana'] = df_evo['created_at'].dt.to_period('W').apply(lambda r: r.start_time.strftime('%d/%m'))
+                            df_evo['Semana'] = df_evo['created_at'].dt.tz_localize(None).dt.to_period('W').apply(lambda r: r.start_time.strftime('%d/%m'))
                             evo_chart = df_evo.groupby('Semana')['total'].sum()
                         else:
                             meses_es_map = {1:"Ene", 2:"Feb", 3:"Mar", 4:"Abr", 5:"May", 6:"Jun", 7:"Jul", 8:"Ago", 9:"Sep", 10:"Oct", 11:"Nov", 12:"Dic"}

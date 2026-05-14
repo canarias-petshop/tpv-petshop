@@ -54,7 +54,10 @@ print("⏳ Descargando Historial de Ventas...")
 res_ventas = client.table("ventas_historial").select("id, created_at, total, pagado, pendiente, metodo_pago, estado, cliente_vip_nombre").execute()
 if res_ventas.data:
     df_v = pd.DataFrame(res_ventas.data)
-    df_v['Fecha'] = pd.to_datetime(df_v['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+    dt_v = pd.to_datetime(df_v['created_at'])
+    if dt_v.dt.tz is None:
+        dt_v = dt_v.dt.tz_localize('UTC')
+    df_v['Fecha'] = dt_v.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
     cols_v = ['id', 'Fecha', 'total', 'pagado', 'pendiente', 'metodo_pago', 'estado', 'cliente_vip_nombre']
     df_v = df_v[[c for c in cols_v if c in df_v.columns]]
     df_v.to_excel(os.path.join(carpeta_hoy, "2_Historial_Ventas_TPV.xlsx"), index=False)
@@ -67,7 +70,10 @@ print("⏳ Descargando Compras, Gastos y Facturas recibidas...")
 res_compras = client.table("compras").select("id, created_at, tipo, total, estado, proveedores(nombre_empresa)").execute()
 if res_compras.data:
     df_c = pd.DataFrame(res_compras.data)
-    df_c['Fecha'] = pd.to_datetime(df_c['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+    dt_c = pd.to_datetime(df_c['created_at'])
+    if dt_c.dt.tz is None:
+        dt_c = dt_c.dt.tz_localize('UTC')
+    df_c['Fecha'] = dt_c.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
     df_c['Proveedor'] = df_c['proveedores'].apply(lambda x: x.get('nombre_empresa', '') if isinstance(x, dict) else '')
     cols_c = ['id', 'Fecha', 'tipo', 'total', 'estado', 'Proveedor']
     df_c = df_c[[c for c in cols_c if c in df_c.columns]]
@@ -81,7 +87,10 @@ print("⏳ Descargando Facturas Emitidas a clientes...")
 res_fac = client.table("facturas").select("numero_factura, created_at, total_neto, total_igic, total_final, forma_pago, clientes(nombre_dueno)").execute()
 if res_fac.data:
     df_f = pd.DataFrame(res_fac.data)
-    df_f['Fecha'] = pd.to_datetime(df_f['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+    dt_f = pd.to_datetime(df_f['created_at'])
+    if dt_f.dt.tz is None:
+        dt_f = dt_f.dt.tz_localize('UTC')
+    df_f['Fecha'] = dt_f.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
     df_f['Cliente'] = df_f['clientes'].apply(lambda x: x.get('nombre_dueno', '') if isinstance(x, dict) else '')
     cols_f = ['numero_factura', 'Fecha', 'Cliente', 'total_neto', 'total_igic', 'total_final', 'forma_pago']
     df_f = df_f[[c for c in cols_f if c in df_f.columns]]

@@ -22,7 +22,10 @@ def render_pestana_caja(client):
                 resumen = ult_caja.get('resumen_pagos', {})
                 if not resumen: resumen = {"Efectivo": 0, "Tarjeta": 0, "Bizum": 0, "Ingresos": 0, "Retiradas": 0}
                 total_ventas_z = resumen.get('Efectivo', 0) + resumen.get('Tarjeta', 0) + resumen.get('Bizum', 0)
-                f_apertura = pd.to_datetime(ult_caja['created_at']).strftime('%d/%m/%Y %H:%M')
+                dt_apertura = pd.to_datetime(ult_caja['created_at'])
+                if dt_apertura.tzinfo is None:
+                    dt_apertura = dt_apertura.tz_localize('UTC')
+                f_apertura = dt_apertura.tz_convert('Atlantic/Canary').strftime('%d/%m/%Y %H:%M')
                 
                 import base64
                 logo_html = ""
@@ -98,7 +101,10 @@ def render_pestana_caja(client):
         id_caja = caja_actual['id']
         fondo_actual = caja_actual['fondo_inicial']
         fecha_ap_str = caja_actual['created_at']
-        fecha_ap_visual = pd.to_datetime(fecha_ap_str).strftime('%d/%m/%Y %H:%M')
+        dt_ap = pd.to_datetime(fecha_ap_str)
+        if dt_ap.tzinfo is None:
+            dt_ap = dt_ap.tz_localize('UTC')
+        fecha_ap_visual = dt_ap.tz_convert('Atlantic/Canary').strftime('%d/%m/%Y %H:%M')
         
         st.success(f"🔓 **CAJA ABIERTA** | Inicio: {fecha_ap_visual} | Fondo: **{fondo_actual:.2f}€**")
         st.markdown("<div style='margin-top: -30px;'></div>", unsafe_allow_html=True) 

@@ -4,6 +4,7 @@ import time
 from datetime import date, datetime
 import json
 import hashlib
+from zoneinfo import ZoneInfo
 
 def render_pestana_facturacion(client):
     st.markdown("<h3 style='margin-top: -15px;'> 📑  Gestión Integral de Facturación</h3>", unsafe_allow_html=True)
@@ -181,7 +182,7 @@ def render_pestana_facturacion(client):
                     # GENERACIÓN DE HASH (LEY ANTIFRAUDE / VERIFACTU)
                     res_last_f = client.table("facturas").select("hash_actual").order("id", desc=True).limit(1).execute()
                     hash_ant_f = res_last_f.data[0].get("hash_actual", "") if res_last_f.data else ""
-                    data_to_hash_f = f"FACTURA|{datetime.now().isoformat()}|{total_v_final:.2f}|{hash_ant_f}"
+                    data_to_hash_f = f"FACTURA|{datetime.now(ZoneInfo('Atlantic/Canary')).isoformat()}|{total_v_final:.2f}|{hash_ant_f}"
                     hash_act_f = hashlib.sha256(data_to_hash_f.encode('utf-8')).hexdigest().upper()
 
                     client.table("facturas").insert({
@@ -388,7 +389,10 @@ def render_pestana_facturacion(client):
             if res_fac.data:
                 df_fac = pd.DataFrame(res_fac.data)
                 df_fac['Cliente'] = df_fac['clientes'].apply(lambda x: x['nombre_dueno'] if x else '---')
-                df_fac['Fecha'] = pd.to_datetime(df_fac['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+                dt_fac = pd.to_datetime(df_fac['created_at'])
+                if dt_fac.dt.tz is None:
+                    dt_fac = dt_fac.dt.tz_localize('UTC')
+                df_fac['Fecha'] = dt_fac.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
                 df_vista = df_fac[['id', 'Fecha', 'numero_factura', 'total_final', 'Cliente', 'forma_pago']].copy()
                 
                 # 🚨 LEY ANTIFRAUDE (VERI*FACTU): Prohibido borrar facturas emitidas
@@ -454,7 +458,10 @@ def render_pestana_facturacion(client):
             if res_comp.data:
                 df_comp = pd.DataFrame(res_comp.data)
                 df_comp['Proveedor'] = df_comp['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
-                df_comp['Fecha'] = pd.to_datetime(df_comp['created_at']).dt.strftime('%d/%m/%Y %H:%M')
+                dt_comp = pd.to_datetime(df_comp['created_at'])
+                if dt_comp.dt.tz is None:
+                    dt_comp = dt_comp.dt.tz_localize('UTC')
+                df_comp['Fecha'] = dt_comp.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
                 
                 st.markdown("##### 🗂️ Clasificación de Documentos")
                 filtro_cat = st.selectbox(

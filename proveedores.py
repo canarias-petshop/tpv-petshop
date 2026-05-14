@@ -288,7 +288,10 @@ def render_pestana_proveedores(client):
                     df_ped['Proveedor'] = df_ped['proveedores'].apply(lambda x: x.get('nombre_empresa', ''))
                     df_ped['Reparto'] = df_ped['proveedores'].apply(lambda x: x.get('frecuencia_reparto', 'Bajo demanda'))
                     df_ped['Corte'] = df_ped['proveedores'].apply(lambda x: x.get('hora_limite', 'Sin límite'))
-                    df_ped['Fecha'] = pd.to_datetime(df_ped['created_at']).dt.strftime('%d/%m/%Y')
+                    dt_ped = pd.to_datetime(df_ped['created_at'])
+                    if dt_ped.dt.tz is None:
+                        dt_ped = dt_ped.dt.tz_localize('UTC')
+                    df_ped['Fecha'] = dt_ped.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y')
                     
                     df_ped_vista = df_ped[['id', 'Fecha', 'Proveedor', 'Reparto', 'Corte', 'estado']].copy()
                     df_ped_vista.insert(0, "Borrar", False)

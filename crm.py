@@ -864,7 +864,10 @@ def render_pestana_crm(client):
                     res_e = client.table("encargos_clientes").select("id, created_at, nombre_cliente, telefono, detalle_pedido, notas, estado").order("created_at", desc=True).execute()
                     if res_e.data:
                         df_e = pd.DataFrame(res_e.data)
-                        df_e['Fecha'] = pd.to_datetime(df_e['created_at']).dt.strftime('%d/%m/%Y')
+                        dt_e = pd.to_datetime(df_e['created_at'])
+                        if dt_e.dt.tz is None:
+                            dt_e = dt_e.dt.tz_localize('UTC')
+                        df_e['Fecha'] = dt_e.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y')
                         if 'notas' not in df_e.columns: df_e['notas'] = ""
                         if 'WhatsApp' not in df_e.columns: df_e['WhatsApp'] = None
                         
@@ -880,9 +883,9 @@ def render_pestana_crm(client):
                                 
                             try:
                                 dt_c = pd.to_datetime(row['created_at'])
-                                if dt_c.tzinfo is not None:
-                                    dt_c = dt_c.tz_localize(None)
-                                dias = (hoy_date - dt_c).days
+                                if dt_c.tzinfo is None:
+                                    dt_c = dt_c.tz_localize('UTC')
+                                dias = (pd.Timestamp.now('Atlantic/Canary') - dt_c.tz_convert('Atlantic/Canary')).days
                                 estado_actual = row.get('estado')
                                 
                                 if estado_actual == 'Pendiente' and dias >= 1:
@@ -941,7 +944,8 @@ def render_pestana_crm(client):
                         if not cliente or str(cliente).strip() == "" or str(cliente) == "nan": continue
                         total_debe = group['pendiente'].sum()
                         fecha_antigua = group['Fecha'].min()
-                        dias_retraso = (pd.Timestamp('today').tz_localize(fecha_antigua.tz) - fecha_antigua).days
+                        if fecha_antigua.tz is None: fecha_antigua = fecha_antigua.tz_localize('UTC')
+                        dias_retraso = (pd.Timestamp.now('Atlantic/Canary') - fecha_antigua.tz_convert('Atlantic/Canary')).days
                         
                         tel = mapa_telefonos.get(cliente, '')
                         tel_limpio = ''.join(filter(str.isdigit, str(tel)))

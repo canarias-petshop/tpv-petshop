@@ -306,8 +306,11 @@ def render_pestana_contabilidad(client):
                     base_t = round(base_t * ratio, 2)
                     igic_t = round(igic_t * ratio, 2)
                 
+                dt_t = pd.to_datetime(t['created_at'])
+                if dt_t.tzinfo is None: dt_t = dt_t.tz_localize('UTC')
+                
                 ventas_unificadas.append({
-                    "Fecha": pd.to_datetime(t['created_at']).strftime('%d/%m/%Y'),
+                    "Fecha": dt_t.tz_convert('Atlantic/Canary').strftime('%d/%m/%Y'),
                     "Tipo Documento": "Ticket de Venta (TPV)",
                     "Nº Documento": f"T-{t['id']}",
                     "Cliente": t.get('cliente_deuda') if t.get('cliente_deuda') else "Mostrador",
@@ -364,8 +367,11 @@ def render_pestana_contabilidad(client):
                     base_f = float(f.get('total_neto', round(tot_f / 1.07, 2)))
                     igic_f = float(f.get('total_igic', round(tot_f - base_f, 2)))
 
+                dt_f = pd.to_datetime(f['created_at'])
+                if dt_f.tzinfo is None: dt_f = dt_f.tz_localize('UTC')
+
                 ventas_unificadas.append({
-                    "Fecha": pd.to_datetime(f['created_at']).strftime('%d/%m/%Y'),
+                    "Fecha": dt_f.tz_convert('Atlantic/Canary').strftime('%d/%m/%Y'),
                     "Tipo Documento": "Factura Emitida",
                     "Nº Documento": f"F-{f['numero_factura']}",
                     "Cliente": cliente_nom,
@@ -423,8 +429,11 @@ def render_pestana_contabilidad(client):
                 
                 prov_nombre = f"{c['proveedores']['nombre_empresa']} ({c['proveedores'].get('cif','')})" if isinstance(c.get('proveedores'), dict) else "Acreedor / Gasto General"
                 
+                dt_c = pd.to_datetime(c['created_at'])
+                if dt_c.tzinfo is None: dt_c = dt_c.tz_localize('UTC')
+                
                 compras_list.append({
-                    "Nº Interno": c['id'], "Fecha": pd.to_datetime(c['created_at']).strftime('%d/%m/%Y'),
+                    "Nº Interno": c['id'], "Fecha": dt_c.tz_convert('Atlantic/Canary').strftime('%d/%m/%Y'),
                     "Categoría Contable": cat_contable, "Concepto / Referencia": concepto, "Proveedor / Beneficiario": prov_nombre,
                     "Base Imponible (€)": base_c, "Cuota IGIC (€)": igic_c, "Importe Total (€)": float(c['total']),
                     "Estado": c['estado'], "Es_Factura": es_factura
