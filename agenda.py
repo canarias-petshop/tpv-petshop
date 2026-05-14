@@ -323,6 +323,7 @@ def render_pestana_agenda(client):
                             "Hora": st.column_config.TextColumn("Hora", width="small"),
                             "Estado": st.column_config.SelectboxColumn("🎨 Estado", options=[f"{EMOJIS_ESTADO.get(e, '')} {e}" for e in ESTADOS_CITA], required=True),
                             "Peluquero/a": st.column_config.SelectboxColumn("👩‍🦰 Peluquero/a", options=["Sin Asignar"] + empleados_lista, required=True),
+                            "Servicio": st.column_config.SelectboxColumn("✂️ Servicio", options=servicios_lista, required=True),
                             "Mascota": st.column_config.TextColumn(disabled=True),
                             "Dueño": st.column_config.TextColumn(disabled=True),
                             "Dirección": st.column_config.TextColumn(disabled=True),
