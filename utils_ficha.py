@@ -37,21 +37,21 @@ def calcular_duracion_media(historial):
     media = sum(duraciones) / len(duraciones)
     return f"{int(media)} min"
 
+@st.cache_data(show_spinner=False)
+def fetch_ficha_alerts_cached(_client, v, mid, hoy):
+    try:
+        r1 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).lt("fecha_hora", hoy).like("servicio", "%[ESTADO: Confirmada]%").execute().data
+        r2 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).like("servicio", "%[ESTADO: Cancelada]%").execute().data
+        return r1, r2
+    except: return [], []
+
 def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_lista, empleados_lista, precios_servicios):
     """Renderiza la ficha clínica, el historial y el sistema inteligente de reservas."""
     st.markdown(f"#### 📖 Ficha e Historial Clínico/Peluquería: **{m_nombre}**")
     
     # --- ALERTA CITA CONFIRMADA SIN HISTORIAL ---
-    @st.cache_data(show_spinner=False)
-    def fetch_ficha_alerts(v, mid, hoy):
-        try:
-            r1 = client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).lt("fecha_hora", hoy).like("servicio", "%[ESTADO: Confirmada]%").execute().data
-            r2 = client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).like("servicio", "%[ESTADO: Cancelada]%").execute().data
-            return r1, r2
-        except: return [], []
-        
     hoy_str = str(date.today())
-    r_alertas, r_canc = fetch_ficha_alerts(st.session_state.get('db_version', 0), m_id, hoy_str)
+    r_alertas, r_canc = fetch_ficha_alerts_cached(client, st.session_state.get('db_version', 0), m_id, hoy_str)
     
     historial = m_data.get('historial_trabajos')
     if not isinstance(historial, list): historial = []
