@@ -155,17 +155,26 @@ def render_pestana_crm(client):
                     st.error(f"🚨 **¡ATENCIÓN!** Hay cita(s) confirmada(s) los días: **{fechas_str}** pero no se ha cerrado la ficha. Rellena el historial abajo y añade el importe para que las estadísticas sean correctas y desaparezca este aviso.")
             
             df_hist = pd.DataFrame(historial)
-            columnas_hist = ["Fecha", "Trabajo / Servicio", "Tratamiento", "Peluquera/o", "Inicio de sesión", "Fin de sesión", "Duración (min)", "Importe (€)", "Nota Sesión"]
+            
+            # --- MIGRACIÓN DE COLUMNA ANTIGUA A NUEVAS ---
+            if "Importe (€)" in df_hist.columns:
+                if "Precio Base (€)" not in df_hist.columns:
+                    df_hist["Precio Base (€)"] = df_hist["Importe (€)"]
+                if "Precio con desc. (€)" not in df_hist.columns:
+                    df_hist["Precio con desc. (€)"] = df_hist["Importe (€)"]
+            
+            columnas_hist = ["Fecha", "Trabajo / Servicio", "Tratamiento", "Peluquera/o", "Inicio de sesión", "Fin de sesión", "Duración (min)", "Precio Base (€)", "Precio con desc. (€)", "Nota Sesión"]
             
             for col in columnas_hist:
                 if col not in df_hist.columns: 
-                    df_hist[col] = None if col in ["Duración (min)", "Importe (€)", "Inicio de sesión", "Fin de sesión", "Fecha"] else ""
+                    df_hist[col] = None if col in ["Duración (min)", "Precio Base (€)", "Precio con desc. (€)", "Inicio de sesión", "Fin de sesión", "Fecha"] else ""
                 
             df_hist = df_hist[columnas_hist]
             
             df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%d/%m/%Y", errors="coerce")
             df_hist["Duración (min)"] = pd.to_numeric(df_hist["Duración (min)"], errors="coerce")
-            df_hist["Importe (€)"] = pd.to_numeric(df_hist["Importe (€)"], errors="coerce")
+            df_hist["Precio Base (€)"] = pd.to_numeric(df_hist["Precio Base (€)"], errors="coerce")
+            df_hist["Precio con desc. (€)"] = pd.to_numeric(df_hist["Precio con desc. (€)"], errors="coerce")
             
             def parse_time_safe(t):
                 if pd.isna(t) or str(t).strip() in ["", "nan", "None", "NaT"]: return None
@@ -184,7 +193,7 @@ def render_pestana_crm(client):
                     if minutos < 0: minutos += 24 * 60
                     df_hist.at[idx, 'Duración (min)'] = minutos
 
-            st.markdown("💡 *Nota: Si indicas **Inicio** y **Fin**, la **Duración** se calculará sola al guardar. El **Importe** se rellenará automáticamente al guardar si seleccionas un Servicio y lo dejas vacío.*")
+            st.markdown("💡 *Nota: Si indicas **Inicio** y **Fin**, o seleccionas un **Servicio**, los **Precios, Descuentos y Duración** se calcularán solos al hacer clic en **Guardar**.*")
             
             ed_hist = st.data_editor(
                 df_hist, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_hist_{prefix}_{m_id}",
@@ -195,8 +204,9 @@ def render_pestana_crm(client):
                     "Peluquera/o": st.column_config.SelectboxColumn("Realizado por", options=[""] + empleados_lista),
                     "Inicio de sesión": st.column_config.TimeColumn("Inicio", format="HH:mm"),
                     "Fin de sesión": st.column_config.TimeColumn("Fin", format="HH:mm"),
-                    "Duración (min)": st.column_config.NumberColumn("Duración (Auto)", min_value=0, step=5, help="Se calcula automáticamente al guardar si indicas Inicio y Fin"),
-                    "Importe (€)": st.column_config.NumberColumn("Importe Cobrado (€)", format="%.2f", min_value=0.0),
+                    "Duración (min)": st.column_config.NumberColumn("Duración (Auto)", min_value=0, step=5, disabled=True, help="Se calcula sola al guardar si indicas Inicio y Fin"),
+                    "Precio Base (€)": st.column_config.NumberColumn("Precio Catálogo (€)", format="%.2f", min_value=0.0),
+                    "Precio con desc. (€)": st.column_config.NumberColumn("Precio Final (€)", format="%.2f", min_value=0.0),
                     "Nota Sesión": st.column_config.TextColumn("Nota Sesión")
                 }
             )
