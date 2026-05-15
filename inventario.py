@@ -64,21 +64,24 @@ def render_pestana_inventario(client):
                     if cat_item == "Producto" and res_ins.data and provs_sel:
                         rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base_calc} for p in provs_sel]
                         client.table("productos_proveedores").insert(rels).execute()
+                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
-            all_prods = []
-            offset = 0
-            while True:
-                res_prod = client.table("productos").select("*, productos_proveedores(proveedores(nombre_empresa))").order("nombre").range(offset, offset + 999).execute()
-                if res_prod.data:
-                    all_prods.extend(res_prod.data)
-                    if len(res_prod.data) < 1000:
-                        break
-                    offset += 1000
-                else:
-                    break
+            @st.cache_data(show_spinner=False)
+            def get_inv_full(v):
+                _all = []
+                _off = 0
+                while True:
+                    _r = client.table("productos").select("*, productos_proveedores(proveedores(nombre_empresa))").order("nombre").range(_off, _off + 999).execute()
+                    if _r.data:
+                        _all.extend(_r.data)
+                        if len(_r.data) < 1000: break
+                        _off += 1000
+                    else: break
+                return _all
             
+            all_prods = get_inv_full(st.session_state.get('db_version', 0))
             if all_prods:
                 df_inv = pd.DataFrame(all_prods)
                 
@@ -175,6 +178,7 @@ def render_pestana_inventario(client):
                                     }).execute()
 
                         st.success("Inventario sincronizado correctamente")
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.rerun() # Recargamos para ver los cambios [cite: 9]
 
                 with sub_serv:
@@ -244,6 +248,7 @@ def render_pestana_inventario(client):
                                 }).eq("id", row['id']).execute()
 
                         st.success("Catálogo de servicios actualizado")
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.rerun()
             else:
                 st.info("Inventario vacío.")

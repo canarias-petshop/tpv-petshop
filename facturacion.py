@@ -16,26 +16,36 @@ def render_pestana_facturacion(client):
         " 💸  Pagos Pendientes"
     ])
     
-    all_inv = []
-    offset = 0
-    while True:
-        res_inv = client.table("productos").select("id, sku, nombre, precio_base, igic_tipo, precio_pvp, stock_actual").range(offset, offset + 999).execute()
-        if res_inv.data:
-            all_inv.extend(res_inv.data)
-            if len(res_inv.data) < 1000: break
-            offset += 1000
-        else: break
+    @st.cache_data(show_spinner=False)
+    def get_inv_fac(v):
+        _all = []
+        _off = 0
+        while True:
+            _r = client.table("productos").select("id, sku, nombre, precio_base, igic_tipo, precio_pvp, stock_actual").range(_off, _off + 999).execute()
+            if _r.data:
+                _all.extend(_r.data)
+                if len(_r.data) < 1000: break
+                _off += 1000
+            else: break
+        return _all
+        
+    all_inv = get_inv_fac(st.session_state.get('db_version', 0))
     df_inv = pd.DataFrame(all_inv) if all_inv else pd.DataFrame()
     
-    all_cli = []
-    offset = 0
-    while True:
-        res_cli = client.table("clientes").select("id, nombre_dueno, cif").range(offset, offset + 999).execute()
-        if res_cli.data:
-            all_cli.extend(res_cli.data)
-            if len(res_cli.data) < 1000: break
-            offset += 1000
-        else: break
+    @st.cache_data(show_spinner=False)
+    def get_cli_fac(v):
+        _all = []
+        _off = 0
+        while True:
+            _r = client.table("clientes").select("id, nombre_dueno, cif").range(_off, _off + 999).execute()
+            if _r.data:
+                _all.extend(_r.data)
+                if len(_r.data) < 1000: break
+                _off += 1000
+            else: break
+        return _all
+        
+    all_cli = get_cli_fac(st.session_state.get('db_version', 0))
     df_cli = pd.DataFrame(all_cli) if all_cli else pd.DataFrame()
     
     res_prov = client.table("proveedores").select("id, nombre_empresa, cif").execute()
@@ -59,7 +69,10 @@ def render_pestana_facturacion(client):
             with st.form("n_cli_rap", clear_on_submit=True):
                 nc1, nc2 = st.columns(2); n_n = nc1.text_input("Nombre*"); n_c = nc2.text_input("CIF*")
                 if st.form_submit_button("Crear Cliente"):
-                    if n_n and n_c: client.table("clientes").insert({"nombre_dueno": n_n, "cif": n_c}).execute(); st.rerun()
+                    if n_n and n_c: 
+                        client.table("clientes").insert({"nombre_dueno": n_n, "cif": n_c}).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.rerun()
         
         st.markdown("####  📦  Añadir Artículos a la Venta")
         if not df_inv.empty:
@@ -111,6 +124,7 @@ def render_pestana_facturacion(client):
                                 "id": str(nuevo_id), "Código": m_sku if m_sku else "---", "Descripción": m_nom,
                                 "Cantidad": m_cant, "Base Ud": m_base_val, "IGIC %": m_igic, "Precio Venta": m_pvp, "Desc %": 0.0
                             })
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.success("Artículo añadido a la factura."); time.sleep(0.5); st.rerun()
                     else:
                         st.error("El nombre y el precio de venta son obligatorios.")
@@ -200,6 +214,8 @@ def render_pestana_facturacion(client):
                         if str(i.get('id', '0')) != '0' and str(i.get('id')) != 'None':
                             res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
                             if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
+                    
+                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.session_state.factura_v_temp = []; st.success("Factura guardada correctamente."); time.sleep(1); st.rerun()
                 else:
                     st.error("Debes seleccionar un cliente para emitir la factura.")
@@ -223,7 +239,10 @@ def render_pestana_facturacion(client):
             with st.form("form_nuevo_proveedor_rapido", clear_on_submit=True):
                 np1, np2 = st.columns(2); n_emp_new = np1.text_input("Nombre Empresa*"); n_cif_new = np2.text_input("CIF")
                 if st.form_submit_button("➕ Crear Nuevo Proveedor"):
-                    if n_emp_new: client.table("proveedores").insert({"nombre_empresa": n_emp_new, "cif": n_cif_new}).execute(); st.rerun()
+                    if n_emp_new: 
+                        client.table("proveedores").insert({"nombre_empresa": n_emp_new, "cif": n_cif_new}).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.rerun()
                         
         st.markdown("---")
         
@@ -305,6 +324,7 @@ def render_pestana_facturacion(client):
                             "id": str(nuevo_id), "Código": m_sku if m_sku else "---", "Descripción": m_nom,
                             "Cantidad": m_cant, "Base Ud": float(m_base_val), "IGIC %": float(m_igic), "Desc %": 0.0, "PVP (€)": float(m_pvp_val)
                         })
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.success("Artículo añadido a la factura."); time.sleep(0.5); st.rerun()
                     else:
                         st.error("El nombre y el precio base son obligatorios.")
@@ -383,6 +403,7 @@ def render_pestana_facturacion(client):
                         client.table("pedidos_proveedores").update({"estado": "Recibido"}).eq("id", st.session_state.pedido_vinculado).execute()
                         st.session_state.pedido_vinculado = None
                         
+                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.session_state.compra_temp = []; st.success("Compra archivada y precios actualizados."); time.sleep(1); st.rerun()
 
     # ==========================================

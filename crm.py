@@ -81,6 +81,7 @@ def render_pestana_crm(client):
                             "raza": m_raz, "peso": m_peso, "observaciones": final_obs, "fecha_nacimiento": str(m_nac) if m_nac else ""
                         }).execute()
 
+                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.success("Cliente guardado correctamente"); time.sleep(0.5); st.rerun()
                 else:
                     st.warning("El nombre del dueño es obligatorio.")
@@ -486,16 +487,20 @@ def render_pestana_crm(client):
         sub_cli, sub_masc, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "💸 Pagos Pendientes"])
         
         with sub_cli:
-            all_cli = []
-            offset = 0
-            while True:
-                r_cli = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).range(offset, offset + 999).execute()
-                if r_cli.data:
-                    all_cli.extend(r_cli.data)
-                    if len(r_cli.data) < 1000: break
-                    offset += 1000
-                else: break
+            @st.cache_data(show_spinner=False)
+            def get_cli_crm(v):
+                _all = []
+                _off = 0
+                while True:
+                    _r = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).range(_off, _off + 999).execute()
+                    if _r.data:
+                        _all.extend(_r.data)
+                        if len(_r.data) < 1000: break
+                        _off += 1000
+                    else: break
+                return _all
                 
+            all_cli = get_cli_crm(st.session_state.get('db_version', 0))
             class DummyRes: pass
             res_clientes = DummyRes()
             res_clientes.data = all_cli
@@ -587,6 +592,7 @@ def render_pestana_crm(client):
                                 "rgpd_consent": bool(row.get('RGPD', True)), "puntos": int(row.get('Puntos', 0)),
                                 "servicio_domicilio": bool(row.get('Domicilio', False))
                             }).eq("id", row['id']).execute()
+                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.success("Directorio de clientes actualizado."); time.sleep(0.5); st.rerun()
                     
                 st.markdown("---")
@@ -633,6 +639,7 @@ def render_pestana_crm(client):
                                 "email": "",
                                 "rgpd_consent": False
                             }).eq("id", c_id).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.success("Cliente anonimizado con éxito según la ley de protección de datos."); time.sleep(1.5); st.rerun()
                     
                     mascotas_lista = c_data.get('mascotas', [])
@@ -696,6 +703,7 @@ def render_pestana_crm(client):
                                             "fecha_nacimiento": str(ru['F. Nacimiento']) if pd.notna(ru['F. Nacimiento']) else "",
                                             "observaciones": final_obs_edit
                                         }).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.success("Datos de la familia actualizados."); time.sleep(0.5); st.rerun()
                             
                         filas_ver_mc = ed_mc[ed_mc["Ver Ficha"] == True]
@@ -730,21 +738,26 @@ def render_pestana_crm(client):
                         client.table("mascotas").insert({
                             "cliente_id": dict_cli[sel_cli], "nombre": nx_nom, "especie": nx_esp, "sexo": nx_sexo, "raza": nx_raz, "peso": nx_peso, "observaciones": final_obs_extra
                         }).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.success("Mascota añadida a la familia"); time.sleep(0.5); st.rerun()
                     else:
                         st.warning("Falta el nombre de la mascota.")
                         
         with sub_masc:
-            all_masc = []
-            offset = 0
-            while True:
-                r_masc = client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").order("id", desc=True).range(offset, offset + 999).execute()
-                if r_masc.data:
-                    all_masc.extend(r_masc.data)
-                    if len(r_masc.data) < 1000: break
-                    offset += 1000
-                else: break
+            @st.cache_data(show_spinner=False)
+            def get_masc_crm(v):
+                _all = []
+                _off = 0
+                while True:
+                    _r = client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").order("id", desc=True).range(_off, _off + 999).execute()
+                    if _r.data:
+                        _all.extend(_r.data)
+                        if len(_r.data) < 1000: break
+                        _off += 1000
+                    else: break
+                return _all
                 
+            all_masc = get_masc_crm(st.session_state.get('db_version', 0))
             class DummyRes: pass
             res_mascotas = DummyRes()
             res_mascotas.data = all_masc
@@ -848,6 +861,7 @@ def render_pestana_crm(client):
                                     client.table("ventas_historial").update({"cliente_deuda": nuevo_nombre}).eq("cliente_deuda", nombre_orig).execute()
                                     client.table("encargos_clientes").update({"nombre_cliente": nuevo_nombre}).eq("nombre_cliente", nombre_orig).execute()
 
+                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.success("Fichas de mascotas y dueños actualizados y unificados correctamente."); time.sleep(1); st.rerun()
                     
                 st.markdown("---")

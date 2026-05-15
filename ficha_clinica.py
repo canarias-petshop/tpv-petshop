@@ -227,7 +227,8 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
             "observaciones": final_obs
         }).eq("id", m_id).execute()
         
-        st.success("Historial y notas actualizados correctamente."); time.sleep(0.5); st.rerun()
+        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+        st.success("Historial y notas actualizados correctamente."); time.sleep(0.1); st.rerun()
         
     st.markdown("---")
     st.markdown("#### 🚫 Historial de Cancelaciones")

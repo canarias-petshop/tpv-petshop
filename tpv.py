@@ -32,16 +32,20 @@ def render_pestana_tpv(client):
     col_busqueda, col_carrito = st.columns([1, 1.4], gap="small")
     
     with col_busqueda:
-        all_inv = []
-        offset = 0
-        while True:
-            res_inv = client.table("productos").select("id, nombre, precio_pvp, stock_actual, sku, igic_tipo").range(offset, offset + 999).execute()
-            if res_inv.data:
-                all_inv.extend(res_inv.data)
-                if len(res_inv.data) < 1000: break
-                offset += 1000
-            else: break
+        @st.cache_data(show_spinner=False)
+        def get_inv_tpv(v):
+            _all = []
+            _off = 0
+            while True:
+                _r = client.table("productos").select("id, nombre, precio_pvp, stock_actual, sku, igic_tipo").range(_off, _off + 999).execute()
+                if _r.data:
+                    _all.extend(_r.data)
+                    if len(_r.data) < 1000: break
+                    _off += 1000
+                else: break
+            return _all
             
+        all_inv = get_inv_tpv(st.session_state.get('db_version', 0))
         df_inv = pd.DataFrame(all_inv) if all_inv else pd.DataFrame()
         
         st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>🔍 Buscar producto o servicio</p>", unsafe_allow_html=True)
@@ -184,6 +188,7 @@ def render_pestana_tpv(client):
                             })
                             st.session_state.cliente_cobro_tpv = f"{cli['nombre_dueno']} ({cli.get('telefono', '')}) - Puntos: {cli.get('puntos') or 0}"
                             st.session_state.llave_busqueda_tpv += 1
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.rerun()
                 else: st.info("No hay citas activas hoy.")
             else: st.info("No hay citas hoy.")
