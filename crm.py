@@ -41,28 +41,29 @@ def render_pestana_crm(client):
             with c_t4: c_tel2 = st.text_input("Teléfono Alt.")
             c_ema = st.text_input("Email")
             
-            c_d1, c_d2 = st.columns([3, 1])
+            c_d1, c_d2 = st.columns(2)
             with c_d1: c_dir = st.text_input("Dirección (Para recogidas a domicilio)")
-            with c_d2:
-                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                c_domicilio = st.checkbox("🚚 Recogida a Domicilio")
-            c_nac = st.date_input("F. Nacimiento", value=None)
+            with c_d2: c_nac = st.date_input("F. Nacimiento", value=None)
+            
+            c_domicilio = st.checkbox("🚚 Recogida a Domicilio")
             c_rgpd = st.checkbox("📝 Acepta LOPD/RGPD (Envío info y promos)", value=True)
             
             st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
             st.markdown("<p style='margin: 0; font-size: 13px; color: gray;'>🐾 Añadir mascota (Deja en blanco si es solo cliente de tienda)</p>", unsafe_allow_html=True)
             
-            m_nom = st.text_input("Nombre de la mascota")
-            cm1, cm2, cm3, cm4, cm5 = st.columns([1.5, 1.5, 2, 2, 1])
-            with cm1: m_esp = st.selectbox("Especie", ["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"])
-            with cm2: m_sexo = st.selectbox("Sexo", ["", "Macho", "Hembra"])
-            with cm3: m_raz = st.text_input("Raza")
-            with cm4: m_nac = st.date_input("Nac. Mascota", value=None)
-            with cm5: m_peso = st.text_input("Peso", placeholder="Ej: 15 kg")
+            cm1, cm2, cm3 = st.columns([2, 1.5, 1.5])
+            with cm1: m_nom = st.text_input("Nombre de la mascota")
+            with cm2: m_esp = st.selectbox("Especie", ["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"])
+            with cm3: m_sexo = st.selectbox("Sexo", ["", "Macho", "Hembra"])
             
-            c_obs1, c_obs2 = st.columns([2, 1])
+            cm4, cm5, cm6 = st.columns([2, 1.5, 1.5])
+            with cm4: m_raz = st.text_input("Raza")
+            with cm5: m_nac = st.date_input("Nacimiento Mascota", value=None)
+            with cm6: m_peso = st.text_input("Peso", placeholder="Ej: 15 kg")
+            
+            c_obs1, c_obs2 = st.columns([2.5, 1.5])
             with c_obs1: m_obs = st.text_input("Observaciones (Alergias, carácter...)")
-            with c_obs2: m_pref = st.selectbox("Peluquero/a Preferido", ["Cualquiera"] + empleados_lista)
+            with c_obs2: m_pref = st.selectbox("Peluquero/a Pref.", ["Cualquiera"] + empleados_lista)
 
             if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
                 if c_nom:
@@ -725,12 +726,12 @@ def render_pestana_crm(client):
             with st.form("nueva_mascota_extra", clear_on_submit=True, border=False):
                 sel_cli = st.selectbox("Selecciona el cliente:", list(dict_cli.keys()))
                 
-                c_m1, c_m2, c_m3 = st.columns([2, 1, 1])
+                c_m1, c_m2, c_m3 = st.columns([2, 1.5, 1.5])
                 with c_m1: nx_nom = st.text_input("Nombre mascota", key="nx_nom")
                 with c_m2: nx_esp = st.selectbox("Especie", ["Perro", "Gato", "Ave", "Roedor", "Otro"], key="nx_esp")
                 with c_m3: nx_sexo = st.selectbox("Sexo", ["", "Macho", "Hembra"], key="nx_sexo")
                 
-                c_m4, c_m5, c_m6 = st.columns([2, 1, 1.5])
+                c_m4, c_m5, c_m6 = st.columns([2, 1.5, 1.5])
                 with c_m4: nx_raz = st.text_input("Raza", key="nx_raz")
                 with c_m5: nx_peso = st.text_input("Peso", key="nx_peso")
                 with c_m6: nx_pref = st.selectbox("Peluquero/a Pref.", ["Cualquiera"] + empleados_lista, key="nx_pref")
