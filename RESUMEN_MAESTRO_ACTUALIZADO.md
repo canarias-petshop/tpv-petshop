@@ -10,6 +10,12 @@ El sistema se encuentra estable, optimizado para tablets y con los módulos func
 - **Backend (Base de Datos):** Supabase (PostgreSQL en la nube).
 - **Hardware Integrado:** Lector de códigos de barras de pistola e integración nativa con impresoras térmicas Star Micronics (vía protocolo PassPRNT).
 
+### 🤖 PROTOCOLO ESTRICTO DE DESARROLLO (Reglas para la IA)
+Para evitar reescribir funciones que ya funcionan y romper automatizaciones, en cada nueva conversación la IA debe aplicar estas **3 Reglas de Oro**:
+1. **Cirugía Láser (Diffs Exactos):** Las modificaciones de código deben entregarse **exclusivamente** mediante parches (`diff`) que contengan solo las líneas exactas que cambian. Prohibido reescribir archivos o funciones enteras.
+2. **Centralización (Single Source of Truth):** Las funciones compartidas (como la ficha clínica o cálculos de precios) residen en módulos únicos (ej. `utils_ficha.py`). Las modificaciones deben hacerse en esa fuente central para no desincronizar el ERP.
+3. **Puntos de Control (Git):** El usuario usa Git. Si un cambio propuesto por la IA rompe algo no relacionado, el usuario volverá al commit anterior. La IA no debe intentar aplicar parches sobre parches a ciegas, sino repensar una vía más segura.
+
 ### 🏆 Reglas de Oro del Inventario y Fiscalidad
 1. **Nomenclatura Unificada:** El proveedor siempre se referenciará como **"Proveedor"** (nunca "Empresa"), tanto en la interfaz como en las comunicaciones.
 2. **Vínculo por Proveedor:** Todo producto nuevo importado debe enlazarse estrictamente al nombre exacto de su proveedor para que funcione el Centro de Envíos.
