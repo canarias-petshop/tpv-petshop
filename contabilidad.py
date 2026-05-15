@@ -278,18 +278,33 @@ def render_pestana_contabilidad(client):
                         cant = safe_float(p.get('Cantidad', 1))
                         desc_item = safe_float(p.get('Desc. %', p.get('Desc %', 0.0)))
                         
-                        cat_producto = mapa_categorias.get(str(p.get('id', '')), 'Producto')
+                        id_item = str(p.get('id', ''))
+                        cat_db = mapa_categorias.get(id_item, 'Desconocido')
+                        
+                        es_servicio = False
+                        if cat_db == 'Servicio':
+                            es_servicio = True
+                        elif cat_db == 'Producto':
+                            es_servicio = False
+                        elif id_item.startswith('cita_'):
+                            es_servicio = True
+                        else:
+                            nombre_item = str(p.get('Producto', p.get('Descripción', ''))).lower()
+                            if any(kw in nombre_item for kw in ['peluquer', 'corte', 'baño', 'lavado', 'arreglo', 'servicio', 'spa']):
+                                es_servicio = True
+
                         pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
                         
-                        if cat_producto == 'Producto' or p.get('Manual', False):
-                            base_prod += pvp_con_desc
-                        else:
+                        if es_servicio:
                             igic_porcentaje = float(p.get('IGIC', 7.0))
+                            if igic_porcentaje <= 0: igic_porcentaje = 7.0
                             base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
                             igic_linea = pvp_con_desc - base_linea
                             
                             base_serv += base_linea
                             igic_serv += igic_linea
+                        else:
+                            base_prod += pvp_con_desc
                 
                 # Aplicar descuento global del ticket a las bases y al IGIC
                 desc_global = float(t.get('descuento_global', 0.0))
@@ -348,18 +363,33 @@ def render_pestana_contabilidad(client):
                         cant = float(p.get('Cantidad', 1))
                         desc_item = float(p.get('Desc %', 0.0))
                         
-                        cat_producto = mapa_categorias.get(str(p.get('id', '')), 'Producto')
+                        id_item = str(p.get('id', ''))
+                        cat_db = mapa_categorias.get(id_item, 'Desconocido')
+                        
+                        es_servicio = False
+                        if cat_db == 'Servicio':
+                            es_servicio = True
+                        elif cat_db == 'Producto':
+                            es_servicio = False
+                        elif id_item.startswith('cita_'):
+                            es_servicio = True
+                        else:
+                            nombre_item = str(p.get('Producto', p.get('Descripción', ''))).lower()
+                            if any(kw in nombre_item for kw in ['peluquer', 'corte', 'baño', 'lavado', 'arreglo', 'servicio', 'spa']):
+                                es_servicio = True
+
                         pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
                         
-                        if cat_producto == 'Producto':
-                            base_prod += pvp_con_desc
-                        else:
+                        if es_servicio:
                             igic_porcentaje = float(p.get('IGIC %', 7.0))
+                            if igic_porcentaje <= 0: igic_porcentaje = 7.0
                             base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
                             igic_linea = pvp_con_desc - base_linea
                             
                             base_serv += base_linea
                             igic_serv += igic_linea
+                        else:
+                            base_prod += pvp_con_desc
                         
                     desc_global = float(f.get('descuento_global', 0.0))
                     factor_desc = (1 - desc_global / 100)
