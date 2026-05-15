@@ -603,7 +603,8 @@ def render_pestana_crm(client):
                             if isinstance(hist, list):
                                 for t in hist:
                                     nota = str(t.get('Nota Sesión', ''))
-                                    m_ahorro = re.search(r'\[Desc\. 10% Mantenimiento aplicado\. Ahorro: ([\d.]+)€\]', nota)
+                                    # Detecta el ahorro tanto en el formato antiguo como en el nuevo
+                                    m_ahorro = re.search(r'Ahorro:\s*([\d.]+)€\]', nota)
                                     if m_ahorro:
                                         try: ahorro_total += float(m_ahorro.group(1))
                                         except: pass
