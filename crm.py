@@ -247,7 +247,22 @@ def render_pestana_crm(client):
                     if srv in precios_servicios:
                         # Rellenar Precio Base si está vacío
                         if pd.isna(precio_base) or str(precio_base).strip() == "" or float(precio_base) == 0.0:
-                            precio_base = float(precios_servicios[srv])
+                            precio_cat = float(precios_servicios[srv])
+                            minutos_calc = df_save.at[idx, 'Duración (min)']
+                            
+                            # Cálculo proporcional si el servicio es por hora (incluye palabras clave)
+                            es_por_hora = any(kw in str(srv).lower() for kw in ["hora", "agresivos", "nerviosos"])
+                            
+                            if es_por_hora and pd.notnull(minutos_calc) and float(minutos_calc) > 0:
+                                precio_base = round((precio_cat / 60) * float(minutos_calc), 2)
+                                nota_act = str(df_save.at[idx, 'Nota Sesión']).strip()
+                                if nota_act == "None" or nota_act == "nan": nota_act = ""
+                                nota_tiempo = f"[Calculado: {minutos_calc} min a {precio_cat}€/h]"
+                                if nota_tiempo not in nota_act:
+                                    df_save.at[idx, 'Nota Sesión'] = f"{nota_act} {nota_tiempo}".strip()
+                            else:
+                                precio_base = precio_cat
+                                
                             df_save.at[idx, 'Precio Base (€)'] = precio_base
                         else:
                             precio_base = float(precio_base)
