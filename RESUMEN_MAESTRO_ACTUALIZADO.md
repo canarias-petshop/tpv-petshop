@@ -240,6 +240,10 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
     *   *Objetivo:* Crear una sección (pestaña o subpestaña) de "Tareas Pendientes" específica para los empleados.
     *   *Pasos a dar:* Integrar un gestor visual donde la administración pueda asignar rutinas o tareas concretas, llevando un registro y control de lo mandado. Así queda constancia para todos, ellos pueden consultarlo, marcarlo al terminar y no se pierde nada de vista.
 
+*   **Registro Inteligente de Alimentación por Mascota:**
+    *   *Objetivo:* Anotar qué pienso específico consume cada mascota en su ficha. Soluciona el clásico "ponme el pienso del otro día", especialmente útil para clientes con varios animales que consumen dietas distintas.
+    *   *Pasos a dar (Fase Avanzada):* Crear un historial de alimentación en el CRM. En el futuro, cruzar el tamaño del saco comprado con la ración diaria recomendada (según el peso del animal) para generar y enviar una alerta de WhatsApp días antes de que se le agote, asegurando la recompra automática.
+
 ## 5. MANUAL DE DESPLIEGUE EN TIENDA (Paso a Paso)
 
 Esta sección es una guía estricta para el día que se decida instalar el sistema en el ordenador de sobremesa de la tienda, conectando el trabajo que se hace desde casa (Portátil) con el negocio, utilizando GitHub y Docker.
