@@ -10,12 +10,6 @@ El sistema se encuentra estable, optimizado para tablets y con los módulos func
 - **Backend (Base de Datos):** Supabase (PostgreSQL en la nube).
 - **Hardware Integrado:** Lector de códigos de barras de pistola e integración nativa con impresoras térmicas Star Micronics (vía protocolo PassPRNT).
 
-### 🤖 PROTOCOLO ESTRICTO DE DESARROLLO (Reglas para la IA)
-Para evitar reescribir funciones que ya funcionan y romper automatizaciones, en cada nueva conversación la IA debe aplicar estas **3 Reglas de Oro**:
-1. **Cirugía Láser (Diffs Exactos):** Las modificaciones de código deben entregarse **exclusivamente** mediante parches (`diff`) que contengan solo las líneas exactas que cambian. Prohibido reescribir archivos o funciones enteras.
-2. **Centralización (Single Source of Truth):** Las funciones compartidas (como la ficha clínica o cálculos de precios) residen en módulos únicos (ej. `utils_ficha.py`). Las modificaciones deben hacerse en esa fuente central para no desincronizar el ERP.
-3. **Puntos de Control (Git):** El usuario usa Git. Si un cambio propuesto por la IA rompe algo no relacionado, el usuario volverá al commit anterior. La IA no debe intentar aplicar parches sobre parches a ciegas, sino repensar una vía más segura.
-
 ### 🏆 Reglas de Oro del Inventario y Fiscalidad
 1. **Nomenclatura Unificada:** El proveedor siempre se referenciará como **"Proveedor"** (nunca "Empresa"), tanto en la interfaz como en las comunicaciones.
 2. **Vínculo por Proveedor:** Todo producto nuevo importado debe enlazarse estrictamente al nombre exacto de su proveedor para que funcione el Centro de Envíos.
@@ -158,7 +152,8 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Estandarización Horaria Global (Canarias) (Completado):** Implementada la conversión forzada inteligente desde el UTC de la base de datos a la zona horaria 'Atlantic/Canary' en todo el sistema (apertura/cierre de cajas, emisión de tickets, facturas, contabilidad, CRM y backups), garantizando fechas exactas incluso en los cambios bianuales de hora.
 - **Escudo Anti-Doble Clic Global (Completado):** Desplegada una doble capa de seguridad para evitar cobros o documentos duplicados por latencia de internet. Front-End: Inyección JS que desactiva botones críticos durante 4 segundos. Back-End: Candado de tiempo (Cooldown de 3 segundos) en Python para ignorar peticiones simultáneas idénticas.
 - **Sistema de Roles y Seguridad (Completado):** Se implementó inicio de sesión dual (Admin / Empleado). El sistema construye las pestañas dinámicamente, ocultando por completo los módulos sensibles (Contabilidad y Bancos) al personal no autorizado, pero manteniendo visibles Estadísticas y Facturación para el aprendizaje de los empleados.
-- **Testeo y Automatización Funcional (Completado):** Se han conectado lógicamente varios módulos para evitar trabajos dobles: El saldo final de caja es el fondo inicial del día siguientea de huecos en la Agenda de citas. El cuadrante diario cuenta con una vista compacta inteligente que detecta solapamientos permitidos (⚠️ Múltiple) y comprime visualmente las citas largas.
+- **Testeo y Automatización Funcional (Completado):** Se han conectado lógicamente varios módulos para evitar trabajos dobles: El saldo final de caja es el fondo inicial del día siguiente, los gastos de caja viajan solos a Contabilidad y la Agenda bloquea las citas si se marcan vacaciones en el Cuadrante Visual.
+- **Cierre Z Dinámico y Agenda Inteligente Total (Completado):** Implementación de la selección dinámica de la cuenta receptora para los pagos con tarjeta en el TPV y la sugerencia cruzada de huecos en la Agenda de citas. El cuadrante diario cuenta con una vista compacta inteligente que detecta solapamientos permitidos (⚠️ Múltiple) y comprime visualmente las citas largas.
 - **Sincronización Horaria y Bloqueos de Agenda (Completado):** Configuración de la zona horaria (Atlantic/Canary) para los fichajes y el cálculo de solapamientos. Sincronización absoluta de las 3 vistas de la Agenda, bloqueando horas ocupadas y documentando excepciones de agendamiento.
 - **Optimización Extrema de Tablet y UI TPV (Completado):** Inyección JS global anti-autocorrector y anti-gestores de contraseñas. Agilización del buscador a 1 clic con reseteo automático de inputs. Ticket en pantalla rediseñado con impresión de deudas pendientes y política de puntos.
 - **Políticas Estrictas y Estabilidad UI (Completado):** Se introdujeron las alertas de penalización de mascotas, el panel inteligente al agendar, la lista de servicios viva, el auto-borrado del escáner en TPV y se protegió la sesión eliminando el refresco forzado al enviar impresiones por Bluetooth/Wifi.
@@ -182,6 +177,8 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
+*   **PRIORIDAD ABSOLUTA - Optimización de Rendimiento (Lazy Loading):** Refactorizar las descargas masivas de la base de datos (Agenda, CRM, etc.) aplicando "Consultas Perezosas". El sistema solo descargará los datos estrictamente necesarios para la pantalla visible en lugar de todo el histórico, reduciendo el tiempo de carga drásticamente.
+*   **PRIORIDAD ABSOLUTA - Gestor de Proyectos y Tareas:** Crear una pestaña centralizada para "Proyectos Internos" (a nivel de gerencia) y "Tareas de Empleados" (asignación de rutinas, checklist, notas y estados) para sustituir el uso caótico de WhatsApp y dejar todo el flujo de trabajo documentado en el ERP.
 *   **Bancos y Tesorería (EN CURSO):** Crear las cuentas "Revolut (Negocio)" (solo para pagos y ahorro, sin relación con datáfonos de TPV) y "Revolut (Nómina)" (cuenta exclusiva para transferencias de sueldo, aislada del pago a proveedores). Aislar estas cuentas de las opciones de cobro de caja.
 *   **Inventario:** Añadir control y alertas de **Fechas de Caducidad** para los productos perecederos.
 
@@ -237,6 +234,11 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 *   **Comercialización y Escalabilidad (Vender el programa):**
     *   *Objetivo:* Preparar el sistema para venderlo a otras tiendas o clínicas (Modelo SaaS).
     *   *Pasos a dar:* Crear una estructura de "Multitienda" o un proceso de instalación para que cada cliente (otra clínica) tenga su base de datos totalmente separada y privada.
+*   **Gestor de Proyectos Internos:**
+    *   *Objetivo:* Añadir una pestaña dedicada a planificar y estructurar los proyectos futuros de la tienda a medio y largo plazo.
+*   **Calendario de Tareas para Trabajadores:**
+    *   *Objetivo:* Crear una sección (pestaña o subpestaña) de "Tareas Pendientes" específica para los empleados.
+    *   *Pasos a dar:* Integrar un gestor visual donde la administración pueda asignar rutinas o tareas concretas, llevando un registro y control de lo mandado. Así queda constancia para todos, ellos pueden consultarlo, marcarlo al terminar y no se pierde nada de vista.
 
 ## 5. MANUAL DE DESPLIEGUE EN TIENDA (Paso a Paso)
 

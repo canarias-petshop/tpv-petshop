@@ -672,15 +672,15 @@ def render_pestana_agenda(client):
         st.markdown("#### 🚫 Registro de Cancelaciones")
         st.info("Aquí aparecen todas las citas que han sido marcadas como 'Cancelada' desde el Directorio. Estas citas liberan su hueco automáticamente en la agenda para que puedas dárselo a otro.")
         canceladas = []
-        if res_citas.data:
-            for c in res_citas.data:
-                if "[ESTADO: Cancelada]" in c.get('servicio', ''):
-                    mascota_info = c.get('mascotas', {})
-                    cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
-                    dt_obj = pd.to_datetime(c['fecha_hora'])
-                    _, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
+        res_canc = client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").like("servicio", "%[ESTADO: Cancelada]%").order("fecha_hora", desc=True).limit(200).execute()
+        if res_canc.data:
+            for c in res_canc.data:
+                mascota_info = c.get('mascotas', {})
+                cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
+                dt_obj = pd.to_datetime(c['fecha_hora'])
+                _, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
 
-                    canceladas.append({
+                canceladas.append({
                         "Fecha": dt_obj.strftime('%d/%m/%Y'),
                         "Hora": dt_obj.strftime('%H:%M'),
                         "Mascota": mascota_info.get('nombre', 'N/A'),
