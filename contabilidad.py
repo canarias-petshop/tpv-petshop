@@ -292,6 +292,9 @@ def render_pestana_contabilidad(client):
                             nombre_item = str(p.get('Producto', p.get('Descripción', ''))).lower()
                             if any(kw in nombre_item for kw in ['peluquer', 'corte', 'baño', 'lavado', 'arreglo', 'servicio', 'spa']):
                                 es_servicio = True
+                                # Excepciones: si es un producto físico relacionado con estética, se queda como Producto (0%)
+                                if any(ex in nombre_item for ex in ['cepillo', 'peine', 'champú', 'champu', 'mascarilla', 'tijera', 'carda', 'cortaúñas', 'cortauñas', 'colonia', 'perfume']):
+                                    es_servicio = False
 
                         pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
                         
@@ -377,6 +380,9 @@ def render_pestana_contabilidad(client):
                             nombre_item = str(p.get('Producto', p.get('Descripción', ''))).lower()
                             if any(kw in nombre_item for kw in ['peluquer', 'corte', 'baño', 'lavado', 'arreglo', 'servicio', 'spa']):
                                 es_servicio = True
+                                # Excepciones: si es un producto físico relacionado con estética, se queda como Producto (0%)
+                                if any(ex in nombre_item for ex in ['cepillo', 'peine', 'champú', 'champu', 'mascarilla', 'tijera', 'carda', 'cortaúñas', 'cortauñas', 'colonia', 'perfume']):
+                                    es_servicio = False
 
                         pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
                         
