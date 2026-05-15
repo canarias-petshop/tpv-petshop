@@ -241,10 +241,17 @@ def render_pestana_crm(client):
                             
                     # AUTO PRECIO Y DESCUENTO MANTENIMIENTO
                     srv = row.get('Trabajo / Servicio')
-                    imp = row.get('Importe (€)')
-                    if srv in precios_servicios and (pd.isna(imp) or str(imp).strip() == "" or float(imp) == 0.0):
-                        precio_base = float(precios_servicios[srv])
-                        
+                    precio_base = row.get('Precio Base (€)')
+                    precio_desc = row.get('Precio con desc. (€)')
+                    
+                    if srv in precios_servicios:
+                        # Rellenar Precio Base si está vacío
+                        if pd.isna(precio_base) or str(precio_base).strip() == "" or float(precio_base) == 0.0:
+                            precio_base = float(precios_servicios[srv])
+                            df_save.at[idx, 'Precio Base (€)'] = precio_base
+                        else:
+                            precio_base = float(precio_base)
+                            
                         # Detectar si aplica descuento por mantenimiento (< 60 días desde última cita)
                         if srv != "Otro":
                             fecha_actual_str = df_save.at[idx, 'Fecha']
@@ -264,19 +271,28 @@ def render_pestana_crm(client):
                                         last_visit = max(prev_dates)
                                         days_diff = (fecha_actual_dt - last_visit).days
                                         if 0 < days_diff <= 60:
-                                            precio_base = round(precio_base * 0.90, 2)
-                                            ahorro = round(float(precios_servicios[srv]) - precio_base, 2)
+                                            precio_calc = round(precio_base * 0.90, 2)
                                             
-                                            nota_act = str(df_save.at[idx, 'Nota Sesión']).strip()
-                                            if nota_act == "None" or nota_act == "nan": nota_act = ""
-                                            nota_desc = f"[Desc. 10% Mantenimiento aplicado. Ahorro: {ahorro}€]"
-                                            if nota_desc not in nota_act:
-                                                df_save.at[idx, 'Nota Sesión'] = f"{nota_act} {nota_desc}".strip()
-                                                st.success(f"🎉 ¡Descuento de Mantenimiento (10%) aplicado automáticamente a la sesión del {fecha_actual_str}! Ahorro: {ahorro}€")
+                                            # Aplicar descuento si el usuario no ha puesto un precio final manual
+                                            if pd.isna(precio_desc) or str(precio_desc).strip() == "" or float(precio_desc) == 0.0:
+                                                df_save.at[idx, 'Precio con desc. (€)'] = precio_calc
+                                                ahorro = round(precio_base - precio_calc, 2)
+                                                
+                                                nota_act = str(df_save.at[idx, 'Nota Sesión']).strip()
+                                                if nota_act == "None" or nota_act == "nan": nota_act = ""
+                                                nota_desc = f"[Desc. 10% (Visita < 2 meses) aplicado. Ahorro: {ahorro}€]"
+                                                if nota_desc not in nota_act:
+                                                    df_save.at[idx, 'Nota Sesión'] = f"{nota_act} {nota_desc}".strip()
+                                                    st.success(f"🎉 ¡Descuento por Visita Frecuente (< 2 meses) del 10% aplicado automáticamente a la sesión del {fecha_actual_str}! Ahorro: {ahorro}€")
                             except Exception as e:
                                 pass
-                        
-                        df_save.at[idx, 'Importe (€)'] = precio_base
+                                
+                        # Asegurar que el Precio Final se rellene con el Base si no hay descuento
+                        precio_desc_check = df_save.at[idx, 'Precio con desc. (€)']
+                        if pd.isna(precio_desc_check) or str(precio_desc_check).strip() == "" or float(precio_desc_check) == 0.0:
+                            p_b = df_save.at[idx, 'Precio Base (€)']
+                            if pd.notna(p_b) and str(p_b).strip() != "":
+                                df_save.at[idx, 'Precio con desc. (€)'] = float(p_b)
                             
                 df_save = df_save.fillna("")
                 
