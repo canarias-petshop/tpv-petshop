@@ -816,8 +816,7 @@ def render_pestana_crm(client):
                 
                 ed_m = st.data_editor(
                     df_m_vista,
-                    column_order=["Ver", "nombre", "Fecha Creación", "Dueño", "Teléfono", "especie", "sexo", "raza", "peso", "fecha_nacimiento", "Edad", "Pref", "Duración Media", "observaciones"],
-                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "cliente_id": None, "Dueño": st.column_config.TextColumn("Dueño (Editar)", disabled=False), "Teléfono": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "sexo": st.column_config.SelectboxColumn("Sexo", options=["", "Macho", "Hembra"]), "peso": "Peso", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial."), "Fecha Creación": st.column_config.DateColumn("F. Alta (Registro)", format="DD/MM/YYYY")},
+                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "cliente_id": None, "Dueño": st.column_config.TextColumn("Dueño (Editar)", disabled=False), "Teléfono": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "sexo": st.column_config.SelectboxColumn("Sexo", options=["", "Macho", "Hembra"]), "peso": "Peso", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_mascotas", height=400
                 )
                 if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
@@ -829,16 +828,11 @@ def render_pestana_crm(client):
                     for _, row in ed_m_clean.iterrows():
                         if pd.notna(row['id']):
                             final_obs_edit = f"[Pref: {row['Pref']}] {row['observaciones']}".strip() if pd.notna(row.get('Pref')) and str(row.get('Pref')) != "Cualquiera" else str(row['observaciones'])
-                            datos_update_m = {
+                            client.table("mascotas").update({
                                 "nombre": str(row['nombre']), "especie": str(row['especie']), "sexo": str(row.get('sexo', '')),
                                 "raza": str(row['raza']), "peso": str(row.get('peso', '')), "fecha_nacimiento": str(row['fecha_nacimiento']),
                                 "observaciones": final_obs_edit
-                            }
-                            if pd.notna(row.get('Fecha Creación')):
-                                try:
-                                    datos_update_m["created_at"] = pd.to_datetime(row['Fecha Creación']).strftime('%Y-%m-%dT12:00:00')
-                                except: pass
-                            client.table("mascotas").update(datos_update_m).eq("id", row['id']).execute()
+                            }).eq("id", row['id']).execute()
                             
                             # --- LÓGICA INTELIGENTE DE UNIFICACIÓN DE DUEÑOS ---
                             if pd.notna(row.get('cliente_id')) and pd.notna(row.get('Dueño')):
@@ -1164,20 +1158,6 @@ def render_pestana_crm(client):
                                                     client.table("ventas_historial").update({"estado": "Deuda", "pendiente": round(nuevo_pendiente, 2), "pagado": round(nuevo_pagado, 2)}).eq("id", tk_id).execute()
                                                 
                                             if puntos_ganados_total > 0:
-                                                res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cli_saldar).execute()
-                                                if res_cli.data:
-                                                    c_id = res_cli.data[0]['id']
-                                                    c_pts = res_cli.data[0].get('puntos', 0)
-                                                    client.table("clientes").update({"puntos": c_pts + puntos_ganados_total}).eq("id", c_id).execute()
-                                                    
-                                            msg_succ = f"¡Abono de {cantidad_abonar:.2f}€ registrado! Puntos ganados: {puntos_ganados_total}."
-                                            st.success(msg_succ); time.sleep(2); st.rerun()
-                    else:
-                        st.success("No hay deudas registradas asociadas a clientes.")
-                else:
-                    st.success("¡Genial! Ningún cliente tiene pagos pendientes en el TPV.")
-            except Exception as e:
-                st.error(f"Error al cargar módulo de deudas: {e}")l > 0:
                                                 res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cli_saldar).execute()
                                                 if res_cli.data:
                                                     c_id = res_cli.data[0]['id']
