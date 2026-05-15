@@ -453,17 +453,27 @@ def render_pestana_tpv(client):
                 desc_puntos_eur = 0.0
                 puntos_a_descontar = 0
                 if "Ninguno" not in cliente_fidelidad:
+                    # EXTRAEMOS EL NOMBRE PARA COMPROBAR DEUDAS
+                    base_str_check = cliente_fidelidad.rsplit(") - Puntos:")[0]
+                    cli_check_nombre = base_str_check.rsplit(" (", 1)[0].strip()
+                    
+                    res_deuda_cli = client.table("ventas_historial").select("id").eq("cliente_deuda", cli_check_nombre).eq("estado", "Deuda").limit(1).execute()
+                    tiene_deuda = True if res_deuda_cli.data else False
+                    
                     pts_str = cliente_fidelidad.split("- Puntos: ")[1].strip()
                     puntos_disp = int(pts_str) if pts_str.isdigit() else 0
                     if puntos_disp > 0:
-                        max_descuento_eur = total_f * 0.50
-                        max_puntos_permitidos = int(max_descuento_eur / 0.50)
-                        puntos_a_usar = min(puntos_disp, max_puntos_permitidos)
-                        eur_a_descontar = puntos_a_usar * 0.50
-                        if puntos_a_usar > 0:
-                            if st.checkbox(f"💳 Canjear {puntos_a_usar} puntos por -{eur_a_descontar:.2f}€ (Límite 50%)", value=False):
-                                desc_puntos_eur = eur_a_descontar
-                                puntos_a_descontar = puntos_a_usar
+                        if tiene_deuda:
+                            st.error(f"⛔ **{cli_check_nombre}** tiene pagos pendientes. No puede canjear puntos hasta saldar su deuda.")
+                        else:
+                            max_descuento_eur = total_f * 0.50
+                            max_puntos_permitidos = int(max_descuento_eur / 0.50)
+                            puntos_a_usar = min(puntos_disp, max_puntos_permitidos)
+                            eur_a_descontar = puntos_a_usar * 0.50
+                            if puntos_a_usar > 0:
+                                if st.checkbox(f"💳 Canjear {puntos_a_usar} puntos por -{eur_a_descontar:.2f}€ (Límite 50%)", value=False):
+                                    desc_puntos_eur = eur_a_descontar
+                                    puntos_a_descontar = puntos_a_usar
                 
                 total_f = total_f - desc_puntos_eur
                 if total_f < 0: total_f = 0.0
