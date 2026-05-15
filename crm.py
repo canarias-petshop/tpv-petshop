@@ -534,8 +534,13 @@ def render_pestana_crm(client):
                 if 'direccion' not in df_cli.columns: df_cli['direccion'] = ""
                 if 'servicio_domicilio' not in df_cli.columns: df_cli['servicio_domicilio'] = False
                 
+                if 'created_at' in df_cli.columns:
+                    df_cli['Fecha Creación'] = pd.to_datetime(df_cli['created_at']).dt.date
+                else:
+                    df_cli['Fecha Creación'] = None
+                
                 df_cli['Tipo Cliente'] = df_cli['mascotas'].apply(lambda x: "🐾 Con mascota" if isinstance(x, list) and len(x) > 0 else "🛍️ Solo tienda")
-                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'nombre_dueno_2', 'telefono_2', 'email', 'metodo_contacto', 'direccion', 'fecha_nacimiento', 'Tipo Cliente']].copy()
+                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'nombre_dueno_2', 'telefono_2', 'email', 'metodo_contacto', 'direccion', 'fecha_nacimiento', 'Fecha Creación', 'Tipo Cliente']].copy()
                 
                 if b_cli:
                     df_cli_vista = df_cli_vista[
@@ -569,6 +574,7 @@ def render_pestana_crm(client):
                         "nombre_dueno_2": "Contacto Alt.", "telefono_2": "Tel. Alt.",
                         "email": "Email", "metodo_contacto": st.column_config.SelectboxColumn("Canal Pref.", options=["WhatsApp", "Llamada", "SMS"]), "fecha_nacimiento": "F. Nac",
                         "direccion": "Dirección",
+                        "Fecha Creación": st.column_config.DateColumn("F. Alta", format="DD/MM/YYYY"),
                         "RGPD": st.column_config.CheckboxColumn("LOPD"),
                         "Puntos": st.column_config.NumberColumn("🌟 Ptos"),
                         "Domicilio": st.column_config.CheckboxColumn("🚚 Domicilio"),
@@ -584,7 +590,7 @@ def render_pestana_crm(client):
                     
                     for _, row in ed_cli_clean.iterrows():
                         if pd.notna(row['id']):
-                            client.table("clientes").update({
+                            datos_update = {
                                 "nombre_dueno": str(row['nombre_dueno']), "telefono": str(row['telefono']),
                                 "nombre_dueno_2": str(row.get('nombre_dueno_2', '')), "telefono_2": str(row.get('telefono_2', '')),
                                 "email": str(row['email']), "metodo_contacto": str(row.get('metodo_contacto', 'WhatsApp')), 
@@ -592,7 +598,11 @@ def render_pestana_crm(client):
                                 "direccion": str(row.get('direccion', '')),
                                 "rgpd_consent": bool(row.get('RGPD', True)), "puntos": int(row.get('Puntos', 0)),
                                 "servicio_domicilio": bool(row.get('Domicilio', False))
-                            }).eq("id", row['id']).execute()
+                            }
+                            if pd.notna(row.get('Fecha Creación')):
+                                datos_update["created_at"] = str(row['Fecha Creación'])
+                                
+                            client.table("clientes").update(datos_update).eq("id", row['id']).execute()
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.success("Directorio de clientes actualizado."); time.sleep(0.5); st.rerun()
                     
