@@ -1059,99 +1059,99 @@ def render_pestana_crm(client):
                                     row_tk = deudas_cliente[deudas_cliente['id'] == tk_id].iloc[0]
                                     total_debe = float(row_tk['pendiente'])
                             
-                            res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
-                            opciones_pago = ["💵 Caja Fuerte (Efectivo)"]
-                            mapa_bancos = {}
-                            if res_b.data:
-                                for b in res_b.data:
-                                    etiqueta = f"🏦 Tarjeta ({b['nombre_banco']})"
-                                    opciones_pago.append(etiqueta)
-                                    mapa_bancos[etiqueta] = b
-                            opciones_pago.append("📱 Bizum")
-                            
-                            with st.form("form_saldar_deuda", border=True):
-                                if es_multi:
-                                    st.info(f"Deuda Total de **{cli_saldar}**: **{total_debe:.2f}€**")
-                                else:
-                                    st.info(f"Deuda del **Ticket #{tk_id}** ({cli_saldar}): **{total_debe:.2f}€**")
-                                    
-                                col_d1, col_d2 = st.columns([1, 1])
-                                with col_d1:
-                                    cantidad_abonar = st.number_input("3. Cantidad a abonar (€):", min_value=0.01, max_value=float(total_debe), value=float(total_debe), step=0.01, format="%.2f")
-                                with col_d2:
-                                    metodo_saldar = st.selectbox("4. Método de cobro:", opciones_pago)
+                                res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+                                opciones_pago = ["💵 Caja Fuerte (Efectivo)"]
+                                mapa_bancos = {}
+                                if res_b.data:
+                                    for b in res_b.data:
+                                        etiqueta = f"🏦 Tarjeta ({b['nombre_banco']})"
+                                        opciones_pago.append(etiqueta)
+                                        mapa_bancos[etiqueta] = b
+                                opciones_pago.append("📱 Bizum")
                                 
-                                btn_saldar = st.form_submit_button("✅ Registrar Abono", type="primary", use_container_width=True)
-                                
-                                if btn_saldar:
-                                    pago_exitoso = False
+                                with st.form("form_saldar_deuda", border=True):
+                                    if es_multi:
+                                        st.info(f"Deuda Total de **{cli_saldar}**: **{total_debe:.2f}€**")
+                                    else:
+                                        st.info(f"Deuda del **Ticket #{tk_id}** ({cli_saldar}): **{total_debe:.2f}€**")
+                                        
+                                    col_d1, col_d2 = st.columns([1, 1])
+                                    with col_d1:
+                                        cantidad_abonar = st.number_input("3. Cantidad a abonar (€):", min_value=0.01, max_value=float(total_debe), value=float(total_debe), step=0.01, format="%.2f")
+                                    with col_d2:
+                                        metodo_saldar = st.selectbox("4. Método de cobro:", opciones_pago)
                                     
-                                    if "Caja Fuerte" in metodo_saldar:
-                                        res_caja = client.table("control_caja").select("id").eq("estado", "Abierta").execute()
-                                        if not res_caja.data:
-                                            st.error("⚠️ La caja está cerrada. Abre un turno en 'Control Caja' para poder registrar el pago en efectivo.")
-                                        else:
-                                            id_caja = res_caja.data[0]['id']
-                                            motivo_txt = f"Cobro deuda Ticket #{tk_id} ({cli_saldar})" if not es_multi else f"Cobro deuda completa ({cli_saldar})"
-                                            client.table("movimientos_caja").insert({
-                                                "id_caja": id_caja, "tipo": "Ingreso", "cantidad": float(cantidad_abonar), 
-                                                "motivo": motivo_txt
-                                            }).execute()
-                                            pago_exitoso = True
-                                    elif "Tarjeta" in metodo_saldar:
-                                        banco_data = mapa_bancos[metodo_saldar]
-                                        nuevo_saldo = banco_data['saldo_actual'] + cantidad_abonar
-                                        client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo}).eq("id", banco_data['id']).execute()
-                                        pago_exitoso = True
-                                    else: # Bizum
-                                        pago_exitoso = True
+                                    btn_saldar = st.form_submit_button("✅ Registrar Abono", type="primary", use_container_width=True)
+                                    
+                                    if btn_saldar:
+                                        pago_exitoso = False
                                         
-                                    if pago_exitoso:
-                                        puntos_ganados_total = 0
-                                        
-                                        if es_multi:
-                                            cantidad_restante = float(cantidad_abonar)
-                                            for _, r_tk in deudas_cliente.iterrows():
-                                                if cantidad_restante <= 0:
-                                                    break
-                                                    
-                                                tk_id_mult = r_tk['id']
-                                                tk_pendiente = float(r_tk['pendiente'])
-                                                tk_total = float(r_tk['total'])
-                                                tk_pagado_ant = float(r_tk.get('pagado', 0.0) or 0.0)
-                                                
-                                                if cantidad_restante >= tk_pendiente:
-                                                    puntos_tk = int(tk_total // 10)
-                                                    puntos_ganados_total += puntos_tk
-                                                    client.table("ventas_historial").update({"estado": "Completado", "pendiente": 0.0, "pagado": tk_total, "puntos_ganados": puntos_tk}).eq("id", tk_id_mult).execute()
-                                                    cantidad_restante -= tk_pendiente
-                                                else:
-                                                    nuevo_pendiente = tk_pendiente - cantidad_restante
-                                                    nuevo_pagado = tk_pagado_ant + cantidad_restante
-                                                    client.table("ventas_historial").update({"estado": "Deuda", "pendiente": round(nuevo_pendiente, 2), "pagado": round(nuevo_pagado, 2)}).eq("id", tk_id_mult).execute()
-                                                    cantidad_restante = 0
-                                        else:
-                                            tk_total = float(row_tk['total'])
-                                            tk_pagado_ant = float(row_tk.get('pagado', 0.0) or 0.0)
-                                            
-                                            nuevo_pendiente = total_debe - cantidad_abonar
-                                            nuevo_pagado = tk_pagado_ant + cantidad_abonar
-                                            
-                                            if nuevo_pendiente <= 0.01:
-                                                puntos_ganados_total = int(tk_total // 10)
-                                                client.table("ventas_historial").update({"estado": "Completado", "pendiente": 0.0, "pagado": tk_total, "puntos_ganados": puntos_ganados_total}).eq("id", tk_id).execute()
+                                        if "Caja Fuerte" in metodo_saldar:
+                                            res_caja = client.table("control_caja").select("id").eq("estado", "Abierta").execute()
+                                            if not res_caja.data:
+                                                st.error("⚠️ La caja está cerrada. Abre un turno en 'Control Caja' para poder registrar el pago en efectivo.")
                                             else:
-                                                client.table("ventas_historial").update({"estado": "Deuda", "pendiente": round(nuevo_pendiente, 2), "pagado": round(nuevo_pagado, 2)}).eq("id", tk_id).execute()
+                                                id_caja = res_caja.data[0]['id']
+                                                motivo_txt = f"Cobro deuda Ticket #{tk_id} ({cli_saldar})" if not es_multi else f"Cobro deuda completa ({cli_saldar})"
+                                                client.table("movimientos_caja").insert({
+                                                    "id_caja": id_caja, "tipo": "Ingreso", "cantidad": float(cantidad_abonar), 
+                                                    "motivo": motivo_txt
+                                                }).execute()
+                                                pago_exitoso = True
+                                        elif "Tarjeta" in metodo_saldar:
+                                            banco_data = mapa_bancos[metodo_saldar]
+                                            nuevo_saldo = banco_data['saldo_actual'] + cantidad_abonar
+                                            client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo}).eq("id", banco_data['id']).execute()
+                                            pago_exitoso = True
+                                        else: # Bizum
+                                            pago_exitoso = True
                                             
-                                        if puntos_ganados_total > 0:
-                                            res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cli_saldar).execute()
-                                            if res_cli.data:
-                                                c_id = res_cli.data[0]['id']
-                                                c_pts = res_cli.data[0].get('puntos', 0)
-                                                client.table("clientes").update({"puntos": c_pts + puntos_ganados_total}).eq("id", c_id).execute()
+                                        if pago_exitoso:
+                                            puntos_ganados_total = 0
+                                            
+                                            if es_multi:
+                                                cantidad_restante = float(cantidad_abonar)
+                                                for _, r_tk in deudas_cliente.iterrows():
+                                                    if cantidad_restante <= 0:
+                                                        break
+                                                        
+                                                    tk_id_mult = r_tk['id']
+                                                    tk_pendiente = float(r_tk['pendiente'])
+                                                    tk_total = float(r_tk['total'])
+                                                    tk_pagado_ant = float(r_tk.get('pagado', 0.0) or 0.0)
+                                                    
+                                                    if cantidad_restante >= tk_pendiente:
+                                                        puntos_tk = int(tk_total // 10)
+                                                        puntos_ganados_total += puntos_tk
+                                                        client.table("ventas_historial").update({"estado": "Completado", "pendiente": 0.0, "pagado": tk_total, "puntos_ganados": puntos_tk}).eq("id", tk_id_mult).execute()
+                                                        cantidad_restante -= tk_pendiente
+                                                    else:
+                                                        nuevo_pendiente = tk_pendiente - cantidad_restante
+                                                        nuevo_pagado = tk_pagado_ant + cantidad_restante
+                                                        client.table("ventas_historial").update({"estado": "Deuda", "pendiente": round(nuevo_pendiente, 2), "pagado": round(nuevo_pagado, 2)}).eq("id", tk_id_mult).execute()
+                                                        cantidad_restante = 0
+                                            else:
+                                                tk_total = float(row_tk['total'])
+                                                tk_pagado_ant = float(row_tk.get('pagado', 0.0) or 0.0)
                                                 
-                                        msg_succ = f"¡Abono de {cantidad_abonar:.2f}€ registrado! Puntos ganados: {puntos_ganados_total}."
-                                        st.success(msg_succ); time.sleep(2); st.rerun()
+                                                nuevo_pendiente = total_debe - cantidad_abonar
+                                                nuevo_pagado = tk_pagado_ant + cantidad_abonar
+                                                
+                                                if nuevo_pendiente <= 0.01:
+                                                    puntos_ganados_total = int(tk_total // 10)
+                                                    client.table("ventas_historial").update({"estado": "Completado", "pendiente": 0.0, "pagado": tk_total, "puntos_ganados": puntos_ganados_total}).eq("id", tk_id).execute()
+                                                else:
+                                                    client.table("ventas_historial").update({"estado": "Deuda", "pendiente": round(nuevo_pendiente, 2), "pagado": round(nuevo_pagado, 2)}).eq("id", tk_id).execute()
+                                                
+                                            if puntos_ganados_total > 0:
+                                                res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cli_saldar).execute()
+                                                if res_cli.data:
+                                                    c_id = res_cli.data[0]['id']
+                                                    c_pts = res_cli.data[0].get('puntos', 0)
+                                                    client.table("clientes").update({"puntos": c_pts + puntos_ganados_total}).eq("id", c_id).execute()
+                                                    
+                                            msg_succ = f"¡Abono de {cantidad_abonar:.2f}€ registrado! Puntos ganados: {puntos_ganados_total}."
+                                            st.success(msg_succ); time.sleep(2); st.rerun()
                     else:
                         st.success("No hay deudas registradas asociadas a clientes.")
                 else:
