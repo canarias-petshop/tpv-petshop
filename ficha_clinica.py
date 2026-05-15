@@ -97,13 +97,17 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
             if minutos < 0: minutos += 24 * 60
             df_hist.at[idx, 'Duración (min)'] = minutos
 
+    # Evitar que Streamlit oculte servicios antiguos que ya no coinciden con el catálogo
+    servicios_usados = [s for s in df_hist["Trabajo / Servicio"].dropna().unique().tolist() if str(s).strip() != ""]
+    opciones_seguras = [""] + servicios_lista + [s for s in servicios_usados if s not in servicios_lista]
+
     st.markdown("💡 *Nota: Si indicas **Inicio** y **Fin**, o seleccionas un **Servicio**, los **Precios, Descuentos y Duración** se calcularán solos al hacer clic en **Guardar**.*")
     
     ed_hist = st.data_editor(
         df_hist, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_hist_{prefix}_{m_id}",
         column_config={
             "Fecha": st.column_config.DateColumn("Fecha (D/M/A)", format="DD/MM/YYYY"),
-            "Trabajo / Servicio": st.column_config.SelectboxColumn("Servicio Realizado", options=[""] + servicios_lista),
+            "Trabajo / Servicio": st.column_config.SelectboxColumn("Servicio Realizado", options=opciones_seguras),
             "Tratamiento": st.column_config.TextColumn("Tratamiento"),
             "Peluquera/o": st.column_config.SelectboxColumn("Realizado por", options=[""] + empleados_lista),
             "Inicio de sesión": st.column_config.TimeColumn("Inicio", format="HH:mm"),
