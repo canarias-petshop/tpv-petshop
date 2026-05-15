@@ -4,24 +4,70 @@ from datetime import date, timedelta
 import time
 import urllib.parse
 
+@st.cache_data(show_spinner=False)
+def get_masc_ag_cached(_client, v):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("mascotas").select("id, nombre, clientes(nombre_dueno, telefono)").range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
+
+@st.cache_data(show_spinner=False)
+def get_citas_ag_cached(_client, v):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
+
+@st.cache_data(show_spinner=False)
+def get_masc_info_cached(_client, v, mid):
+    return _client.table("mascotas").select("*").eq("id", mid).execute().data
+
+@st.cache_data(show_spinner=False)
+def get_alertas_m_ag_cached(_client, v):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("mascotas").select("id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, metodo_contacto)").range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
+
+@st.cache_data(show_spinner=False)
+def get_manana_ag_cached(_client, v, m_ini, m_fin):
+    return _client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto, direccion, servicio_domicilio))").gte("fecha_hora", m_ini).lte("fecha_hora", m_fin).execute().data
+
+@st.cache_data(show_spinner=False)
+def get_futuras_ag_cached(_client, v, h_str):
+    return _client.table("citas").select("mascotas_id, servicio").gte("fecha_hora", h_str).execute().data
+
+@st.cache_data(show_spinner=False)
+def get_canc_ag_cached(_client, v):
+    return _client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").like("servicio", "%[ESTADO: Cancelada]%").order("fecha_hora", desc=True).limit(200).execute().data
+
+@st.cache_data(show_spinner=False)
+def get_sin_hist_ag_cached(_client, v, h_str):
+    return _client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", h_str).like("servicio", "%[ESTADO: Confirmada]%").execute().data
+
 def render_pestana_agenda(client):
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
     
     # --- DATOS COMUNES PARA TODAS LAS SUB-PESTAÑAS DE AGENDA ---
-    @st.cache_data(show_spinner=False)
-    def get_masc_ag(v):
-        _all = []
-        _off = 0
-        while True:
-            _r = client.table("mascotas").select("id, nombre, clientes(nombre_dueno, telefono)").range(_off, _off + 999).execute()
-            if _r.data:
-                _all.extend(_r.data)
-                if len(_r.data) < 1000: break
-                _off += 1000
-            else: break
-        return _all
-        
-    all_mascotas = get_masc_ag(st.session_state.get('db_version', 0))
+    all_mascotas = get_masc_ag_cached(client, st.session_state.get('db_version', 0))
 
     dict_mascotas = {}
     if all_mascotas:
@@ -30,20 +76,7 @@ def render_pestana_agenda(client):
             telefono = m['clientes']['telefono'] if m.get('clientes') and m['clientes'].get('telefono') else "Sin teléfono"
             dict_mascotas[f"🐾 {m['nombre']} (De: {dueno} - 📱 {telefono})"] = m['id']
             
-    @st.cache_data(show_spinner=False)
-    def get_citas_ag(v):
-        _all = []
-        _off = 0
-        while True:
-            _r = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
-            if _r.data:
-                _all.extend(_r.data)
-                if len(_r.data) < 1000: break
-                _off += 1000
-            else: break
-        return _all
-        
-    all_citas = get_citas_ag(st.session_state.get('db_version', 0))
+    all_citas = get_citas_ag_cached(client, st.session_state.get('db_version', 0))
 
     class DummyRes: pass
     res_citas = DummyRes()
@@ -635,20 +668,7 @@ def render_pestana_agenda(client):
                 if "[ESTADO: Cancelada]" not in c.get("servicio", ""):
                     mascotas_con_cita.add(c["mascotas_id"])
         
-        @st.cache_data(show_spinner=False)
-        def get_alertas_m_ag(v):
-            _all = []
-            _off = 0
-            while True:
-                _r = client.table("mascotas").select("id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, metodo_contacto)").range(_off, _off + 999).execute()
-                if _r.data:
-                    _all.extend(_r.data)
-                    if len(_r.data) < 1000: break
-                    _off += 1000
-                else: break
-            return _all
-            
-        m_alertas_data = get_alertas_m_ag(st.session_state.get('db_version', 0))
+        m_alertas_data = get_alertas_m_ag_cached(client, st.session_state.get('db_version', 0))
         
         if m_alertas_data:
             alertas = []
@@ -721,11 +741,8 @@ def render_pestana_agenda(client):
         
         hoy_str = str(date.today())
         # Buscamos citas confirmadas anteriores a hoy
-        @st.cache_data(show_spinner=False)
-        def get_sin_hist_ag(v, h_str):
-            return client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", h_str).like("servicio", "%[ESTADO: Confirmada]%").execute().data
         
-        d_sin_hist = get_sin_hist_ag(st.session_state.get('db_version', 0), hoy_str)
+        d_sin_hist = get_sin_hist_ag_cached(client, st.session_state.get('db_version', 0), hoy_str)
         alertas = []
         if d_sin_hist:
             for c in d_sin_hist:
@@ -775,9 +792,7 @@ def render_pestana_agenda(client):
                 if row.get('Ver Ficha', False):
                     m_id = row['mascota_id']
                     if pd.notna(m_id):
-                        @st.cache_data(show_spinner=False)
-                        def get_masc_ag_sh(v, mid): return client.table("mascotas").select("*").eq("id", mid).execute().data
-                        res_m_data = get_masc_ag_sh(st.session_state.get('db_version', 0), m_id)
+                        res_m_data = get_masc_info_cached(client, st.session_state.get('db_version', 0), m_id)
                         if res_m_data:
                             from ficha_clinica import mostrar_ficha_clinica
                             st.markdown("---")
