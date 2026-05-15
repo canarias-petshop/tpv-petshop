@@ -726,14 +726,14 @@ def render_pestana_crm(client):
             with st.form("nueva_mascota_extra", clear_on_submit=True, border=False):
                 sel_cli = st.selectbox("Selecciona el cliente:", list(dict_cli.keys()))
                 
-                c_m1, c_m2, c_m3 = st.columns([2, 1.5, 1.5])
+                c_m1, c_m2, c_m3 = st.columns([2, 1.5, 1.5], vertical_alignment="bottom")
                 with c_m1: nx_nom = st.text_input("Nombre mascota", key="nx_nom")
                 with c_m2: nx_esp = st.selectbox("Especie", ["Perro", "Gato", "Ave", "Roedor", "Otro"], key="nx_esp")
                 with c_m3: nx_sexo = st.selectbox("Sexo", ["", "Macho", "Hembra"], key="nx_sexo")
                 
-                c_m4, c_m5, c_m6 = st.columns([2, 1.5, 1.5])
+                c_m4, c_m5, c_m6 = st.columns([2, 1.5, 1.5], vertical_alignment="bottom")
                 with c_m4: nx_raz = st.text_input("Raza", key="nx_raz")
-                with c_m5: nx_peso = st.text_input("Peso", key="nx_peso")
+                with c_m5: nx_peso = st.text_input("Peso (kg)", key="nx_peso")
                 with c_m6: nx_pref = st.selectbox("Peluquero/a Pref.", ["Cualquiera"] + empleados_lista, key="nx_pref")
                 
                 if st.form_submit_button("Añadir Mascota", use_container_width=True):
