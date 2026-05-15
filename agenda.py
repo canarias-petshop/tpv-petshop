@@ -8,16 +8,21 @@ def render_pestana_agenda(client):
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
     
     # --- DATOS COMUNES PARA TODAS LAS SUB-PESTAÑAS DE AGENDA ---
-    all_mascotas = []
-    offset = 0
-    while True:
-        res_m = client.table("mascotas").select("id, nombre, clientes(nombre_dueno, telefono)").range(offset, offset + 999).execute()
-        if res_m.data:
-            all_mascotas.extend(res_m.data)
-            if len(res_m.data) < 1000: break
-            offset += 1000
-        else: break
+    @st.cache_data(show_spinner=False)
+    def get_masc_ag(v):
+        _all = []
+        _off = 0
+        while True:
+            _r = client.table("mascotas").select("id, nombre, clientes(nombre_dueno, telefono)").range(_off, _off + 999).execute()
+            if _r.data:
+                _all.extend(_r.data)
+                if len(_r.data) < 1000: break
+                _off += 1000
+            else: break
+        return _all
         
+    all_mascotas = get_masc_ag(st.session_state.get('db_version', 0))
+
     dict_mascotas = {}
     if all_mascotas:
         for m in all_mascotas:
@@ -25,16 +30,21 @@ def render_pestana_agenda(client):
             telefono = m['clientes']['telefono'] if m.get('clientes') and m['clientes'].get('telefono') else "Sin teléfono"
             dict_mascotas[f"🐾 {m['nombre']} (De: {dueno} - 📱 {telefono})"] = m['id']
             
-    all_citas = []
-    offset = 0
-    while True:
-        r_citas = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(offset, offset + 999).execute()
-        if r_citas.data:
-            all_citas.extend(r_citas.data)
-            if len(r_citas.data) < 1000: break
-            offset += 1000
-        else: break
+    @st.cache_data(show_spinner=False)
+    def get_citas_ag(v):
+        _all = []
+        _off = 0
+        while True:
+            _r = client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
+            if _r.data:
+                _all.extend(_r.data)
+                if len(_r.data) < 1000: break
+                _off += 1000
+            else: break
+        return _all
         
+    all_citas = get_citas_ag(st.session_state.get('db_version', 0))
+
     class DummyRes: pass
     res_citas = DummyRes()
     res_citas.data = all_citas
