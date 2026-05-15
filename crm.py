@@ -1030,20 +1030,34 @@ def render_pestana_crm(client):
                         )
                             
                         st.markdown("---")
-                        st.markdown("#### 💰 Registrar Pago de Deuda (Por Ticket)")
+                        st.markdown("#### 💰 Registrar Pago de Deuda (Por Cliente y Ticket)")
                         
-                        opciones_tickets = [""]
-                        for _, row in df_deudas.sort_values("Fecha").iterrows():
-                            d_str = row['Fecha'].strftime('%d/%m/%Y')
-                            opciones_tickets.append(f"Ticket #{row['id']} | {row['cliente_deuda']} | PENDIENTE: {row['pendiente']:.2f}€ (Del {d_str})")
+                        clientes_con_deuda = [""] + sorted([c for c in df_deudas['cliente_deuda'].unique() if isinstance(c, str) and c.strip()])
+                        cli_saldar = st.selectbox("1. Selecciona el cliente:", clientes_con_deuda)
+                        
+                        if cli_saldar:
+                            deudas_cliente = df_deudas[df_deudas['cliente_deuda'] == cli_saldar].sort_values("Fecha")
                             
-                        tk_saldar = st.selectbox("1. Selecciona el ticket específico a abonar:", opciones_tickets)
-                        
-                        if tk_saldar:
-                            tk_id = int(tk_saldar.split("Ticket #")[1].split(" | ")[0])
-                            row_tk = df_deudas[df_deudas['id'] == tk_id].iloc[0]
-                            cli_saldar = row_tk['cliente_deuda']
-                            total_debe = float(row_tk['pendiente'])
+                            opciones_tickets = [""]
+                            if len(deudas_cliente) > 1:
+                                total_deuda_cli = deudas_cliente['pendiente'].sum()
+                                opciones_tickets.append(f"Todos los tickets | PENDIENTE TOTAL: {total_deuda_cli:.2f}€")
+                                
+                            for _, row in deudas_cliente.iterrows():
+                                d_str = row['Fecha'].strftime('%d/%m/%Y')
+                                opciones_tickets.append(f"Ticket #{row['id']} | PENDIENTE: {row['pendiente']:.2f}€ (Del {d_str})")
+                                
+                            tk_saldar = st.selectbox("2. Selecciona el ticket a abonar:", opciones_tickets)
+                            
+                            if tk_saldar:
+                                es_multi = "Todos los tickets" in tk_saldar
+                                if es_multi:
+                                    total_debe = deudas_cliente['pendiente'].sum()
+                                    tk_id = None
+                                else:
+                                    tk_id = int(tk_saldar.split("Ticket #")[1].split(" | ")[0])
+                                    row_tk = deudas_cliente[deudas_cliente['id'] == tk_id].iloc[0]
+                                    total_debe = float(row_tk['pendiente'])
                             
                             res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
                             opciones_pago = ["💵 Caja Fuerte (Efectivo)"]
@@ -1056,12 +1070,16 @@ def render_pestana_crm(client):
                             opciones_pago.append("📱 Bizum")
                             
                             with st.form("form_saldar_deuda", border=True):
-                                st.info(f"Deuda del **Ticket #{tk_id}** ({cli_saldar}): **{total_debe:.2f}€**")
+                                if es_multi:
+                                    st.info(f"Deuda Total de **{cli_saldar}**: **{total_debe:.2f}€**")
+                                else:
+                                    st.info(f"Deuda del **Ticket #{tk_id}** ({cli_saldar}): **{total_debe:.2f}€**")
+                                    
                                 col_d1, col_d2 = st.columns([1, 1])
                                 with col_d1:
-                                    cantidad_abonar = st.number_input("2. Cantidad a abonar (€):", min_value=0.01, max_value=float(total_debe), value=float(total_debe), step=0.01, format="%.2f")
+                                    cantidad_abonar = st.number_input("3. Cantidad a abonar (€):", min_value=0.01, max_value=float(total_debe), value=float(total_debe), step=0.01, format="%.2f")
                                 with col_d2:
-                                    metodo_saldar = st.selectbox("3. Método de cobro:", opciones_pago)
+                                    metodo_saldar = st.selectbox("4. Método de cobro:", opciones_pago)
                                 
                                 btn_saldar = st.form_submit_button("✅ Registrar Abono", type="primary", use_container_width=True)
                                 
@@ -1074,9 +1092,10 @@ def render_pestana_crm(client):
                                             st.error("⚠️ La caja está cerrada. Abre un turno en 'Control Caja' para poder registrar el pago en efectivo.")
                                         else:
                                             id_caja = res_caja.data[0]['id']
+                                            motivo_txt = f"Cobro deuda Ticket #{tk_id} ({cli_saldar})" if not es_multi else f"Cobro deuda completa ({cli_saldar})"
                                             client.table("movimientos_caja").insert({
                                                 "id_caja": id_caja, "tipo": "Ingreso", "cantidad": float(cantidad_abonar), 
-                                                "motivo": f"Cobro deuda Ticket #{tk_id} ({cli_saldar})"
+                                                "motivo": motivo_txt
                                             }).execute()
                                             pago_exitoso = True
                                     elif "Tarjeta" in metodo_saldar:
@@ -1088,18 +1107,41 @@ def render_pestana_crm(client):
                                         pago_exitoso = True
                                         
                                     if pago_exitoso:
-                                        tk_total = float(row_tk['total'])
-                                        tk_pagado_ant = float(row_tk.get('pagado', 0.0) or 0.0)
-                                        
-                                        nuevo_pendiente = total_debe - cantidad_abonar
-                                        nuevo_pagado = tk_pagado_ant + cantidad_abonar
-                                        
                                         puntos_ganados_total = 0
-                                        if nuevo_pendiente <= 0.01:
-                                            puntos_ganados_total = int(tk_total // 10)
-                                            client.table("ventas_historial").update({"estado": "Completado", "pendiente": 0.0, "pagado": tk_total, "puntos_ganados": puntos_ganados_total}).eq("id", tk_id).execute()
+                                        
+                                        if es_multi:
+                                            cantidad_restante = float(cantidad_abonar)
+                                            for _, r_tk in deudas_cliente.iterrows():
+                                                if cantidad_restante <= 0:
+                                                    break
+                                                    
+                                                tk_id_mult = r_tk['id']
+                                                tk_pendiente = float(r_tk['pendiente'])
+                                                tk_total = float(r_tk['total'])
+                                                tk_pagado_ant = float(r_tk.get('pagado', 0.0) or 0.0)
+                                                
+                                                if cantidad_restante >= tk_pendiente:
+                                                    puntos_tk = int(tk_total // 10)
+                                                    puntos_ganados_total += puntos_tk
+                                                    client.table("ventas_historial").update({"estado": "Completado", "pendiente": 0.0, "pagado": tk_total, "puntos_ganados": puntos_tk}).eq("id", tk_id_mult).execute()
+                                                    cantidad_restante -= tk_pendiente
+                                                else:
+                                                    nuevo_pendiente = tk_pendiente - cantidad_restante
+                                                    nuevo_pagado = tk_pagado_ant + cantidad_restante
+                                                    client.table("ventas_historial").update({"estado": "Deuda", "pendiente": round(nuevo_pendiente, 2), "pagado": round(nuevo_pagado, 2)}).eq("id", tk_id_mult).execute()
+                                                    cantidad_restante = 0
                                         else:
-                                            client.table("ventas_historial").update({"estado": "Deuda", "pendiente": round(nuevo_pendiente, 2), "pagado": round(nuevo_pagado, 2)}).eq("id", tk_id).execute()
+                                            tk_total = float(row_tk['total'])
+                                            tk_pagado_ant = float(row_tk.get('pagado', 0.0) or 0.0)
+                                            
+                                            nuevo_pendiente = total_debe - cantidad_abonar
+                                            nuevo_pagado = tk_pagado_ant + cantidad_abonar
+                                            
+                                            if nuevo_pendiente <= 0.01:
+                                                puntos_ganados_total = int(tk_total // 10)
+                                                client.table("ventas_historial").update({"estado": "Completado", "pendiente": 0.0, "pagado": tk_total, "puntos_ganados": puntos_ganados_total}).eq("id", tk_id).execute()
+                                            else:
+                                                client.table("ventas_historial").update({"estado": "Deuda", "pendiente": round(nuevo_pendiente, 2), "pagado": round(nuevo_pagado, 2)}).eq("id", tk_id).execute()
                                             
                                         if puntos_ganados_total > 0:
                                             res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cli_saldar).execute()
@@ -1108,7 +1150,8 @@ def render_pestana_crm(client):
                                                 c_pts = res_cli.data[0].get('puntos', 0)
                                                 client.table("clientes").update({"puntos": c_pts + puntos_ganados_total}).eq("id", c_id).execute()
                                                 
-                                        st.success(f"¡Abono de {cantidad_abonar:.2f}€ registrado en el Ticket #{tk_id}! Puntos ganados: {puntos_ganados_total}."); time.sleep(2); st.rerun()
+                                        msg_succ = f"¡Abono de {cantidad_abonar:.2f}€ registrado! Puntos ganados: {puntos_ganados_total}."
+                                        st.success(msg_succ); time.sleep(2); st.rerun()
                     else:
                         st.success("No hay deudas registradas asociadas a clientes.")
                 else:
