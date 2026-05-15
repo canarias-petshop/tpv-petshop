@@ -257,9 +257,10 @@ def render_pestana_contabilidad(client):
         
         if res_v_inf.data:
             for t in res_v_inf.data:
-                # Calcular Base e IGIC real desde los productos del ticket
-                base_t = 0.0
-                igic_t = 0.0
+                # Calcular Base e IGIC separando Productos y Servicios
+                base_prod = 0.0
+                base_serv = 0.0
+                igic_serv = 0.0
                 if t.get('productos'):
                     prods = t['productos']
                     if isinstance(prods, str):
@@ -278,33 +279,33 @@ def render_pestana_contabilidad(client):
                         desc_item = safe_float(p.get('Desc. %', p.get('Desc %', 0.0)))
                         
                         cat_producto = mapa_categorias.get(str(p.get('id', '')), 'Producto')
-                        
-                        # Si es Producto, IGIC = 0% en la venta
-                        if cat_producto == 'Producto' or p.get('Manual', False):
-                            igic_porcentaje = 0.0
-                        else:
-                            # Si es Servicio, se usa su IGIC
-                            igic_porcentaje = float(p.get('IGIC', 7.0))
-                        
                         pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
-                        base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
-                        igic_linea = pvp_con_desc - base_linea
                         
-                        base_t += base_linea
-                        igic_t += igic_linea
+                        if cat_producto == 'Producto' or p.get('Manual', False):
+                            base_prod += pvp_con_desc
+                        else:
+                            igic_porcentaje = float(p.get('IGIC', 7.0))
+                            base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
+                            igic_linea = pvp_con_desc - base_linea
+                            
+                            base_serv += base_linea
+                            igic_serv += igic_linea
                 
-                # Aplicar descuento global del ticket a la base y al IGIC
+                # Aplicar descuento global del ticket a las bases y al IGIC
                 desc_global = float(t.get('descuento_global', 0.0))
-                base_t = round(base_t * (1 - desc_global / 100), 2)
-                igic_t = round(igic_t * (1 - desc_global / 100), 2)
+                factor_desc = (1 - desc_global / 100)
+                base_prod = round(base_prod * factor_desc, 2)
+                base_serv = round(base_serv * factor_desc, 2)
+                igic_serv = round(igic_serv * factor_desc, 2)
                 
                 # Parche de Seguridad Contable: Ajuste proporcional si hubo canjeo de puntos (descuento en euros)
-                total_calc = base_t + igic_t
+                total_calc = base_prod + base_serv + igic_serv
                 tot_real = float(t['total'])
                 if total_calc > 0 and abs(total_calc - tot_real) > 0.01:
                     ratio = tot_real / total_calc
-                    base_t = round(base_t * ratio, 2)
-                    igic_t = round(igic_t * ratio, 2)
+                    base_prod = round(base_prod * ratio, 2)
+                    base_serv = round(base_serv * ratio, 2)
+                    igic_serv = round(igic_serv * ratio, 2)
                 
                 dt_t = pd.to_datetime(t['created_at'])
                 if dt_t.tzinfo is None: dt_t = dt_t.tz_localize('UTC')
@@ -314,8 +315,9 @@ def render_pestana_contabilidad(client):
                     "Tipo Documento": "Ticket de Venta (TPV)",
                     "Nº Documento": f"T-{t['id']}",
                     "Cliente": t.get('cliente_deuda') if t.get('cliente_deuda') else "Mostrador",
-                    "Base Imponible (€)": base_t,
-                    "Cuota IGIC (€)": igic_t,
+                    "Ventas Productos (0% IGIC) (€)": base_prod,
+                    "Base Servicios (€)": base_serv,
+                    "Cuota IGIC Servicios (€)": igic_serv,
                     "Importe Total (€)": float(t['total']),
                     "Método de Pago": t['metodo_pago']
                 })
@@ -325,9 +327,10 @@ def render_pestana_contabilidad(client):
                 cliente_nom = f['clientes']['nombre_dueno'] if f.get('clientes') else "N/A"
                 tot_f = float(f.get('total_final', 0))
                 
-                # Recalculamos la base y el IGIC leyendo los productos de la factura para aplicar la regla Producto = 0% IGIC
-                base_f = 0.0
-                igic_f = 0.0
+                # Recalculamos la base y el IGIC separando Productos y Servicios
+                base_prod = 0.0
+                base_serv = 0.0
+                igic_serv = 0.0
                 if f.get('productos'):
                     prods = f['productos']
                     if isinstance(prods, str):
@@ -346,26 +349,28 @@ def render_pestana_contabilidad(client):
                         desc_item = float(p.get('Desc %', 0.0))
                         
                         cat_producto = mapa_categorias.get(str(p.get('id', '')), 'Producto')
+                        pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
                         
                         if cat_producto == 'Producto':
-                            igic_porcentaje = 0.0
+                            base_prod += pvp_con_desc
                         else:
                             igic_porcentaje = float(p.get('IGIC %', 7.0))
-                        
-                        pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
-                        base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
-                        igic_linea = pvp_con_desc - base_linea
-                        
-                        base_f += base_linea
-                        igic_f += igic_linea
+                            base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
+                            igic_linea = pvp_con_desc - base_linea
+                            
+                            base_serv += base_linea
+                            igic_serv += igic_linea
                         
                     desc_global = float(f.get('descuento_global', 0.0))
-                    base_f = round(base_f * (1 - desc_global / 100), 2)
-                    igic_f = round(igic_f * (1 - desc_global / 100), 2)
+                    factor_desc = (1 - desc_global / 100)
+                    base_prod = round(base_prod * factor_desc, 2)
+                    base_serv = round(base_serv * factor_desc, 2)
+                    igic_serv = round(igic_serv * factor_desc, 2)
                 else:
-                    # Si no hay productos (facturas antiguas sin JSON), asumimos fallback a total neto
-                    base_f = float(f.get('total_neto', round(tot_f / 1.07, 2)))
-                    igic_f = float(f.get('total_igic', round(tot_f - base_f, 2)))
+                    # Si no hay productos (facturas antiguas sin JSON), asumimos fallback a total neto (en Servicios)
+                    base_serv = float(f.get('total_neto', round(tot_f / 1.07, 2)))
+                    igic_serv = float(f.get('total_igic', round(tot_f - base_serv, 2)))
+                    base_prod = 0.0
 
                 dt_f = pd.to_datetime(f['created_at'])
                 if dt_f.tzinfo is None: dt_f = dt_f.tz_localize('UTC')
@@ -375,8 +380,9 @@ def render_pestana_contabilidad(client):
                     "Tipo Documento": "Factura Emitida",
                     "Nº Documento": f"F-{f['numero_factura']}",
                     "Cliente": cliente_nom,
-                    "Base Imponible (€)": base_f,
-                    "Cuota IGIC (€)": igic_f,
+                    "Ventas Productos (0% IGIC) (€)": base_prod,
+                    "Base Servicios (€)": base_serv,
+                    "Cuota IGIC Servicios (€)": igic_serv,
                     "Importe Total (€)": tot_f,
                     "Método de Pago": f['forma_pago']
                 })
@@ -511,7 +517,29 @@ def render_pestana_contabilidad(client):
         with c_down1:
             st.info("💶 VENTAS TOTALES")
             if not df_ventas_unificadas.empty:
-                excel_unificado = generar_excel_formateado(df_ventas_unificadas, "Ventas Totales")
+                # Crear desglose y resumen por método de pago
+                df_resumen = df_ventas_unificadas.copy()
+                
+                def simplificar_metodo(m):
+                    m = str(m)
+                    if "Tarjeta" in m: return "Tarjeta"
+                    if "Mixto" in m: return "Pago Mixto"
+                    return m
+                    
+                df_resumen['Método Simplificado'] = df_resumen['Método de Pago'].apply(simplificar_metodo)
+                resumen_pagos = df_resumen.groupby('Método Simplificado').agg({
+                    'Ventas Productos (0% IGIC) (€)': 'sum',
+                    'Base Servicios (€)': 'sum',
+                    'Cuota IGIC Servicios (€)': 'sum',
+                    'Importe Total (€)': 'sum'
+                }).reset_index().rename(columns={'Método Simplificado': 'Método de Pago'})
+                
+                dict_exportacion = {
+                    "Resumen por Método de Pago": resumen_pagos,
+                    "Desglose Detallado": df_ventas_unificadas
+                }
+                
+                excel_unificado = generar_excel_formateado(dict_exportacion)
                 st.download_button("📥 Descargar Ventas", excel_unificado, f"Ventas_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 st.markdown(f"<p style='font-size:12px;'>*Total: {df_ventas_unificadas['Importe Total (€)'].sum():.2f}€*</p>", unsafe_allow_html=True)
             else: st.write("Sin ventas.")
@@ -521,7 +549,7 @@ def render_pestana_contabilidad(client):
             df_asesor_f = pd.DataFrame()
             if not df_ventas_unificadas.empty:
                 df_solo_facturas = df_ventas_unificadas[df_ventas_unificadas['Tipo Documento'] == 'Factura Emitida'].copy()
-                if not df_solo_facturas.empty: df_asesor_f = df_solo_facturas[['Nº Documento', 'Fecha', 'Cliente', 'Base Imponible (€)', 'Cuota IGIC (€)', 'Importe Total (€)', 'Método de Pago']]
+                if not df_solo_facturas.empty: df_asesor_f = df_solo_facturas[['Nº Documento', 'Fecha', 'Cliente', 'Ventas Productos (0% IGIC) (€)', 'Base Servicios (€)', 'Cuota IGIC Servicios (€)', 'Importe Total (€)', 'Método de Pago']]
             
             if not df_asesor_f.empty or not df_facturas_rec.empty:
                 dict_facturas = {}
