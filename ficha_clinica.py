@@ -30,15 +30,23 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
     st.markdown(f"#### 📖 Ficha e Historial Clínico/Peluquería: **{m_nombre}**")
     
     # --- ALERTA CITA CONFIRMADA SIN HISTORIAL ---
+    @st.cache_data(show_spinner=False)
+    def fetch_ficha_alerts(v, mid, hoy):
+        try:
+            r1 = client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).lt("fecha_hora", hoy).like("servicio", "%[ESTADO: Confirmada]%").execute().data
+            r2 = client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).like("servicio", "%[ESTADO: Cancelada]%").execute().data
+            return r1, r2
+        except: return [], []
+        
     hoy_str = str(date.today())
-    res_alertas = client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", m_id).lt("fecha_hora", hoy_str).like("servicio", "%[ESTADO: Confirmada]%").execute()
+    r_alertas, r_canc = fetch_ficha_alerts(st.session_state.get('db_version', 0), m_id, hoy_str)
     
     historial = m_data.get('historial_trabajos')
     if not isinstance(historial, list): historial = []
     
-    if res_alertas.data:
+    if r_alertas:
         citas_faltantes = []
-        for c in res_alertas.data:
+        for c in r_alertas:
             try:
                 dt_c_raw = pd.to_datetime(c['fecha_hora'])
                 dt_c_date = dt_c_raw.date()
@@ -232,11 +240,10 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
         
     st.markdown("---")
     st.markdown("#### 🚫 Historial de Cancelaciones")
-    res_canc = client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", m_id).like("servicio", "%[ESTADO: Cancelada]%").execute()
-    if res_canc.data:
-        st.warning(f"⚠️ **ALERTA DE POLÍTICA:** Esta mascota tiene **{len(res_canc.data)}** cancelación(es) registrada(s).")
+    if r_canc:
+        st.warning(f"⚠️ **ALERTA DE POLÍTICA:** Esta mascota tiene **{len(r_canc)}** cancelación(es) registrada(s).")
         canc_lista = []
-        for cx in res_canc.data:
+        for cx in r_canc:
             dt_c = pd.to_datetime(cx['fecha_hora'])
             import re
             s_raw = cx.get('servicio', '')

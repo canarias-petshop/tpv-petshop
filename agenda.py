@@ -775,11 +775,13 @@ def render_pestana_agenda(client):
                 if row.get('Ver Ficha', False):
                     m_id = row['mascota_id']
                     if pd.notna(m_id):
-                        res_m = client.table("mascotas").select("*").eq("id", m_id).execute()
-                        if res_m.data:
+                        @st.cache_data(show_spinner=False)
+                        def get_masc_ag_sh(v, mid): return client.table("mascotas").select("*").eq("id", mid).execute().data
+                        res_m_data = get_masc_ag_sh(st.session_state.get('db_version', 0), m_id)
+                        if res_m_data:
                             from ficha_clinica import mostrar_ficha_clinica
                             st.markdown("---")
-                            mostrar_ficha_clinica(m_id, row['Mascota'], res_m.data[0], "agenda_hist", client, servicios_lista, empleados_lista, precios_servicios)
+                            mostrar_ficha_clinica(m_id, row['Mascota'], res_m_data[0], "agenda_hist", client, servicios_lista, empleados_lista, precios_servicios)
                     break
         else:
             st.success("¡Todo al día! Todas las citas pasadas tienen su historial registrado correctamente.")
