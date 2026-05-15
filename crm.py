@@ -536,11 +536,6 @@ def render_pestana_crm(client):
                 
                 if 'created_at' in df_cli.columns:
                     df_cli['Fecha Creación'] = pd.to_datetime(df_cli['created_at']).dt.date
-                else:
-                    df_cli['Fecha Creación'] = None
-                
-                df_cli['Tipo Cliente'] = df_cli['mascotas'].apply(lambda x: "🐾 Con mascota" if isinstance(x, list) and len(x) > 0 else "🛍️ Solo tienda")
-                df_cli_vista = df_cli[['id', 'nombre_dueno', 'telefono', 'nombre_dueno_2', 'telefono_2', 'email', 'metodo_contacto', 'direccion', 'fecha_nacimiento', 'Fecha Creación', 'Tipo Cliente']].copy()
                 
                 if b_cli:
                     df_cli_vista = df_cli_vista[
@@ -816,21 +811,12 @@ def render_pestana_crm(client):
                 
                 ed_m = st.data_editor(
                     df_m_vista,
-                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "cliente_id": None, "Dueño": st.column_config.TextColumn("Dueño (Editar)", disabled=False), "Teléfono": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "sexo": st.column_config.SelectboxColumn("Sexo", options=["", "Macho", "Hembra"]), "peso": "Peso", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
-                    use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_mascotas", height=400
-                )
-                if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
-                    ed_m_clean = ed_m.drop(columns=["Ver"])
-                    ids_actuales = ed_m_clean['id'].dropna().tolist()
-                    ids_orig = df_m_vista['id'].tolist()
-                    for id_b in [i for i in ids_orig if i not in ids_actuales]: client.table("mascotas").delete().eq("id", id_b).execute()
-                    
-                    for _, row in ed_m_clean.iterrows():
-                        if pd.notna(row['id']):
-                            final_obs_edit = f"[Pref: {row['Pref']}] {row['observaciones']}".strip() if pd.notna(row.get('Pref')) and str(row.get('Pref')) != "Cualquiera" else str(row['observaciones'])
-                            client.table("mascotas").update({
-                                "nombre": str(row['nombre']), "especie": str(row['especie']), "sexo": str(row.get('sexo', '')),
-                                "raza": str(row['raza']), "peso": str(row.get('peso', '')), "fecha_nacimiento": str(row['fecha_nacimiento']),
+                    columnista,ción": st.column_config.DateColumn("F. Alta (Registro)", format="DD/MM/YYYY")},
+                   r hide_a
+                   plumns=d'
+                   ids_oriia
+                   i):fl_oem
+                    (row['ni'ex "raza": str(row['raza']), "peso": str(row.get('peso', '')), "fecha_nacimiento": str(row['fecha_nacimiento']),
                                 "observaciones": final_obs_edit
                             }).eq("id", row['id']).execute()
                             
@@ -1169,6 +1155,24 @@ def render_pestana_crm(client):
                     else:
                         st.success("No hay deudas registradas asociadas a clientes.")
                 else:
+                    st.success("¡Genial! Ningún cliente tiene pagos pendientes en el TPV.")
+            except Exception as e:
+                st.er
+                    st.success("¡Genial! Ningún cliente tiene pagos pendientes en el TPV.")
+            except Exception as e:
+                st.er
+                    st.success("¡Genial! Ningún cliente tiene pagos pendientes en el TPV.")
+            except Exception as e:
+                st.er
+                    st.success("¡Genial! Ningún cliente tiene pagos pendientes en el TPV.")
+            except Exception as e:
+                st.er
+                    st.success("¡Genial! Ningún cliente tiene pagos pendientes en el TPV.")
+            except Exception as e:
+                st.er
+                    st.success("¡Genial! Ningún cliente tiene pagos pendientes en el TPV.")
+            except Exception as e:
+                st.error(f"Error al cargar módulo de deudas: {e}")ror(f"Error al cargar módulo de deudas: {e}")ror(f"Error al cargar módulo de deudas: {e}")ror(f"Error al cargar módulo de deudas: {e}")ror(f"Error al cargar módulo de deudas: {e}")ror(f"Error al cargar módulo de deudas: {e}")
                     st.success("¡Genial! Ningún cliente tiene pagos pendientes en el TPV.")
             except Exception as e:
                 st.error(f"Error al cargar módulo de deudas: {e}")
