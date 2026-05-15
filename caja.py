@@ -128,14 +128,6 @@ def render_pestana_caja(client):
                 with c_cant: cant_mov = st.number_input("Euros €", min_value=0.01, step=0.01, value=None, format="%.2f")
                 motivo_mov = st.text_input("Motivo", placeholder="Ej: Pago proveedor, cambio...")
                 
-                conta_opt = st.selectbox("¿Enviar a Contabilidad? (Solo retiradas)", [
-                    "No (Solo movimiento de caja interno)", 
-                    "Sí, como Gasto (Limpieza, consumibles...)", 
-                    "Sí, como Servicio Exterior (Técnico, reparación...)",
-                    "Sí, como Impuestos y Tasas (Tributos...)",
-                    "Sí, como Pago a Proveedor (Mercancía)"
-                ], help="⚠️ ESCENARIO 1 (Factura nueva en mano): Elige 'Sí, como Pago a Proveedor'.\n⚠️ ESCENARIO 2 (Factura ya pendiente en sistema): Elige 'No', anota el Nº de Factura en el motivo para cuadrar la caja, y luego avisa para que se marque como Pagada en Facturación.")
-                
                 if st.form_submit_button("Registrar Movimiento", use_container_width=True):
                     # --- PROTECCIÓN DOBLE CLIC BACKEND ---
                     current_time = time.time()
@@ -147,22 +139,6 @@ def render_pestana_caja(client):
                         tipo_limpio = "Retirada" if "Retirada" in tipo_mov else "Ingreso"
                         client.table("movimientos_caja").insert({"id_caja": id_caja, "tipo": tipo_limpio, "cantidad": float(cant_mov), "motivo": motivo_mov}).execute()
                         
-                        if tipo_limpio == "Retirada" and "Sí" in conta_opt:
-                            from datetime import date
-                            if "Gasto" in conta_opt: cat = "Gastos de compra"
-                            elif "Servicio Exterior" in conta_opt: cat = "Servicios exteriores"
-                            elif "Impuestos y Tasas" in conta_opt: cat = "Impuestos y Tasas"
-                            else: cat = "Factura de Proveedor"
-                            
-                            client.table("compras").insert({
-                                "tipo": f"{cat} (Desde Caja) | {motivo_mov}",
-                                "total": float(cant_mov),
-                                "estado": "Pagado",
-                                "pagado": float(cant_mov),
-                                "pendiente": 0.0,
-                                "fecha_vencimiento": str(date.today())
-                            }).execute()
-                            
                         st.rerun()
             
             res_movs = client.table("movimientos_caja").select("id, created_at, tipo, cantidad, motivo").eq("id_caja", id_caja).execute()

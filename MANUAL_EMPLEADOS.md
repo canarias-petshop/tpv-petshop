@@ -74,9 +74,8 @@ Al abrir y cerrar la tienda, hay que llevar el control del dinero en metálico.
 - **Abrir Turno:** Ve a "Control de Caja". El sistema te sugerirá automáticamente el **Fondo Inicial** basado en lo que quedó la noche anterior. Revísalo físicamente y pulsa "Apertura de Turno".
 - **Gastos de Tienda (Ej. Fregasuelos, Proveedor en metálico):** Si sacas dinero del cajón para pagar algo:
   1. En el panel de "Entradas y Salidas", selecciona "Retirada".
-  2. Pon el importe y el motivo.
-  3. En "¿Enviar a Contabilidad?", elige la categoría exacta. 
-     - *⚠️ OJO con los Proveedores:* Si estás pagando una factura nueva en mano, elige "Sí, como Pago a Proveedor". Si estás pagando a plazos una **factura atrasada**, elige "No", anota el número de factura en el motivo y avisa al gerente para que la descuente de Pagos Pendientes.
+  2. Pon el importe y el motivo de forma muy clara y detallada (ej. "Pago a Zootecnia" o "Fregasuelos Mercadona").
+  3. Pulsa "Registrar Movimiento". (El gerente revisará tu Cierre Z para registrar las facturas y la contabilidad posteriormente).
 - **Cierre Z:** Al final del día, ve a la sección "Cierre de Turno (Arqueo Z)".
   - Usa la calculadora contando físicamente lo que hay en el cajón.
   - El sistema te dirá si cuadra. Además, te imprimirá un resumen con **lo cobrado en cada datáfono/banco individualmente**.

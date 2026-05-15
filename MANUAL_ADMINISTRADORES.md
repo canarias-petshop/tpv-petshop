@@ -45,7 +45,7 @@ Control de la relación con tus distribuidores y gestión de stock automático.
 Preparación fácil de los impuestos y libros contables.
 
 - **Gastos Puntuales vs Gastos Fijos:** Registra el alquiler, luz, nóminas y préstamos en "Gastos Fijos", indicando qué día del mes se cobran. Si pones el día 31, se ajustará solo a final de mes.
-- *Nota de Automatización:* Los gastos menores **los registran las empleadas directamente desde la Caja** al sacar el dinero físico, enviándose a Contabilidad automáticamente.
+- *Nota Operativa:* Revisa diariamente los Cierres Z (Caja). Si los empleados registraron retiradas en metálico con un motivo, deberás registrar tú manualmente la factura y el gasto en Contabilidad para saldarlo.
 - **Calendario Predictivo y Alertas:** Verás dividido lo que tienes que pagar **esta semana** y lo que tienes que pagar **este mes**, junto con un gráfico de esfuerzo económico.
 - **Exportación a Excel (Asesoría):** 
   - Usa el botón de **"Solo Facturas (IGIC)"**. Te generará un Excel con dos pestañas (Facturas Emitidas y Recibidas) descartando los "gastitos" de caja automáticamente.
