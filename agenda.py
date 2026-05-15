@@ -625,11 +625,24 @@ def render_pestana_agenda(client):
                 if "[ESTADO: Cancelada]" not in c.get("servicio", ""):
                     mascotas_con_cita.add(c["mascotas_id"])
         
-        res_m_alertas = client.table("mascotas").select("id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, metodo_contacto)").execute()
+        @st.cache_data(show_spinner=False)
+        def get_alertas_m_ag(v):
+            _all = []
+            _off = 0
+            while True:
+                _r = client.table("mascotas").select("id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, metodo_contacto)").range(_off, _off + 999).execute()
+                if _r.data:
+                    _all.extend(_r.data)
+                    if len(_r.data) < 1000: break
+                    _off += 1000
+                else: break
+            return _all
+            
+        m_alertas_data = get_alertas_m_ag(st.session_state.get('db_version', 0))
         
-        if res_m_alertas.data:
+        if m_alertas_data:
             alertas = []
-            for m in res_m_alertas.data:
+            for m in m_alertas_data:
                 if m['id'] in mascotas_con_cita: continue
                     
                 hist = m.get('historial_trabajos', [])
