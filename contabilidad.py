@@ -232,8 +232,18 @@ def render_pestana_contabilidad(client):
         fecha_fin_q = f"{f_hasta_inf}T23:59:59"
 
         # Mapa de categorías de productos para separar la lógica de IGIC
-        res_prod = client.table("productos").select("id, categoria").execute()
-        mapa_categorias = {str(p['id']): p.get('categoria', 'Producto') for p in res_prod.data} if res_prod.data else {}
+        res_prod = client.table("productos").select("id, nombre, categoria").execute()
+        mapa_categorias = {}
+        nombres_servicios_db = []
+        if res_prod.data:
+            for p in res_prod.data:
+                mapa_categorias[str(p['id'])] = p.get('categoria', 'Producto')
+                if p.get('categoria') == 'Servicio' and p.get('nombre'):
+                    n_serv = str(p['nombre']).strip().lower()
+                    # Filtramos nombres muy cortos por seguridad
+                    if len(n_serv) > 3: nombres_servicios_db.append(n_serv)
+                    
+        palabras_clave_serv = ['peluquer', 'corte', 'baño', 'lavado', 'arreglo', 'servicio', 'spa'] + nombres_servicios_db
 
         def safe_float(val, default=0.0):
             if val is None or val == "":
@@ -290,7 +300,7 @@ def render_pestana_contabilidad(client):
                             es_servicio = True
                         else:
                             nombre_item = str(p.get('Producto', p.get('Descripción', ''))).lower()
-                            if any(kw in nombre_item for kw in ['peluquer', 'corte', 'baño', 'lavado', 'arreglo', 'servicio', 'spa']):
+                            if any(kw in nombre_item for kw in palabras_clave_serv):
                                 es_servicio = True
                                 # Excepciones: si es un producto físico relacionado con estética, se queda como Producto (0%)
                                 if any(ex in nombre_item for ex in ['cepillo', 'peine', 'champú', 'champu', 'mascarilla', 'tijera', 'carda', 'cortaúñas', 'cortauñas', 'colonia', 'perfume']):
@@ -378,7 +388,7 @@ def render_pestana_contabilidad(client):
                             es_servicio = True
                         else:
                             nombre_item = str(p.get('Producto', p.get('Descripción', ''))).lower()
-                            if any(kw in nombre_item for kw in ['peluquer', 'corte', 'baño', 'lavado', 'arreglo', 'servicio', 'spa']):
+                            if any(kw in nombre_item for kw in palabras_clave_serv):
                                 es_servicio = True
                                 # Excepciones: si es un producto físico relacionado con estética, se queda como Producto (0%)
                                 if any(ex in nombre_item for ex in ['cepillo', 'peine', 'champú', 'champu', 'mascarilla', 'tijera', 'carda', 'cortaúñas', 'cortauñas', 'colonia', 'perfume']):
