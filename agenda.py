@@ -331,9 +331,9 @@ def render_pestana_agenda(client):
                 if df_citas.empty:
                     st.info("No hay citas próximas agendadas. Activa 'Mostrar citas pasadas' para ver el historial antiguo.")
                 else:
-                # Evitar que Streamlit oculte servicios antiguos que ya no coinciden con el catálogo
-                servicios_en_agenda = [s for s in df_citas["Servicio"].dropna().unique().tolist() if str(s).strip() != ""]
-                opciones_seguras_ag = servicios_lista + [s for s in servicios_en_agenda if s not in servicios_lista]
+                    # Evitar que Streamlit oculte servicios antiguos que ya no coinciden con el catálogo
+                    servicios_en_agenda = [s for s in df_citas["Servicio"].dropna().unique().tolist() if str(s).strip() != ""]
+                    opciones_seguras_ag = servicios_lista + [s for s in servicios_en_agenda if s not in servicios_lista]
 
                     ed_citas = st.data_editor(
                         df_citas[['Ver Ficha', 'Borrar', 'id', 'mascota_id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Observaciones', 'Mascota', 'Dueño', 'Teléfono', 'WhatsApp']],
@@ -348,7 +348,7 @@ def render_pestana_agenda(client):
                             "Hora": st.column_config.TextColumn("Hora", width="small"),
                             "Estado": st.column_config.SelectboxColumn("🎨 Estado", options=[f"{EMOJIS_ESTADO.get(e, '')} {e}" for e in ESTADOS_CITA], required=True),
                             "Peluquero/a": st.column_config.SelectboxColumn("👩‍🦰 Peluquero/a", options=["Sin Asignar"] + empleados_lista, required=True),
-                        "Servicio": st.column_config.SelectboxColumn("✂️ Servicio", options=opciones_seguras_ag, required=True),
+                            "Servicio": st.column_config.SelectboxColumn("✂️ Servicio", options=opciones_seguras_ag, required=True),
                             "Mascota": st.column_config.TextColumn(disabled=True),
                             "Dueño": st.column_config.TextColumn(disabled=True),
                             "Dirección": st.column_config.TextColumn(disabled=True),
