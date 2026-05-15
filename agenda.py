@@ -721,11 +721,14 @@ def render_pestana_agenda(client):
         
         hoy_str = str(date.today())
         # Buscamos citas confirmadas anteriores a hoy
-        res_citas_sin_hist = client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", hoy_str).like("servicio", "%[ESTADO: Confirmada]%").execute()
+        @st.cache_data(show_spinner=False)
+        def get_sin_hist_ag(v, h_str):
+            return client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", h_str).like("servicio", "%[ESTADO: Confirmada]%").execute().data
         
+        d_sin_hist = get_sin_hist_ag(st.session_state.get('db_version', 0), hoy_str)
         alertas = []
-        if res_citas_sin_hist.data:
-            for c in res_citas_sin_hist.data:
+        if d_sin_hist:
+            for c in d_sin_hist:
                 try:
                     dt_c_raw = pd.to_datetime(c['fecha_hora'])
                     dt_c = dt_c_raw.date()
