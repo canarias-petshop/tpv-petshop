@@ -180,6 +180,9 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
+*   **NUEVO HITO - Lector de Facturas por IA (OCR):** Integración de Procesamiento Inteligente de Documentos en la pestaña "Registrar Compra".
+    *   *Fase 1 (Auto-rellenado):* Conexión con la API de Google Gemini (Visión) para que lea fotos/PDFs de facturas y autocomplete el proveedor, productos, cantidades e importes solos.
+    *   *Fase 2 (Archivo Fiscal Físico):* Almacenamiento de las imágenes de las facturas. *Ventaja estratégica:* Al desplegar el sistema en un servidor local en la tienda (Docker), se utilizará el disco duro físico del ordenador, eliminando por completo los límites de espacio de la nube para archivar miles de documentos de forma gratuita.
 *   **PRIORIDAD ABSOLUTA - Gestor de Proyectos y Tareas:** Crear una pestaña centralizada para "Proyectos Internos" (a nivel de gerencia) y "Tareas de Empleados" (asignación de rutinas, checklist, notas y estados) para sustituir el uso caótico de WhatsApp y dejar todo el flujo de trabajo documentado en el ERP.
 *   **Bancos y Tesorería (EN CURSO):** Crear las cuentas "Revolut (Negocio)" (solo para pagos y ahorro, sin relación con datáfonos de TPV) y "Revolut (Nómina)" (cuenta exclusiva para transferencias de sueldo, aislada del pago a proveedores). Aislar estas cuentas de las opciones de cobro de caja.
 *   **Inventario:** Añadir control y alertas de **Fechas de Caducidad** para los productos perecederos.
