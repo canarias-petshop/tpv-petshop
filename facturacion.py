@@ -237,11 +237,118 @@ def render_pestana_facturacion(client):
         with st.container(border=True):
             col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
             with col_ia1:
-                archivo_factura = st.file_uploader("📸 Sube una foto o PDF de la factura", type=["jpg", "jpeg", "png", "pdf"], key="file_ia_compra")
+                archivo_factura = st.file_uploader("📸 Sube una foto de la factura (JPG/PNG)", type=["jpg", "jpeg", "png"], key="file_ia_compra")
             with col_ia2:
                 if st.button("✨ Auto-completar con IA", use_container_width=True, type="primary"):
                     if archivo_factura is not None:
-                        st.info("⏳ Archivo recibido. ¡Preparado para conectar con Gemini!")
+                        with st.spinner("🧠 Leyendo documento con Gemini IA... esto puede tardar unos segundos."):
+                            try:
+                                import google.generativeai as genai
+                                from PIL import Image
+                                import os
+                                
+                                if "gemini_api_key" not in st.secrets:
+                                    st.error("🔑 Falta la clave 'gemini_api_key' en secrets.toml")
+                                    st.stop()
+                                    
+                                genai.configure(api_key=st.secrets["gemini_api_key"])
+                                model = genai.GenerativeModel('gemini-1.5-flash')
+                                
+                                img = Image.open(archivo_factura)
+                                
+                                prompt = """
+                                Eres un contable experto. Extrae los datos de esta imagen de factura y devuélvelos ESTRICTAMENTE en este formato JSON, sin texto adicional ni markdown:
+                                {
+                                  "numero_factura": "12345",
+                                  "fecha_factura": "YYYY-MM-DD",
+                                  "nombre_proveedor": "Nombre de la Empresa",
+                                  "articulos": [
+                                    {
+                                      "descripcion": "Nombre del articulo",
+                                      "cantidad": 1,
+                                      "precio_base": 12.50,
+                                      "igic_porcentaje": 7.0,
+                                      "fecha_caducidad": "YYYY-MM-DD"
+                                    }
+                                  ]
+                                }
+                                Si no encuentras un dato o IGIC, pon 0 o déjalo vacío (""). Si no hay caducidad explícita, usa null.
+                                """
+                                response = model.generate_content([prompt, img])
+                                
+                                res_text = response.text.strip()
+                                if res_text.startswith("```json"): res_text = res_text[7:]
+                                elif res_text.startswith("```"): res_text = res_text[3:]
+                                if res_text.endswith("```"): res_text = res_text[:-3]
+                                
+                                datos_ia = json.loads(res_text.strip())
+                                
+                                def parse_float_ia(val):
+                                    try:
+                                        if isinstance(val, str): val = val.replace(',', '.')
+                                        return float(val)
+                                    except: return 0.0
+                                
+                                # Auto-completar campos de cabecera
+                                if datos_ia.get("numero_factura"): st.session_state["fac_prov_n"] = datos_ia["numero_factura"]
+                                try:
+                                    if datos_ia.get("fecha_factura"): st.session_state["fac_prov_f"] = datetime.strptime(datos_ia["fecha_factura"], "%Y-%m-%d").date()
+                                except: pass
+                                
+                                # Intentar enlazar Proveedor inteligente
+                                prov_ia = datos_ia.get("nombre_proveedor", "").lower()
+                                if prov_ia:
+                                    for p_oficial in df_prov['nombre_empresa'].tolist():
+                                        if prov_ia in p_oficial.lower() or p_oficial.lower() in prov_ia:
+                                            st.session_state["sel_prov_ia_tmp"] = p_oficial
+                                            break
+                                
+                                # Volcar artículos a la tabla
+                                st.session_state.compra_temp = []
+                                for art in datos_ia.get("articulos", []):
+                                    desc = art.get("descripcion", "Artículo desconocido")
+                                    cant = int(parse_float_ia(art.get("cantidad", 1)) or 1)
+                                    p_base = parse_float_ia(art.get("precio_base", 0.0))
+                                    igic = parse_float_ia(art.get("igic_porcentaje", 0.0))
+                                    cad = art.get("fecha_caducidad")
+                                    
+                                    # Intentar cruzar con Inventario
+                                    if not df_inv.empty: match = df_inv[df_inv['nombre'].astype(str).str.lower() == desc.lower()]
+                                    else: match = pd.DataFrame()
+                                        
+                                    if not match.empty:
+                                        item = match.iloc[0]
+                                        st.session_state.compra_temp.append({
+                                            "id": str(item['id']), "Código": item['sku'], "Descripción": item['nombre'],
+                                            "Cantidad": cant, "Base Ud": p_base, "IGIC %": igic, "Desc %": 0.0, "PVP (€)": float(item.get('precio_pvp', 0.0)),
+                                            "Caducidad": cad if cad else None
+                                        })
+                                    else:
+                                        st.session_state.compra_temp.append({
+                                            "id": "0", "Código": "---", "Descripción": desc,
+                                            "Cantidad": cant, "Base Ud": p_base, "IGIC %": igic, "Desc %": 0.0, "PVP (€)": 0.0,
+                                            "Caducidad": cad if cad else None
+                                        })
+                                        
+                                # Archivo Fiscal Físico (Guardar foto en local)
+                                try:
+                                    carpeta_facturas = os.path.join("Facturas_Guardadas", str(datetime.now().year), f"{datetime.now().month:02d}")
+                                    os.makedirs(carpeta_facturas, exist_ok=True)
+                                    n_prov_archivo = datos_ia.get("nombre_proveedor", "Acreedor").replace(" ", "_").replace("/", "-")
+                                    n_fac_archivo = datos_ia.get("numero_factura", "SinNum").replace("/", "-")
+                                    ruta_img = os.path.join(carpeta_facturas, f"{n_prov_archivo}_{n_fac_archivo}_{int(time.time())}.jpg")
+                                    img.convert('RGB').save(ruta_img, "JPEG")
+                                except Exception as e:
+                                    pass # Fallo silencioso si no hay permisos de disco
+                                    
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success("✅ ¡Factura leída y archivo guardado!")
+                                time.sleep(1.5)
+                                st.rerun()
+                            except ImportError:
+                                st.error("🚨 Faltan librerías. Abre tu consola y ejecuta: pip install google-generativeai pillow")
+                            except Exception as e:
+                                st.error(f"❌ Error leyendo factura: {e}")
                     else:
                         st.warning("⚠️ Sube una imagen o PDF primero.")
         
@@ -254,7 +361,12 @@ def render_pestana_facturacion(client):
         
         with st.expander(" 🚚  Seleccionar / Crear Proveedor", expanded=True):
             p_opc = df_prov['nombre_empresa'].tolist() if not df_prov.empty else []
-            sel_p = st.selectbox("Selecciona el Proveedor:", p_opc, index=None, placeholder="Escribe el nombre del proveedor...")
+            
+            def_prov_idx = None
+            if "sel_prov_ia_tmp" in st.session_state and st.session_state["sel_prov_ia_tmp"] in p_opc:
+                def_prov_idx = p_opc.index(st.session_state["sel_prov_ia_tmp"])
+                
+            sel_p = st.selectbox("Selecciona el Proveedor:", p_opc, index=def_prov_idx, placeholder="Escribe el nombre del proveedor...")
             with st.form("form_nuevo_proveedor_rapido", clear_on_submit=True):
                 np1, np2 = st.columns(2); n_emp_new = np1.text_input("Nombre Empresa*"); n_cif_new = np2.text_input("CIF")
                 if st.form_submit_button("➕ Crear Nuevo Proveedor"):
