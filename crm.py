@@ -257,7 +257,7 @@ def render_pestana_crm(client):
                             minutos_calc = df_save.at[idx, 'Duración (min)']
                             
                             # Cálculo proporcional si el servicio es por hora (incluye palabras clave)
-                            es_por_hora = any(kw in str(srv).lower() for kw in ["hora", "agresivos", "nerviosos"])
+                            es_por_hora = any(kw in str(srv).lower() for kw in ["hora", "agresivos", "nerviosos", "extra nudos"])
                             
                             if es_por_hora and pd.notnull(minutos_calc) and float(minutos_calc) > 0:
                                 precio_base = round((precio_cat / 60) * float(minutos_calc), 2)

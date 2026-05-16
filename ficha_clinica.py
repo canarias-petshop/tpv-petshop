@@ -167,7 +167,7 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
                     minutos_calc = df_save.at[idx, 'Duración (min)']
                     
                     # Cálculo proporcional si el servicio es por hora (incluye palabras clave)
-                    es_por_hora = any(kw in str(srv).lower() for kw in ["hora", "agresivos", "nerviosos"])
+                    es_por_hora = any(kw in str(srv).lower() for kw in ["hora", "agresivos", "nerviosos", "extra nudos"])
                     
                     if es_por_hora and pd.notnull(minutos_calc) and float(minutos_calc) > 0:
                         precio_base = round((precio_cat / 60) * float(minutos_calc), 2)
