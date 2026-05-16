@@ -68,7 +68,7 @@ def render_pestana_inventario(client):
                     st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
 
     with col_t:
-            @st.cache_data(show_spinner=False)
+            @st.cache_data(show_spinner=False, ttl=15)
             def get_inv_full(v):
                 _all = []
                 _off = 0

@@ -32,7 +32,7 @@ def render_pestana_tpv(client):
     col_busqueda, col_carrito = st.columns([1, 1.4], gap="small")
     
     with col_busqueda:
-        @st.cache_data(show_spinner=False)
+        @st.cache_data(show_spinner=False, ttl=15)
         def get_inv_tpv(v):
             _all = []
             _off = 0

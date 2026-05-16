@@ -4,7 +4,7 @@ from datetime import date, timedelta
 import time
 import urllib.parse
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=15)
 def get_masc_ag_cached(_client, v):
     _all = []
     _off = 0
@@ -17,7 +17,7 @@ def get_masc_ag_cached(_client, v):
         else: break
     return _all
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=15)
 def get_citas_ag_cached(_client, v):
     _all = []
     _off = 0
@@ -30,11 +30,11 @@ def get_citas_ag_cached(_client, v):
         else: break
     return _all
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=15)
 def get_masc_info_cached(_client, v, mid):
     return _client.table("mascotas").select("*").eq("id", mid).execute().data
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=15)
 def get_alertas_m_ag_cached(_client, v):
     _all = []
     _off = 0
@@ -47,19 +47,19 @@ def get_alertas_m_ag_cached(_client, v):
         else: break
     return _all
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=15)
 def get_manana_ag_cached(_client, v, m_ini, m_fin):
     return _client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto, direccion, servicio_domicilio))").gte("fecha_hora", m_ini).lte("fecha_hora", m_fin).execute().data
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=15)
 def get_futuras_ag_cached(_client, v, h_str):
     return _client.table("citas").select("mascotas_id, servicio").gte("fecha_hora", h_str).execute().data
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=15)
 def get_canc_ag_cached(_client, v):
     return _client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").like("servicio", "%[ESTADO: Cancelada]%").order("fecha_hora", desc=True).limit(200).execute().data
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=15)
 def get_sin_hist_ag_cached(_client, v, h_str):
     return _client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", h_str).like("servicio", "%[ESTADO: Confirmada]%").execute().data
 

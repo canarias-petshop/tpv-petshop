@@ -16,7 +16,7 @@ def render_pestana_facturacion(client):
         " 💸  Pagos Pendientes"
     ])
     
-    @st.cache_data(show_spinner=False)
+    @st.cache_data(show_spinner=False, ttl=15)
     def get_inv_fac(v):
         _all = []
         _off = 0
@@ -32,7 +32,7 @@ def render_pestana_facturacion(client):
     all_inv = get_inv_fac(st.session_state.get('db_version', 0))
     df_inv = pd.DataFrame(all_inv) if all_inv else pd.DataFrame()
     
-    @st.cache_data(show_spinner=False)
+    @st.cache_data(show_spinner=False, ttl=15)
     def get_cli_fac(v):
         _all = []
         _off = 0

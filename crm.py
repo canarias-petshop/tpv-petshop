@@ -490,7 +490,7 @@ def render_pestana_crm(client):
         sub_cli, sub_masc, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "💸 Pagos Pendientes"])
         
         with sub_cli:
-            @st.cache_data(show_spinner=False)
+            @st.cache_data(show_spinner=False, ttl=15)
             def get_cli_crm(v):
                 _all = []
                 _off = 0
@@ -760,7 +760,7 @@ def render_pestana_crm(client):
                         st.warning("Falta el nombre de la mascota.")
                         
         with sub_masc:
-            @st.cache_data(show_spinner=False)
+            @st.cache_data(show_spinner=False, ttl=15)
             def get_masc_crm(v):
                 _all = []
                 _off = 0
