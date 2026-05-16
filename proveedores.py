@@ -42,6 +42,7 @@ def render_pestana_proveedores(client):
                             "frecuencia_reparto": n_frec, "hora_limite": n_hora,
                             "pedido_minimo": float(n_min)
                         }).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.success("Guardado"); time.sleep(0.5); st.rerun()
         with cp2:
             st.markdown("#### 📋 Directorio")
@@ -79,6 +80,7 @@ def render_pestana_proveedores(client):
                             client.table("productos_proveedores").delete().eq("proveedor_id", row['id']).execute()
                             client.table("pedidos_proveedores").delete().eq("proveedor_id", row['id']).execute()
                             client.table("proveedores").delete().eq("id", row['id']).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.success("Proveedor(es) eliminado(s) correctamente."); time.sleep(1.5); st.rerun()
 
                 if st.button("💾 Guardar Cambios Rápidos", type="primary"):
@@ -89,6 +91,7 @@ def render_pestana_proveedores(client):
                                 "nombre_empresa": str(row['nombre_empresa']),
                                 "telefono": str(row['telefono']), "movil": str(row.get('movil', '')), "email": str(row['email'])
                             }).eq("id", row['id']).execute()
+                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.success("Directorio actualizado."); time.sleep(0.5); st.rerun()
                     
         # --- FICHA COMPLETA DEL PROVEEDOR ---
@@ -152,6 +155,7 @@ def render_pestana_proveedores(client):
                                 "pedido_minimo": float(f_min),
                                 "contacto": "" # Borramos la línea antigua ya que se ha organizado
                             }).eq("id", p_id).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.success("Ficha del proveedor actualizada correctamente."); time.sleep(0.5); st.rerun()
                         else:
                             st.error("El nombre de la empresa es obligatorio.")
@@ -261,6 +265,7 @@ def render_pestana_proveedores(client):
                                         client.table("pedidos_proveedores").update({"productos": prods_act}).eq("id", draft_id).execute()
                                     else:
                                         client.table("pedidos_proveedores").insert({"proveedor_id": p_id, "estado": "Borrador", "productos": prods}).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 st.success("✅ ¡Borradores generados con éxito! Revísalos abajo."); time.sleep(1.5); st.rerun()
                             else:
                                 st.error("❌ Ninguno de los productos seleccionados tiene un proveedor asociado.")
@@ -279,6 +284,7 @@ def render_pestana_proveedores(client):
                 sel_prov_ped = st.selectbox("Selecciona Proveedor para abrir pedido", list(dict_pp.keys()))
                 if st.button("Crear Nuevo Borrador", use_container_width=True):
                     client.table("pedidos_proveedores").insert({"proveedor_id": dict_pp[sel_prov_ped], "estado": "Borrador", "productos": []}).execute()
+                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.rerun()
                     
             with cp_b:
@@ -316,12 +322,14 @@ def render_pestana_proveedores(client):
                         if st.button("🚨 CONFIRMAR ELIMINACIÓN", type="primary", use_container_width=True):
                             for idx, row in filas_borrar.iterrows():
                                 client.table("pedidos_proveedores").delete().eq("id", row['id']).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.success("Pedido(s) eliminado(s) correctamente."); time.sleep(1); st.rerun()
                             
                     if st.button("💾 Guardar Estados de Pedidos"):
                         filas_validas = ed_ped[ed_ped["Borrar"] == False]
                         for _, r in filas_validas.iterrows():
                             client.table("pedidos_proveedores").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.rerun()
                         
                     # Mostrar detalle del pedido marcado
@@ -352,6 +360,7 @@ def render_pestana_proveedores(client):
                                 df_clean = ed_prods_ped.dropna(subset=['Producto'])
                                 df_clean = df_clean[df_clean['Producto'].astype(str).str.strip() != ""]
                                 client.table("pedidos_proveedores").update({"productos": json.loads(df_clean.to_json(orient='records'))}).eq("id", ped_id).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 st.success("Borrador actualizado"); time.sleep(0.5); st.rerun()
                         with c_pbtn2:
                             df_clean_email = ed_prods_ped.dropna(subset=['Producto'])
@@ -378,6 +387,7 @@ def render_pestana_proveedores(client):
                                                 if not any(item.get('Producto') == p_nom for item in lista_prods_ped):
                                                     lista_prods_ped.append({"Producto": p_nom, "Cantidad": 1})
                                             client.table("pedidos_proveedores").update({"productos": lista_prods_ped}).eq("id", ped_id).execute()
+                                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                             st.success("¡Añadidos!"); time.sleep(1); st.rerun()
                                         else:
                                             st.warning("Selecciona algún producto.")
@@ -395,6 +405,7 @@ def render_pestana_proveedores(client):
                                     if m_prod:
                                         lista_prods_ped.append({"Producto": m_prod, "Cantidad": m_cant})
                                         client.table("pedidos_proveedores").update({"productos": lista_prods_ped}).eq("id", ped_id).execute()
+                                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                         st.success("Añadido."); time.sleep(0.5); st.rerun()
                                     else:
                                         st.warning("Escribe el nombre.")

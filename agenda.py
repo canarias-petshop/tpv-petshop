@@ -319,6 +319,7 @@ def render_pestana_agenda(client):
                                 "servicio": servicio_final, "duracion_minutos": int(duracion_c),
                                 "observaciones": str(f_obs)
                             }).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.success("Cita agendada."); time.sleep(1); st.rerun()
 
         with c_agenda2:
@@ -435,6 +436,7 @@ def render_pestana_agenda(client):
                                         "servicio": srv_final,
                                         "observaciones": str(row.get('Observaciones', ''))
                                     }).eq("id", row['id']).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.success("Agenda actualizada."); time.sleep(0.8); st.rerun()
                         
                     # LÓGICA VER FICHA

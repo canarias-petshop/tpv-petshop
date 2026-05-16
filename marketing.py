@@ -57,6 +57,7 @@ def render_pestana_marketing(client):
                                     "tema": m_tema, "estado": m_estado,
                                     "contenido_detallado": m_contenido
                                 }).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 st.success("Añadido al plan anual."); time.sleep(1); st.rerun()
                             except Exception as e:
                                 st.error("⚠️ Ejecuta primero el código SQL en Supabase.")
@@ -106,6 +107,7 @@ def render_pestana_marketing(client):
                                 "estado": rv['estado'], "tema": rv['tema'],
                                 "contenido_detallado": str(rv['contenido_detallado'])
                             }).eq("id", rv['id']).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.success("Plan actualizado."); time.sleep(0.5); st.rerun()
                 else:
                     st.info("El calendario de marketing está vacío. ¡Empieza a planificar tus campañas para adelantarte a las ventas!")
@@ -137,6 +139,7 @@ def render_pestana_marketing(client):
                                     "titulo": e_titulo, "fecha": str(e_fecha), "hora": e_hora,
                                     "plazas_totales": int(e_plazas), "precio": float(e_precio), "descripcion": e_desc
                                 }).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 st.success("Evento creado en el calendario."); time.sleep(1); st.rerun()
                             except Exception as e:
                                 st.error("⚠️ Ejecuta el código SQL en Supabase primero.")
@@ -176,6 +179,7 @@ def render_pestana_marketing(client):
                                 if cli_sel:
                                     try:
                                         client.table("eventos_asistentes").insert({"evento_id": ev_id, "cliente_id": dict_cli[cli_sel], "pagado": False}).execute()
+                                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                         st.success("Inscrito correctamente."); time.sleep(0.5); st.rerun()
                                     except: st.error("Este cliente ya estaba inscrito.")
                                     
@@ -195,6 +199,7 @@ def render_pestana_marketing(client):
                             if st.button("💾 Guardar Cambios en la Lista de Asistentes", type="primary"):
                                 for _, rb in ed_a[ed_a["Quitar"] == True].iterrows(): client.table("eventos_asistentes").delete().eq("id", rb['id']).execute()
                                 for _, rg in ed_a[ed_a["Quitar"] == False].iterrows(): client.table("eventos_asistentes").update({"pagado": bool(rg['Reserva Pagada'])}).eq("id", rg['id']).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 st.rerun()
                 else:
                     st.info("No hay eventos programados. Rellena el formulario de la izquierda para crear el primero.")

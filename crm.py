@@ -325,6 +325,7 @@ def render_pestana_crm(client):
                     "observaciones": final_obs
                 }).eq("id", m_id).execute()
                 
+                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                 st.success("Historial y notas actualizados correctamente."); time.sleep(0.5); st.rerun()
                 
             st.markdown("---")
@@ -483,6 +484,7 @@ def render_pestana_crm(client):
                             "mascotas_id": m_id, "fecha_hora": f"{f_fecha} {hora_final_str}", 
                             "servicio": servicio_final, "duracion_minutos": int(f_dur)
                         }).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
         sub_cli, sub_masc, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "💸 Pagos Pendientes"])
@@ -926,6 +928,7 @@ def render_pestana_crm(client):
                                     "detalle_pedido": f"{e_cant}x {e_prod}",
                                     "notas": e_obs, "estado": "Pendiente"
                                 }).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 st.success("Encargo guardado."); time.sleep(0.5); st.rerun()
                             except Exception as e:
                                 st.error("Error al guardar en la base de datos.")
@@ -986,6 +989,7 @@ def render_pestana_crm(client):
                                     client.table("encargos_clientes").update({
                                         "estado": str(r['estado']), "notas": str(r['notas'])
                                     }).eq("id", r['id']).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.rerun()
                     else: st.info("No hay encargos activos.")
                 except Exception as e: st.warning(f"Error al cargar encargos: {e}")
@@ -1164,6 +1168,7 @@ def render_pestana_crm(client):
                                                     c_pts = res_cli.data[0].get('puntos', 0)
                                                     client.table("clientes").update({"puntos": c_pts + puntos_ganados_total}).eq("id", c_id).execute()
                                                     
+                                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                             msg_succ = f"¡Abono de {cantidad_abonar:.2f}€ registrado! Puntos ganados: {puntos_ganados_total}."
                                             st.success(msg_succ); time.sleep(2); st.rerun()
                     else:
