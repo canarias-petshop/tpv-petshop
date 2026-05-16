@@ -262,12 +262,17 @@ def render_pestana_facturacion(client):
                                   "numero_factura": "12345",
                                   "fecha_factura": "YYYY-MM-DD",
                                   "nombre_proveedor": "Nombre de la Empresa",
+                                  "descuento_pronto_pago_porcentaje": 0.0,
                                   "articulos": [
                                     {
                                       "descripcion": "Nombre del articulo",
+                                      "codigo_referencia_o_barras": "12345678",
                                       "cantidad": 1,
                                       "precio_base": 12.50,
                                       "igic_porcentaje": 7.0,
+                                      "descuento_porcentaje": 0.0,
+                                      "precio_pvp": 15.50,
+                                      "lote": "L-1234",
                                       "fecha_caducidad": "YYYY-MM-DD"
                                     }
                                   ]
@@ -295,6 +300,8 @@ def render_pestana_facturacion(client):
                                     if datos_ia.get("fecha_factura"): st.session_state["fac_prov_f"] = datetime.strptime(datos_ia["fecha_factura"], "%Y-%m-%d").date()
                                 except: pass
                                 
+                                st.session_state["ia_dto_pp"] = parse_float_ia(datos_ia.get("descuento_pronto_pago_porcentaje", 0.0))
+                                
                                 # Intentar enlazar Proveedor inteligente
                                 prov_ia = datos_ia.get("nombre_proveedor", "").lower()
                                 if prov_ia:
@@ -310,29 +317,76 @@ def render_pestana_facturacion(client):
                                     cant = int(parse_float_ia(art.get("cantidad", 1)) or 1)
                                     p_base = parse_float_ia(art.get("precio_base", 0.0))
                                     igic = parse_float_ia(art.get("igic_porcentaje", 0.0))
+                                    desc_linea = parse_float_ia(art.get("descuento_porcentaje", 0.0))
+                                    pvp_ia = parse_float_ia(art.get("precio_pvp", 0.0))
+                                    ref_barras = art.get("codigo_referencia_o_barras", "")
+                                    lote = art.get("lote", "")
                                     cad = art.get("fecha_caducidad")
                                     
                                     # Intentar cruzar con Inventario
                                     if not df_inv.empty: match = df_inv[df_inv['nombre'].astype(str).str.lower() == desc.lower()]
+                                    if not df_inv.empty: 
+                                        term = desc.lower().strip()
+                                        match = df_inv[df_inv['nombre'].astype(str).str.lower() == term]
+                                        if match.empty:
+                                            match = df_inv[df_inv['nombre'].astype(str).str.lower().str.contains(term, regex=False, na=False)]
                                     else: match = pd.DataFrame()
                                         
                                     if not match.empty:
                                         item = match.iloc[0]
+                                        pvp_final = float(item.get('precio_pvp', 0.0))
+                                        if pvp_final == 0.0 and pvp_ia > 0.0: pvp_final = pvp_ia
+                                            
                                         st.session_state.compra_temp.append({
                                             "id": str(item['id']), "Código": item['sku'], "Descripción": item['nombre'],
-                                            "Cantidad": cant, "Base Ud": p_base, "IGIC %": igic, "Desc %": 0.0, "PVP (€)": float(item.get('precio_pvp', 0.0)),
+                                            "Cantidad": cant, "Base Ud": p_base, "IGIC %": igic, "Desc %": desc_linea, "PVP (€)": pvp_final,
+                                            "Lote": lote,
                                             "Caducidad": cad if cad else None
                                         })
                                     else:
+                                        # AUTO-CREACIÓN INTELIGENTE DE PRODUCTO CON SKU CORRELATIVO (2 LETRAS)
+                                        letras = ''.join([c for c in desc if c.isalpha()]).upper()
+                                        prefijo = letras[:2] if len(letras) >= 2 else (letras + "X" if letras else "XX")
+                                        
+                                        res_sku = client.table("productos").select("sku").like("sku", f"{prefijo}-%").execute()
+                                        max_num = 0
+                                        if res_sku.data:
+                                            for s in res_sku.data:
+                                                try:
+                                                    num = int(s['sku'].split("-")[1])
+                                                    if num > max_num: max_num = num
+                                                except: pass
+                                        nuevo_sku = f"{prefijo}-{max_num + 1:03d}"
+                                        
+                                        res_new = client.table("productos").insert({
+                                            "nombre": desc, "sku": nuevo_sku, "codigo_barras": ref_barras,
+                                            "precio_base": p_base, "igic_tipo": igic, "precio_pvp": pvp_ia,
+                                            "categoria": "Producto", "stock_actual": 0, "stock_minimo": 2, "cantidad_reponer": 5
+                                        }).execute()
+                                        
+                                        nuevo_id = "0"
+                                        if res_new.data:
+                                            nuevo_id = str(res_new.data[0]['id'])
+                                            if "sel_prov_ia_tmp" in st.session_state and st.session_state["sel_prov_ia_tmp"]:
+                                                try:
+                                                    p_id_sel = df_prov[df_prov['nombre_empresa'] == st.session_state["sel_prov_ia_tmp"]].iloc[0]['id']
+                                                    client.table("productos_proveedores").insert({
+                                                        "producto_id": int(nuevo_id), "proveedor_id": p_id_sel, "precio_coste": p_base
+                                                    }).execute()
+                                                except: pass
+                                                
                                         st.session_state.compra_temp.append({
-                                            "id": "0", "Código": "---", "Descripción": desc,
-                                            "Cantidad": cant, "Base Ud": p_base, "IGIC %": igic, "Desc %": 0.0, "PVP (€)": 0.0,
+                                            "id": nuevo_id, "Código": nuevo_sku, "Descripción": desc,
+                                            "Cantidad": cant, "Base Ud": p_base, "IGIC %": igic, "Desc %": desc_linea, "PVP (€)": pvp_ia,
+                                            "Lote": lote,
                                             "Caducidad": cad if cad else None
                                         })
                                         
                                 # Archivo Fiscal Físico (Guardar foto en local)
                                 try:
                                     carpeta_facturas = os.path.join("Facturas_Guardadas", str(datetime.now().year), f"{datetime.now().month:02d}")
+                                    RUTA_BASE_FACTURAS = r"D:\animalarium\Mis facturas digitales"
+                                    carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
                                     os.makedirs(carpeta_facturas, exist_ok=True)
                                     n_prov_archivo = datos_ia.get("nombre_proveedor", "Acreedor").replace(" ", "_").replace("/", "-")
                                     n_fac_archivo = datos_ia.get("numero_factura", "SinNum").replace("/", "-")
@@ -457,7 +511,7 @@ def render_pestana_facturacion(client):
                         st.session_state.compra_temp.append({
                             "id": str(nuevo_id), "Código": m_sku if m_sku else "---", "Descripción": m_nom,
                             "Cantidad": m_cant, "Base Ud": float(m_base_val), "IGIC %": float(m_igic), "Desc %": 0.0, "PVP (€)": float(m_pvp_val),
-                            "Caducidad": str(m_cad) if m_cad else None
+                            "Lote": "", "Caducidad": str(m_cad) if m_cad else None
                         })
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.success("Artículo añadido a la factura."); time.sleep(0.5); st.rerun()
@@ -468,6 +522,7 @@ def render_pestana_facturacion(client):
             # Protección por si hay carritos guardados antes de esta actualización
             for x in st.session_state.compra_temp:
                 if 'PVP (€)' not in x: x['PVP (€)'] = 0.0
+                if 'Lote' not in x: x['Lote'] = ""
                 if 'Caducidad' not in x: x['Caducidad'] = None
                 
             df_c = pd.DataFrame(st.session_state.compra_temp)
@@ -483,13 +538,14 @@ def render_pestana_facturacion(client):
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
                     "PVP (€)": st.column_config.NumberColumn("PVP Público (€)", format="%.2f", step=0.01),
+                    "Lote": st.column_config.TextColumn("Lote"),
                     "Caducidad": st.column_config.DateColumn("F. Caducidad", format="DD/MM/YYYY"),
                     "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f", step=0.01),
                     "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f", step=0.01)
                 }
             )
             
-            nuevos_datos = df_c_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %', 'PVP (€)', 'Caducidad']].to_dict('records')
+            nuevos_datos = df_c_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %', 'PVP (€)', 'Lote', 'Caducidad']].to_dict('records')
             if nuevos_datos != st.session_state.compra_temp:
                 st.session_state.compra_temp = nuevos_datos; st.rerun()
                 
@@ -497,6 +553,8 @@ def render_pestana_facturacion(client):
             t_igic_c = df_c['IGIC €'].sum()
             suma_articulos_c = df_c['Total Línea'].sum()
             desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", 0.0, 100.0, value=None, step=0.01, format="%.2f")
+            val_pp_ia = st.session_state.get("ia_dto_pp", None)
+            desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", 0.0, 100.0, value=val_pp_ia, step=0.01, format="%.2f")
             
             desc_pp_val = float(desc_pp or 0.0)
             total_con_pp = suma_articulos_c * (1 - desc_pp_val / 100)
@@ -535,6 +593,8 @@ def render_pestana_facturacion(client):
                                 }
                                 if i.get('Caducidad') and str(i['Caducidad']).strip() not in ["None", ""]:
                                     datos_update["fecha_caducidad"] = str(i['Caducidad'])
+                                if i.get('Lote') and str(i['Lote']).strip() not in ["None", ""]:
+                                    datos_update["lote"] = str(i['Lote'])
                                     
                                 client.table("productos").update(datos_update).eq("id", i['id']).execute()
                                 # Actualizamos el precio de coste del proveedor específico
