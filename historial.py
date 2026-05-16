@@ -200,9 +200,14 @@ def render_pestana_historial(client):
                                 # Lógica de devolución (la que ya tenías)
                                 for p in prods:
                                     if not p.get('Manual', False) and 'id' in p:
-                                        res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
-                                        if res_p.data:
-                                            client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
+                                        if str(p['id']).startswith('cita_'):
+                                            continue
+                                        try:
+                                            res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                            if res_p.data:
+                                                client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
+                                        except Exception:
+                                            pass
                                 
                                 # Revertir puntos si era cliente VIP
                                 cliente_vip = str(t_info.get('cliente_vip_nombre', ''))

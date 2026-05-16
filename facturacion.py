@@ -212,8 +212,13 @@ def render_pestana_facturacion(client):
                     }).execute()
                     for i in st.session_state.factura_v_temp:
                         if str(i.get('id', '0')) != '0' and str(i.get('id')) != 'None':
-                            res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
-                            if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
+                            if str(i['id']).startswith('cita_'):
+                                continue
+                            try:
+                                res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                                if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
+                            except Exception:
+                                pass
                     
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.session_state.factura_v_temp = []; st.success("Factura guardada correctamente."); time.sleep(1); st.rerun()

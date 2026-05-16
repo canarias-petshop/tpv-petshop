@@ -145,9 +145,17 @@ def render_pestana_tpv(client):
                         
                         if not df_inv.empty:
                             term = s_clean.strip().lower()
-                            match = df_inv[df_inv['nombre'].str.strip().str.lower() == term]
+                            match = df_inv[df_inv['nombre'].astype(str).str.strip().str.lower() == term]
                             if match.empty:
-                                match = df_inv[df_inv['nombre'].str.lower().str.contains(term, regex=False, na=False)]
+                                match = df_inv[df_inv['nombre'].astype(str).str.lower().str.contains(term, regex=False, na=False)]
+                                
+                            if match.empty:
+                                # Búsqueda inversa: Para citas antiguas largas vs catálogo corto
+                                for idx, row in df_inv.iterrows():
+                                    cat_nom = str(row['nombre']).strip().lower()
+                                    if cat_nom and cat_nom in term:
+                                        match = pd.DataFrame([row])
+                                        break
                             
                             if not match.empty:
                                 pvp_raw = match.iloc[0]['precio_pvp']
@@ -631,10 +639,15 @@ def render_pestana_tpv(client):
                             
                             for i in carrito_limpio:
                                 if not i.get('Manual', False) and 'id' in i:
-                                    res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
-                                    if res.data:
-                                        n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
-                                        client.table("productos").update({"stock_actual": n_stock}).eq("id", i['id']).execute()
+                                    if str(i['id']).startswith('cita_'):
+                                        continue
+                                    try:
+                                        res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                                        if res.data:
+                                            n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
+                                            client.table("productos").update({"stock_actual": n_stock}).eq("id", i['id']).execute()
+                                    except Exception:
+                                        pass
                             
                             st.session_state.ticket_actual = {
                                 "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
