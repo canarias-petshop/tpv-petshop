@@ -165,39 +165,82 @@ def render_pestana_tpv(client):
                                 s_clean = match.iloc[0]['nombre'] # Rescata el nombre oficial limpio del catálogo
                         
                         hist = masc.get('historial_trabajos', [])
-                        aplica_desc = False
                         hoy_str_hist = hoy_date.strftime("%d/%m/%Y")
-                        if isinstance(hist, list):
-                            fechas_previas = []
-                            for t in hist:
-                                f_str = t.get('Fecha')
-                                if f_str and f_str != hoy_str_hist:
-                                    try: fechas_previas.append(pd.to_datetime(f_str, format="%d/%m/%Y").date())
-                                    except: pass
-                            if fechas_previas:
-                                ult_visita = max(fechas_previas)
-                                if (hoy_date - ult_visita).days <= 60:
-                                    aplica_desc = True
-                                    
-                        # REDISEÑO DEL BOTÓN
-                        precio_mostrar = precio_final * 0.90 if aplica_desc else precio_final
-                        btn_label = f"🐾 {masc['nombre']} ➔ ✂️ {s_clean} ({precio_mostrar:.2f}€)"
-                        if aplica_desc: btn_label += " 🎁 Dto 10%"
                         
-                        if st.button(btn_label, use_container_width=True, key=f"btn_cita_{c['id']}_{st.session_state.llave_busqueda_tpv}"):
-                            desc_pct = 10.0 if aplica_desc else 0.0
-                            motivo_desc = "Visita < 2 meses" if aplica_desc else ""
-                            nombre_linea = f"{s_clean} ({masc['nombre']})"
-                                
-                            st.session_state.carrito.append({
-                                "id": id_servicio, "Producto": nombre_linea, "Cantidad": 1, 
-                                "Precio": precio_final, "Subtotal": precio_final * (1 - desc_pct/100), 
-                                "IGIC": igic_final, "Manual": False, "Desc. %": desc_pct, "Motivo_Desc": motivo_desc
-                            })
-                            st.session_state.cliente_cobro_tpv = f"{cli['nombre_dueno']} ({cli.get('telefono', '')}) - Puntos: {cli.get('puntos') or 0}"
-                            st.session_state.llave_busqueda_tpv += 1
-                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                            st.rerun()
+                        hist_hoy = []
+                        if isinstance(hist, list):
+                            hist_hoy = [t for t in hist if t.get('Fecha') == hoy_str_hist and str(t.get('Trabajo / Servicio')).strip() not in ["", "None"]]
+                            
+                        if hist_hoy:
+                            precio_total_hist = sum(float(t.get('Precio con desc. (€)') or t.get('Precio Base (€)') or 0.0) for t in hist_hoy)
+                            btn_label = f"🐾 {masc['nombre']} ➔ 📝 Ficha Completada ({precio_total_hist:.2f}€)"
+                            
+                            if st.button(btn_label, use_container_width=True, key=f"btn_cita_hist_{c['id']}_{st.session_state.llave_busqueda_tpv}"):
+                                for idx_t, t in enumerate(hist_hoy):
+                                    srv_hist = str(t.get('Trabajo / Servicio')).strip()
+                                    p_base_hist = float(t.get('Precio Base (€)') or 0.0)
+                                    p_desc_hist = float(t.get('Precio con desc. (€)') or p_base_hist)
+                                    
+                                    desc_pct_hist = 0.0
+                                    if p_base_hist > 0 and p_desc_hist < p_base_hist:
+                                        desc_pct_hist = round((1 - (p_desc_hist / p_base_hist)) * 100, 2)
+                                        
+                                    igic_hist = 7.0
+                                    id_servicio_hist = f"cita_hist_{c['id']}_{idx_t}"
+                                    if not df_inv.empty:
+                                        term = srv_hist.lower()
+                                        match = df_inv[df_inv['nombre'].astype(str).str.strip().str.lower() == term]
+                                        if not match.empty:
+                                            igic_hist = float(match.iloc[0].get('igic_tipo', 7.0))
+                                            id_servicio_hist = str(match.iloc[0]['id'])
+                                            srv_hist = match.iloc[0]['nombre']
+                                            
+                                    nombre_linea_hist = f"{srv_hist} ({masc['nombre']})"
+                                    motivo_desc_hist = "Aplicado en ficha" if desc_pct_hist > 0 else ""
+                                    
+                                    st.session_state.carrito.append({
+                                        "id": id_servicio_hist, "Producto": nombre_linea_hist, "Cantidad": 1, 
+                                        "Precio": p_base_hist, "Subtotal": p_desc_hist, 
+                                        "IGIC": igic_hist, "Manual": False, "Desc. %": desc_pct_hist, "Motivo_Desc": motivo_desc_hist
+                                    })
+                                    
+                                st.session_state.cliente_cobro_tpv = f"{cli['nombre_dueno']} ({cli.get('telefono', '')}) - Puntos: {cli.get('puntos') or 0}"
+                                st.session_state.llave_busqueda_tpv += 1
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.rerun()
+                        else:
+                            aplica_desc = False
+                            if isinstance(hist, list):
+                                fechas_previas = []
+                                for t in hist:
+                                    f_str = t.get('Fecha')
+                                    if f_str and f_str != hoy_str_hist:
+                                        try: fechas_previas.append(pd.to_datetime(f_str, format="%d/%m/%Y").date())
+                                        except: pass
+                                if fechas_previas:
+                                    ult_visita = max(fechas_previas)
+                                    if (hoy_date - ult_visita).days <= 60:
+                                        aplica_desc = True
+                                        
+                            # REDISEÑO DEL BOTÓN
+                            precio_mostrar = precio_final * 0.90 if aplica_desc else precio_final
+                            btn_label = f"🐾 {masc['nombre']} ➔ ✂️ {s_clean} ({precio_mostrar:.2f}€)"
+                            if aplica_desc: btn_label += " 🎁 Dto 10%"
+                            
+                            if st.button(btn_label, use_container_width=True, key=f"btn_cita_{c['id']}_{st.session_state.llave_busqueda_tpv}"):
+                                desc_pct = 10.0 if aplica_desc else 0.0
+                                motivo_desc = "Visita < 2 meses" if aplica_desc else ""
+                                nombre_linea = f"{s_clean} ({masc['nombre']})"
+                                    
+                                st.session_state.carrito.append({
+                                    "id": id_servicio, "Producto": nombre_linea, "Cantidad": 1, 
+                                    "Precio": precio_final, "Subtotal": precio_final * (1 - desc_pct/100), 
+                                    "IGIC": igic_final, "Manual": False, "Desc. %": desc_pct, "Motivo_Desc": motivo_desc
+                                })
+                                st.session_state.cliente_cobro_tpv = f"{cli['nombre_dueno']} ({cli.get('telefono', '')}) - Puntos: {cli.get('puntos') or 0}"
+                                st.session_state.llave_busqueda_tpv += 1
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.rerun()
                 else: st.info("No hay citas activas hoy.")
             else: st.info("No hay citas hoy.")
 
