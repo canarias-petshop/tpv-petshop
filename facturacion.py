@@ -233,6 +233,20 @@ def render_pestana_facturacion(client):
         if 'llave_busqueda_c' not in st.session_state: st.session_state.llave_busqueda_c = 0
         if 'pedido_vinculado' not in st.session_state: st.session_state.pedido_vinculado = None
             
+        st.markdown("#### 🤖 Escáner de Facturas con IA")
+        with st.container(border=True):
+            col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
+            with col_ia1:
+                archivo_factura = st.file_uploader("📸 Sube una foto o PDF de la factura", type=["jpg", "jpeg", "png", "pdf"], key="file_ia_compra")
+            with col_ia2:
+                if st.button("✨ Auto-completar con IA", use_container_width=True, type="primary"):
+                    if archivo_factura is not None:
+                        st.info("⏳ Archivo recibido. ¡Preparado para conectar con Gemini!")
+                    else:
+                        st.warning("⚠️ Sube una imagen o PDF primero.")
+        
+        st.markdown("---")
+
         c_c1, c_c2, c_c3 = st.columns(3)
         with c_c1: n_fac = st.text_input("Nº Factura Proveedor", key="fac_prov_n")
         with c_c2: f_fac = st.date_input("Fecha Factura", key="fac_prov_f")
@@ -268,7 +282,8 @@ def render_pestana_facturacion(client):
                                 item = res_match.data[0]
                                 st.session_state.compra_temp.append({
                                     "id": str(item['id']), "Código": item['sku'], "Descripción": item['nombre'],
-                                    "Cantidad": art['Cantidad'], "Base Ud": float(item['precio_base']), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0, "PVP (€)": float(item.get('precio_pvp', 0.0))
+                                    "Cantidad": art['Cantidad'], "Base Ud": float(item['precio_base']), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0, "PVP (€)": float(item.get('precio_pvp', 0.0)),
+                                    "Caducidad": None
                                 })
                         st.success("Artículos cargados en la tabla inferior."); time.sleep(1); st.rerun()
             else:
@@ -284,7 +299,8 @@ def render_pestana_facturacion(client):
                 item = df_inv[df_inv['sku'] == sku_extraido].iloc[0]
                 st.session_state.compra_temp.append({
                     "id": str(item['id']), "Código": item['sku'], "Descripción": item['nombre'],
-                    "Cantidad": 1, "Base Ud": float(item['precio_base']), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0, "PVP (€)": float(item.get('precio_pvp', 0.0))
+                    "Cantidad": 1, "Base Ud": float(item['precio_base']), "IGIC %": float(item['igic_tipo']), "Desc %": 0.0, "PVP (€)": float(item.get('precio_pvp', 0.0)),
+                    "Caducidad": None
                 })
                 st.session_state.llave_busqueda_c += 1; st.rerun()
 
@@ -300,11 +316,12 @@ def render_pestana_facturacion(client):
                 with col_m4: m_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
                 with col_m5: m_cant = st.number_input("Cantidad a registrar", min_value=1, value=1)
                 
-                col_m6, col_m7 = st.columns(2)
-                with col_m6: m_pvp = st.number_input("PVP Venta Público (€) (Solo si se guarda)", min_value=0.0, format="%.2f", step=0.01)
-                with col_m7:
+                col_m6, col_m7, col_m8 = st.columns([1, 1, 1.2])
+                with col_m6: m_pvp = st.number_input("PVP Público (€)", min_value=0.0, format="%.2f", step=0.01)
+                with col_m7: m_cad = st.date_input("Caducidad (Opc)", value=None)
+                with col_m8:
                     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                    add_to_stock = st.checkbox("💾 Guardar permanentemente en Inventario", value=True)
+                    add_to_stock = st.checkbox("💾 Guardar en Inventario", value=True)
                 
                 if st.form_submit_button("➕ Añadir a la Compra", type="primary", use_container_width=True):
                     m_base_val = float(m_base or 0.0)
@@ -327,7 +344,8 @@ def render_pestana_facturacion(client):
                         
                         st.session_state.compra_temp.append({
                             "id": str(nuevo_id), "Código": m_sku if m_sku else "---", "Descripción": m_nom,
-                            "Cantidad": m_cant, "Base Ud": float(m_base_val), "IGIC %": float(m_igic), "Desc %": 0.0, "PVP (€)": float(m_pvp_val)
+                            "Cantidad": m_cant, "Base Ud": float(m_base_val), "IGIC %": float(m_igic), "Desc %": 0.0, "PVP (€)": float(m_pvp_val),
+                            "Caducidad": str(m_cad) if m_cad else None
                         })
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.success("Artículo añadido a la factura."); time.sleep(0.5); st.rerun()
@@ -338,6 +356,7 @@ def render_pestana_facturacion(client):
             # Protección por si hay carritos guardados antes de esta actualización
             for x in st.session_state.compra_temp:
                 if 'PVP (€)' not in x: x['PVP (€)'] = 0.0
+                if 'Caducidad' not in x: x['Caducidad'] = None
                 
             df_c = pd.DataFrame(st.session_state.compra_temp)
             df_c['Coste Ud'] = (df_c['Base Ud'] * (1 + df_c['IGIC %']/100)).round(2)
@@ -352,12 +371,13 @@ def render_pestana_facturacion(client):
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
                     "PVP (€)": st.column_config.NumberColumn("PVP Público (€)", format="%.2f", step=0.01),
+                    "Caducidad": st.column_config.DateColumn("F. Caducidad", format="DD/MM/YYYY"),
                     "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f", step=0.01),
                     "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f", step=0.01)
                 }
             )
             
-            nuevos_datos = df_c_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %', 'PVP (€)']].to_dict('records')
+            nuevos_datos = df_c_edit[['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %', 'PVP (€)', 'Caducidad']].to_dict('records')
             if nuevos_datos != st.session_state.compra_temp:
                 st.session_state.compra_temp = nuevos_datos; st.rerun()
                 
@@ -396,11 +416,15 @@ def render_pestana_facturacion(client):
                             res_s = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
                             if res_s.data: 
                                 # Actualizamos stock, el PRECIO DE COSTE general y el PVP PÚBLICO
-                                client.table("productos").update({
+                                datos_update = {
                                     "stock_actual": (res_s.data[0]['stock_actual'] or 0) + i['Cantidad'],
                                     "precio_base": float(i['Base Ud']),
                                     "precio_pvp": float(i.get('PVP (€)', 0.0))
-                                }).eq("id", i['id']).execute()
+                                }
+                                if i.get('Caducidad') and str(i['Caducidad']).strip() not in ["None", ""]:
+                                    datos_update["fecha_caducidad"] = str(i['Caducidad'])
+                                    
+                                client.table("productos").update(datos_update).eq("id", i['id']).execute()
                                 # Actualizamos el precio de coste del proveedor específico
                                 client.table("productos_proveedores").update({"precio_coste": float(i['Base Ud'])}).eq("producto_id", i['id']).eq("proveedor_id", p_id).execute()
                     

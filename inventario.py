@@ -104,6 +104,7 @@ def render_pestana_inventario(client):
                 # Asegurar columnas por si hay productos antiguos
                 if 'stock_minimo' not in df_solo_productos.columns: df_solo_productos['stock_minimo'] = 2
                 if 'cantidad_reponer' not in df_solo_productos.columns: df_solo_productos['cantidad_reponer'] = 5
+                if 'fecha_caducidad' not in df_solo_productos.columns: df_solo_productos['fecha_caducidad'] = None
 
                 sub_prod, sub_serv = st.tabs(["📦 Inventario", "✂️ Servicios"])
                 
@@ -138,10 +139,11 @@ def render_pestana_inventario(client):
                             "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
                             "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f", step=0.01),
                             "igic_tipo": "IGIC %", "precio_pvp": st.column_config.NumberColumn("PVP (€)", format="%.2f", step=0.01), "stock_actual": "Stock",
+                            "fecha_caducidad": st.column_config.DateColumn("Caducidad", format="DD/MM/YYYY"),
                             "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
                             "cantidad_reponer": st.column_config.NumberColumn("Reponer Ud", step=1)
                         },
-                        column_order=["sku", "codigo_barras", "nombre", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "stock_minimo", "cantidad_reponer"],
+                        column_order=["sku", "codigo_barras", "nombre", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "fecha_caducidad", "stock_minimo", "cantidad_reponer"],
                         hide_index=True, 
                         use_container_width=True, 
                         num_rows="dynamic", # <--- ESTO PERMITE BORRAR FILAS
@@ -168,6 +170,13 @@ def render_pestana_inventario(client):
                                 
                                 for col_eliminar in ['categoria_filt', 'Proveedor', 'productos_proveedores']:
                                     if col_eliminar in datos: del datos[col_eliminar]
+                                    
+                                # Convertir None a null en bbdd si borran la fecha
+                                if pd.isna(datos.get('fecha_caducidad')) or str(datos.get('fecha_caducidad')).strip() in ["", "None", "NaT"]:
+                                    datos['fecha_caducidad'] = None
+                                else:
+                                    datos['fecha_caducidad'] = str(datos['fecha_caducidad'])
+                                    
                                 client.table("productos").update(datos).eq("id", row['id']).execute()
                                 
                                 # Actualizar la relación principal del proveedor
