@@ -89,7 +89,8 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 📑 **8. Facturación Legal y Stock**
 - *Sub-1 Emisión:* Emisión de facturas a clientes calculando dinámicamente el desglose interno de Base Imponible y Cuota de IGIC, aunque el empleado solo introduzca el PVP Público.
 - **Generación de Hash SHA-256 por factura y bloqueo total de borrado (Cumplimiento VeriFactu).**
-- *Sub-2 Compras:* Registro de facturas de proveedores: al archivar una compra, el sistema actualiza automáticamente el stock, el precio de coste y el PVP en el inventario.
+- *Sub-2 Compras:* Registro de facturas de proveedores mediante escáner OCR por IA (Gemini). Incluye **Túnel Docker a OneDrive** para almacenar el archivo fiscal de la foto ordenado automáticamente por Año y Mes sin intervención humana.
+- Al archivar una compra, el sistema actualiza automáticamente el stock, el precio de coste y el PVP en el inventario.
 - *Sub-3 Archivo:* Archivo histórico de documentos con **Filtros Dinámicos Flexibles** (ignoran mayúsculas y plurales para encontrar siempre el gasto) y columna de **Fecha de Registro** exacta.
 - *Sub-4 Pagos Pendientes:* Control para deudas a proveedores con **Calendario Visual de Vencimientos** y gráfico de previsión semanal. Capacidad de realizar **Pagos Parciales** indicando la cantidad exacta entregada hoy, descontándola del saldo de un Banco o de la Caja Fuerte, manteniendo la factura abierta hasta su liquidación total.
 
@@ -130,6 +131,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 
 ⏱️ **12. Personal y Control de Horario**
 - Fichaje rápido de entrada/salida para empleados mediante PIN de 4 dígitos (con ajuste estricto a la zona horaria de Canarias).
+- **Registro Inalterable Laboral:** Generación de firma criptográfica Hash SHA-256 encadenada en cada fichaje para cumplir con la estricta normativa laboral y evitar modificaciones manuales del administrador.
 - Visualización de cuadrante de trabajo apilado por semanas (sin scroll horizontal).
 - **Panel de Administrador:** Gestión de la plantilla, Editor Visual Masivo de Cuadrantes (tipo Excel para planificar el mes completo en segundos) y registro histórico de horas trabajadas para nóminas.
 
@@ -183,13 +185,14 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
   - *Extracción Inteligente:* Captura automática de Proveedor, productos, cantidades, importes netos, IGIC, descuentos (línea y pronto pago), lotes, caducidades y códigos de barras. La tabla muestra importes netos para cuadrar visualmente con el papel.
   - *Auto-creación y Enlazado:* Si la IA detecta un producto nuevo, lo crea en el inventario generando un SKU correlativo basado en las dos primeras letras, y fuerza su enlace al proveedor seleccionado.
   - *Escudo Anti-Fallos de API:* Implementado un buscador dinámico de modelos (`list_models`) que filtra versiones experimentales o retiradas de Google para garantizar disponibilidad 100%.
-  - *Archivo Fiscal Automático (OneDrive):* Las imágenes capturadas se guardan automáticamente y se organizan por año y mes en una ruta local sincronizada con la nube de Microsoft, eliminando el coste de almacenamiento en la base de datos principal.
+  - *Archivo Fiscal Automático y Túnel Docker:* Las imágenes capturadas desde la tablet traspasan la burbuja de seguridad de Docker a través de un túnel (`/facturas_digitales`) y se guardan directamente en el OneDrive del dueño, ordenadas por Año y Mes.
+- **Scripts Locales de Procesamiento en Lote:** Creado el script independiente `procesar_facturas_lote.py` para automatizar la inserción de facturas atrasadas a la base de datos con IA de forma masiva desde Windows.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
 *   **PRIORIDAD ABSOLUTA - Gestor de Proyectos y Tareas:** Crear una pestaña centralizada para "Proyectos Internos" (a nivel de gerencia) y "Tareas de Empleados" (asignación de rutinas, checklist, notas y estados) para sustituir el uso caótico de WhatsApp y dejar todo el flujo de trabajo documentado en el ERP.
-*   **Bancos y Tesorería (EN CURSO):** Crear las cuentas "Revolut (Negocio)" (solo para pagos y ahorro, sin relación con datáfonos de TPV) y "Revolut (Nómina)" (cuenta exclusiva para transferencias de sueldo, aislada del pago a proveedores). Aislar estas cuentas de las opciones de cobro de caja.
+*   **Bancos y Tesorería:** Crear y aislar las cuentas "Revolut (Negocio)" y "Revolut (Nómina)" para que no se mezclen con la caja operativa ni con los datáfonos de cobro a clientes del TPV.
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
@@ -229,7 +232,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
     *   *Pasos a dar:* Integrar en Facturación un panel de vencimientos para proveedores, y en Contabilidad un registro automatizado de gastos fijos/recurrentes (luz, agua, préstamos, nóminas, impuestos) que genere previsiones visuales y alarmas personalizables.
 *   **Registro Horario a Prueba de Inspecciones:**
     *   *Objetivo:* Que los fichajes de los empleados sean válidos legalmente ante una inspección de trabajo.
-    *   *Pasos a dar:* Asegurar que el sistema de fichaje guarde datos imposibles de alterar por el administrador sin justificación (como la hora exacta del servidor en Canarias, y no la hora que tenga la tablet).
+    *   *Estado (Completado):* El fichaje ya obtiene la hora estricta del servidor en Canarias y aplica la firma criptográfica Hash SHA-256 inalterable y encadenada en cada Entrada y Salida.
 *   **Opciones de Arquitectura y Despliegue (En Evaluación):**
     *   *Objetivo:* Definir la ubicación física del "Cerebro" del sistema y cómo empaquetarlo para el futuro.
     *   *Opción 1 (Máxima Estabilidad): Servidor en la Tienda.* El ordenador de sobremesa ejecuta el Docker (Programa + Base de Datos). La gran ventaja es que si se corta el internet de la calle, la red WiFi local sigue funcionando y el TPV no se detiene nunca.
@@ -275,3 +278,22 @@ Cada vez que programes algo nuevo en el portátil de tu casa y quieras que la ti
    `docker-compose up -d --build`
    *(Este comando lee los cambios nuevos, reconstruye el sistema y lo deja funcionando de fondo).*
 3. **¡A trabajar!:** En la tablet de la tienda, abre el navegador web y pon la Dirección IP del ordenador de sobremesa seguido de `:8501` (Ejemplo: `http://192.168.1.55:8501`). ¡El TPV ya estará actualizado y funcionando a máxima velocidad!
+
+## 6. HERRAMIENTAS Y SCRIPTS LOCALES (CÓMO USARLOS)
+
+El sistema cuenta con herramientas que se ejecutan directamente desde Windows (y no desde la web de la tablet) para procesar grandes volúmenes de datos.
+
+### 📸 Auto-Procesador de Facturas en Lote (IA)
+Este script leerá todas las fotos de facturas que tengas atrasadas, extraerá los datos, creará proveedores si no existen, dará de alta artículos nuevos con códigos SKU generados, sumará el stock, actualizará precios de coste y mandará todo a Contabilidad y a tu carpeta de "Mis Facturas Digitales" de forma 100% autónoma.
+
+**Pasos para ejecutarlo:**
+1. Copia todas las fotos (con buena iluminación) a esta carpeta exacta de tu PC:
+   `C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Fotos para autocompletar facturas`
+2. Abre tu terminal o consola (CMD o PowerShell) y asegúrate de estar en la carpeta donde tienes guardado el código del TPV (Ejemplo: `D:\clon vs mode\tpv-petshop` o similar).
+3. Escribe el siguiente comando y pulsa Enter:
+   `python procesar_facturas_lote.py`
+4. Deja la ventana negra abierta. Irá chivándote paso a paso lo que hace. Cuando termine, las fotos procesadas se habrán movido automáticamente a tu carpeta de `Mis facturas digitales` organizadas por año y mes.
+
+### 💾 Copias de Seguridad de la Base de Datos
+- **Script:** `python backup_total_automatico.py`
+- **Qué hace:** Descarga todos los clientes, ventas, compras y facturas de la nube (Supabase) y los empaqueta en excels muy limpios dentro de la carpeta local `Backups_Datos_Nube`. Listo para acoplarse al programador de tareas de Windows y ejecutarse cada noche.
