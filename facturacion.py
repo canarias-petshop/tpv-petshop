@@ -266,7 +266,7 @@ def render_pestana_facturacion(client):
                                 {
                                   "numero_factura": "12345",
                                   "fecha_factura": "YYYY-MM-DD",
-                                  "nombre_proveedor": "Nombre de la Empresa",
+                                  "nombre_proveedor": "Nombre de la Empresa (Busca en logotipos, emails o webs impresas si no hay texto claro)",
                                   "descuento_pronto_pago_porcentaje": 0.0,
                                   "articulos": [
                                     {
