@@ -179,16 +179,17 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Sincronización Multiusuario en Tiempo Real (Caché Híbrida) (Completado):** Se implementó un sistema de caché con caducidad (`ttl=15`) acoplado a disparadores de versión (`db_version`). Esto permite que varios ordenadores (ej. peluquería, mostrador y casa) vean los cambios de agenda y stock reflejados en un máximo de 15 segundos sin sacrificar la velocidad de la interfaz.
 - **Blindaje de Integridad Referencial Anti-cuelgues (Completado):** Se inyectaron bloques de protección en TPV, Historial y Facturación para ignorar IDs temporales al actualizar el stock, garantizando que el sistema nunca colapse al cobrar citas con nombres antiguos que ya no existen en el catálogo o al devolver tickets desfasados.
 - **Cálculo de Extras Dinámicos (Completado):** El historial clínico ahora reconoce la palabra clave estricta `"extra nudos"` para calcular su precio por minuto automáticamente según el catálogo, sin generar falsos positivos con otros productos similares (ej. "mascarilla de nudos").
+- **Escáner de Facturas por IA (OCR) con Google Gemini (Completado):** Se integró exitosamente el procesamiento inteligente de documentos en la pestaña "Registrar Compra" con soporte para subida de archivos o captura directa con cámara web/tablet.
+  - *Extracción Inteligente:* Captura automática de Proveedor, productos, cantidades, importes netos, IGIC, descuentos (línea y pronto pago), lotes, caducidades y códigos de barras. La tabla muestra importes netos para cuadrar visualmente con el papel.
+  - *Auto-creación y Enlazado:* Si la IA detecta un producto nuevo, lo crea en el inventario generando un SKU correlativo basado en las dos primeras letras, y fuerza su enlace al proveedor seleccionado.
+  - *Escudo Anti-Fallos de API:* Implementado un buscador dinámico de modelos (`list_models`) que filtra versiones experimentales o retiradas de Google para garantizar disponibilidad 100%.
+  - *Archivo Fiscal Automático (OneDrive):* Las imágenes capturadas se guardan automáticamente y se organizan por año y mes en una ruta local sincronizada con la nube de Microsoft, eliminando el coste de almacenamiento en la base de datos principal.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
-*   **NUEVO HITO - Lector de Facturas por IA (OCR):** Integración de Procesamiento Inteligente de Documentos en la pestaña "Registrar Compra".
-    *   *Fase 1 (Auto-rellenado):* Conexión con la API de Google Gemini (Visión) para que lea fotos/PDFs de facturas y autocomplete el proveedor, productos, cantidades e importes solos.
-    *   *Fase 2 (Archivo Fiscal Físico):* Almacenamiento de las imágenes de las facturas. *Ventaja estratégica:* Al desplegar el sistema en un servidor local en la tienda (Docker), se utilizará el disco duro físico del ordenador, eliminando por completo los límites de espacio de la nube para archivar miles de documentos de forma gratuita.
 *   **PRIORIDAD ABSOLUTA - Gestor de Proyectos y Tareas:** Crear una pestaña centralizada para "Proyectos Internos" (a nivel de gerencia) y "Tareas de Empleados" (asignación de rutinas, checklist, notas y estados) para sustituir el uso caótico de WhatsApp y dejar todo el flujo de trabajo documentado en el ERP.
 *   **Bancos y Tesorería (EN CURSO):** Crear las cuentas "Revolut (Negocio)" (solo para pagos y ahorro, sin relación con datáfonos de TPV) y "Revolut (Nómina)" (cuenta exclusiva para transferencias de sueldo, aislada del pago a proveedores). Aislar estas cuentas de las opciones de cobro de caja.
-*   **Inventario:** Añadir control y alertas de **Fechas de Caducidad** para los productos perecederos.
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
