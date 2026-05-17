@@ -589,7 +589,6 @@ def render_pestana_facturacion(client):
             t_base_c = df_c['Base Neta'].sum()
             t_igic_c = df_c['IGIC €'].sum()
             suma_articulos_c = df_c['Total Línea'].sum()
-            desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", 0.0, 100.0, value=None, step=0.01, format="%.2f")
             val_pp_ia = st.session_state.get("ia_dto_pp", None)
             desc_pp = st.number_input(" 🎁  Dto. Pronto Pago (%)", 0.0, 100.0, value=val_pp_ia, step=0.01, format="%.2f")
             
