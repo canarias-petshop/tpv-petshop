@@ -565,21 +565,20 @@ def render_pestana_facturacion(client):
                 
             df_c = pd.DataFrame(st.session_state.compra_temp)
             df_c['Coste Ud'] = (df_c['Base Ud'] * (1 + df_c['IGIC %']/100)).round(2)
-            df_c['Base Neta'] = (df_c['Base Ud'] * df_c['Cantidad']) * (1 - df_c['Desc %']/100)
+            df_c['Base Neta'] = ((df_c['Base Ud'] * df_c['Cantidad']) * (1 - df_c['Desc %']/100)).round(2)
             df_c['IGIC €'] = (df_c['Base Neta'] * (df_c['IGIC %']/100)).round(2)
             df_c['Total Línea'] = (df_c['Base Neta'] + df_c['IGIC €']).round(2)
             
             df_c_edit = st.data_editor(
                 df_c, hide_index=True, use_container_width=True, num_rows="dynamic",
                 column_config={
-                    "id": None, "Base Neta": None, "IGIC €": None,
+                    "id": None, "IGIC €": None, "Coste Ud": None, "Total Línea": None,
                     "Código": st.column_config.TextColumn(disabled=True),
                     "Descripción": st.column_config.TextColumn(disabled=True),
                     "PVP (€)": st.column_config.NumberColumn("PVP Público (€)", format="%.2f", step=0.01),
                     "Lote": st.column_config.TextColumn("Lote"),
                     "Caducidad": st.column_config.DateColumn("F. Caducidad", format="DD/MM/YYYY"),
-                    "Coste Ud": st.column_config.NumberColumn("Coste Ud c/IGIC", disabled=True, format="%.2f", step=0.01),
-                    "Total Línea": st.column_config.NumberColumn("Total c/IGIC", disabled=True, format="%.2f", step=0.01)
+                    "Base Neta": st.column_config.NumberColumn("Importe (Sin IGIC)", disabled=True, format="%.2f", step=0.01)
                 }
             )
             
