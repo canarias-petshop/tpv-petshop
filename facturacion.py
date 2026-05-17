@@ -296,9 +296,10 @@ def render_pestana_facturacion(client):
                                     for m in genai.list_models():
                                         if 'generateContent' in m.supported_generation_methods:
                                             m_name = m.name.replace('models/', '')
+                                            m_low = m_name.lower()
                                             # Filtrar nombres peligrosos o en pruebas (como el robotics)
-                                            if 'preview' not in m_name and 'robotics' not in m_name and 'experimental' not in m_name:
-                                                if ('1.5' in m_name or 'vision' in m_name or 'gemini' in m_name):
+                                            if 'preview' not in m_low and 'robotics' not in m_low and 'experimental' not in m_low:
+                                                if ('1.5' in m_low or 'vision' in m_low or 'gemini' in m_low):
                                                     if m_name not in modelos_a_probar:
                                                         modelos_a_probar.append(m_name)
                                 except Exception:
