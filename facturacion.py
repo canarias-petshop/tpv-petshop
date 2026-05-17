@@ -237,7 +237,13 @@ def render_pestana_facturacion(client):
         with st.container(border=True):
             col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
             with col_ia1:
-                archivo_factura = st.file_uploader("📸 Sube una foto de la factura (JPG/PNG)", type=["jpg", "jpeg", "png"], key="file_ia_compra")
+                t_subir, t_cam = st.tabs(["📂 Subir Archivo", "📷 Usar Cámara"])
+                with t_subir:
+                    arch_subido = st.file_uploader("📸 Sube una foto (JPG/PNG)", type=["jpg", "jpeg", "png"], key="file_ia_compra")
+                with t_cam:
+                    arch_cam = st.camera_input("Toma la foto con tu cámara", label_visibility="collapsed", key="cam_ia_compra")
+                
+                archivo_factura = arch_cam if arch_cam else arch_subido
             with col_ia2:
                 if st.button("✨ Auto-completar con IA", use_container_width=True, type="primary"):
                     if archivo_factura is not None:
