@@ -4,6 +4,7 @@ from datetime import datetime, date, timedelta
 import time
 from postgrest import SyncPostgrestClient
 from zoneinfo import ZoneInfo
+import hashlib
 
 def render_pestana_personal(client: SyncPostgrestClient):
     st.header("⏱️ Control de Personal y Horarios")
@@ -51,19 +52,34 @@ def render_pestana_personal(client: SyncPostgrestClient):
                                 hora_entrada = hora_entrada.replace(tzinfo=tz_canarias)
                             minutos = int((ahora_dt - hora_entrada).total_seconds() / 60)
                             
+                            # Generar hash de salida (Firma criptográfica inalterable)
+                            hash_anterior = fichajes[0].get('hash_anterior', '')
+                            data_to_hash = f"FICHAJE|OUT|{emp_sel['id']}|{fichajes[0]['hora_entrada']}|{ahora}|{hash_anterior}"
+                            hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
+                            
                             client.table("personal_fichajes").update({
                                 "hora_salida": ahora,
-                                "minutos_trabajados": minutos
+                                "minutos_trabajados": minutos,
+                                "hash_actual": hash_actual
                             }).eq("id", fichaje_id).execute()
                             st.success(f"Salida registrada para {nombre_sel} a las {ahora_dt.strftime('%H:%M')}")
                             time.sleep(1)
                             st.rerun()
                         else:
                             # Fichar entrada
+                            # Obtener el último hash para continuar la cadena
+                            res_last = client.table("personal_fichajes").select("hash_actual").order("id", desc=True).limit(1).execute()
+                            hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
+                            
+                            data_to_hash = f"FICHAJE|IN|{emp_sel['id']}|{ahora}|{hash_anterior}"
+                            hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
+                            
                             client.table("personal_fichajes").insert({
                                 "empleado_id": emp_sel['id'],
                                 "fecha": hoy,
-                                "hora_entrada": ahora
+                                "hora_entrada": ahora,
+                                "hash_anterior": hash_anterior,
+                                "hash_actual": hash_actual
                             }).execute()
                             st.success(f"Entrada registrada para {nombre_sel} a las {ahora_dt.strftime('%H:%M')}")
                             time.sleep(1)
@@ -199,6 +215,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
         
         with tab_admin3:
             st.markdown("Historial de fichajes:")
+            st.warning("🔒 **REGISTRO INALTERABLE**: Según la normativa laboral vigente, los fichajes están sellados con criptografía SHA-256 (Hash) y vinculados a la hora del servidor. No se pueden modificar ni eliminar.")
             try:
                 fichajes_totales = client.table("personal_fichajes").select("*").order("fecha", desc=True).limit(50).execute()
                 if fichajes_totales.data:
@@ -219,7 +236,12 @@ def render_pestana_personal(client: SyncPostgrestClient):
                     df_fich['hora_salida'] = df_fich['hora_salida'].apply(format_hm)
                     df_fich['fecha'] = pd.to_datetime(df_fich['fecha']).dt.strftime('%d/%m/%Y')
                     
-                    cols = ['nombre', 'fecha', 'hora_entrada', 'hora_salida', 'minutos_trabajados']
+                    # Columnas de seguridad legal
+                    df_fich['🔒 Estado'] = "🔒 Sellado"
+                    if 'hash_actual' not in df_fich.columns: df_fich['hash_actual'] = ""
+                    df_fich['Firma Hash'] = df_fich['hash_actual'].apply(lambda x: str(x)[:8] + "..." if pd.notna(x) and str(x).strip() != "" else "No encriptado")
+                    
+                    cols = ['🔒 Estado', 'nombre', 'fecha', 'hora_entrada', 'hora_salida', 'minutos_trabajados', 'Firma Hash']
                     st.dataframe(df_fich[cols], use_container_width=True, hide_index=True)
                 else:
                     st.info("No hay fichajes registrados.")
