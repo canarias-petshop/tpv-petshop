@@ -258,7 +258,6 @@ def render_pestana_facturacion(client):
                                     st.stop()
                                     
                                 genai.configure(api_key=st.secrets["gemini_api_key"])
-                                model = genai.GenerativeModel('gemini-1.5-flash')
                                 
                                 img = Image.open(archivo_factura)
                                 
@@ -285,7 +284,22 @@ def render_pestana_facturacion(client):
                                 }
                                 Si no encuentras un dato o IGIC, pon 0 o déjalo vacío (""). Si no hay caducidad explícita, usa null.
                                 """
-                                response = model.generate_content([prompt, img])
+                                
+                                modelos_a_probar = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro', 'gemini-pro-vision']
+                                response = None
+                                ultimo_error = None
+                                
+                                for m_name in modelos_a_probar:
+                                    try:
+                                        model = genai.GenerativeModel(m_name)
+                                        response = model.generate_content([prompt, img])
+                                        break
+                                    except Exception as e:
+                                        ultimo_error = e
+                                        continue
+                                        
+                                if not response:
+                                    raise Exception(f"Google rechazó todos los modelos. Último error: {ultimo_error}")
                                 
                                 res_text = response.text.strip()
                                 if res_text.startswith("```json"): res_text = res_text[7:]
