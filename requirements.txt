@@ -2,3 +2,5 @@ streamlit
 supabase
 postgrest
 xlsxwriter
+google-generativeai
+pillow
