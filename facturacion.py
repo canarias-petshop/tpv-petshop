@@ -285,10 +285,31 @@ def render_pestana_facturacion(client):
                                 Si no encuentras un dato o IGIC, pon 0 o déjalo vacío (""). Si no hay caducidad explícita, usa null.
                                 """
                                 
-                                modelos_a_probar = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro', 'gemini-pro-vision']
                                 response = None
                                 ultimo_error = None
+                                modelos_a_probar = []
                                 
+                                # 1. Preguntar a Google qué modelos están activos en tu cuenta
+                                try:
+                                    for m in genai.list_models():
+                                        if 'generateContent' in m.supported_generation_methods:
+                                            # Buscamos modelos capaces de leer imágenes (1.5 o vision)
+                                            if '1.5' in m.name or 'vision' in m.name:
+                                                modelos_a_probar.append(m.name.replace('models/', ''))
+                                    
+                                    # Si la lista está vacía, rescatamos cualquier Gemini disponible
+                                    if not modelos_a_probar:
+                                        for m in genai.list_models():
+                                            if 'generateContent' in m.supported_generation_methods and 'gemini' in m.name:
+                                                modelos_a_probar.append(m.name.replace('models/', ''))
+                                except Exception:
+                                    pass
+                                    
+                                # 2. Fallback de emergencia
+                                if not modelos_a_probar:
+                                    modelos_a_probar = ['gemini-1.5-flash', 'gemini-1.5-pro']
+                                
+                                # 3. Escanear con el modelo correcto
                                 for m_name in modelos_a_probar:
                                     try:
                                         model = genai.GenerativeModel(m_name)
@@ -299,7 +320,7 @@ def render_pestana_facturacion(client):
                                         continue
                                         
                                 if not response:
-                                    raise Exception(f"Google rechazó todos los modelos. Último error: {ultimo_error}")
+                                    raise Exception(f"Fallaron los modelos permitidos ({', '.join(modelos_a_probar)}). Último error: {ultimo_error}")
                                 
                                 res_text = response.text.strip()
                                 if res_text.startswith("```json"): res_text = res_text[7:]
