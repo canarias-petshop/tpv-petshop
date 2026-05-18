@@ -961,7 +961,7 @@ def render_pestana_crm(client):
                                 df_e.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_encargo)}"
                                 
                             try:
-                                dt_c = pd.to_datetime(row['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp('today', tz='UTC'))
+                                dt_c = dt_e[idx]
                                 if dt_c.tzinfo is None:
                                     dt_c = dt_c.tz_localize('UTC')
                                 dias = (pd.Timestamp.now('Atlantic/Canary') - dt_c.tz_convert('Atlantic/Canary')).days
