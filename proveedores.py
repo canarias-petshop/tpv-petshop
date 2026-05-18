@@ -220,7 +220,10 @@ def render_pestana_proveedores(client):
             if 'stock_minimo' not in df_solo_productos.columns: df_solo_productos['stock_minimo'] = 2
             if 'cantidad_reponer' not in df_solo_productos.columns: df_solo_productos['cantidad_reponer'] = 5
             
-            df_bajo_stock = df_solo_productos[df_solo_productos['stock_actual'] <= df_solo_productos['stock_minimo']].sort_values(by="stock_actual")
+            # Forzamos conversión a número por seguridad y aplicamos la regla: Ignorar si cantidad_reponer es 0
+            df_solo_productos['cantidad_reponer'] = pd.to_numeric(df_solo_productos['cantidad_reponer'], errors='coerce').fillna(0)
+            df_bajo_stock = df_solo_productos[(df_solo_productos['cantidad_reponer'] > 0) & (df_solo_productos['stock_actual'] <= df_solo_productos['stock_minimo'])].sort_values(by="stock_actual")
+            
             if not df_bajo_stock.empty:
                 st.warning(f"⚠️ **ATENCIÓN: Tienes {len(df_bajo_stock)} producto(s) por debajo de su stock mínimo.**")
                 with st.expander("👀 Ver y editar lista de reposición sugerida", expanded=False):
