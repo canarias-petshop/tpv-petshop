@@ -652,8 +652,8 @@ def render_pestana_facturacion(client):
     # SUB-TAB 3: ARCHIVO Y GESTIÓN (EDICIÓN Y BORRADO DIRECTO)
     # ==========================================
     with sub_archivo:
-        st.markdown("####  🔍  Archivo Histórico")
-        tipo_doc = st.radio("Documento:", ["Facturas Emitidas (Ventas)", "Gastos, Compras y Facturas Recibidas"], horizontal=True)
+        st.markdown("####  🔍  Archivo de Facturas de Compra (Mercancía)")
+        tipo_doc = st.radio("Documento:", ["Facturas Emitidas (Ventas)", "Facturas Recibidas (Proveedores)"], horizontal=True)
         c_f1, c_f2 = st.columns(2)
         f_ini = c_f1.date_input("Desde:", pd.to_datetime('today') - pd.Timedelta(days=30), key="a_i")
         f_fin = c_f2.date_input("Hasta:", pd.to_datetime('today'), key="a_f")
@@ -729,7 +729,8 @@ def render_pestana_facturacion(client):
 
         # --- ARCHIVO DE COMPRAS ---
         else: 
-            res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
+            # Filtramos para mostrar solo facturas de proveedores, no gastos generales
+            res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").ilike("tipo", "Factura:%").order("id", desc=True).execute()
             if res_comp.data:
                 df_comp = pd.DataFrame(res_comp.data)
                 df_comp['Proveedor'] = df_comp['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
@@ -738,33 +739,7 @@ def render_pestana_facturacion(client):
                     dt_comp = dt_comp.dt.tz_localize('UTC')
                 df_comp['Fecha'] = dt_comp.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
                 
-                st.markdown("##### 🗂️ Clasificación de Documentos")
-                filtro_cat = st.selectbox(
-                    "Filtro:",
-                    [
-                        "Todos los registros", 
-                        "📦 Facturas de Proveedores (Mercancía)", 
-                        "🧹 Gastos de Tienda (Limpieza, consumibles...)", 
-                        "🏢 Gastos Fijos (Alquiler, Luz...)", 
-                        "👥 Personal y Nóminas", 
-                        "🛠️ Servicios Exteriores (Técnicos...)", 
-                        "🏛️ Impuestos y Tasas"
-                    ],
-                    label_visibility="collapsed"
-                )
-                
-                df_filtrado = df_comp.copy()
-                if "Facturas de Proveedores" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Factura', case=False, na=False)]
-                elif "Gastos de Tienda" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Gastos de compra', case=False, na=False)]
-                elif "Gastos Fijos" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Gastos fijos', case=False, na=False)]
-                elif "Personal y Nóminas" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Personal', case=False, na=False)]
-                elif "Servicios Exteriores" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('exterior', case=False, na=False)]
-                elif "Impuestos y Tasas" in filtro_cat: df_filtrado = df_filtrado[df_filtrado['tipo'].str.contains('Impuestos', case=False, na=False)]
-                
-                if df_filtrado.empty:
-                    st.info("No hay registros en esta categoría para las fechas seleccionadas.")
-                    
-                df_vista = df_filtrado[['id', 'Fecha', 'tipo', 'total', 'Proveedor', 'estado']].copy()
+                df_vista = df_comp[['id', 'Fecha', 'tipo', 'total', 'Proveedor', 'estado']].copy()
                 df_vista.insert(0, "Borrar", False)
                 df_vista.insert(0, "Ver", False)
                 

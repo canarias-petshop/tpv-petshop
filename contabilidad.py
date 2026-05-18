@@ -8,7 +8,7 @@ import pandas as pd
 def render_pestana_contabilidad(client):
     st.markdown("<h3 style='margin-top: -15px;'>📊 Contabilidad e Informes para Asesoría</h3>", unsafe_allow_html=True)
     
-    sec_gastos, sec_fijos, sec_calendario, sec_informes = st.tabs(["💸 Gastos Puntuales", "🔄 Gastos Fijos", "📅 Calendario y Alertas", "📂 Descargas"])
+    sec_gastos, sec_archivo, sec_fijos, sec_calendario, sec_informes = st.tabs(["💸 Gastos Puntuales", "📖 Archivo Contable", "🔄 Gastos Fijos", "📅 Calendario y Alertas", "📂 Descargas"])
 
     with sec_gastos:
         col_g1, col_g2 = st.columns([1, 2])
@@ -46,6 +46,90 @@ def render_pestana_contabilidad(client):
                     st.markdown(f"<p class='{clase}'>⚠️ {nombre} - {c['total']}€ (Vence en {dias} días: {c['fecha_vencimiento']})</p>", unsafe_allow_html=True)
             else:
                 st.info("No hay facturas ni gastos pendientes. ¡Todo al día!")
+
+    with sec_archivo:
+        st.markdown("#### 📖 Archivo Maestro de Gastos y Compras")
+        st.info("Este es el libro mayor de todos los documentos de gasto registrados en el sistema, tanto facturas de proveedores como gastos puntuales.")
+        
+        c_f1_arc, c_f2_arc = st.columns(2)
+        f_ini_arc = c_f1_arc.date_input("Desde:", pd.to_datetime('today') - pd.Timedelta(days=30), key="arc_i")
+        f_fin_arc = c_f2_arc.date_input("Hasta:", pd.to_datetime('today'), key="arc_f")
+
+        res_comp_arc = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini_arc}T00:00:00").lte("created_at", f"{f_fin_arc}T23:59:59").order("id", desc=True).execute()
+        if res_comp_arc.data:
+            df_comp_arc = pd.DataFrame(res_comp_arc.data)
+            df_comp_arc['Proveedor'] = df_comp_arc['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
+            dt_comp_arc = pd.to_datetime(df_comp_arc['created_at'])
+            if dt_comp_arc.dt.tz is None:
+                dt_comp_arc = dt_comp_arc.dt.tz_localize('UTC')
+            df_comp_arc['Fecha'] = dt_comp_arc.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
+            
+            st.markdown("##### 🗂️ Clasificación de Documentos")
+            filtro_cat_arc = st.selectbox(
+                "Filtro:",
+                [
+                    "Todos los registros", 
+                    "📦 Facturas de Proveedores (Mercancía)", 
+                    "🧹 Gastos de Tienda (Limpieza, consumibles...)", 
+                    "🏢 Gastos Fijos (Alquiler, Luz...)", 
+                    "👥 Personal y Nóminas", 
+                    "🛠️ Servicios Exteriores (Técnicos...)", 
+                    "🏛️ Impuestos y Tasas"
+                ],
+                label_visibility="collapsed",
+                key="filtro_arc"
+            )
+            
+            df_filtrado_arc = df_comp_arc.copy()
+            if "Facturas de Proveedores" in filtro_cat_arc: df_filtrado_arc = df_filtrado_arc[df_filtrado_arc['tipo'].str.contains('Factura', case=False, na=False)]
+            elif "Gastos de Tienda" in filtro_cat_arc: df_filtrado_arc = df_filtrado_arc[df_filtrado_arc['tipo'].str.contains('Gastos de compra', case=False, na=False)]
+            elif "Gastos Fijos" in filtro_cat_arc: df_filtrado_arc = df_filtrado_arc[df_filtrado_arc['tipo'].str.contains('Gastos fijos', case=False, na=False)]
+            elif "Personal y Nóminas" in filtro_cat_arc: df_filtrado_arc = df_filtrado_arc[df_filtrado_arc['tipo'].str.contains('Personal', case=False, na=False)]
+            elif "Servicios Exteriores" in filtro_cat_arc: df_filtrado_arc = df_filtrado_arc[df_filtrado_arc['tipo'].str.contains('exterior', case=False, na=False)]
+            elif "Impuestos y Tasas" in filtro_cat_arc: df_filtrado_arc = df_filtrado_arc[df_filtrado_arc['tipo'].str.contains('Impuestos', case=False, na=False)]
+            
+            if df_filtrado_arc.empty:
+                st.info("No hay registros en esta categoría para las fechas seleccionadas.")
+            else:
+                df_vista_arc = df_filtrado_arc[['id', 'Fecha', 'tipo', 'total', 'Proveedor', 'estado']].copy()
+                df_vista_arc.insert(0, "Borrar", False)
+                
+                ed_comp_arc = st.data_editor(
+                    df_vista_arc, hide_index=True, use_container_width=True, key="ed_h_c_arc", 
+                    column_config={
+                        "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"),
+                        "id": None, "tipo": "Documento / Concepto",
+                        "Fecha": "Fecha Reg."
+                    }
+                )
+
+                filas_borrar_c_arc = ed_comp_arc[ed_comp_arc["Borrar"] == True]
+                if not filas_borrar_c_arc.empty:
+                    st.error(f"⚠️ Has marcado {len(filas_borrar_c_arc)} documento(s) para eliminar. Si era una factura de compra, el stock se restará del inventario.")
+                    if st.button("🚨 CONFIRMAR ELIMINACIÓN DE DOCUMENTO(S)", type="primary", use_container_width=True, key="btn_del_arc"):
+                        for idx, row in filas_borrar_c_arc.iterrows():
+                            c_id = row['id']
+                            c_data = df_comp_arc[df_comp_arc['id'] == c_id].iloc[0]
+                            prods_raw = c_data.get('productos', [])
+                            if isinstance(prods_raw, list):
+                                for p in prods_raw:
+                                    if p.get('id'):
+                                        try:
+                                            res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                            if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p['id']).execute()
+                                        except: pass
+                            client.table("compras").delete().eq("id", c_id).execute()
+                        st.success("Documento(s) eliminado(s) correctamente."); time.sleep(1); st.rerun()
+
+                st.markdown("---")
+
+                if st.button(" 💾  Guardar Cambios en Estado/Referencia", key="btn_save_arc"):
+                    filas_validas_arc = ed_comp_arc[ed_comp_arc["Borrar"] == False]
+                    for _, row in filas_validas_arc.iterrows():
+                        client.table("compras").update({"estado": str(row['estado']), "tipo": str(row['tipo'])}).eq("id", row['id']).execute()
+                    st.success("Documentos actualizados."); time.sleep(0.5); st.rerun()
+        else:
+            st.info("No hay gastos ni compras registradas en este periodo.")
 
     with sec_fijos: # Reorganizado para la edición de gastos fijos
         st.markdown("#### ➕ Registrar/Editar Gastos Fijos Recurrentes")
