@@ -537,7 +537,9 @@ def render_pestana_crm(client):
                 if 'servicio_domicilio' not in df_cli.columns: df_cli['servicio_domicilio'] = False
                 
                 if 'created_at' in df_cli.columns:
-                    df_cli['Fecha Creación'] = pd.to_datetime(df_cli['created_at']).dt.date
+                    # Parseo robusto: Lee formatos mixtos y si alguna celda está 100% vacía por la importación, le asigna la fecha actual para no perder el dato.
+                    fechas_dt = pd.to_datetime(df_cli['created_at'], utc=True, format='mixed', errors='coerce')
+                    df_cli['Fecha Creación'] = fechas_dt.fillna(pd.Timestamp('today', tz='UTC')).dt.date
                 else:
                     df_cli['Fecha Creación'] = None
                 
@@ -941,7 +943,7 @@ def render_pestana_crm(client):
                     res_e = client.table("encargos_clientes").select("id, created_at, nombre_cliente, telefono, detalle_pedido, notas, estado").order("created_at", desc=True).execute()
                     if res_e.data:
                         df_e = pd.DataFrame(res_e.data)
-                        dt_e = pd.to_datetime(df_e['created_at'])
+                        dt_e = pd.to_datetime(df_e['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp('today', tz='UTC'))
                         if dt_e.dt.tz is None:
                             dt_e = dt_e.dt.tz_localize('UTC')
                         df_e['Fecha'] = dt_e.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y')
@@ -959,7 +961,7 @@ def render_pestana_crm(client):
                                 df_e.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_encargo)}"
                                 
                             try:
-                                dt_c = pd.to_datetime(row['created_at'])
+                                dt_c = pd.to_datetime(row['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp('today', tz='UTC'))
                                 if dt_c.tzinfo is None:
                                     dt_c = dt_c.tz_localize('UTC')
                                 dias = (pd.Timestamp.now('Atlantic/Canary') - dt_c.tz_convert('Atlantic/Canary')).days
@@ -1001,7 +1003,8 @@ def render_pestana_crm(client):
                 res_deudas = client.table("ventas_historial").select("id, created_at, cliente_deuda, pendiente, total, pagado").eq("estado", "Deuda").execute()
                 if res_deudas.data:
                     df_deudas = pd.DataFrame(res_deudas.data)
-                    df_deudas['Fecha'] = pd.to_datetime(df_deudas['created_at'])
+                    # Recuperación de fechas mixtas y vacías en deudas
+                    df_deudas['Fecha'] = pd.to_datetime(df_deudas['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp('today', tz='UTC'))
                     
                     resumen_deudas = []
                     all_cli_d = []
