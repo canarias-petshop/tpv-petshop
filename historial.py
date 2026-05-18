@@ -196,7 +196,20 @@ def render_pestana_historial(client):
                     
                     with c2:
                         if "DEVUELTO" not in str(t_info.get('estado', '')).upper():
-                            if st.button(f"↩️ Devolver y Restaurar Stock", use_container_width=True):
+                            try:
+                                dt_tk = pd.to_datetime(t_info['created_at'])
+                                if dt_tk.tzinfo is None: dt_tk = dt_tk.tz_localize('UTC')
+                                dias_pasados = (pd.Timestamp.now('Atlantic/Canary') - dt_tk.tz_convert('Atlantic/Canary')).days
+                            except:
+                                dias_pasados = 0
+                                
+                            if dias_pasados > 14:
+                                st.warning(f"⚠️ Han pasado {dias_pasados} días (Límite 14).")
+                                btn_dev = st.button("🛡️ Forzar Devolución Extraordinaria", use_container_width=True)
+                            else:
+                                btn_dev = st.button("↩️ Devolver y Restaurar Stock", use_container_width=True)
+                                
+                            if btn_dev:
                                 # Lógica de devolución (la que ya tenías)
                                 for p in prods:
                                     if not p.get('Manual', False) and 'id' in p:

@@ -315,7 +315,8 @@ def render_pestana_tpv(client):
             <body>
             
             <div id="botones-container">
-                <button class="btn-print" onclick="imprimirConStar()">🖨️ IMPRIMIR TICKET</button>
+                <button class="btn-print" onclick="imprimirConStar('ticket-impresion')">🖨️ IMPRIMIR TICKET</button>
+                <button class="btn-print" style="background-color: #9c27b0;" onclick="imprimirConStar('ticket-regalo')">🎁 TICKET REGALO</button>
                 <a href="mailto:?subject=Ticket%20de%20Compra%20-%20Animalarium&body={body_encoded}" target="_top" style="text-decoration: none; flex: 1;">
                     <button class="btn-print btn-email">✉️ ENVIAR EMAIL</button>
                 </a>
@@ -386,11 +387,36 @@ def render_pestana_tpv(client):
                     </div>
                 </div>
             </div>
+            
+            <div id="ticket-regalo" style="display:none;">
+                <div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
+                    {logo_html}
+                    <b style="font-size: 34px;">ANIMALARIUM</b><br>
+                    <div style="font-size: 24px; border: 2px solid black; margin: 10px 0;"><b>TICKET REGALO</b></div>
+                    <div style="text-align: left; font-size: 22px;">Fecha: {t['fecha']}</div>
+                    <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+                    <table style="width: 100%; font-size: 22px; text-align: left; font-weight: bold;">
+            """
+            for p in t['productos']:
+                html_ticket += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td></tr>"
+                
+            html_ticket += """
+                    </table>
+                    <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+                    <div style="font-size: 18px; color: #000; margin-top: 20px; text-align: center;">
+                        <b>IMPRESCINDIBLE PARA CAMBIOS</b><br>
+                        Plazo de 14 días con este ticket y<br>
+                        embalaje original en perfecto estado.<br>
+                        Se emitirá un VALE DE TIENDA,<br>
+                        no se devuelve el dinero en efectivo.
+                    </div>
+                </div>
+            </div>
             </div>
 
             <script>
-            function imprimirConStar() {{
-                var ticketHTML = document.getElementById('ticket-impresion').innerHTML;
+            function imprimirConStar(elementId) {{
+                var ticketHTML = document.getElementById(elementId).innerHTML;
                 var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
                 var htmlCodificado = encodeURIComponent(fullHTML);
                 var backURL = encodeURIComponent(window.location.href);
