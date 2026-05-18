@@ -8,7 +8,10 @@ import pandas as pd
 def render_pestana_contabilidad(client):
     st.markdown("<h3 style='margin-top: -15px;'>📊 Contabilidad e Informes para Asesoría</h3>", unsafe_allow_html=True)
     
-    sec_gastos, sec_pagos, sec_archivo, sec_fijos, sec_calendario, sec_informes = st.tabs(["💸 Gastos Puntuales", "💰 Pagos Pendientes (Gastos)", "📖 Archivo Contable", "🔄 Gastos Fijos", "📅 Calendario y Alertas", "📂 Descargas"])
+    sec_gastos, sec_fijos, sec_calendario, sec_pagos, sec_archivo, sec_informes = st.tabs([
+        "💸 Gastos Puntuales", "🔄 Configurar Gastos Fijos", "📅 Calendarios y Vencimientos", 
+        "💰 Pagos Pendientes", "📖 Archivo Contable", "📂 Descargas"
+    ])
 
     with sec_gastos:
         col_g1, col_g2 = st.columns([1, 2])
@@ -35,7 +38,8 @@ def render_pestana_contabilidad(client):
                         st.error("El importe debe ser mayor que 0 y debes escribir un concepto.")
         
         with col_g2:
-            st.markdown("#### Alertas de Vencimientos (Gastos)")
+            st.markdown("#### Alertas de Vencimientos (Gastos Puntuales)")
+            st.info("Si registras un gasto puntual como 'Pendiente', su alerta aparecerá aquí.")
             res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").eq("estado", "Pendiente").execute()
             
             # Filtrar de forma segura en Python
@@ -49,11 +53,170 @@ def render_pestana_contabilidad(client):
                     nombre = c['tipo']
                     st.markdown(f"<p class='{clase}'>⚠️ {nombre} - {c['total']}€ (Vence en {dias} días: {c['fecha_vencimiento']})</p>", unsafe_allow_html=True)
             else:
-                st.info("No hay gastos pendientes. ¡Todo al día!")
+                st.info("No hay gastos puntuales pendientes. ¡Todo al día!")
+
+    with sec_fijos:
+        st.markdown("#### ➕ Registrar/Editar Gastos Fijos Recurrentes")
+        c_fij1, c_fij2 = st.columns([1, 2])
+        
+        with c_fij1:
+            with st.container(border=True):
+                st.markdown("##### ➕ Nuevo Gasto Fijo")
+                with st.form("nuevo_gasto_fijo", clear_on_submit=True):
+                    f_conc = st.text_input("Concepto (Ej: Alquiler, Luz, Préstamo)")
+                    f_cat = st.selectbox("Categoría", [
+                        "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)",
+                        "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)",
+                        "Financiación y Seguros (Préstamos, Tarjetas, Pólizas, Comisiones...)",
+                        "Publicidad y Marketing (Redes sociales, Promociones, Web...)",
+                        "Impuestos y Tasas (IGIC, IRPF, Tributos...)"
+                    ])
+                    f_imp = st.number_input("Importe Estimado/Fijo (€)", min_value=0.0, format="%.2f", step=0.01)
+                    f_dia = st.number_input("Día del mes de cargo", min_value=1, max_value=31, value=1, help="Pon 31 si quieres que se cobre el último día del mes (el programa lo ajustará a 28 o 30 según corresponda automáticamente).")
+                    f_frec = st.selectbox("Frecuencia", ["Mensual", "Bimestral", "Trimestral", "Anual"])
+                    
+                    if st.form_submit_button("Guardar Gasto Fijo", type="primary", use_container_width=True):
+                        try:
+                            client.table("gastos_recurrentes").insert({
+                                "concepto": f_conc, "categoria": f_cat, "importe_estimado": float(f_imp),
+                                "dia_cargo": int(f_dia), "frecuencia": f_frec, "activo": True
+                            }).execute()
+                            st.success("Gasto fijo registrado."); time.sleep(1); st.rerun()
+                        except Exception as e:
+                            st.error("⚠️ Ejecuta el código SQL en Supabase primero.")
+
+        with c_fij2:
+            st.markdown("##### 📋 Tus Gastos Fijos Activos")
+            try:
+                res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
+                if res_gf.data:
+                    df_gf = pd.DataFrame(res_gf.data)
+                    df_gf_vista = df_gf[['id', 'concepto', 'importe_estimado', 'dia_cargo', 'frecuencia']].copy()
+                    df_gf_vista.insert(0, "Desactivar", False)
+                    ed_gf = st.data_editor(df_gf_vista, hide_index=True, use_container_width=True, height=210,
+                        column_config={
+                            "Desactivar": st.column_config.CheckboxColumn("🛑 Quitar"),
+                            "concepto": "Concepto", "importe_estimado": st.column_config.NumberColumn("Importe (€)", format="%.2f", step=0.01),
+                            "dia_cargo": "Día del Mes", "frecuencia": "Frecuencia", "id": None
+                        })
+                    if st.button("💾 Guardar Cambios en Gastos Fijos"):
+                        filas_desactivar = ed_gf[ed_gf["Desactivar"] == True]
+                        for _, r in filas_desactivar.iterrows():
+                            client.table("gastos_recurrentes").update({"activo": False}).eq("id", r['id']).execute()
+                        st.rerun()
+                else:
+                    st.info("No hay gastos fijos registrados.")
+            except:
+                st.info("🔧 Ejecuta el código SQL en Supabase para activar esta función.")
+
+    with sec_calendario:
+        st.markdown("#### 📅 Calendarios de Vencimientos (Operativos e Impuestos)")
+        st.info("Visualiza y gestiona tus pagos programados. Al confirmarlos aquí, se registrarán en tu Libro Mayor (Archivo Contable).")
+        
+        dias_alerta = st.slider("🔔 Mostrar alarmas para vencimientos dentro de los próximos (días):", min_value=1, max_value=30, value=15)
+            
+        try:
+            res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
+            res_compras_gf = client.table("compras").select("tipo").ilike("tipo", "Gastos Fijos | %").execute()
+            pagos_registrados = [c['tipo'] for c in res_compras_gf.data] if res_compras_gf.data else []
+            
+            hoy_dt = pd.Timestamp(date.today())
+            futuro_dt = hoy_dt + pd.Timedelta(days=60)
+            pasado_dt = hoy_dt - pd.Timedelta(days=30) # Miramos también un mes atrás para ver los atrasados
+            proyeccion = []
+            
+            if res_gf.data:
+                for gf in res_gf.data:
+                    for mes_offset in [-1, 0, 1, 2]:
+                        target_month = hoy_dt.month + mes_offset
+                        target_year = hoy_dt.year
+                        if target_month > 12:
+                            target_month -= 12; target_year += 1
+                        elif target_month < 1:
+                            target_month += 12; target_year -= 1
+                            
+                        dia_c = min(gf['dia_cargo'], pd.Period(year=target_year, month=target_month, freq='M').days_in_month)
+                        fecha_cargo = pd.to_datetime(f"{target_year}-{target_month:02d}-{dia_c:02d}")
+                        
+                        if pasado_dt <= fecha_cargo <= futuro_dt:
+                            tipo_id = f"Gastos Fijos | {gf['concepto']} - {target_month:02d}/{target_year}"
+                            estado_pago = "Pagado ✅" if tipo_id in pagos_registrados else "Pendiente ❌"
+                            
+                            proyeccion.append({
+                                "Fecha Vencimiento": fecha_cargo,
+                                "Concepto": gf['concepto'],
+                                "Categoría": gf['categoria'],
+                                "Importe": float(gf['importe_estimado']),
+                                "Estado": estado_pago,
+                                "ID_Pago": tipo_id
+                            })
+                            
+            if proyeccion:
+                df_proy = pd.DataFrame(proyeccion).sort_values("Fecha Vencimiento")
+                
+                # --- SISTEMA DE ALERTAS UNIFICADO ---
+                df_alarmas = df_proy[(df_proy['Estado'] == "Pendiente ❌") & (df_proy['Fecha Vencimiento'] <= (hoy_dt + pd.Timedelta(days=dias_alerta)))]
+                if not df_alarmas.empty:
+                    st.error(f"🚨 **ALERTA DE PAGOS:** Tienes {len(df_alarmas)} vencimiento(s) atrasados o muy próximos.")
+                    for _, r in df_alarmas.iterrows():
+                        dias_diff = (r['Fecha Vencimiento'] - hoy_dt).days
+                        texto_dias = "HOY" if dias_diff == 0 else (f"VENCIDO hace {abs(dias_diff)} días" if dias_diff < 0 else f"en {dias_diff} días")
+                        icono = "🏛️" if "Impuestos" in r['Categoría'] else "🏢"
+                        st.markdown(f"<span style='color:#d32f2f; font-size:15px; font-weight:bold;'>{icono} {r['Concepto']} - {r['Importe']:.2f}€ ({texto_dias})</span>", unsafe_allow_html=True)
+                else:
+                    st.success(f"✅ Todo al día. No hay ningún Gasto Fijo o Impuesto pendiente en los próximos {dias_alerta} días.")
+                        
+                st.markdown("---")
+                
+                df_impuestos = df_proy[df_proy['Categoría'].str.contains('Impuestos', case=False, na=False)]
+                df_operativos = df_proy[~df_proy['Categoría'].str.contains('Impuestos', case=False, na=False)]
+                
+                # --- VISTA DIVIDIDA: OPERATIVOS VS IMPUESTOS ---
+                col_c1, col_c2 = st.columns(2)
+                with col_c1:
+                    st.markdown("##### 🏢 Gastos Operativos (Fijos)")
+                    st.caption("Alquiler, Nóminas, Luz, Seguros, etc.")
+                    if not df_operativos.empty:
+                        df_op_v = df_operativos[['Fecha Vencimiento', 'Concepto', 'Importe', 'Estado']].copy()
+                        df_op_v['Fecha Vencimiento'] = df_op_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
+                        st.dataframe(df_op_v, hide_index=True, use_container_width=True)
+                    else:
+                        st.info("No hay gastos fijos operativos configurados.")
+                with col_c2:
+                    st.markdown("##### 🏛️ Calendario de Impuestos")
+                    st.caption("Trimestrales, Seguros Sociales, IGIC, IRPF...")
+                    if not df_impuestos.empty:
+                        df_imp_v = df_impuestos[['Fecha Vencimiento', 'Concepto', 'Importe', 'Estado']].copy()
+                        df_imp_v['Fecha Vencimiento'] = df_imp_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
+                        st.dataframe(df_imp_v, hide_index=True, use_container_width=True)
+                    else:
+                        st.info("No hay impuestos configurados.")
+                        
+                st.markdown("---")
+                
+                # Formulario para marcar pagos
+                pendientes_list = df_proy[df_proy['Estado'] == "Pendiente ❌"]
+                if not pendientes_list.empty:
+                    with st.expander("💸 **Confirmar Pago de Vencimiento (Tachar del calendario)**", expanded=False):
+                        with st.form("form_pagar_gf"):
+                            opciones_pago = [f"{r['ID_Pago']} ({r['Importe']}€)" for _, r in pendientes_list.iterrows()]
+                            sel_pago = st.selectbox("Selecciona el gasto a marcar como pagado:", opciones_pago)
+                            if st.form_submit_button("✅ Registrar Pago y Archivar", type="primary"):
+                                id_sel = sel_pago.split(" (")[0]
+                                importe_sel = float(sel_pago.split("(")[1].replace("€)", ""))
+                                client.table("compras").insert({
+                                    "tipo": id_sel, "total": importe_sel, 
+                                    "estado": "Pagado", "fecha_vencimiento": str(date.today())
+                                }).execute()
+                                st.success("¡Vencimiento saldado! Se ha guardado automáticamente en el Archivo Contable."); time.sleep(1.5); st.rerun()
+
+            else: st.success("No hay previsiones de gastos fijos.")
+        except Exception as e:
+            st.error(f"Error al cargar calendario: {e}")
 
     with sec_pagos:
-        st.markdown("#### 💰 Control de Pagos Pendientes (Gastos Generales y Fijos)")
-        st.info("💡 Aquí aparecen todos los gastos (limpieza, técnicos, nóminas, impuestos...) que no han sido marcados como 'Pagado'.")
+        st.markdown("#### 💰 Control de Pagos Pendientes (Gastos Puntuales)")
+        st.info("💡 **IMPORTANTE:** Aquí SOLO aparecen los **Gastos Puntuales** (reparaciones, compras extra) que registraste manualmente con el estado **'Pendiente'**. Los vencimientos de tus Gastos Fijos e Impuestos se gestionan desde la pestaña '📅 Calendarios'.")
         
         res_deudas_g = client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
         
@@ -84,7 +247,7 @@ def render_pestana_contabilidad(client):
             df_deudas['Estado Vencimiento'] = df_deudas['Fecha Vencimiento'].apply(calc_estado_venc)
             df_deudas['Vence'] = df_deudas['Fecha Vencimiento'].dt.strftime('%d/%m/%Y').fillna('-')
             
-            st.markdown(f"<h3 style='color: #d32f2f;'>Deuda Total en Gastos: {df_deudas['pendiente'].sum():.2f} €</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='color: #d32f2f;'>Deuda Total en Gastos Puntuales: {df_deudas['pendiente'].sum():.2f} €</h3>", unsafe_allow_html=True)
             
             df_vista_p = df_deudas[['id', 'Concepto', 'total', 'pendiente', 'Vence', 'Estado Vencimiento']].copy()
             df_vista_p.insert(0, "A Pagar Hoy (€)", 0.0)
@@ -161,11 +324,11 @@ def render_pestana_contabilidad(client):
                                 client.table("compras").update({"estado": nuevo_estado, "pagado": nuevo_pagado, "pendiente": nuevo_pendiente}).eq("id", c_id).execute()
                             st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!"); time.sleep(1.5); st.rerun()
         else:
-            st.success("¡Genial! No tienes gastos pendientes.")
+            st.success("¡Genial! No tienes gastos puntuales pendientes.")
 
     with sec_archivo:
-        st.markdown("#### 📖 Archivo Maestro de Gastos y Compras")
-        st.info("Este es el libro mayor de todos los documentos de gasto registrados en el sistema, tanto facturas de proveedores como gastos puntuales.")
+        st.markdown("#### 📖 Archivo Contable (Libro Mayor)")
+        st.info("💡 Este es el **Libro Mayor**. Muestra el historial inalterable de **todos** los movimientos contables registrados (pagados y pendientes). Usa los filtros para localizar cualquier documento.")
         
         c_f1_arc, c_f2_arc = st.columns(2)
         f_ini_arc = c_f1_arc.date_input("Desde:", pd.to_datetime('today') - pd.Timedelta(days=30), key="arc_i")
@@ -246,177 +409,6 @@ def render_pestana_contabilidad(client):
                     st.success("Documentos actualizados."); time.sleep(0.5); st.rerun()
         else:
             st.info("No hay gastos ni compras registradas en este periodo.")
-
-    with sec_fijos: # Reorganizado para la edición de gastos fijos
-        st.markdown("#### ➕ Registrar/Editar Gastos Fijos Recurrentes")
-        c_fij1, c_fij2 = st.columns([1, 2])
-        
-        with c_fij1:
-            with st.container(border=True):
-                st.markdown("##### ➕ Nuevo Gasto Fijo")
-                with st.form("nuevo_gasto_fijo", clear_on_submit=True):
-                    f_conc = st.text_input("Concepto (Ej: Alquiler, Luz, Préstamo)")
-                    f_cat = st.selectbox("Categoría", [
-                        "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)",
-                        "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)",
-                        "Financiación y Seguros (Préstamos, Tarjetas, Pólizas, Comisiones...)",
-                        "Publicidad y Marketing (Redes sociales, Promociones, Web...)",
-                        "Impuestos y Tasas (IGIC, IRPF, Tributos...)"
-                    ])
-                    f_imp = st.number_input("Importe Estimado/Fijo (€)", min_value=0.0, format="%.2f", step=0.01)
-                    f_dia = st.number_input("Día del mes de cargo", min_value=1, max_value=31, value=1, help="Pon 31 si quieres que se cobre el último día del mes (el programa lo ajustará a 28 o 30 según corresponda automáticamente).")
-                    f_frec = st.selectbox("Frecuencia", ["Mensual", "Bimestral", "Trimestral", "Anual"])
-                    
-                    if st.form_submit_button("Guardar Gasto Fijo", type="primary", use_container_width=True):
-                        try:
-                            client.table("gastos_recurrentes").insert({
-                                "concepto": f_conc, "categoria": f_cat, "importe_estimado": float(f_imp),
-                                "dia_cargo": int(f_dia), "frecuencia": f_frec, "activo": True
-                            }).execute()
-                            st.success("Gasto fijo registrado."); time.sleep(1); st.rerun()
-                        except Exception as e:
-                            st.error("⚠️ Ejecuta el código SQL en Supabase primero.")
-
-        with c_fij2:
-            st.markdown("##### 📋 Tus Gastos Fijos Activos")
-            try:
-                res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
-                if res_gf.data:
-                    df_gf = pd.DataFrame(res_gf.data)
-                    df_gf_vista = df_gf[['id', 'concepto', 'importe_estimado', 'dia_cargo', 'frecuencia']].copy()
-                    df_gf_vista.insert(0, "Desactivar", False)
-                    ed_gf = st.data_editor(df_gf_vista, hide_index=True, use_container_width=True, height=210,
-                        column_config={
-                            "Desactivar": st.column_config.CheckboxColumn("🛑 Quitar"),
-                            "concepto": "Concepto", "importe_estimado": st.column_config.NumberColumn("Importe (€)", format="%.2f", step=0.01),
-                            "dia_cargo": "Día del Mes", "frecuencia": "Frecuencia", "id": None
-                        })
-                    if st.button("💾 Guardar Cambios en Gastos Fijos"):
-                        filas_desactivar = ed_gf[ed_gf["Desactivar"] == True]
-                        for _, r in filas_desactivar.iterrows():
-                            client.table("gastos_recurrentes").update({"activo": False}).eq("id", r['id']).execute()
-                        st.rerun()
-                else:
-                    st.info("No hay gastos fijos registrados.")
-            except:
-                st.info("🔧 Ejecuta el código SQL en Supabase para activar esta función.")
-
-    with sec_calendario:
-        st.markdown("#### 📅 Calendario Visual y Gestión de Pagos (Gastos Fijos)")
-        st.info("Controla los pagos previstos de tus Gastos Fijos y márcalos como pagados.")
-        
-        c_alerta1, c_alerta2 = st.columns([1, 2])
-        with c_alerta1:
-            dias_alerta = st.slider("🔔 Días de antelación para alarmas:", min_value=1, max_value=30, value=7)
-            
-        try:
-            res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
-            res_compras_gf = client.table("compras").select("tipo").ilike("tipo", "Gastos Fijos | %").execute()
-            pagos_registrados = [c['tipo'] for c in res_compras_gf.data] if res_compras_gf.data else []
-            
-            hoy_dt = pd.Timestamp(date.today())
-            futuro_dt = hoy_dt + pd.Timedelta(days=60)
-            pasado_dt = hoy_dt - pd.Timedelta(days=30) # Miramos también un mes atrás para ver los atrasados
-            proyeccion = []
-            
-            if res_gf.data:
-                for gf in res_gf.data:
-                    for mes_offset in [-1, 0, 1, 2]:
-                        target_month = hoy_dt.month + mes_offset
-                        target_year = hoy_dt.year
-                        if target_month > 12:
-                            target_month -= 12; target_year += 1
-                        elif target_month < 1:
-                            target_month += 12; target_year -= 1
-                            
-                        dia_c = min(gf['dia_cargo'], pd.Period(year=target_year, month=target_month, freq='M').days_in_month)
-                        fecha_cargo = pd.to_datetime(f"{target_year}-{target_month:02d}-{dia_c:02d}")
-                        
-                        if pasado_dt <= fecha_cargo <= futuro_dt:
-                            tipo_id = f"Gastos Fijos | {gf['concepto']} - {target_month:02d}/{target_year}"
-                            estado_pago = "Pagado ✅" if tipo_id in pagos_registrados else "Pendiente ❌"
-                            
-                            proyeccion.append({
-                                "Fecha Vencimiento": fecha_cargo,
-                                "Concepto": gf['concepto'],
-                                "Importe": float(gf['importe_estimado']),
-                                "Estado": estado_pago,
-                                "ID_Pago": tipo_id
-                            })
-                            
-            if proyeccion:
-                df_proy = pd.DataFrame(proyeccion).sort_values("Fecha Vencimiento")
-                
-                with c_alerta2:
-                    df_alarmas = df_proy[(df_proy['Estado'] == "Pendiente ❌") & (df_proy['Fecha Vencimiento'] <= (hoy_dt + pd.Timedelta(days=dias_alerta)))]
-                    if not df_alarmas.empty:
-                        st.error(f"🚨 **¡ATENCIÓN!** Tienes {len(df_alarmas)} cargo(s) fijo(s) PENDIENTES de pago (vencidos o próximos).")
-                        with st.expander("👀 Ver detalle de cargos pendientes", expanded=False):
-                            for _, r in df_alarmas.iterrows():
-                                dias_diff = (r['Fecha Vencimiento'] - hoy_dt).days
-                                texto_dias = "HOY" if dias_diff == 0 else (f"VENCIDO hace {abs(dias_diff)} días" if dias_diff < 0 else f"en {dias_diff} días")
-                                st.markdown(f"<span style='color:#d32f2f; font-size:14px;'>• {r['Concepto']} - {r['Importe']}€ ({texto_dias})</span>", unsafe_allow_html=True)
-                    else:
-                        st.success(f"✅ Sin cargos fijos pendientes cercanos o atrasados.")
-                        
-                st.markdown("---")
-                
-                # Formulario para marcar pagos
-                pendientes_list = df_proy[df_proy['Estado'] == "Pendiente ❌"]
-                if not pendientes_list.empty:
-                    with st.expander("💸 **Marcar Gasto Fijo como Pagado**", expanded=False):
-                        with st.form("form_pagar_gf"):
-                            opciones_pago = [f"{r['ID_Pago']} ({r['Importe']}€)" for _, r in pendientes_list.iterrows()]
-                            sel_pago = st.selectbox("Selecciona el gasto a marcar como pagado:", opciones_pago)
-                            if st.form_submit_button("Confirmar Pago", type="primary"):
-                                id_sel = sel_pago.split(" (")[0]
-                                importe_sel = float(sel_pago.split("(")[1].replace("€)", ""))
-                                client.table("compras").insert({
-                                    "tipo": id_sel, "total": importe_sel, 
-                                    "estado": "Pagado", "fecha_vencimiento": str(date.today())
-                                }).execute()
-                                st.success("Pago registrado correctamente."); time.sleep(1); st.rerun()
-
-                # SEPARACIÓN EN PESTAÑAS (SEMANAL / MENSUAL / HISTÓRICO)
-                t_sem, t_mes, t_hist = st.tabs(["📆 Próximos 7 Días", "📅 Próximos 30 Días", "⏪ Mes Anterior"])
-                
-                with t_sem:
-                    df_sem = df_proy[(df_proy['Fecha Vencimiento'] >= hoy_dt) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=7))]
-                    pendientes_sem = df_sem[df_sem['Estado'] == "Pendiente ❌"]
-                    st.metric("Total PENDIENTE esta semana", f"{pendientes_sem['Importe'].sum():.2f} €")
-                    if not df_sem.empty:
-                        df_sem_v = df_sem[['Fecha Vencimiento', 'Concepto', 'Importe', 'Estado']].copy()
-                        df_sem_v['Fecha Vencimiento'] = df_sem_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
-                        st.dataframe(df_sem_v, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("No hay previsiones para los próximos 7 días.")
-                        
-                with t_mes:
-                    df_mes = df_proy[(df_proy['Fecha Vencimiento'] >= hoy_dt) & (df_proy['Fecha Vencimiento'] <= hoy_dt + pd.Timedelta(days=30))]
-                    pendientes_mes = df_mes[df_mes['Estado'] == "Pendiente ❌"]
-                    st.metric("Total PENDIENTE este mes", f"{pendientes_mes['Importe'].sum():.2f} €")
-                    if not df_mes.empty:
-                        df_chart = df_mes.copy()
-                        df_chart['Semana'] = df_chart['Fecha Vencimiento'].dt.to_period('W').apply(lambda r: f"Semana {r.start_time.strftime('%d/%m')}")
-                        st.bar_chart(df_chart.groupby('Semana')['Importe'].sum().reset_index().set_index('Semana'), color="#d32f2f")
-                        
-                        df_mes_v = df_mes[['Fecha Vencimiento', 'Concepto', 'Importe', 'Estado']].copy()
-                        df_mes_v['Fecha Vencimiento'] = df_mes_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
-                        st.dataframe(df_mes_v, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("No hay previsiones para los próximos 30 días.")
-                        
-                with t_hist:
-                    df_hist = df_proy[(df_proy['Fecha Vencimiento'] < hoy_dt)]
-                    if not df_hist.empty:
-                        df_hist_v = df_hist[['Fecha Vencimiento', 'Concepto', 'Importe', 'Estado']].copy()
-                        df_hist_v['Fecha Vencimiento'] = df_hist_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
-                        st.dataframe(df_hist_v, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("No hay registros del mes anterior.")
-            else: st.success("No hay previsiones de gastos fijos.")
-        except Exception as e:
-            st.error(f"Error al cargar calendario: {e}")
 
     with sec_informes:
         st.markdown("#### 📥 Selector de Fechas Personalizado")
