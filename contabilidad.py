@@ -157,12 +157,12 @@ def render_pestana_contabilidad(client):
                 # --- SISTEMA DE ALERTAS UNIFICADO ---
                 df_alarmas = df_proy[(df_proy['Estado'] == "Pendiente ❌") & (df_proy['Fecha Vencimiento'] <= (hoy_dt + pd.Timedelta(days=dias_alerta)))]
                 if not df_alarmas.empty:
-                    st.error(f"🚨 **ALERTA DE PAGOS:** Tienes {len(df_alarmas)} vencimiento(s) atrasados o muy próximos.")
-                    for _, r in df_alarmas.iterrows():
-                        dias_diff = (r['Fecha Vencimiento'] - hoy_dt).days
-                        texto_dias = "HOY" if dias_diff == 0 else (f"VENCIDO hace {abs(dias_diff)} días" if dias_diff < 0 else f"en {dias_diff} días")
-                        icono = "🏛️" if "Impuestos" in r['Categoría'] else "🏢"
-                        st.markdown(f"<span style='color:#d32f2f; font-size:15px; font-weight:bold;'>{icono} {r['Concepto']} - {r['Importe']:.2f}€ ({texto_dias})</span>", unsafe_allow_html=True)
+                    with st.expander(f"🚨 ALERTA DE PAGOS: Tienes {len(df_alarmas)} vencimiento(s) atrasados o muy próximos", expanded=False):
+                        for _, r in df_alarmas.iterrows():
+                            dias_diff = (r['Fecha Vencimiento'] - hoy_dt).days
+                            texto_dias = "HOY" if dias_diff == 0 else (f"VENCIDO hace {abs(dias_diff)} días" if dias_diff < 0 else f"en {dias_diff} días")
+                            icono = "🏛️" if "Impuestos" in r['Categoría'] else "🏢"
+                            st.markdown(f"<span style='color:#d32f2f; font-size:15px; font-weight:bold;'>{icono} {r['Concepto']} - {r['Importe']:.2f}€ ({texto_dias})</span>", unsafe_allow_html=True)
                 else:
                     st.success(f"✅ Todo al día. No hay ningún Gasto Fijo o Impuesto pendiente en los próximos {dias_alerta} días.")
                         
