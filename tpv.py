@@ -436,7 +436,7 @@ def render_pestana_tpv(client):
                     column_order=("Cantidad", "Producto", "Precio", "Desc. %", "Subtotal"),
                     column_config={
                         "Cantidad": st.column_config.NumberColumn("Cant.", min_value=1, step=1, width="small"),
-                        "Producto": st.column_config.TextColumn("Producto", disabled=True),
+                        "Producto": st.column_config.TextColumn("Producto"),
                         "Precio": st.column_config.NumberColumn("Precio €", format="%.2f", step=0.01),
                         "Desc. %": st.column_config.NumberColumn("Desc. %", min_value=0.0, max_value=100.0, format="%.2f%%", step=0.01),
                         "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True, step=0.01),
