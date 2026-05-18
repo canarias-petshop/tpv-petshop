@@ -1,15 +1,97 @@
 import streamlit as st
 import pandas as pd
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import time
 import json
 import streamlit.components.v1 as components
+import random
+import string
+
+if 'devolucion_actual' not in st.session_state:
+    st.session_state.devolucion_actual = None
+if 'vale_generado' not in st.session_state:
+    st.session_state.vale_generado = None
 
 def render_pestana_historial(client):
     st.markdown("<h3 style='margin-top: -15px;'>📜 Historial de Ventas y Cajas</h3>", unsafe_allow_html=True)
     sub_h_ventas, sub_h_cajas = st.tabs(["🛒 Tickets y Ventas", "🔒 Cierres de Caja"])
     
     with sub_h_ventas:
+        # --- VISTA DE ABONO O VALE ---
+        if st.session_state.devolucion_actual:
+            d = st.session_state.devolucion_actual
+            st.error("✅ DEVOLUCIÓN REALIZADA CON ÉXITO")
+            cuerpo_email = f"Hola,\n\nAdjuntamos el justificante de su devolución correspondiente al ticket original #{d['ticket_original_id']}:\n\n"
+            for p in d['productos']:
+                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€\n"
+            cuerpo_email += f"\nTOTAL ABONADO: {d['total']:.2f}€\nMÉTODO DE ABONO: {d['metodo']}\n\nUn saludo."
+            import urllib.parse
+            import base64
+            logo_html = ""
+            try:
+                with open("LOGO.jpg", "rb") as img_file:
+                    logo_html = f'<img src="data:image/jpeg;base64,{base64.b64encode(img_file.read()).decode("utf-8")}" style="max-width: 200px; margin-bottom: 10px;"><br>'
+            except: pass
+            html_abono = f"""
+            <!DOCTYPE html><html><head><meta charset='utf-8'>
+            <style>
+                body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: #f8f9fa; }}
+                #botones-container {{ display: flex; gap: 10px; padding: 10px; max-width: 350px; margin: 0 auto; justify-content: center; }}
+                .btn-print {{ flex: 1; padding: 12px 5px; background-color: #d32f2f; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; width: 100%; }}
+                .escala-mini {{ zoom: 0.65; -moz-transform: scale(0.65); transform-origin: top center; padding-bottom: 20px; }}
+                #ticket-impresion {{ display: block; border: 1px solid #ccc; padding: 15px; background-color: #fff0f0; width: 300px; margin: 0 auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
+            </style>
+            </head><body><div id="botones-container">
+                <button class="btn-print" onclick="imprimirConStar()">🖨️ IMPRIMIR ABONO</button>
+                <a href="mailto:?subject=Justificante%20Devolucion&body={urllib.parse.quote(cuerpo_email)}" target="_top" style="text-decoration: none; flex: 1;">
+                    <button class="btn-print" style="background-color: #2e7d32;">✉️ ENVIAR EMAIL</button></a></div>
+            <div class="escala-mini"><div id="ticket-impresion"><div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
+                {logo_html}<b style="font-size: 34px;">ABONO / DEVOLUCIÓN</b><br>
+                <div style="text-align: left; font-size: 22px;">Fecha: {d['fecha']}<br>Ticket Original: #{d['ticket_original_id']}</div>
+                <hr style="border-top: 2px dashed #000; margin: 10px 0px;"><table style="width: 100%; font-size: 22px; text-align: left; font-weight: bold;">
+            """
+            for p in d['productos']: html_abono += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right;'>{-p['Subtotal']:.2f}€</td></tr>"
+            html_abono += f"""</table><hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+                <div style="text-align: right; font-size: 28px;"><b>TOTAL ABONADO: {d['total']:.2f}€</b></div>
+                <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método:</b> {d['metodo']}</div></div></div></div>
+            <script>function imprimirConStar() {{ var htmlCodificado = encodeURIComponent("<!DOCTYPE html><html><body style='margin:0; padding:0; background-color:white;'>" + document.getElementById('ticket-impresion').innerHTML + "</body></html>"); var iframe = document.createElement('iframe'); iframe.style.display = 'none'; iframe.src = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(window.location.href) + "&html=" + htmlCodificado; document.body.appendChild(iframe); }}</script></body></html>"""
+            components.html(html_abono, height=400, scrolling=True)
+            if st.button("⬅️ Volver al Historial", use_container_width=True): st.session_state.devolucion_actual = None; st.rerun()
+            st.stop()
+
+        if st.session_state.vale_generado:
+            v = st.session_state.vale_generado
+            st.success("✅ VALE DE TIENDA GENERADO CON ÉXITO")
+            import base64
+            logo_html = ""
+            try:
+                with open("LOGO.jpg", "rb") as img_file:
+                    logo_html = f'<img src="data:image/jpeg;base64,{base64.b64encode(img_file.read()).decode("utf-8")}" style="max-width: 200px; margin-bottom: 10px;"><br>'
+            except: pass
+            html_vale = f"""
+            <!DOCTYPE html><html><head><meta charset='utf-8'>
+            <style>
+                body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: #f8f9fa; }}
+                #botones-container {{ display: flex; gap: 10px; padding: 10px; max-width: 350px; margin: 0 auto; justify-content: center; }}
+                .btn-print {{ flex: 1; padding: 12px 5px; background-color: #4caf50; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; width: 100%; }}
+                .escala-mini {{ zoom: 0.65; -moz-transform: scale(0.65); transform-origin: top center; padding-bottom: 20px; }}
+                #ticket-impresion {{ display: block; border: 1px solid #ccc; padding: 15px; background-color: #f0fff0; width: 300px; margin: 0 auto; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }}
+            </style>
+            </head><body><div id="botones-container">
+                <button class="btn-print" onclick="imprimirConStar()">🖨️ IMPRIMIR VALE</button></div>
+            <div class="escala-mini"><div id="ticket-impresion"><div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
+                {logo_html}<b style="font-size: 34px;">VALE DE TIENDA</b><br>
+                <div style="text-align: left; font-size: 22px;">Fecha: {v['fecha']}</div>
+                <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+                <div style="font-size: 28px; text-align: center; margin: 10px 0;"><b>VALOR: {v['valor']:.2f}€</b></div>
+                <div style="font-size: 24px; text-align: center; border: 2px solid black; padding: 5px; margin: 10px 0;"><b>CÓDIGO: {v['codigo']}</b></div>
+                <div style="font-size: 18px; color: #000; margin-top: 20px; text-align: center;">Guarda este vale para tu próxima compra.<br>No tiene caducidad. No canjeable por dinero.</div>
+            </div></div></div>
+            <script>function imprimirConStar() {{ var htmlCodificado = encodeURIComponent("<!DOCTYPE html><html><body style='margin:0; padding:0; background-color:white;'>" + document.getElementById('ticket-impresion').innerHTML + "</body></html>"); var iframe = document.createElement('iframe'); iframe.style.display = 'none'; iframe.src = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(window.location.href) + "&html=" + htmlCodificado; document.body.appendChild(iframe); }}</script></body></html>"""
+            components.html(html_vale, height=400, scrolling=True)
+            if st.button("⬅️ Volver al Historial", use_container_width=True): st.session_state.vale_generado = None; st.rerun()
+            st.stop()
+
         # --- CONTROL DE BLOQUEO Z (LEY ANTIFRAUDE) ---
         res_caja_ab = client.table("control_caja").select("created_at").eq("estado", "Abierta").execute()
         if res_caja_ab.data:
@@ -205,11 +287,15 @@ def render_pestana_historial(client):
                                 
                             if dias_pasados > 14:
                                 st.warning(f"⚠️ Han pasado {dias_pasados} días (Límite 14).")
-                                btn_dev = st.button("🛡️ Forzar Devolución Extraordinaria", use_container_width=True)
+                                c_btn1, c_btn2 = st.columns(2)
+                                with c_btn1: btn_abono = st.button("🛡️ Forzar Abono", use_container_width=True)
+                                with c_btn2: btn_vale = st.button("🛡️ Forzar Vale", type="primary", use_container_width=True)
                             else:
-                                btn_dev = st.button("↩️ Devolver y Restaurar Stock", use_container_width=True)
+                                c_btn1, c_btn2 = st.columns(2)
+                                with c_btn1: btn_abono = st.button("💸 Devolver Dinero", use_container_width=True)
+                                with c_btn2: btn_vale = st.button("🎁 Crear Vale", type="primary", use_container_width=True)
                                 
-                            if btn_dev:
+                            if btn_abono or btn_vale:
                                 # Lógica de devolución (la que ya tenías)
                                 for p in prods:
                                     if not p.get('Manual', False) and 'id' in p:
@@ -234,7 +320,25 @@ def render_pestana_historial(client):
                                         client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cli_id).execute()
                                         
                                 client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_id)).execute()
-                                st.success("Venta anulada."); time.sleep(0.8); st.rerun()
+                                
+                                if btn_vale:
+                                    codigo_vale = "VALE-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                                    try:
+                                        client.table("vales_tienda").insert({
+                                            "codigo_vale": codigo_vale,
+                                            "saldo_inicial": total_final_calculado,
+                                            "saldo_actual": total_final_calculado,
+                                            "id_ticket_origen": int(t_id),
+                                            "notas": f"Generado por devolución de ticket #{t_id}"
+                                        }).execute()
+                                    except: pass
+                                    st.session_state.vale_generado = {"fecha": datetime.now().strftime("%d/%m/%Y %H:%M"), "valor": total_final_calculado, "codigo": codigo_vale}
+                                else:
+                                    st.session_state.devolucion_actual = {
+                                        "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"), "productos": prods,
+                                        "total": total_final_calculado, "metodo": t_info.get('metodo_pago', 'Desconocido'), "ticket_original_id": t_id
+                                    }
+                                st.rerun()
                                 
                     with c3:
                         try:
@@ -262,11 +366,12 @@ def render_pestana_historial(client):
                             except (ValueError, TypeError):
                                 desc_item = 0.0
                             motivo = p.get('Motivo_Desc', '')
+                            sub_val = float(p.get('Subtotal', 0.0))
                             if desc_item > 0:
                                 motivo_str = f" (Dto. {desc_item}% por {motivo})" if motivo else f" (Dto. {desc_item}%)"
-                                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€{motivo_str}\n"
+                                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {sub_val:.2f}€{motivo_str}\n"
                             else:
-                                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€\n"
+                                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {sub_val:.2f}€\n"
                         
                         desc_g_re_raw = t_info.get('descuento_global', 0.0)
                         desc_g_re = float(desc_g_re_raw) if desc_g_re_raw is not None else 0.0
@@ -330,14 +435,17 @@ def render_pestana_historial(client):
                                 desc_item = float(desc_item_raw) if desc_item_raw is not None else 0.0
                             except (ValueError, TypeError):
                                 desc_item = 0.0
+                                
+                            sub_val = float(p.get('Subtotal', 0.0))
                             if desc_item > 0:
                                 motivo = p.get('Motivo_Desc', '')
                                 motivo_str = f" por {motivo}" if motivo else ""
-                                precio_orig = p.get('Precio', p.get('Base Ud', 0) * (1 + p.get('IGIC %', 0)/100)) * p['Cantidad']
-                                html_reprint += f"<tr><td style='padding-bottom: 0px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 0px;'><del>{precio_orig:.2f}€</del> {p['Subtotal']:.2f}€</td></tr>"
+                                p_precio_raw = p.get('Precio', p.get('Base Ud', 0) * (1 + p.get('IGIC %', 0)/100))
+                                precio_orig = float(p_precio_raw) * float(p['Cantidad'])
+                                html_reprint += f"<tr><td style='padding-bottom: 0px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 0px;'><del>{precio_orig:.2f}€</del> {sub_val:.2f}€</td></tr>"
                                 html_reprint += f"<tr><td colspan='2' style='font-size: 16px; padding-bottom: 5px; color: #555;'>  ↳ Dto. {desc_item}% aplicado{motivo_str}</td></tr>"
                             else:
-                                html_reprint += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
+                                html_reprint += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{sub_val:.2f}€</td></tr>"
                         html_reprint += f"""
                                 </table>
                                 <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
