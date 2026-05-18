@@ -7,12 +7,12 @@ import streamlit.components.v1 as components
 import random
 import string
 
-if 'devolucion_actual' not in st.session_state:
-    st.session_state.devolucion_actual = None
-if 'vale_generado' not in st.session_state:
-    st.session_state.vale_generado = None
-
 def render_pestana_historial(client):
+    if 'devolucion_actual' not in st.session_state:
+        st.session_state.devolucion_actual = None
+    if 'vale_generado' not in st.session_state:
+        st.session_state.vale_generado = None
+
     st.markdown("<h3 style='margin-top: -15px;'>📜 Historial de Ventas y Cajas</h3>", unsafe_allow_html=True)
     sub_h_ventas, sub_h_cajas = st.tabs(["🛒 Tickets y Ventas", "🔒 Cierres de Caja"])
     
