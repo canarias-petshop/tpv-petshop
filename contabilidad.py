@@ -8,7 +8,7 @@ import pandas as pd
 def render_pestana_contabilidad(client):
     st.markdown("<h3 style='margin-top: -15px;'>📊 Contabilidad e Informes para Asesoría</h3>", unsafe_allow_html=True)
     
-    sec_gastos, sec_archivo, sec_fijos, sec_calendario, sec_informes = st.tabs(["💸 Gastos Puntuales", "📖 Archivo Contable", "🔄 Gastos Fijos", "📅 Calendario y Alertas", "📂 Descargas"])
+    sec_gastos, sec_pagos, sec_archivo, sec_fijos, sec_calendario, sec_informes = st.tabs(["💸 Gastos Puntuales", "💰 Pagos Pendientes (Gastos)", "📖 Archivo Contable", "🔄 Gastos Fijos", "📅 Calendario y Alertas", "📂 Descargas"])
 
     with sec_gastos:
         col_g1, col_g2 = st.columns([1, 2])
@@ -35,17 +35,133 @@ def render_pestana_contabilidad(client):
                         st.error("El importe debe ser mayor que 0 y debes escribir un concepto.")
         
         with col_g2:
-            st.markdown("#### Alertas de Vencimientos Pendientes")
+            st.markdown("#### Alertas de Vencimientos (Gastos)")
             res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").eq("estado", "Pendiente").execute()
-            if res_comp.data:
+            
+            # Filtrar de forma segura en Python
+            datos_alertas = [c for c in (res_comp.data or []) if "Factura:" not in str(c.get('tipo', ''))]
+            
+            if datos_alertas:
                 hoy_date = date.today()
-                for c in res_comp.data:
+                for c in datos_alertas:
                     dias = (pd.to_datetime(c['fecha_vencimiento']).date() - hoy_date).days
                     clase = "vencido" if dias < 0 else "proximo"
-                    nombre = c['proveedores']['nombre_empresa'] if c['proveedores'] else c['tipo']
+                    nombre = c['tipo']
                     st.markdown(f"<p class='{clase}'>⚠️ {nombre} - {c['total']}€ (Vence en {dias} días: {c['fecha_vencimiento']})</p>", unsafe_allow_html=True)
             else:
-                st.info("No hay facturas ni gastos pendientes. ¡Todo al día!")
+                st.info("No hay gastos pendientes. ¡Todo al día!")
+
+    with sec_pagos:
+        st.markdown("#### 💰 Control de Pagos Pendientes (Gastos Generales y Fijos)")
+        st.info("💡 Aquí aparecen todos los gastos (limpieza, técnicos, nóminas, impuestos...) que no han sido marcados como 'Pagado'.")
+        
+        res_deudas_g = client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
+        
+        # Filtrar descartando facturas de proveedor de forma segura
+        datos_filtrados_g = [d for d in (res_deudas_g.data or []) if "Factura:" not in str(d.get('tipo', ''))]
+        
+        if datos_filtrados_g:
+            df_deudas = pd.DataFrame(datos_filtrados_g)
+            df_deudas['Concepto'] = df_deudas['tipo']
+            df_deudas['Fecha Vencimiento'] = pd.to_datetime(df_deudas['fecha_vencimiento'], errors='coerce')
+            
+            df_deudas['pagado'] = pd.to_numeric(df_deudas.get('pagado', 0.0)).fillna(0.0)
+            df_deudas['pendiente'] = df_deudas.apply(
+                lambda r: float(r['total']) - r['pagado'] if 'pendiente' not in df_deudas.columns or pd.isna(r.get('pendiente')) else float(r.get('pendiente', 0.0)), 
+                axis=1
+            )
+            df_deudas['pendiente'] = df_deudas['pendiente'].apply(lambda x: max(0.0, x))
+            
+            hoy_date = pd.Timestamp(date.today())
+            
+            def calc_estado_venc(fecha):
+                if pd.isna(fecha): return "⚪ Sin fecha"
+                dias = (fecha - hoy_date).days
+                if dias < 0: return f"🔴 CADUCADO (hace {abs(dias)} días)"
+                elif dias <= 3: return f"⚠️ Vence pronto (en {dias} días)"
+                else: return f"🟢 En plazo (en {dias} días)"
+
+            df_deudas['Estado Vencimiento'] = df_deudas['Fecha Vencimiento'].apply(calc_estado_venc)
+            df_deudas['Vence'] = df_deudas['Fecha Vencimiento'].dt.strftime('%d/%m/%Y').fillna('-')
+            
+            st.markdown(f"<h3 style='color: #d32f2f;'>Deuda Total en Gastos: {df_deudas['pendiente'].sum():.2f} €</h3>", unsafe_allow_html=True)
+            
+            df_vista_p = df_deudas[['id', 'Concepto', 'total', 'pendiente', 'Vence', 'Estado Vencimiento']].copy()
+            df_vista_p.insert(0, "A Pagar Hoy (€)", 0.0)
+            df_vista_p = df_vista_p.sort_values(by='Estado Vencimiento', ascending=False)
+            
+            def highlight_vencidos(val):
+                if isinstance(val, str):
+                    if 'CADUCADO' in val: return 'color: red; font-weight: bold'
+                    elif 'Vence pronto' in val: return 'color: orange; font-weight: bold'
+                return ''
+
+            ed_deudas = st.data_editor(
+                df_vista_p.style.map(highlight_vencidos, subset=['Estado Vencimiento']), 
+                hide_index=True, use_container_width=True, key="ed_deudas_contabilidad",
+                column_config={
+                    "A Pagar Hoy (€)": st.column_config.NumberColumn("A Pagar Hoy (€)", min_value=0.0, format="%.2f", step=0.01), 
+                    "id": None, "Concepto": "Documento", 
+                    "total": st.column_config.NumberColumn("Total (€)", format="%.2f", disabled=True, step=0.01),
+                    "pendiente": st.column_config.NumberColumn("Pendiente (€)", format="%.2f", disabled=True, step=0.01)
+                }
+            )
+            
+            filas_pagar = ed_deudas[ed_deudas["A Pagar Hoy (€)"] > 0]
+            if not filas_pagar.empty:
+                errores_exceso = filas_pagar[filas_pagar["A Pagar Hoy (€)"] > filas_pagar["pendiente"]]
+                if not errores_exceso.empty:
+                    st.error("⚠️ Has introducido un importe a pagar superior a la deuda pendiente en algún gasto. Por favor, corrígelo antes de continuar.")
+                else:
+                    total_a_pagar = filas_pagar['A Pagar Hoy (€)'].sum()
+                    st.markdown("---")
+                    st.markdown(f"**Has indicado pagos para {len(filas_pagar)} gasto(s) por un total de <span style='color: #005275; font-size: 1.2em;'>{total_a_pagar:.2f} €</span>**", unsafe_allow_html=True)
+                    
+                    res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+                    opciones_pago = ["💵 Caja Fuerte (Efectivo de la tienda)"]
+                    mapa_bancos = {}
+                    if res_b.data:
+                        for b in res_b.data:
+                            etiqueta = f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)"
+                            opciones_pago.append(etiqueta)
+                            mapa_bancos[etiqueta] = b['id']
+
+                    sel_origen = st.selectbox("💳 Selecciona el origen de los fondos para el pago:", [""] + opciones_pago, key="sel_origen_cont")
+                    
+                    if sel_origen and st.button("✅ Confirmar Pago de Gastos", type="primary", use_container_width=True, key="btn_pago_cont"):
+                        current_time = time.time()
+                        if current_time - st.session_state.get('last_pago_cont_time', 0) < 3: st.stop()
+                        st.session_state['last_pago_cont_time'] = current_time
+
+                        nombres_pagados = ", ".join(filas_pagar['Concepto'].unique()[:2])
+                        if len(filas_pagar['Concepto'].unique()) > 2: nombres_pagados += " y otros..."
+                        
+                        pago_exitoso = False
+                        if "Caja Fuerte" in sel_origen:
+                            res_caja = client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+                            if res_caja.data:
+                                client.table("movimientos_caja").insert({"id_caja": res_caja.data[0]['id'], "tipo": "Retirada", "cantidad": float(total_a_pagar), "motivo": f"Pago gastos: {nombres_pagados}"}).execute()
+                                pago_exitoso = True
+                            else:
+                                st.error("⚠️ No puedes pagar con la caja porque no hay ningún turno abierto.")
+                        else:
+                            banco_id = mapa_bancos[sel_origen]
+                            banco_data = [b for b in res_b.data if b['id'] == banco_id][0]
+                            client.table("cuentas_bancarias").update({"saldo_actual": banco_data['saldo_actual'] - total_a_pagar}).eq("id", banco_id).execute()
+                            pago_exitoso = True
+                            
+                        if pago_exitoso:
+                            for _, row in filas_pagar.iterrows():
+                                c_id = row['id']
+                                pago_hoy = float(row['A Pagar Hoy (€)'])
+                                actual_row = df_deudas[df_deudas['id'] == c_id].iloc[0]
+                                nuevo_pagado = float(actual_row['pagado']) + pago_hoy
+                                nuevo_pendiente = float(actual_row['pendiente']) - pago_hoy
+                                nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else "Pago Parcial"
+                                client.table("compras").update({"estado": nuevo_estado, "pagado": nuevo_pagado, "pendiente": nuevo_pendiente}).eq("id", c_id).execute()
+                            st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!"); time.sleep(1.5); st.rerun()
+        else:
+            st.success("¡Genial! No tienes gastos pendientes.")
 
     with sec_archivo:
         st.markdown("#### 📖 Archivo Maestro de Gastos y Compras")

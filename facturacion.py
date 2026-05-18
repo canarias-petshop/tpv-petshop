@@ -824,13 +824,17 @@ def render_pestana_facturacion(client):
     # SUB-TAB 4: PAGOS PENDIENTES
     # ==========================================
     with sub_pagos:
-        st.markdown("#### 💸 Control de Pagos Pendientes (Deudas a Proveedores y Gastos)")
-        st.info("💡 Aquí aparecen todas las compras y gastos que no han sido marcados como 'Pagado'. Puedes saldarlos descontando el dinero de tus bancos o directamente desde la caja fuerte.")
+        st.markdown("#### 💸 Control de Pagos a Proveedores")
+        st.info("💡 Aquí aparecen exclusivamente las facturas de **proveedores de mercancía** que no han sido marcadas como 'Pagado'.")
         
         # Buscar compras que no sean "Pagado"
         res_deudas = client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
-        if res_deudas.data:
-            df_deudas = pd.DataFrame(res_deudas.data)
+        
+        # Filtro nativo en Python para evitar fallos de Pandas o SQL
+        datos_filtrados = [d for d in (res_deudas.data or []) if "Factura:" in str(d.get('tipo', ''))]
+        
+        if datos_filtrados:
+            df_deudas = pd.DataFrame(datos_filtrados)
             df_deudas['Proveedor'] = df_deudas['proveedores'].apply(lambda x: x['nombre_empresa'] if x and isinstance(x, dict) else 'Gasto / Nómina')
             df_deudas['Fecha Vencimiento'] = pd.to_datetime(df_deudas['fecha_vencimiento'], errors='coerce')
             
@@ -976,5 +980,4 @@ def render_pestana_facturacion(client):
                                 }).eq("id", c_id).execute()
                             st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!"); time.sleep(1.5); st.rerun()
         else:
-            st.success("¡Genial! No tienes deudas pendientes.")
-            st.success("¡Genial! No tienes deudas pendientes.")
+            st.success("¡Genial! No tienes deudas a proveedores pendientes.")
