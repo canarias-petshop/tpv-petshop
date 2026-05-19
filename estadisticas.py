@@ -234,6 +234,7 @@ def render_pestana_estadisticas(client):
                         m = str(m)
                         if "Tarjeta" in m: return "Tarjeta"
                         if "Mixto" in m: return "Pago Mixto"
+                        if "Vale" in m: return "Vale de Tienda"
                         return m
                     
                     df_v['Metodo Simplificado'] = df_v['metodo_pago'].apply(simplificar_metodo)

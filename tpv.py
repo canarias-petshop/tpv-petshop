@@ -575,6 +575,7 @@ def render_pestana_tpv(client):
                 with c_v2:
                     if st.button("Validar Vale", use_container_width=True):
                         if codigo_vale_input:
+                            vale_valido = False
                             try:
                                 res_vale = client.table("vales_tienda").select("*").eq("codigo_vale", codigo_vale_input.strip().upper()).execute()
                                 if res_vale.data:
@@ -582,13 +583,16 @@ def render_pestana_tpv(client):
                                     if vale_db['saldo_actual'] > 0:
                                         st.session_state.vale_aplicado = vale_db
                                         st.success(f"Vale válido. Saldo disponible: {vale_db['saldo_actual']:.2f}€")
-                                        time.sleep(1); st.rerun()
+                                        vale_valido = True
                                     else:
                                         st.error("Este vale ya está agotado.")
                                 else:
                                     st.error("Código de vale no encontrado.")
-                            except Exception:
-                                st.error("⚠️ Error conectando con la base de datos de vales.")
+                            except Exception as e:
+                                st.error(f"⚠️ Error conectando con la base de datos de vales: {e}")
+                                
+                            if vale_valido:
+                                time.sleep(1); st.rerun()
                                 
                 desc_vale_eur = 0.0
                 if st.session_state.vale_aplicado:
@@ -735,11 +739,25 @@ def render_pestana_tpv(client):
                             data_to_hash = f"TICKET|{datetime.now().isoformat()}|{total_f:.2f}|{hash_anterior}"
                             hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
 
+                            carrito_db = carrito_limpio.copy()
+                            metodo_final_log = str(metodo_log)
+                            
+                            if st.session_state.vale_aplicado and desc_vale_eur > 0:
+                                carrito_db.append({
+                                    "__meta__": True,
+                                    "vale_aplicado": st.session_state.vale_aplicado['codigo_vale'],
+                                    "desc_vale_eur": desc_vale_eur
+                                })
+                                if float(pagado_hoy) == 0:
+                                    metodo_final_log = f"Vale ({st.session_state.vale_aplicado['codigo_vale']})"
+                                else:
+                                    metodo_final_log += f" + Vale ({st.session_state.vale_aplicado['codigo_vale']})"
+
                             # INSERCIÓN CON COLUMNAS EXACTAS CONTABLES
                             client.table("ventas_historial").insert({
                                 "total": float(total_f), "pagado": float(pagado_hoy), "pendiente": float(pendiente),
-                                "metodo_pago": str(metodo_log), "cliente_deuda": str(cliente_fidel_nombre) if pendiente > 0 else "",
-                                "descuento_global": float(desc_g_val), "productos": carrito_limpio, 
+                                "metodo_pago": metodo_final_log, "cliente_deuda": str(cliente_fidel_nombre) if pendiente > 0 else "",
+                                "descuento_global": float(desc_g_val), "productos": carrito_db, 
                                 "estado": "Completado" if pendiente == 0 else "Deuda",
                                 "pago_efectivo": float(p_efectivo),
                                 "pago_tarjeta": float(p_tarjeta),

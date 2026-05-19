@@ -239,11 +239,20 @@ def render_pestana_historial(client):
                 st.markdown(f"#### 🔎 Detalle del Ticket #{t_id} (Bloqueo VeriFactu)")
                 st.warning("🔒 **TICKET CERRADO Y ENCRIPTADO**: Por normativa antifraude, los tickets emitidos no se pueden modificar ni eliminar. Para corregir un error, debe emitir una Devolución (Abono).")
                     
-                prods = t_info.get('productos', [])
+                prods_raw = t_info.get('productos', [])
+                vale_aplicado_meta = None
+                desc_vale_eur_meta = 0.0
+                prods = []
                 
-                # --- FIX: Filtro de seguridad para tickets antiguos con líneas vacías ---
-                if isinstance(prods, list):
-                    prods = [p for p in prods if isinstance(p, dict) and p.get('Producto') and str(p.get('Producto')).strip() != "" and p.get('Subtotal') is not None]
+                # --- FIX: Filtro de seguridad y extracción de metadatos del Vale ---
+                if isinstance(prods_raw, list):
+                    for p in prods_raw:
+                        if isinstance(p, dict):
+                            if p.get('__meta__'):
+                                vale_aplicado_meta = p.get('vale_aplicado')
+                                desc_vale_eur_meta = float(p.get('desc_vale_eur', 0.0))
+                            elif p.get('Producto') and str(p.get('Producto')).strip() != "" and p.get('Subtotal') is not None:
+                                prods.append(p)
 
                 if prods:
                     df_prods = pd.DataFrame(prods)
@@ -270,6 +279,9 @@ def render_pestana_historial(client):
                     
                     with c_tot3:
                         st.metric("TOTAL FINAL", f"{total_final_calculado:.2f}€")
+
+                    if desc_vale_eur_meta > 0:
+                        st.info(f"🎟️ **Pagado parcial o totalmente con Vale {vale_aplicado_meta}:** -{desc_vale_eur_meta:.2f}€")
 
                     # 3. BOTONES DE ACCIÓN
                     c1, c2, c3 = st.columns(3)
@@ -378,6 +390,9 @@ def render_pestana_historial(client):
                         if desc_g_re > 0:
                             cuerpo_email += f"\nDescuento global aplicado: {desc_g_re}%\n"
                             
+                        if desc_vale_eur_meta > 0:
+                            cuerpo_email += f"\nVale {vale_aplicado_meta} aplicado: -{desc_vale_eur_meta:.2f}€\n"
+
                         cuerpo_email += f"\nTOTAL PAGADO: {total_final_calculado:.2f}€\n"
                         cuerpo_email += f"MÉTODO DE PAGO: {metodo_reprint}\n"
                         
@@ -458,6 +473,9 @@ def render_pestana_historial(client):
                             html_reprint += f"<div style='text-align: right; font-size: 22px;'>Subtotal: {subt_re:.2f}€</div>"
                             html_reprint += f"<div style='text-align: right; font-size: 22px;'><b>Dto. Global ({desc_g_re}%): -{descuento_eur:.2f}€</b></div>"
                         
+                        if desc_vale_eur_meta > 0:
+                            html_reprint += f"<div style='text-align: right; font-size: 22px;'><b>Vale {vale_aplicado_meta}: -{desc_vale_eur_meta:.2f}€</b></div>"
+
                         html_reprint += f"""
                                 <div style="text-align: right; font-size: 28px;"><b>TOTAL: {total_final_calculado:.2f}€</b></div>
                                 <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {metodo_reprint}</div>
