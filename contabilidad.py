@@ -449,6 +449,45 @@ def render_pestana_contabilidad(client):
             except:
                 return default
 
+        def calcular_bases_e_igic(productos_raw, desc_global, is_factura=False):
+            b_prod, b_serv, i_serv = 0.0, 0.0, 0.0
+            if not productos_raw: return b_prod, b_serv, i_serv
+            if isinstance(productos_raw, str):
+                try:
+                    import json; productos_raw = json.loads(productos_raw)
+                except: return b_prod, b_serv, i_serv
+            if isinstance(productos_raw, dict): productos_raw = [productos_raw]
+                
+            for p in productos_raw:
+                if not isinstance(p, dict): continue
+                precio_pvp = safe_float(p.get('Precio Venta' if is_factura else 'Precio', p.get('Precio', 0.0)))
+                cant = safe_float(p.get('Cantidad', 1))
+                desc_item = safe_float(p.get('Desc %', p.get('Desc. %', 0.0)))
+                id_item = str(p.get('id', ''))
+                cat_db = mapa_categorias.get(id_item, 'Desconocido')
+                
+                es_servicio = False
+                if cat_db == 'Servicio' or id_item.startswith('cita_'): es_servicio = True
+                elif cat_db == 'Producto': es_servicio = False
+                else:
+                    nombre_item = str(p.get('Producto', p.get('Descripción', ''))).lower()
+                    if any(kw in nombre_item for kw in palabras_clave_serv):
+                        es_servicio = True
+                        if any(ex in nombre_item for ex in ['cepillo', 'peine', 'champú', 'champu', 'mascarilla', 'tijera', 'carda', 'cortaúñas', 'cortauñas', 'colonia', 'perfume']):
+                            es_servicio = False
+
+                pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
+                if es_servicio:
+                    igic_porcentaje = safe_float(p.get('IGIC %', p.get('IGIC', 7.0)))
+                    base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
+                    b_serv += base_linea
+                    i_serv += (pvp_con_desc - base_linea)
+                else:
+                    b_prod += pvp_con_desc
+                    
+            factor_desc = (1 - safe_float(desc_global) / 100)
+            return round(b_prod * factor_desc, 2), round(b_serv * factor_desc, 2), round(i_serv * factor_desc, 2)
+
         # Recuperar datos de Tickets
         res_v_inf = client.table("ventas_historial").select("id, created_at, total, metodo_pago, cliente_deuda, productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).neq("estado", "DEVUELTO").execute()
         # Recuperar datos de Facturas Emitidas
@@ -461,63 +500,8 @@ def render_pestana_contabilidad(client):
         
         if res_v_inf.data:
             for t in res_v_inf.data:
-                # Calcular Base e IGIC separando Productos y Servicios
-                base_prod = 0.0
-                base_serv = 0.0
-                igic_serv = 0.0
-                if t.get('productos'):
-                    prods = t['productos']
-                    if isinstance(prods, str):
-                        try:
-                            import json
-                            prods = json.loads(prods)
-                        except:
-                            prods = []
-                    if isinstance(prods, dict):
-                        prods = [prods]
-                        
-                    for p in prods:
-                        if not isinstance(p, dict): continue
-                        precio_pvp = safe_float(p.get('Precio', 0.0))
-                        cant = safe_float(p.get('Cantidad', 1))
-                        desc_item = safe_float(p.get('Desc. %', p.get('Desc %', 0.0)))
-                        
-                        id_item = str(p.get('id', ''))
-                        cat_db = mapa_categorias.get(id_item, 'Desconocido')
-                        
-                        es_servicio = False
-                        if cat_db == 'Servicio':
-                            es_servicio = True
-                        elif cat_db == 'Producto':
-                            es_servicio = False
-                        elif id_item.startswith('cita_'):
-                            es_servicio = True
-                        else:
-                            nombre_item = str(p.get('Producto', p.get('Descripción', ''))).lower()
-                            if any(kw in nombre_item for kw in palabras_clave_serv):
-                                es_servicio = True
-                                # Excepciones: si es un producto físico relacionado con estética, se queda como Producto (0%)
-                                if any(ex in nombre_item for ex in ['cepillo', 'peine', 'champú', 'champu', 'mascarilla', 'tijera', 'carda', 'cortaúñas', 'cortauñas', 'colonia', 'perfume']):
-                                    es_servicio = False
-
-                        pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
-                        
-                        if es_servicio:
-                            igic_porcentaje = float(p.get('IGIC', 7.0))
-                            base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
-                            igic_linea = pvp_con_desc - base_linea
-                            
-                            base_serv += base_linea
-                            igic_serv += igic_linea
-                        else:
-                            base_prod += pvp_con_desc
-                
-                # Aplicar descuento global del ticket a las bases y al IGIC
                 desc_global = float(t.get('descuento_global', 0.0))
-                factor_desc = (1 - desc_global / 100)
-                base_prod = round(base_prod * factor_desc, 2)
-                base_serv = round(base_serv * factor_desc, 2)
-                igic_serv = round(igic_serv * factor_desc, 2)
+                base_prod, base_serv, igic_serv = calcular_bases_e_igic(t.get('productos'), desc_global, is_factura=False)
                 
                 # Parche de Seguridad Contable: Ajuste proporcional si hubo canjeo de puntos (descuento en euros)
                 total_calc = base_prod + base_serv + igic_serv
@@ -548,62 +532,9 @@ def render_pestana_contabilidad(client):
                 cliente_nom = f['clientes']['nombre_dueno'] if f.get('clientes') else "N/A"
                 tot_f = float(f.get('total_final', 0))
                 
-                # Recalculamos la base y el IGIC separando Productos y Servicios
-                base_prod = 0.0
-                base_serv = 0.0
-                igic_serv = 0.0
                 if f.get('productos'):
-                    prods = f['productos']
-                    if isinstance(prods, str):
-                        try:
-                            import json
-                            prods = json.loads(prods)
-                        except:
-                            prods = []
-                    if isinstance(prods, dict):
-                        prods = [prods]
-                        
-                    for p in prods:
-                        if not isinstance(p, dict): continue
-                        precio_pvp = float(p.get('Precio Venta', 0.0))
-                        cant = float(p.get('Cantidad', 1))
-                        desc_item = float(p.get('Desc %', 0.0))
-                        
-                        id_item = str(p.get('id', ''))
-                        cat_db = mapa_categorias.get(id_item, 'Desconocido')
-                        
-                        es_servicio = False
-                        if cat_db == 'Servicio':
-                            es_servicio = True
-                        elif cat_db == 'Producto':
-                            es_servicio = False
-                        elif id_item.startswith('cita_'):
-                            es_servicio = True
-                        else:
-                            nombre_item = str(p.get('Producto', p.get('Descripción', ''))).lower()
-                            if any(kw in nombre_item for kw in palabras_clave_serv):
-                                es_servicio = True
-                                # Excepciones: si es un producto físico relacionado con estética, se queda como Producto (0%)
-                                if any(ex in nombre_item for ex in ['cepillo', 'peine', 'champú', 'champu', 'mascarilla', 'tijera', 'carda', 'cortaúñas', 'cortauñas', 'colonia', 'perfume']):
-                                    es_servicio = False
-
-                        pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
-                        
-                        if es_servicio:
-                            igic_porcentaje = float(p.get('IGIC', p.get('IGIC %', 7.0)))
-                            base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
-                            igic_linea = pvp_con_desc - base_linea
-                            
-                            base_serv += base_linea
-                            igic_serv += igic_linea
-                        else:
-                            base_prod += pvp_con_desc
-                        
                     desc_global = float(f.get('descuento_global', 0.0))
-                    factor_desc = (1 - desc_global / 100)
-                    base_prod = round(base_prod * factor_desc, 2)
-                    base_serv = round(base_serv * factor_desc, 2)
-                    igic_serv = round(igic_serv * factor_desc, 2)
+                    base_prod, base_serv, igic_serv = calcular_bases_e_igic(f.get('productos'), desc_global, is_factura=True)
                 else:
                     # Si no hay productos (facturas antiguas sin JSON), asumimos fallback a total neto (en Servicios)
                     base_serv = float(f.get('total_neto', round(tot_f / 1.07, 2)))

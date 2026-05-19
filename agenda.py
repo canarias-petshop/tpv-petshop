@@ -67,6 +67,12 @@ def render_pestana_agenda(client):
     if 'llave_agenda_cita' not in st.session_state: st.session_state.llave_agenda_cita = 0
 
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
+
+    def generar_enlace_wa(telefono, mensaje):
+        tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
+        if not tel_limpio: return None
+        if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
+        return f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje)}"
     
     # --- DATOS COMUNES PARA TODAS LAS SUB-PESTAÑAS DE AGENDA ---
     all_mascotas = get_masc_ag_cached(client, st.session_state.get('db_version', 0))
@@ -344,13 +350,9 @@ def render_pestana_agenda(client):
                     emoji_estado = EMOJIS_ESTADO.get(estado_c, "🟢")
                     estado_con_emoji = f"{emoji_estado} {estado_c}"
                             
-                    tel_limpio = ''.join(filter(str.isdigit, str(cliente_info.get('telefono', ''))))
-                    url_wa = None
-                    if tel_limpio:
-                        if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
-                        msg_cita = f"¡Hola {cliente_info.get('nombre_dueno', '')}! 🐾 Te escribimos de Animalarium para recordarte la cita de {mascota_info.get('nombre', '')} el día {dt_obj.strftime('%d/%m/%Y')} a las {dt_obj.strftime('%H:%M')}. Por favor, confírmanos tu asistencia. ¡Te esperamos! ✂️"
-                        url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg_cita)}"
-                            
+                    msg_cita = f"¡Hola {cliente_info.get('nombre_dueno', '')}! 🐾 Te escribimos de Animalarium para recordarte la cita de {mascota_info.get('nombre', '')} el día {dt_obj.strftime('%d/%m/%Y')} a las {dt_obj.strftime('%H:%M')}. Por favor, confírmanos tu asistencia. ¡Te esperamos! ✂️"
+                    url_wa = generar_enlace_wa(cliente_info.get('telefono', ''), msg_cita)
+
                     citas_formateadas.append({
                         "Ver Ficha": False,
                         "mascota_id": mascota_info.get('id'),
@@ -621,19 +623,14 @@ def render_pestana_agenda(client):
                 dt_obj = pd.to_datetime(c['fecha_hora'])
                 hora_str = dt_obj.strftime('%H:%M')
                 
-                tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
-                url_wa = None
-                if tel_limpio:
-                    if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
+                fecha_str_wa = f"{nombre_dia_obj.lower()} {manana_dt.day} {meses_es[manana_dt.month]}"
+                
+                if domicilio:
+                    msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería para {nombre_m}\nHora: {hora_str}\nDía: {fecha_str_wa}\nDirección de recogida: {direccion}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶🚗"
+                else:
+                    msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería para {nombre_m}\nHora: {hora_str}\nDía: {fecha_str_wa}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶"
                     
-                    fecha_str_wa = f"{nombre_dia_obj.lower()} {manana_dt.day} {meses_es[manana_dt.month]}"
-                    
-                    if domicilio:
-                        msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería para {nombre_m}\nHora: {hora_str}\nDía: {fecha_str_wa}\nDirección de recogida: {direccion}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶🚗"
-                    else:
-                        msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería para {nombre_m}\nHora: {hora_str}\nDía: {fecha_str_wa}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶"
-                        
-                    url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg)}"
+                url_wa = generar_enlace_wa(telefono, msg)
                     
                 import re
                 s_raw = c.get('servicio', '')
@@ -695,11 +692,8 @@ def render_pestana_agenda(client):
                                 telefono = cliente_info.get('telefono', '')
                                 pref_contacto = cliente_info.get('metodo_contacto') or 'WhatsApp'
                                 
-                                tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
-                                if tel_limpio and len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
-                                    
                                 mensaje = f"¡Hola {dueno}! 🐾 Nos ponemos en contacto desde Animalarium porque, revisando la ficha de {m['nombre']}, hemos visto que ya le va tocando su sesión de peluquería para mantener el manto perfecto. Recuerda que si reservas antes de que se cumplan los 2 meses de su última visita, te aplicamos un 10% de descuento en el servicio. ¿Te buscamos un huequito para estos días? ¡Un abrazo! 🐶✂️"
-                                url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje)}" if tel_limpio else None
+                                url_wa = generar_enlace_wa(telefono, mensaje)
                                 
                                 alertas.append({
                                     "Mascota": m['nombre'], "Dueño": dueno,
