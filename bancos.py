@@ -3,6 +3,9 @@ import pandas as pd
 import time
 
 def render_pestana_bancos(client):
+    if 'llave_bancos_nueva' not in st.session_state: st.session_state.llave_bancos_nueva = 0
+    if 'llave_bancos_trans' not in st.session_state: st.session_state.llave_bancos_trans = 0
+
     st.markdown("<h3 style='margin-top: -15px;'>🏦 Cuentas Bancarias y Tesorería</h3>", unsafe_allow_html=True)
     st.info("💡 En este módulo puedes registrar las cuentas bancarias de la empresa, añadir su IBAN y controlar su saldo en tiempo real.")
     
@@ -11,10 +14,10 @@ def render_pestana_bancos(client):
     with col_b1:
         st.markdown("#### ➕ Añadir Cuenta Bancaria")
         with st.form("nueva_cuenta_banco", clear_on_submit=True, border=True):
-            b_nom = st.text_input("Nombre del Banco *", placeholder="Ej: CaixaBank, Caja Siete...")
-            b_titular = st.text_input("Titular de la cuenta")
-            b_iban = st.text_input("IBAN")
-            b_saldo = st.number_input("Saldo Actual Real (€)", value=0.0, format="%.2f", step=0.01)
+            b_nom = st.text_input("Nombre del Banco *", placeholder="Ej: CaixaBank, Caja Siete...", key=f"b_nom_{st.session_state.llave_bancos_nueva}")
+            b_titular = st.text_input("Titular de la cuenta", key=f"b_tit_{st.session_state.llave_bancos_nueva}")
+            b_iban = st.text_input("IBAN", key=f"b_ib_{st.session_state.llave_bancos_nueva}")
+            b_saldo = st.number_input("Saldo Actual Real (€)", value=0.0, format="%.2f", step=0.01, key=f"b_sal_{st.session_state.llave_bancos_nueva}")
             
             if st.form_submit_button("💾 Guardar Cuenta", use_container_width=True, type="primary"):
                 if b_nom:
@@ -23,6 +26,7 @@ def render_pestana_bancos(client):
                             "nombre_banco": b_nom, "titular": b_titular,
                             "iban": b_iban, "saldo_actual": float(b_saldo)
                         }).execute()
+                        st.session_state.llave_bancos_nueva += 1
                         st.success("Cuenta registrada correctamente."); time.sleep(0.5); st.rerun()
                     except Exception:
                         st.error("⚠️ Asegúrate de haber ejecutado el código SQL para crear la tabla 'cuentas_bancarias' en Supabase.")
@@ -67,9 +71,9 @@ def render_pestana_bancos(client):
         
         with st.form("form_transferencia", border=True):
             col_t1, col_t2, col_t3 = st.columns(3)
-            with col_t1: ori_sel = st.selectbox("Origen del Dinero 📤", opciones_origen)
-            with col_t2: des_sel = st.selectbox("Destino del Dinero 📥", opciones_destino)
-            with col_t3: cant_trans = st.number_input("Cantidad a transferir (€) *", min_value=0.01, step=0.01, value=None, format="%.2f")
+            with col_t1: ori_sel = st.selectbox("Origen del Dinero 📤", opciones_origen, key=f"b_ori_{st.session_state.llave_bancos_trans}")
+            with col_t2: des_sel = st.selectbox("Destino del Dinero 📥", opciones_destino, key=f"b_des_{st.session_state.llave_bancos_trans}")
+            with col_t3: cant_trans = st.number_input("Cantidad a transferir (€) *", min_value=0.01, step=0.01, value=None, format="%.2f", key=f"b_can_{st.session_state.llave_bancos_trans}")
             
             if st.form_submit_button("🚀 Realizar Transferencia", type="primary", use_container_width=True):
                 if cant_trans and ori_sel != des_sel:
@@ -91,6 +95,7 @@ def render_pestana_bancos(client):
                     banco_des = next((b for b in lista_bancos if b['nombre_banco'] == nombre_banco_des), None)
                     if banco_des: client.table("cuentas_bancarias").update({"saldo_actual": banco_des['saldo_actual'] + cant_trans}).eq("id", banco_des['id']).execute()
                         
+                    st.session_state.llave_bancos_trans += 1
                     st.success(f"Transferencia de {cant_trans:.2f} € completada con éxito."); time.sleep(1.5); st.rerun()
                 elif ori_sel == des_sel: st.error("El origen y el destino no pueden ser el mismo.")
                 else: st.warning("Introduce una cantidad válida.")
