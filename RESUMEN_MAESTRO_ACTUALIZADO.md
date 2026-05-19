@@ -33,6 +33,8 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 📦 **1. Inventario y Servicios**
 - Separación inteligente entre "Productos" (con control de stock) y "Servicios" (peluquería, veterinaria).
 - Cálculo automático de Base Imponible e IGIC.
+- **Flexibilidad Fiscal de Servicios:** Desbloqueada la posibilidad de asignar IGIC 0% (u otros porcentajes) a servicios específicos como los extras de cosmética.
+- **Uso Interno (Peluquería):** Nueva sub-pestaña para retirar productos del almacén para uso profesional (ej. champús). Descuenta el stock sin generar ingresos en caja, pero deja un registro contable a 0€ para el control estricto de consumos.
 
 🛒 **2. Terminal de Caja (TPV)**
 - Buscador manual y escáner de pistola **(con añadido de 1 clic, auto-vaciado y reseteo instantáneo tras cada lectura exitosa o fallida)**. Formulario de artículo manual también con reseteo automático.
@@ -55,6 +57,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Soporte para Familias:** Capacidad de registrar un Contacto Principal (para avisos automáticos) y un Contacto Secundario (Alternativo) con sus respectivos teléfonos, ambos reconocibles por el buscador.
 - Fichas de familias y mascotas con cálculo de edad automático, inclusión de los campos **Sexo** (Macho/Hembra) y **Peso** editables, asignación de **Peluquero/a Preferido** y un **Diario de Observaciones Clínicas** independiente.
 - **Historial Clínico Inteligente:** Registro de sesiones de peluquería con **desplegable de servicios vinculado al inventario en tiempo real**, **auto-asignación de precios** si se deja en blanco y cálculo de duración exacto al guardar la sesión.
+- **Módulo de Extras Dinámicos:** La ficha clínica incluye ahora un panel específico (expander) para añadir extras a la sesión (ej. Mascarillas, Extra Nudos). Permite registrar la hora exacta de inicio y fin del extra, calculando el precio automáticamente por minuto según la tarifa del catálogo y sumándolo al importe total de la sesión.
 - **Alerta de Citas Sin Cerrar:** El sistema detecta si hay citas pasadas confirmadas en la agenda que no se han registrado en el historial de la mascota, mostrando una alerta roja bloqueante hasta que se guarde la sesión clínica.
 - **Registro de Cancelaciones (Políticas Estrictas):** El CRM detecta automáticamente cuántas veces ha cancelado una mascota y muestra una alerta roja en su ficha para que los empleados lo tengan en cuenta al darle cita.
 - **Gestor de Deudas de Tienda (Pagos Pendientes):** Nueva sub-pestaña que agrupa automáticamente a los clientes morosos del TPV. Alerta visualmente a los 14 días y genera un mensaje de WhatsApp para reclamarlo. Además, incluye un **Sistema de Cobro Integrado con Pagos Fraccionados** que permite abonar partes de la deuda introduciendo la cantidad exacta y seleccionando el método (Efectivo/Bancos), actualizando saldos y sumando Puntos VIP proporcionalmente de forma automática.
@@ -135,6 +138,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 ⏱️ **12. Personal y Control de Horario**
 - Fichaje rápido de entrada/salida para empleados mediante PIN de 4 dígitos (con ajuste estricto a la zona horaria de Canarias).
 - **Registro Inalterable Laboral:** Generación de firma criptográfica Hash SHA-256 encadenada en cada fichaje para cumplir con la estricta normativa laboral y evitar modificaciones manuales del administrador.
+- **Guardián de Fichajes:** Sistema de bloqueo inteligente de pantalla al abrir la app que lee los cuadrantes diarios. Si un empleado está en turno y no ha fichado entrada (o no ficha salida al terminar), bloquea la navegación obligándolo a fichar o a justificar la ausencia/retraso. **El rol Administrador dispone de acceso libre incondicional ("puerta VIP") ignorando el bloqueo.**
 - Visualización de cuadrante de trabajo apilado por semanas (sin scroll horizontal).
 - **Panel de Administrador:** Gestión de la plantilla, Editor Visual Masivo de Cuadrantes (tipo Excel para planificar el mes completo en segundos) y registro histórico de horas trabajadas para nóminas.
 
@@ -183,7 +187,8 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Penalización de Morosos y Pago de Deudas por Ticket (Completado):** Bloqueo del uso de puntos VIP en el TPV si el cliente mantiene deudas activas. Refactorización del gestor de pagos en el CRM para saldar deudas de manera individualizada (filtrando primero por cliente).
 - **Sincronización Multiusuario en Tiempo Real (Caché Híbrida) (Completado):** Se implementó un sistema de caché con caducidad (`ttl=15`) acoplado a disparadores de versión (`db_version`). Esto permite que varios ordenadores (ej. peluquería, mostrador y casa) vean los cambios de agenda y stock reflejados en un máximo de 15 segundos sin sacrificar la velocidad de la interfaz.
 - **Blindaje de Integridad Referencial Anti-cuelgues (Completado):** Se inyectaron bloques de protección en TPV, Historial y Facturación para ignorar IDs temporales al actualizar el stock, garantizando que el sistema nunca colapse al cobrar citas con nombres antiguos que ya no existen en el catálogo o al devolver tickets desfasados.
-- **Cálculo de Extras Dinámicos (Completado):** El historial clínico ahora reconoce la palabra clave estricta `"extra nudos"` para calcular su precio por minuto automáticamente según el catálogo, sin generar falsos positivos con otros productos similares (ej. "mascarilla de nudos").
+- **Cálculo de Extras Dinámicos y Uso Interno (Completado):** Se implementó el panel de extras con hora de inicio y fin dentro de la Ficha Clínica. Además, se liberó la opción de IGIC 0% en servicios y se creó la pestaña "Uso Interno" en el Inventario para descontar consumos de tienda a coste cero (0€).
+- **Guardián de Fichajes y Pantalla (Completado):** Sistema de bloqueo que fuerza el control de presencia según el cuadrante del empleado, con excepción "VIP" para la navegación del Administrador.
 - **Escáner de Facturas por IA (OCR) con Google Gemini (Completado):** Se integró exitosamente el procesamiento inteligente de documentos en la pestaña "Registrar Compra" con soporte para subida de archivos o captura directa con cámara web/tablet.
   - *Extracción Inteligente:* Captura automática de Proveedor, productos, cantidades, importes netos, IGIC, descuentos (línea y pronto pago), lotes, caducidades y códigos de barras. La tabla muestra importes netos para cuadrar visualmente con el papel.
   - *Auto-creación y Enlazado:* Si la IA detecta un producto nuevo, lo crea en el inventario generando un SKU correlativo basado en las dos primeras letras, y fuerza su enlace al proveedor seleccionado.
@@ -195,12 +200,9 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
-*   **PRIORIDAD 1 - Control de Consumo Interno (Stock):** Crear una pestaña de "Uso Interno (Peluquería)" en el Inventario para descontar las garrafas o productos utilizados internamente, registrándolo a coste 0€ en contabilidad sin falsear beneficios.
-*   **PRIORIDAD 2 - Desbloqueo de IGIC 0% en Servicios:** Eliminar la regla estricta que fuerza el 7% de IGIC en Estadísticas y Facturación para los servicios, permitiendo así cobrar extras de cosmética como servicios íntegros (0% IGIC).
-*   **PRIORIDAD 3 - Optimización Ficha Clínica (Extra Nudos):** Modificar la tabla de la ficha clínica para poder registrar la hora exacta de "Inicio" y "Fin" de los desenredados (Extra Nudos), calculando el tiempo exacto y permitiendo unificar los extras en el ticket.
-*   **PRIORIDAD 4 - Orden Alfabético CRM:** Ajustar el ordenamiento (A-Z) en el directorio para que no mande las minúsculas al final de la lista.
-*   **PRIORIDAD 5 - Bancos y Tesorería:** Crear y aislar las cuentas "Revolut (Negocio)" y "Revolut (Nómina)".
-*   **PRIORIDAD 6 - Gestor de Proyectos y Tareas:** Crear una pestaña centralizada para "Proyectos Internos" (a nivel de gerencia) y "Tareas de Empleados" (asignación de rutinas y checklist).
+*   **PRIORIDAD 1 - Orden Alfabético CRM:** Ajustar el ordenamiento (A-Z) en el directorio de clientes para que no mande las minúsculas al final de la lista.
+*   **PRIORIDAD 2 - Bancos y Tesorería:** Crear y aislar las cuentas "Revolut (Negocio)" y "Revolut (Nómina)".
+*   **PRIORIDAD 3 - Gestor de Proyectos y Tareas:** Crear una pestaña centralizada para "Proyectos Internos" (a nivel de gerencia) y "Tareas de Empleados" (asignación de rutinas y checklist).
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
