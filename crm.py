@@ -5,6 +5,10 @@ from datetime import date
 import urllib.parse
 
 def render_pestana_crm(client):
+    if 'llave_crm_cli' not in st.session_state: st.session_state.llave_crm_cli = 0
+    if 'llave_crm_masc' not in st.session_state: st.session_state.llave_crm_masc = 0
+    if 'llave_crm_enc' not in st.session_state: st.session_state.llave_crm_enc = 0
+
     st.markdown("<h3 style='margin-bottom: 5px;'>👥 Gestión de Clientes y Mascotas</h3>", unsafe_allow_html=True)
     
     try:
@@ -30,40 +34,40 @@ def render_pestana_crm(client):
     with col_c1:
         st.markdown("#### 👤 Nuevo Cliente")
         with st.form("nuevo_cliente", clear_on_submit=True):
-            c_nom = st.text_input("Nombre del Contacto Principal *")
+            c_nom = st.text_input("Nombre del Contacto Principal *", key=f"nc_nom_{st.session_state.llave_crm_cli}")
             c_t1, c_t2 = st.columns(2)
-            with c_t1: c_tel = st.text_input("Tel. Principal (Avisos) *")
-            with c_t2: c_cont = st.selectbox("Canal Preferido", ["WhatsApp", "Llamada", "SMS"])
+            with c_t1: c_tel = st.text_input("Tel. Principal (Avisos) *", key=f"nc_tel_{st.session_state.llave_crm_cli}")
+            with c_t2: c_cont = st.selectbox("Canal Preferido", ["WhatsApp", "Llamada", "SMS"], key=f"nc_cont_{st.session_state.llave_crm_cli}")
             
             st.markdown("<p style='margin: 0; font-size: 13px; color: gray;'>Segundo contacto (Opcional)</p>", unsafe_allow_html=True)
             c_t3, c_t4 = st.columns(2)
-            with c_t3: c_nom2 = st.text_input("Nombre Contacto Alt.")
-            with c_t4: c_tel2 = st.text_input("Teléfono Alt.")
-            c_ema = st.text_input("Email")
+            with c_t3: c_nom2 = st.text_input("Nombre Contacto Alt.", key=f"nc_nom2_{st.session_state.llave_crm_cli}")
+            with c_t4: c_tel2 = st.text_input("Teléfono Alt.", key=f"nc_tel2_{st.session_state.llave_crm_cli}")
+            c_ema = st.text_input("Email", key=f"nc_ema_{st.session_state.llave_crm_cli}")
             
             c_d1, c_d2 = st.columns(2)
-            with c_d1: c_dir = st.text_input("Dirección (Para recogidas a domicilio)")
-            with c_d2: c_nac = st.date_input("F. Nacimiento", value=None)
+            with c_d1: c_dir = st.text_input("Dirección (Para recogidas a domicilio)", key=f"nc_dir_{st.session_state.llave_crm_cli}")
+            with c_d2: c_nac = st.date_input("F. Nacimiento", value=None, key=f"nc_nac_{st.session_state.llave_crm_cli}")
             
-            c_domicilio = st.checkbox("🚚 Recogida a Domicilio")
-            c_rgpd = st.checkbox("📝 Acepta LOPD/RGPD (Envío info y promos)", value=True)
+            c_domicilio = st.checkbox("🚚 Recogida a Domicilio", key=f"nc_dom_{st.session_state.llave_crm_cli}")
+            c_rgpd = st.checkbox("📝 Acepta LOPD/RGPD (Envío info y promos)", value=True, key=f"nc_rgpd_{st.session_state.llave_crm_cli}")
             
             st.markdown("<hr style='margin: 5px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
             st.markdown("<p style='margin: 0; font-size: 13px; color: gray;'>🐾 Añadir mascota (Deja en blanco si es solo cliente de tienda)</p>", unsafe_allow_html=True)
             
             cm1, cm2, cm3 = st.columns([2, 1.5, 1.5])
-            with cm1: m_nom = st.text_input("Nombre de la mascota")
-            with cm2: m_esp = st.selectbox("Especie", ["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"])
-            with cm3: m_sexo = st.selectbox("Sexo", ["", "Macho", "Hembra"])
+            with cm1: m_nom = st.text_input("Nombre de la mascota", key=f"nm_nom_{st.session_state.llave_crm_cli}")
+            with cm2: m_esp = st.selectbox("Especie", ["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"], key=f"nm_esp_{st.session_state.llave_crm_cli}")
+            with cm3: m_sexo = st.selectbox("Sexo", ["", "Macho", "Hembra"], key=f"nm_sexo_{st.session_state.llave_crm_cli}")
             
             cm4, cm5, cm6 = st.columns([2, 1.5, 1.5])
-            with cm4: m_raz = st.text_input("Raza")
-            with cm5: m_nac = st.date_input("Nacimiento Mascota", value=None)
-            with cm6: m_peso = st.text_input("Peso", placeholder="Ej: 15 kg")
+            with cm4: m_raz = st.text_input("Raza", key=f"nm_raz_{st.session_state.llave_crm_cli}")
+            with cm5: m_nac = st.date_input("Nacimiento Mascota", value=None, key=f"nm_nac_{st.session_state.llave_crm_cli}")
+            with cm6: m_peso = st.text_input("Peso", placeholder="Ej: 15 kg", key=f"nm_peso_{st.session_state.llave_crm_cli}")
             
             c_obs1, c_obs2 = st.columns([2.5, 1.5])
-            with c_obs1: m_obs = st.text_input("Observaciones (Alergias, carácter...)")
-            with c_obs2: m_pref = st.selectbox("Peluquero/a Pref.", ["Cualquiera"] + empleados_lista)
+            with c_obs1: m_obs = st.text_input("Observaciones (Alergias, carácter...)", key=f"nm_obs_{st.session_state.llave_crm_cli}")
+            with c_obs2: m_pref = st.selectbox("Peluquero/a Pref.", ["Cualquiera"] + empleados_lista, key=f"nm_pref_{st.session_state.llave_crm_cli}")
 
             if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
                 if c_nom:
@@ -83,6 +87,7 @@ def render_pestana_crm(client):
                         }).execute()
 
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                    st.session_state.llave_crm_cli += 1
                     st.success("Cliente guardado correctamente"); time.sleep(0.5); st.rerun()
                 else:
                     st.warning("El nombre del dueño es obligatorio.")
@@ -738,17 +743,17 @@ def render_pestana_crm(client):
             dict_cli = {f"{c['nombre_dueno']} ({c['telefono']})": c['id'] for c in res_clientes.data} if res_clientes.data else {}
             
             with st.form("nueva_mascota_extra", clear_on_submit=True, border=False):
-                sel_cli = st.selectbox("Selecciona el cliente:", list(dict_cli.keys()))
+                sel_cli = st.selectbox("Selecciona el cliente:", list(dict_cli.keys()), key=f"nx_sel_{st.session_state.llave_crm_masc}")
                 
                 c_m1, c_m2, c_m3 = st.columns([2, 1.5, 1.5], vertical_alignment="bottom")
-                with c_m1: nx_nom = st.text_input("Nombre mascota", key="nx_nom")
-                with c_m2: nx_esp = st.selectbox("Especie", ["Perro", "Gato", "Ave", "Roedor", "Otro"], key="nx_esp")
-                with c_m3: nx_sexo = st.selectbox("Sexo", ["", "Macho", "Hembra"], key="nx_sexo")
+                with c_m1: nx_nom = st.text_input("Nombre mascota", key=f"nx_nom_{st.session_state.llave_crm_masc}")
+                with c_m2: nx_esp = st.selectbox("Especie", ["Perro", "Gato", "Ave", "Roedor", "Otro"], key=f"nx_esp_{st.session_state.llave_crm_masc}")
+                with c_m3: nx_sexo = st.selectbox("Sexo", ["", "Macho", "Hembra"], key=f"nx_sexo_{st.session_state.llave_crm_masc}")
                 
                 c_m4, c_m5, c_m6 = st.columns([2, 1.5, 1.5], vertical_alignment="bottom")
-                with c_m4: nx_raz = st.text_input("Raza", key="nx_raz")
-                with c_m5: nx_peso = st.text_input("Peso (kg)", key="nx_peso")
-                with c_m6: nx_pref = st.selectbox("Peluquero/a Pref.", ["Cualquiera"] + empleados_lista, key="nx_pref")
+                with c_m4: nx_raz = st.text_input("Raza", key=f"nx_raz_{st.session_state.llave_crm_masc}")
+                with c_m5: nx_peso = st.text_input("Peso (kg)", key=f"nx_peso_{st.session_state.llave_crm_masc}")
+                with c_m6: nx_pref = st.selectbox("Peluquero/a Pref.", ["Cualquiera"] + empleados_lista, key=f"nx_pref_{st.session_state.llave_crm_masc}")
                 
                 if st.form_submit_button("Añadir Mascota", use_container_width=True):
                     if nx_nom and sel_cli:
@@ -757,6 +762,7 @@ def render_pestana_crm(client):
                             "cliente_id": dict_cli[sel_cli], "nombre": nx_nom, "especie": nx_esp, "sexo": nx_sexo, "raza": nx_raz, "peso": nx_peso, "observaciones": final_obs_extra
                         }).execute()
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.session_state.llave_crm_masc += 1
                         st.success("Mascota añadida a la familia"); time.sleep(0.5); st.rerun()
                     else:
                         st.warning("Falta el nombre de la mascota.")
@@ -902,17 +908,17 @@ def render_pestana_crm(client):
                     if res_clientes.data:
                         opc_cli_enc += [f"{c['nombre_dueno']} | {c['telefono']}" for c in res_clientes.data]
                     
-                    sel_cli_enc = st.selectbox("1. Buscar Cliente:", opc_cli_enc)
+                    sel_cli_enc = st.selectbox("1. Buscar Cliente:", opc_cli_enc, key=f"ne_sel_{st.session_state.llave_crm_enc}")
                     
                     st.markdown("<p style='font-size:12px; color:gray; margin:0;'>O rellenar si no está registrado:</p>", unsafe_allow_html=True)
                     c_nom_man, c_tel_man = st.columns(2)
-                    with c_nom_man: e_cli_man = st.text_input("Nombre", key="e_cli_man")
-                    with c_tel_man: e_tel_man = st.text_input("Teléfono", key="e_tel_man")
+                    with c_nom_man: e_cli_man = st.text_input("Nombre", key=f"ne_nom_{st.session_state.llave_crm_enc}")
+                    with c_tel_man: e_tel_man = st.text_input("Teléfono", key=f"ne_tel_{st.session_state.llave_crm_enc}")
                     
                     st.markdown("---")
-                    e_prod = st.text_input("2. Producto que pide *")
-                    e_cant = st.number_input("3. Cantidad *", min_value=1, value=1)
-                    e_obs = st.text_area("4. Observaciones")
+                    e_prod = st.text_input("2. Producto que pide *", key=f"ne_prod_{st.session_state.llave_crm_enc}")
+                    e_cant = st.number_input("3. Cantidad *", min_value=1, value=1, key=f"ne_cant_{st.session_state.llave_crm_enc}")
+                    e_obs = st.text_area("4. Observaciones", key=f"ne_obs_{st.session_state.llave_crm_enc}")
                     
                     if st.form_submit_button("Guardar Encargo", type="primary", use_container_width=True):
                         # Determinar cliente
@@ -931,6 +937,7 @@ def render_pestana_crm(client):
                                     "notas": e_obs, "estado": "Pendiente"
                                 }).execute()
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.session_state.llave_crm_enc += 1
                                 st.success("Encargo guardado."); time.sleep(0.5); st.rerun()
                             except Exception as e:
                                 st.error("Error al guardar en la base de datos.")

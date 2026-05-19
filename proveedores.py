@@ -5,6 +5,11 @@ import json
 import urllib.parse
 
 def render_pestana_proveedores(client):
+    if 'llave_n_prov' not in st.session_state:
+        st.session_state.llave_n_prov = 0
+    if 'llave_n_art_ped' not in st.session_state:
+        st.session_state.llave_n_art_ped = 0
+
     st.markdown("<h3 style='margin-top:-15px;'> Gestión de Proveedores y Pedidos</h3>", unsafe_allow_html=True)
     sub_prov, sub_pedidos = st.tabs(["🏢 Directorio de Proveedores", "📦 Gestión de Pedidos y Borradores"])
     
@@ -14,24 +19,24 @@ def render_pestana_proveedores(client):
             st.markdown("#### ➕ Nuevo Proveedor")
             with st.form("n_prov_full", clear_on_submit=True):
                 st.markdown("**Datos Principales**")
-                n_emp = st.text_input("Nombre Proveedor *")
+                n_emp = st.text_input("Nombre Proveedor *", key=f"np_emp_{st.session_state.llave_n_prov}")
                 c_np1, c_np2 = st.columns(2)
-                with c_np1: n_cif = st.text_input("CIF / NIF")
-                with c_np2: n_tel = st.text_input("Teléfono Fijo")
+                with c_np1: n_cif = st.text_input("CIF / NIF", key=f"np_cif_{st.session_state.llave_n_prov}")
+                with c_np2: n_tel = st.text_input("Teléfono Fijo", key=f"np_tel_{st.session_state.llave_n_prov}")
                 
                 c_np3, c_np4 = st.columns(2)
-                with c_np3: n_mov = st.text_input("Móvil")
-                with c_np4: n_ema = st.text_input("Email")
+                with c_np3: n_mov = st.text_input("Móvil", key=f"np_mov_{st.session_state.llave_n_prov}")
+                with c_np4: n_ema = st.text_input("Email", key=f"np_ema_{st.session_state.llave_n_prov}")
                 
                 st.markdown("**Ubicación Rápida**")
-                n_dir = st.text_input("Dirección")
+                n_dir = st.text_input("Dirección", key=f"np_dir_{st.session_state.llave_n_prov}")
                 c_np5, c_np6 = st.columns(2)
-                with c_np5: n_pob = st.text_input("Población")
-                with c_np6: n_pais = st.text_input("País", value="España - Islas Canarias")
+                with c_np5: n_pob = st.text_input("Población", key=f"np_pob_{st.session_state.llave_n_prov}")
+                with c_np6: n_pais = st.text_input("País", value="España - Islas Canarias", key=f"np_pais_{st.session_state.llave_n_prov}")
                 
-                n_frec = st.text_input("Días de Reparto", placeholder="Ej: Todos los días, Los martes, Bajo demanda...", value="Bajo demanda")
-                n_hora = st.text_input("Hora límite de pedido", placeholder="Ej: 14:00, 20:00, Sin límite...", value="Sin límite")
-                n_min = st.number_input("Pedido Mínimo (€) para portes gratis", min_value=0.0, format="%.2f", step=0.01)
+                n_frec = st.text_input("Días de Reparto", placeholder="Ej: Todos los días, Los martes, Bajo demanda...", value="Bajo demanda", key=f"np_frec_{st.session_state.llave_n_prov}")
+                n_hora = st.text_input("Hora límite de pedido", placeholder="Ej: 14:00, 20:00, Sin límite...", value="Sin límite", key=f"np_hora_{st.session_state.llave_n_prov}")
+                n_min = st.number_input("Pedido Mínimo (€) para portes gratis", min_value=0.0, format="%.2f", step=0.01, key=f"np_min_{st.session_state.llave_n_prov}")
                 
                 if st.form_submit_button("Guardar Proveedor", use_container_width=True, type="primary"):
                     if n_emp:
@@ -43,6 +48,7 @@ def render_pestana_proveedores(client):
                             "pedido_minimo": float(n_min)
                         }).execute()
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.session_state.llave_n_prov += 1
                         st.success("Guardado"); time.sleep(0.5); st.rerun()
         with cp2:
             st.markdown("#### 📋 Directorio")
@@ -398,8 +404,8 @@ def render_pestana_proveedores(client):
                         with t_man:
                             with st.form(f"add_manual_ped_{ped_id}", clear_on_submit=True, border=False):
                                 cm1, cm2, cm3 = st.columns([2, 1, 1])
-                                with cm1: m_prod = st.text_input("Nombre del producto", placeholder="Ej: Correa roja...")
-                                with cm2: m_cant = st.number_input("Cantidad", min_value=1, value=1)
+                                with cm1: m_prod = st.text_input("Nombre del producto", placeholder="Ej: Correa roja...", key=f"am_nom_{ped_id}_{st.session_state.llave_n_art_ped}")
+                                with cm2: m_cant = st.number_input("Cantidad", min_value=1, value=1, key=f"am_can_{ped_id}_{st.session_state.llave_n_art_ped}")
                                 with cm3: 
                                     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
                                     submit_manual = st.form_submit_button("Añadir Manual", use_container_width=True)
@@ -409,6 +415,7 @@ def render_pestana_proveedores(client):
                                         lista_prods_ped.append({"Producto": m_prod, "Cantidad": m_cant})
                                         client.table("pedidos_proveedores").update({"productos": lista_prods_ped}).eq("id", ped_id).execute()
                                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                        st.session_state.llave_n_art_ped += 1
                                         st.success("Añadido."); time.sleep(0.5); st.rerun()
                                     else:
                                         st.warning("Escribe el nombre.")
