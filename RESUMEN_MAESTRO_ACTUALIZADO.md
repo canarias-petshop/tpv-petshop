@@ -193,8 +193,11 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
-*   **PRIORIDAD ABSOLUTA - Gestor de Proyectos y Tareas:** Crear una pestaña centralizada para "Proyectos Internos" (a nivel de gerencia) y "Tareas de Empleados" (asignación de rutinas, checklist, notas y estados) para sustituir el uso caótico de WhatsApp y dejar todo el flujo de trabajo documentado en el ERP.
+*   **PRIORIDAD 1 - Reseteo Limpio de Formularios (UI):** Aplicar llaves dinámicas (`st.session_state.llave_...`) en todos los formularios (Agenda, CRM, Proveedores, TPV, etc.) para que se vacíen automáticamente al guardar y evitar datos fantasma o registros duplicados.
+*   **PRIORIDAD 2 - Integración de Vales en TPV:** Implementar el campo de "Cobro con Vale" en la caja para descontar saldo de devoluciones, asegurando una sintaxis limpia.
+*   **PRIORIDAD 3 - Orden Alfabético CRM:** Ajustar el ordenamiento (A-Z) en el directorio para que no mande las minúsculas al final de la lista.
 *   **Bancos y Tesorería:** Crear y aislar las cuentas "Revolut (Negocio)" y "Revolut (Nómina)" para que no se mezclen con la caja operativa ni con los datáfonos de cobro a clientes del TPV.
+*   **Gestor de Proyectos y Tareas:** Crear una pestaña centralizada para "Proyectos Internos" (a nivel de gerencia) y "Tareas de Empleados" (asignación de rutinas y checklist).
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
