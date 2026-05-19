@@ -15,12 +15,15 @@ def render_pestana_tpv(client):
         st.error("#### 🔒 Terminal Bloqueado\n\n**La caja está actualmente cerrada.** El TPV se encuentra desactivado por seguridad.\n\n👉 Ve a la pestaña **💰 Control Caja** y abre un nuevo turno para poder registrar ventas y emitir tickets.")
         return # Cortamos aquí para que no se renderice absolutamente nada del TPV
 
-    # --- LLAVE DINÁMICA PARA EL RESETEO AUTOMÁTICO ---
+    # --- LLAVES DINÁMICAS PARA EL RESETEO AUTOMÁTICO ---
     if 'llave_busqueda_tpv' not in st.session_state: 
         st.session_state.llave_busqueda_tpv = 0
         
     if 'cliente_cobro_tpv' not in st.session_state:
         st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
+        
+    if 'vale_aplicado' not in st.session_state:
+        st.session_state.vale_aplicado = None
         
     st.markdown("""
         <div style='display: flex; justify-content: space-between; margin-top: 10px; margin-bottom: 10px; padding: 0 5px;'>
@@ -274,6 +277,9 @@ def render_pestana_tpv(client):
             if desc_global > 0:
                 cuerpo_email += f"\nDescuento global aplicado: {desc_global}%\n"
                 
+            if t.get('desc_vale_eur', 0.0) > 0:
+                cuerpo_email += f"\nVale {t['vale_aplicado']} aplicado: -{t['desc_vale_eur']:.2f}€\n"
+
             cuerpo_email += f"\nTOTAL PAGADO: {t['total']:.2f}€\n"
             cuerpo_email += f"MÉTODO DE PAGO: {metodo_display}\n"
             if t.get('cliente_fidel'):
@@ -365,6 +371,9 @@ def render_pestana_tpv(client):
                 html_ticket += f"<div style='text-align: right; font-size: 22px;'>Subtotal: {subtotal_sin_desc:.2f}€</div>"
                 html_ticket += f"<div style='text-align: right; font-size: 22px;'><b>Dto. Global ({desc_global}%): -{descuento_eur:.2f}€</b></div>"
 
+            if t.get('desc_vale_eur', 0.0) > 0:
+                html_ticket += f"<div style='text-align: right; font-size: 22px;'><b>Vale {t['vale_aplicado']}: -{t['desc_vale_eur']:.2f}€</b></div>"
+
             if t.get('pendiente', 0) > 0:
                 html_ticket += f"<div style='text-align: right; font-size: 24px; color: black; margin-top: 5px; border: 2px solid black; padding: 3px;'><b>DEUDA PENDIENTE: {t['pendiente']:.2f}€</b></div>"
 
@@ -415,7 +424,7 @@ def render_pestana_tpv(client):
             </div>
 
             <script>
-            function imprimirConStar(elementId) {{
+            function imprimirConStar(elementId) {
                 var ticketHTML = document.getElementById(elementId).innerHTML;
                 var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
                 var htmlCodificado = encodeURIComponent(fullHTML);
@@ -427,17 +436,17 @@ def render_pestana_tpv(client):
             iframe.style.display = 'none';
             iframe.src = starURL;
             document.body.appendChild(iframe);
-            }}
+            }
             
             // Auto-retorno a Nueva Venta pasados 30 segundos
-            setTimeout(function() {{
+            setTimeout(function() {
                 const btns = window.parent.document.querySelectorAll('button');
-                btns.forEach(btn => {{
-                    if(btn.innerText.includes('Nueva Venta')) {{
+                btns.forEach(btn => {
+                    if(btn.innerText.includes('Nueva Venta')) {
                         btn.click();
-                    }}
-                }});
-            }}, 30000);
+                    }
+                });
+            }, 30000);
             </script>
             
             </body>
@@ -449,6 +458,7 @@ def render_pestana_tpv(client):
             with c_nv:
                 if st.button("🛒 Nueva Venta", use_container_width=True, type="primary"):
                     st.session_state.ticket_actual = None
+                    st.session_state.vale_aplicado = None
                     st.session_state.llave_busqueda_tpv += 1
                     st.rerun()
 
@@ -555,6 +565,44 @@ def render_pestana_tpv(client):
                 total_f = total_f - desc_puntos_eur
                 if total_f < 0: total_f = 0.0
                 
+                # --- LÓGICA DE VALES DE TIENDA ---
+                if 'vale_aplicado' not in st.session_state:
+                    st.session_state.vale_aplicado = None
+                    
+                c_v1, c_v2 = st.columns([2, 1], vertical_alignment="bottom")
+                with c_v1:
+                    codigo_vale_input = st.text_input("🎟️ Canjear Vale de Tienda", placeholder="Ej: VALE-X8J2", key=f"vale_input_{st.session_state.llave_busqueda_tpv}")
+                with c_v2:
+                    if st.button("Validar Vale", use_container_width=True):
+                        if codigo_vale_input:
+                            try:
+                                res_vale = client.table("vales_tienda").select("*").eq("codigo_vale", codigo_vale_input.strip().upper()).execute()
+                                if res_vale.data:
+                                    vale_db = res_vale.data[0]
+                                    if vale_db['saldo_actual'] > 0:
+                                        st.session_state.vale_aplicado = vale_db
+                                        st.success(f"Vale válido. Saldo disponible: {vale_db['saldo_actual']:.2f}€")
+                                        time.sleep(1); st.rerun()
+                                    else:
+                                        st.error("Este vale ya está agotado.")
+                                else:
+                                    st.error("Código de vale no encontrado.")
+                            except Exception:
+                                st.error("⚠️ Error conectando con la base de datos de vales.")
+                                
+                desc_vale_eur = 0.0
+                if st.session_state.vale_aplicado:
+                    saldo_vale = float(st.session_state.vale_aplicado['saldo_actual'])
+                    desc_vale_eur = min(saldo_vale, total_f)
+                    
+                    st.info(f"🎟️ Vale **{st.session_state.vale_aplicado['codigo_vale']}** aplicado: **-{desc_vale_eur:.2f}€**")
+                    if st.button("❌ Quitar Vale", key=f"quitar_vale_{st.session_state.llave_busqueda_tpv}"):
+                        st.session_state.vale_aplicado = None
+                        st.rerun()
+                        
+                total_f = total_f - desc_vale_eur
+                if total_f < 0: total_f = 0.0
+
                 st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
                 res_b_radio = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
@@ -705,6 +753,10 @@ def render_pestana_tpv(client):
                             
                             if banco_sel_id and p_tarjeta > 0:
                                 client.table("cuentas_bancarias").update({"saldo_actual": float(banco_sel_saldo + p_tarjeta)}).eq("id", banco_sel_id).execute()
+                                
+                            if st.session_state.vale_aplicado and desc_vale_eur > 0:
+                                nuevo_saldo_vale = float(st.session_state.vale_aplicado['saldo_actual']) - desc_vale_eur
+                                client.table("vales_tienda").update({"saldo_actual": nuevo_saldo_vale}).eq("id", st.session_state.vale_aplicado['id']).execute()
                             
                             for i in carrito_limpio:
                                 if not i.get('Manual', False) and 'id' in i:
@@ -723,9 +775,12 @@ def render_pestana_tpv(client):
                                 "productos": carrito_limpio, "total": total_f, "metodo": metodo_log,
                                 "cliente_fidel": cliente_fidel_nombre, "puntos_ganados": puntos_ganados,
                                 "puntos_descontados": puntos_a_descontar, "nuevo_saldo": nuevo_saldo,
-                                "descuento_global": desc_g_val, "pendiente": pendiente
+                                "descuento_global": desc_g_val, "pendiente": pendiente,
+                                "vale_aplicado": st.session_state.vale_aplicado['codigo_vale'] if st.session_state.vale_aplicado else None,
+                                "desc_vale_eur": desc_vale_eur if st.session_state.vale_aplicado else 0.0
                             }
                             st.session_state.carrito = []
+                            st.session_state.vale_aplicado = None
                             st.session_state.llave_busqueda_tpv += 1
                             st.rerun()
                             
@@ -736,6 +791,7 @@ def render_pestana_tpv(client):
                     if st.button("🗑️ Vaciar", use_container_width=True):
                         st.session_state.carrito = []
                         st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
+                        st.session_state.vale_aplicado = None
                         st.session_state.llave_busqueda_tpv += 1
                         st.rerun()
             else:
