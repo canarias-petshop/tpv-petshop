@@ -200,6 +200,8 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
                 
                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                 st.success(f"Extra añadido."); time.sleep(1); st.rerun()
+        else:
+            st.info("⚠️ No hay sesiones guardadas en esta ficha. Para añadir un extra (nudos, mascarilla...), primero añade una fila en la tabla de arriba, pon la fecha, el servicio, dale a **'Guardar Historial'**, y luego vuelve aquí.")
 
     st.markdown("#### 📝 Diario y Observaciones Clínicas")
     obs_actuales = strip_pref(m_data.get('observaciones', ''))
