@@ -46,6 +46,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Selector dinámico de banco/datáfono:** Al cobrar con tarjeta o de forma mixta, permite enviar el dinero directamente a la cuenta bancaria seleccionada (y su datáfono) en tiempo real.
 - **Sistema de Fidelización VIP Saneado y Diferido:** Suma 1 punto por cada 10€ de compra. Canjea puntos a 0.50€/pto. Si un cliente deja dinero a deber, **los puntos no se suman hasta que abone la deuda** posteriormente. La contabilidad reajusta proporcionalmente las bases imponibles e IGIC al aplicar puntos.
 - **Ticket Regalo:** Opción de imprimir un ticket alternativo sin precios con un aviso legal de devoluciones para cambios de productos regalados.
+- **Integración Total de Vales de Tienda:** El TPV permite introducir códigos de vales, descuenta su saldo del total, actualiza la base de datos de vales automáticamente y lo refleja en el método de pago del ticket (ej. `Efectivo + Vale (VALE-XXXX)`), calculando correctamente los impuestos y bases imponibles.
 - Impresión térmica directa a Star Micronics (protocolo `starpassprnt://`) estabilizada: se eliminaron las recargas forzadas y se implementó un **auto-retorno a la pantalla de Nueva Venta a los 30 segundos** de inactividad.
 
 👥 **3. Clientes y Mascotas (CRM)**
@@ -189,15 +190,17 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
   - *Escudo Anti-Fallos de API:* Implementado un buscador dinámico de modelos (`list_models`) que filtra versiones experimentales o retiradas de Google para garantizar disponibilidad 100%.
   - *Archivo Fiscal Automático y Túnel Docker:* Las imágenes capturadas desde la tablet traspasan la burbuja de seguridad de Docker a través de un túnel (`/facturas_digitales`) y se guardan directamente en el OneDrive del dueño, ordenadas por Año y Mes.
 - **Scripts Locales de Procesamiento en Lote:** Creado el script independiente `procesar_facturas_lote.py` para automatizar la inserción de facturas atrasadas a la base de datos con IA de forma masiva desde Windows.
+- **Reseteo Limpio de Formularios (UI) (Completado):** Se aplicaron "llaves dinámicas" (`st.session_state.llave_...`) a todos los formularios del programa (Agenda, Proveedores, TPV, Facturación, etc.). Esto garantiza que, al pulsar "Guardar" y hacer el refresco de pantalla (`st.rerun()`), los campos se vacíen completamente, erradicando los datos fantasma y los registros duplicados accidentales.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
-*   **PRIORIDAD 1 - Reseteo Limpio de Formularios (UI):** Aplicar llaves dinámicas (`st.session_state.llave_...`) en todos los formularios (Agenda, CRM, Proveedores, TPV, etc.) para que se vacíen automáticamente al guardar y evitar datos fantasma o registros duplicados.
-*   **PRIORIDAD 2 - Integración de Vales en TPV:** Implementar el campo de "Cobro con Vale" en la caja para descontar saldo de devoluciones, asegurando una sintaxis limpia.
-*   **PRIORIDAD 3 - Orden Alfabético CRM:** Ajustar el ordenamiento (A-Z) en el directorio para que no mande las minúsculas al final de la lista.
-*   **Bancos y Tesorería:** Crear y aislar las cuentas "Revolut (Negocio)" y "Revolut (Nómina)" para que no se mezclen con la caja operativa ni con los datáfonos de cobro a clientes del TPV.
-*   **Gestor de Proyectos y Tareas:** Crear una pestaña centralizada para "Proyectos Internos" (a nivel de gerencia) y "Tareas de Empleados" (asignación de rutinas y checklist).
+*   **PRIORIDAD 1 - Control de Consumo Interno (Stock):** Crear una pestaña de "Uso Interno (Peluquería)" en el Inventario para descontar las garrafas o productos utilizados internamente, registrándolo a coste 0€ en contabilidad sin falsear beneficios.
+*   **PRIORIDAD 2 - Desbloqueo de IGIC 0% en Servicios:** Eliminar la regla estricta que fuerza el 7% de IGIC en Estadísticas y Facturación para los servicios, permitiendo así cobrar extras de cosmética como servicios íntegros (0% IGIC).
+*   **PRIORIDAD 3 - Optimización Ficha Clínica (Extra Nudos):** Modificar la tabla de la ficha clínica para poder registrar la hora exacta de "Inicio" y "Fin" de los desenredados (Extra Nudos), calculando el tiempo exacto y permitiendo unificar los extras en el ticket.
+*   **PRIORIDAD 4 - Orden Alfabético CRM:** Ajustar el ordenamiento (A-Z) en el directorio para que no mande las minúsculas al final de la lista.
+*   **PRIORIDAD 5 - Bancos y Tesorería:** Crear y aislar las cuentas "Revolut (Negocio)" y "Revolut (Nómina)".
+*   **PRIORIDAD 6 - Gestor de Proyectos y Tareas:** Crear una pestaña centralizada para "Proyectos Internos" (a nivel de gerencia) y "Tareas de Empleados" (asignación de rutinas y checklist).
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
