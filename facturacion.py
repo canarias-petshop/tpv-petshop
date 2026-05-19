@@ -7,6 +7,11 @@ import hashlib
 from zoneinfo import ZoneInfo
 
 def render_pestana_facturacion(client):
+    if 'llave_fac_cli' not in st.session_state: st.session_state.llave_fac_cli = 0
+    if 'llave_fac_art_v' not in st.session_state: st.session_state.llave_fac_art_v = 0
+    if 'llave_fac_prov' not in st.session_state: st.session_state.llave_fac_prov = 0
+    if 'llave_fac_art_c' not in st.session_state: st.session_state.llave_fac_art_c = 0
+
     st.markdown("<h3 style='margin-top: -15px;'> 📑  Gestión Integral de Facturación</h3>", unsafe_allow_html=True)
 
     sub_emitir, sub_registrar, sub_archivo, sub_pagos = st.tabs([
@@ -67,11 +72,12 @@ def render_pestana_facturacion(client):
             c_opc = df_cli.apply(lambda x: f"{x['nombre_dueno']} | CIF: {x.get('cif','-')}", axis=1).tolist() if not df_cli.empty else []
             sel_c = st.selectbox("Cliente:", c_opc, index=None, placeholder="Busca un cliente...")
             with st.form("n_cli_rap", clear_on_submit=True):
-                nc1, nc2 = st.columns(2); n_n = nc1.text_input("Nombre*"); n_c = nc2.text_input("CIF*")
+                nc1, nc2 = st.columns(2); n_n = nc1.text_input("Nombre*", key=f"fac_nn_{st.session_state.llave_fac_cli}"); n_c = nc2.text_input("CIF*", key=f"fac_nc_{st.session_state.llave_fac_cli}")
                 if st.form_submit_button("Crear Cliente"):
                     if n_n and n_c: 
                         client.table("clientes").insert({"nombre_dueno": n_n, "cif": n_c}).execute()
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.session_state.llave_fac_cli += 1
                         st.rerun()
         
         st.markdown("####  📦  Añadir Artículos a la Venta")
@@ -93,13 +99,13 @@ def render_pestana_facturacion(client):
             with st.form("form_nuevo_art_venta", clear_on_submit=True):
                 st.markdown("<p style='font-size:13px; color:gray;'>Añade un artículo manual a la factura. Si dejas marcada la casilla, también se guardará permanentemente en el Inventario.</p>", unsafe_allow_html=True)
                 col_m1, col_m2 = st.columns(2)
-                with col_m1: m_nom = st.text_input("Nombre del Artículo *")
-                with col_m2: m_sku = st.text_input("SKU / Ref (Opcional si no se guarda)")
+                with col_m1: m_nom = st.text_input("Nombre del Artículo *", key=f"fav_nom_{st.session_state.llave_fac_art_v}")
+                with col_m2: m_sku = st.text_input("SKU / Ref (Opcional si no se guarda)", key=f"fav_sku_{st.session_state.llave_fac_art_v}")
                 
                 col_m3, col_m4, col_m5 = st.columns(3)
-                with col_m3: m_pvp = st.number_input("Precio Venta Público (€) *", min_value=0.0, format="%.2f", step=0.01)
-                with col_m4: m_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
-                with col_m5: m_cant = st.number_input("Cantidad a facturar", min_value=1, value=1)
+                with col_m3: m_pvp = st.number_input("Precio Venta Público (€) *", min_value=0.0, format="%.2f", step=0.01, key=f"fav_pvp_{st.session_state.llave_fac_art_v}")
+                with col_m4: m_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0], key=f"fav_igic_{st.session_state.llave_fac_art_v}")
+                with col_m5: m_cant = st.number_input("Cantidad a facturar", min_value=1, value=1, key=f"fav_can_{st.session_state.llave_fac_art_v}")
                 
                 add_to_stock = st.checkbox("💾 Guardar permanentemente en Inventario", value=True)
                 
@@ -125,6 +131,7 @@ def render_pestana_facturacion(client):
                                 "Cantidad": m_cant, "Base Ud": m_base_val, "IGIC %": m_igic, "Precio Venta": m_pvp, "Desc %": 0.0
                             })
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            st.session_state.llave_fac_art_v += 1
                             st.success("Artículo añadido a la factura."); time.sleep(0.5); st.rerun()
                     else:
                         st.error("El nombre y el precio de venta son obligatorios.")
@@ -465,11 +472,12 @@ def render_pestana_facturacion(client):
                 
             sel_p = st.selectbox("Selecciona el Proveedor:", p_opc, index=def_prov_idx, placeholder="Escribe el nombre del proveedor...")
             with st.form("form_nuevo_proveedor_rapido", clear_on_submit=True):
-                np1, np2 = st.columns(2); n_emp_new = np1.text_input("Nombre Empresa*"); n_cif_new = np2.text_input("CIF")
+                np1, np2 = st.columns(2); n_emp_new = np1.text_input("Nombre Empresa*", key=f"fnp_emp_{st.session_state.llave_fac_prov}"); n_cif_new = np2.text_input("CIF", key=f"fnp_cif_{st.session_state.llave_fac_prov}")
                 if st.form_submit_button("➕ Crear Nuevo Proveedor"):
                     if n_emp_new: 
                         client.table("proveedores").insert({"nombre_empresa": n_emp_new, "cif": n_cif_new}).execute()
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.session_state.llave_fac_prov += 1
                         st.rerun()
                         
         st.markdown("---")
@@ -517,17 +525,17 @@ def render_pestana_facturacion(client):
             with st.form("form_nuevo_art_compra", clear_on_submit=True):
                 st.markdown("<p style='font-size:13px; color:gray;'>Añade un artículo manual a la factura. Si dejas marcada la casilla, también se guardará permanentemente en el Inventario.</p>", unsafe_allow_html=True)
                 col_m1, col_m2 = st.columns(2)
-                with col_m1: m_nom = st.text_input("Nombre del Artículo *")
-                with col_m2: m_sku = st.text_input("SKU / Ref (Opcional)")
+                with col_m1: m_nom = st.text_input("Nombre del Artículo *", key=f"fac_nom_{st.session_state.llave_fac_art_c}")
+                with col_m2: m_sku = st.text_input("SKU / Ref (Opcional)", key=f"fac_sku_{st.session_state.llave_fac_art_c}")
                 
                 col_m3, col_m4, col_m5 = st.columns(3)
-                with col_m3: m_base = st.number_input("Precio Base Compra (€) *", min_value=0.0, format="%.2f", step=0.01)
-                with col_m4: m_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0])
-                with col_m5: m_cant = st.number_input("Cantidad a registrar", min_value=1, value=1)
+                with col_m3: m_base = st.number_input("Precio Base Compra (€) *", min_value=0.0, format="%.2f", step=0.01, key=f"fac_bas_{st.session_state.llave_fac_art_c}")
+                with col_m4: m_igic = st.selectbox("IGIC %", [7.0, 0.0, 3.0, 15.0], key=f"fac_igic_{st.session_state.llave_fac_art_c}")
+                with col_m5: m_cant = st.number_input("Cantidad a registrar", min_value=1, value=1, key=f"fac_can_{st.session_state.llave_fac_art_c}")
                 
                 col_m6, col_m7, col_m8 = st.columns([1, 1, 1.2])
-                with col_m6: m_pvp = st.number_input("PVP Público (€)", min_value=0.0, format="%.2f", step=0.01)
-                with col_m7: m_cad = st.date_input("Caducidad (Opc)", value=None)
+                with col_m6: m_pvp = st.number_input("PVP Público (€)", min_value=0.0, format="%.2f", step=0.01, key=f"fac_pvp_{st.session_state.llave_fac_art_c}")
+                with col_m7: m_cad = st.date_input("Caducidad (Opc)", value=None, key=f"fac_cad_{st.session_state.llave_fac_art_c}")
                 with col_m8:
                     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
                     add_to_stock = st.checkbox("💾 Guardar en Inventario", value=True)
@@ -557,6 +565,7 @@ def render_pestana_facturacion(client):
                             "Lote": "", "Caducidad": str(m_cad) if m_cad else None
                         })
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.session_state.llave_fac_art_c += 1
                         st.success("Artículo añadido a la factura."); time.sleep(0.5); st.rerun()
                     else:
                         st.error("El nombre y el precio base son obligatorios.")
