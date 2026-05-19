@@ -64,6 +64,8 @@ def get_sin_hist_ag_cached(_client, v, h_str):
     return _client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", h_str).like("servicio", "%[ESTADO: Confirmada]%").execute().data
 
 def render_pestana_agenda(client):
+    if 'llave_agenda_cita' not in st.session_state: st.session_state.llave_agenda_cita = 0
+
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
     
     # --- DATOS COMUNES PARA TODAS LAS SUB-PESTAÑAS DE AGENDA ---
@@ -135,18 +137,18 @@ def render_pestana_agenda(client):
             with st.container(border=True):
                 st.markdown("#### ➕ Nueva Cita")
                 
-                crear_rapido = st.toggle("🐾 Mascota no registrada (Crear ficha rápida)")
+                crear_rapido = st.toggle("🐾 Mascota no registrada (Crear ficha rápida)", key=f"ag_cr_{st.session_state.llave_agenda_cita}")
                 mascota_sel = None
                 n_mascota, n_cliente, n_tel = "", "", ""
                 
                 if crear_rapido:
                     st.markdown("<p style='font-size: 13px; color: gray; margin-top:-10px;'>Se creará una ficha básica automáticamente en Clientes.</p>", unsafe_allow_html=True)
                     c_nx1, c_nx2, c_nx3 = st.columns([1.5, 1.5, 1])
-                    with c_nx1: n_mascota = st.text_input("Nombre Mascota *")
-                    with c_nx2: n_cliente = st.text_input("Dueño *")
-                    with c_nx3: n_tel = st.text_input("Teléfono")
+                    with c_nx1: n_mascota = st.text_input("Nombre Mascota *", key=f"ag_nmasc_{st.session_state.llave_agenda_cita}")
+                    with c_nx2: n_cliente = st.text_input("Dueño *", key=f"ag_ncli_{st.session_state.llave_agenda_cita}")
+                    with c_nx3: n_tel = st.text_input("Teléfono", key=f"ag_ntel_{st.session_state.llave_agenda_cita}")
                 else:
-                    mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None)
+                    mascota_sel = st.selectbox("Selecciona Mascota *", list(dict_mascotas.keys()), index=None, key=f"ag_masc_sel_{st.session_state.llave_agenda_cita}")
                 
                 pref_actual = "Cualquiera"
                 dur_media = 60
@@ -167,12 +169,12 @@ def render_pestana_agenda(client):
                         else:
                             st.info(f"⏱️ **Info de la mascota:** Sin historial (60 min por defecto) | Peluquero/a pref: {pref_actual}")
                         
-                fecha_c = st.date_input("Fecha *", value=date.today())
-                duracion_c = st.number_input("Duración estimada (minutos) *", min_value=5, max_value=300, value=dur_media, step=5)
+                fecha_c = st.date_input("Fecha *", value=date.today(), key=f"ag_fec_{st.session_state.llave_agenda_cita}")
+                duracion_c = st.number_input("Duración estimada (minutos) *", min_value=5, max_value=300, value=dur_media, step=5, key=f"ag_dur_{st.session_state.llave_agenda_cita}")
                 
                 opciones_emp = ["Cualquiera"] + empleados_lista
                 def_index = opciones_emp.index(pref_actual) if pref_actual in opciones_emp else 0
-                f_emp = st.selectbox("Peluquera/o Preferido:", opciones_emp, index=def_index)
+                f_emp = st.selectbox("Peluquera/o Preferido:", opciones_emp, index=def_index, key=f"ag_emp_{st.session_state.llave_agenda_cita}")
                 
                 # Buscador inteligente de huecos cruzado con el preferido
                 res_turnos = client.table("personal_cuadrantes").select("empleado_id, turno, personal_empleados(nombre)").eq("fecha", str(fecha_c)).execute()
@@ -237,7 +239,7 @@ def render_pestana_agenda(client):
                 huecos_formateados.append("Asignación Manual")
                 
                 if len(huecos_formateados) == 1: st.warning("No hay huecos disponibles en el cuadrante.")
-                f_hora_sel = st.selectbox("Hora recomendada:", huecos_formateados)
+                f_hora_sel = st.selectbox("Hora recomendada:", huecos_formateados, key=f"ag_hsel_{st.session_state.llave_agenda_cita}")
                     
                 hora_manual = None
                 solapa_manual = False
@@ -245,7 +247,7 @@ def render_pestana_agenda(client):
                 motivo_extra = ""
                 
                 if f_hora_sel == "Asignación Manual":
-                    hora_manual = st.time_input("Hora de Inicio *")
+                    hora_manual = st.time_input("Hora de Inicio *", key=f"ag_hman_{st.session_state.llave_agenda_cita}")
                     if hora_manual:
                         dt_ini_man = pd.to_datetime(f"{fecha_c} {hora_manual.strftime('%H:%M')}")
                         dt_fin_man = dt_ini_man + pd.Timedelta(minutes=duracion_c)
@@ -266,12 +268,12 @@ def render_pestana_agenda(client):
                         
                         if solapa_manual:
                             st.warning("⚠️ La hora seleccionada ya está ocupada o hay citas sin asignar en esa franja.")
-                            motivo_solape = st.selectbox("Motivo para forzar la cita: *", ["", "Tenemos otro peluquero disponible", "Se va a ayudar con la peluquería", "Se puede hacer a la vez", "Otro motivo"])
+                            motivo_solape = st.selectbox("Motivo para forzar la cita: *", ["", "Tenemos otro peluquero disponible", "Se va a ayudar con la peluquería", "Se puede hacer a la vez", "Otro motivo"], key=f"ag_msol_{st.session_state.llave_agenda_cita}")
                             if motivo_solape == "Otro motivo":
-                                motivo_extra = st.text_input("Especificar otro motivo: *")
+                                motivo_extra = st.text_input("Especificar otro motivo: *", key=f"ag_mext_{st.session_state.llave_agenda_cita}")
                 
-                servicio_sel = st.selectbox("Servicio *", servicios_lista)
-                f_obs = st.text_input("📝 Observaciones / Petición (Opcional)")
+                servicio_sel = st.selectbox("Servicio *", servicios_lista, key=f"ag_serv_{st.session_state.llave_agenda_cita}")
+                f_obs = st.text_input("📝 Observaciones / Petición (Opcional)", key=f"ag_obs_{st.session_state.llave_agenda_cita}")
                 
                 if st.button("Guardar Cita", type="primary", use_container_width=True):
                     m_id_final = None
@@ -320,6 +322,7 @@ def render_pestana_agenda(client):
                                 "observaciones": str(f_obs)
                             }).execute()
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            st.session_state.llave_agenda_cita += 1
                             st.success("Cita agendada."); time.sleep(1); st.rerun()
 
         with c_agenda2:
