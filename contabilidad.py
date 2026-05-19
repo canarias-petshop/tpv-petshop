@@ -200,7 +200,7 @@ def render_pestana_contabilidad(client):
                     with st.expander("💸 **Confirmar Pago de Vencimiento (Tachar del calendario)**", expanded=False):
                         with st.form("form_pagar_gf"):
                             opciones_pago = [f"{r['ID_Pago']} ({r['Importe']}€)" for _, r in pendientes_list.iterrows()]
-                            sel_pago = st.selectbox("Selecciona el gasto a marcar como pagado:", opciones_pago)
+                            sel_pago = st.selectbox("Selecciona el gasto a marcar como pagado:", opciones_pago, key=f"cp_sel_{st.session_state.llave_cont_pago_venc}")
                             if st.form_submit_button("✅ Registrar Pago y Archivar", type="primary"):
                                 id_sel = sel_pago.split(" (")[0]
                                 importe_sel = float(sel_pago.split("(")[1].replace("€)", ""))
@@ -208,6 +208,7 @@ def render_pestana_contabilidad(client):
                                     "tipo": id_sel, "total": importe_sel, 
                                     "estado": "Pagado", "fecha_vencimiento": str(date.today())
                                 }).execute()
+                                st.session_state.llave_cont_pago_venc += 1
                                 st.success("¡Vencimiento saldado! Se ha guardado automáticamente en el Archivo Contable."); time.sleep(1.5); st.rerun()
 
             else: st.success("No hay previsiones de gastos fijos.")
@@ -289,7 +290,7 @@ def render_pestana_contabilidad(client):
                             opciones_pago.append(etiqueta)
                             mapa_bancos[etiqueta] = b['id']
 
-                    sel_origen = st.selectbox("💳 Selecciona el origen de los fondos para el pago:", [""] + opciones_pago, key="sel_origen_cont")
+                    sel_origen = st.selectbox("💳 Selecciona el origen de los fondos para el pago:", [""] + opciones_pago, key=f"sel_origen_cont_{st.session_state.llave_cont_pago}")
                     
                     if sel_origen and st.button("✅ Confirmar Pago de Gastos", type="primary", use_container_width=True, key="btn_pago_cont"):
                         current_time = time.time()
@@ -322,6 +323,7 @@ def render_pestana_contabilidad(client):
                                 nuevo_pendiente = float(actual_row['pendiente']) - pago_hoy
                                 nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else "Pago Parcial"
                                 client.table("compras").update({"estado": nuevo_estado, "pagado": nuevo_pagado, "pendiente": nuevo_pendiente}).eq("id", c_id).execute()
+                            st.session_state.llave_cont_pago += 1
                             st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!"); time.sleep(1.5); st.rerun()
         else:
             st.success("¡Genial! No tienes gastos puntuales pendientes.")
