@@ -28,6 +28,7 @@ Esta es la pantalla principal para cobrar a los clientes.
    - **Dejar a deber:** Si el cliente no te paga la totalidad, asegúrate de **seleccionar su nombre en el desplegable de "Cliente VIP"**. El sistema NO te dejará finalizar el cobro si la venta está como anónima. *Ojo: No ganará puntos hasta que venga a saldar la deuda.*
    - Pulsa el botón verde **"💳 COBRAR TICKET"**.
    - El cajón portamonedas se abrirá (si es efectivo) y el ticket se imprimirá automáticamente. Pasados 30 segundos, la pantalla volverá sola a una Nueva Venta.
+5. **Ticket Regalo:** Al cobrar, en la pantalla del ticket, verás un botón morado "🎁 TICKET REGALO". Este imprime un justificante alternativo sin importes y con la política de devoluciones, ideal para regalos.
 
 ---
 
@@ -86,7 +87,11 @@ Al abrir y cerrar la tienda, hay que llevar el control del dinero en metálico.
 ## 6. 📜 Historial Operativo (Devoluciones y Errores)
 Por la nueva **Ley Antifraude de Hacienda (VeriFactu)**, está **terminantemente prohibido borrar tickets emitidos**. 
 - **Error en la forma de pago:** Si cobraste en efectivo pero era con tarjeta Caixa, ve a "Historial Operativo", busca el ticket y edita el método de pago al datáfono correcto (Solo puedes hacerlo si NO has hecho aún el Cierre Z de hoy).
-- **Error en los artículos o Devolución:** Si cobraste mal un producto o un cliente lo devuelve, busca el ticket, dale a "👁️ Ver" y pulsa **"↩️ Devolver y Restaurar Stock"**. Esto generará un abono legal, le devolverá el dinero en el formato original y devolverá la lata de pienso a la estantería del programa.
+- **Error en los artículos o Devolución:** Si cobraste mal un producto o un cliente lo devuelve, busca el ticket, dale a "👁️ Ver".
+  - **Límite de 14 días:** Si han pasado más de 14 días, el sistema te avisará en rojo. Si el gerente autoriza la excepción, puedes darle a "Forzar".
+  - Al devolver, el sistema restaurará la mercancía a la estantería y te dará dos opciones:
+    1. **💸 Devolver Dinero:** Generará un ticket de abono negativo entregando el dinero de vuelta en el formato original de pago.
+    2. **🎁 Crear Vale:** Generará un "Vale de Tienda" con un código (Ej: VALE-X8J2) para que el cliente lo gaste en futuras compras. Se imprimirá un ticket verde para el cliente con el código y el saldo.
 
 ---
 

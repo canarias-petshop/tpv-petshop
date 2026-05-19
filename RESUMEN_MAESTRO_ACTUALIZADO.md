@@ -45,6 +45,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Bloqueo Inteligente de Deudas y Contraseñas:** Se ha desactivado el autocompletado nativo del navegador para evitar que salten gestores de contraseñas. No se puede fiar dinero a clientes anónimos; el sistema obliga a seleccionar al cliente desde el panel VIP.
 - **Selector dinámico de banco/datáfono:** Al cobrar con tarjeta o de forma mixta, permite enviar el dinero directamente a la cuenta bancaria seleccionada (y su datáfono) en tiempo real.
 - **Sistema de Fidelización VIP Saneado y Diferido:** Suma 1 punto por cada 10€ de compra. Canjea puntos a 0.50€/pto. Si un cliente deja dinero a deber, **los puntos no se suman hasta que abone la deuda** posteriormente. La contabilidad reajusta proporcionalmente las bases imponibles e IGIC al aplicar puntos.
+- **Ticket Regalo:** Opción de imprimir un ticket alternativo sin precios con un aviso legal de devoluciones para cambios de productos regalados.
 - Impresión térmica directa a Star Micronics (protocolo `starpassprnt://`) estabilizada: se eliminaron las recargas forzadas y se implementó un **auto-retorno a la pantalla de Nueva Venta a los 30 segundos** de inactividad.
 
 👥 **3. Clientes y Mascotas (CRM)**
@@ -60,7 +61,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 📜 **4. Historial Operativo**
 - Registro en vivo de todos los tickets con **generación de Hash SHA-256 encadenado**.
 - **Bloqueo Ley Antifraude (VeriFactu):** Borrado de tickets desactivado. Edición limitada exclusivamente a corregir el método de pago en tickets del turno actual, forzando la selección del datáfono/banco específico (Caixa, CajaSiete...) para evitar descuadres. Al hacer el Cierre Z, los tickets quedan bloqueados (Candado 🔒).
-- Sistema de devoluciones (Abonos) que restaura el stock automáticamente y deja trazabilidad legal.
+- **Políticas de Devolución (Vales y Abonos):** Límite legal de 14 días implementado con alerta visual (permite forzar en casos excepcionales). Al devolver, se puede generar un **Ticket de Abono** (reintegro con importes negativos) o un **Vale de Tienda** con código alfanumérico único para retener la liquidez en el negocio. Ambas opciones restauran el stock automáticamente.
 - **Blindaje de Lectura:** Manejo seguro de tickets antiguos (`null safe`) para garantizar que la app nunca se cuelgue al revisar el historial, incluso si faltan datos en descuentos o productos.
 - Reimpresión de tickets antiguos conservando método de pago original.
 
@@ -92,11 +93,12 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - *Sub-2 Compras:* Registro de facturas de proveedores mediante escáner OCR por IA (Gemini). Incluye **Túnel Docker a OneDrive** para almacenar el archivo fiscal de la foto ordenado automáticamente por Año y Mes sin intervención humana.
 - Al archivar una compra, el sistema actualiza automáticamente el stock, el precio de coste y el PVP en el inventario.
 - *Sub-3 Archivo:* Archivo histórico de documentos con **Filtros Dinámicos Flexibles** (ignoran mayúsculas y plurales para encontrar siempre el gasto) y columna de **Fecha de Registro** exacta.
-- *Sub-4 Pagos Pendientes:* Control para deudas a proveedores con **Calendario Visual de Vencimientos** y gráfico de previsión semanal. Capacidad de realizar **Pagos Parciales** indicando la cantidad exacta entregada hoy, descontándola del saldo de un Banco o de la Caja Fuerte, manteniendo la factura abierta hasta su liquidación total.
+- *Sub-4 Pagos Pendientes:* Panel exclusivo para **deudas de mercancía a proveedores**, con **Calendario Visual de Vencimientos** y gráfico semanal. Capacidad de realizar **Pagos Parciales** indicando la cantidad exacta entregada hoy, descontándola de Bancos o Caja Fuerte.
 
 📊 **9. Contabilidad e Informes para Asesoría**
-- **Gestión Separada y Estructurada de Gastos:** Sub-pestaña para "Gastos Puntuales" y un sistema avanzado de "Gastos Fijos" dividido en 5 categorías maestras: Gastos de Tienda, Personal, Financiación, Publicidad e Impuestos.
-- **Calendario Predictivo y Alertas:** Panel dividido en **Vista Semanal (7 días) y Mensual (30 días)** con gráfico de esfuerzo económico para controlar la liquidez. Incluye ajuste automático para pagos a fin de mes (día 31).
+- **Estructura Lineal y Libro Mayor:** Reorganización del flujo (`Puntuales > Fijos > Calendarios > Pagos Pendientes > Archivo Contable > Descargas`). El 'Archivo Contable' sirve como Libro Mayor inalterable de todos los movimientos de la empresa.
+- **Calendarios Especializados:** División visual estricta entre **Gastos Operativos** (alquiler, nóminas) y **Calendario de Impuestos** (IRPF, IGIC). Las alertas de vencimientos críticos se han compactado en desplegables (expanders) para no saturar la vista.
+- **Centro de Pagos de Gastos:** Panel de pagos pendientes aislado exclusivamente para facturas de servicios y reparaciones, sin mezclar con el stock de proveedores de la tienda.
 - **Generador nativo de archivos Excel Inteligentes (.xlsx):** Separación total de la contabilidad en 4 bloques descargables:
   1. Ventas globales. 2. **Facturas para IGIC (Pestaña Emitidas y Recibidas separadas)**. 3. Tickets y Gastos menores. 4. Informe de Gastos Fijos actuales.
 
@@ -172,7 +174,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Paginación Ilimitada (Bypass Límite 1000 filas de Supabase) (Completado):** Implementado un sistema de bucle de lectura en todos los módulos (Inventario, TPV, Facturación, Agenda, CRM) garantizando que el sistema escale sin perder productos o clientes independientemente del tamaño de la base de datos.
 - **Precisión Decimal Global (Completado):** Habilitada la entrada de decimales en todos los campos numéricos del ERP para permitir precios y saldos exactos.
 - **Integración Avanzada de Gastos Fijos y Agenda (Completado):** Se implementó el cruce de estados (Pagado/Pendiente) para los gastos fijos directamente con la tabla de compras en Contabilidad, y se extrajo la lógica de la Ficha Clínica a un módulo independiente (`ficha_clinica.py`), lo que permite abrir y editar el historial completo de cualquier mascota directamente desde las tablas de la Agenda ("Ver Ficha").
-- **Optimización Interfaz CRM (Completado):** Se ha añadido la funcionalidad de ordenar alfabéticamente (A-Z), por más recientes o por puntos, tanto los directorios de clientes como de mascotas.
+- **Optimización Interfaz CRM (Completado):** Se ha añadido la funcionalidad de ordenar alfabéticamente (A-Z) ignorando mayúsculas/minúsculas para evitar desórdenes, por más recientes o por puntos, tanto los directorios de clientes como de mascotas. También se implementó parseo robusto para fechas antiguas importadas.
 - **Gestión Integral de Recogidas a Domicilio (Completado):** Incorporadas alertas visuales automáticas en la Agenda y el CRM para avisar cuando una mascota requiere recogida, con textos de WhatsApp adaptados (con soporte de formato estricto y emojis) incluyendo la dirección del dueño.
 - **Cobro Rápido de Citas y Descuento por Visita Frecuente (Completado):** Desplegable integrado en el TPV que permite volcar las citas del día directamente al carrito de cobro. Si la mascota ha visitado la peluquería en los últimos 2 meses, aplica automáticamente un 10% de descuento detallado en el ticket ("Dto. por Visita < 2 meses") conservando el nombre original del servicio.
 - **Optimización de Rendimiento Global (Lazy Loading Total) (Completado):** Se aplicó una capa de memoria caché (`@st.cache_data` con invalidación dinámica `db_version`) extraída al scope global en todos los módulos pesados. Esto erradica el lag de red y permite que interacciones en tablas (como "Ver Ficha") respondan al milisegundo.

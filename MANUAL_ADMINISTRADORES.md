@@ -37,16 +37,17 @@ Control de la relación con tus distribuidores y gestión de stock automático.
 - **Registro de Compras (Albaranes y Facturas):**
   - Al introducir la factura de un proveedor y "Archivarla", **el stock del Inventario sube automáticamente** y el precio de coste se actualiza para los futuros cálculos de rentabilidad.
 - **Pago de Deudas a Proveedores (Calendario de Vencimientos):**
-  - Puedes saldar facturas atrasadas total o **parcialmente** (ej: pagando solo 50€ de una factura de 100€). El sistema te pedirá introducir la **cantidad exacta entregada hoy** y elegir de dónde sale el dinero (un Banco concreto o la Caja Fuerte en metálico). Esto mantiene la factura abierta por el importe restante y el flujo contable 100% exacto en tiempo real.
+  - En Facturación > Pagos Pendientes. Puedes saldar facturas atrasadas total o **parcialmente** (ej: pagando solo 50€ de una factura de 100€). El sistema te pedirá introducir la **cantidad exacta entregada hoy** y elegir de dónde sale el dinero (un Banco concreto o la Caja Fuerte en metálico). Esto mantiene la factura abierta por el importe restante y el flujo contable 100% exacto en tiempo real.
 
 ---
 
 ## 4. 📊 Contabilidad y Exportación para Asesoría
 Preparación fácil de los impuestos y libros contables.
 
-- **Gastos Puntuales vs Gastos Fijos:** Registra el alquiler, luz, nóminas y préstamos en "Gastos Fijos", indicando qué día del mes se cobran. Si pones el día 31, se ajustará solo a final de mes.
+- **Gastos Puntuales vs Gastos Fijos:** Registra el alquiler, luz, nóminas y préstamos en la pestaña "Configurar Gastos Fijos", indicando qué día del mes se cobran. Si pones el día 31, se ajustará solo a final de mes. Los recibos de reparaciones o compras extra van a "Gastos Puntuales".
 - *Nota Operativa:* Revisa diariamente los Cierres Z (Caja). Si los empleados registraron retiradas en metálico con un motivo, deberás registrar tú manualmente la factura y el gasto en Contabilidad para saldarlo.
-- **Calendario Predictivo y Alertas:** Verás dividido lo que tienes que pagar **esta semana** y lo que tienes que pagar **este mes**, junto con un gráfico de esfuerzo económico.
+- **Calendarios y Pagos Pendientes:** La pestaña de Calendarios separa visualmente los "Gastos Operativos" de los "Impuestos". Las alertas de vencimientos se agrupan en un menú desplegable rojo. La pestaña "Pagos Pendientes" de aquí SOLO muestra deudas por gastos generales, sin mezclar con los proveedores de pienso.
+- **Archivo Contable (Libro Mayor):** Funciona como registro maestro inalterable de todos los movimientos y facturas de la empresa, tanto pagados como pendientes.
 - **Exportación a Excel (Asesoría):** 
   - Usa el botón de **"Solo Facturas (IGIC)"**. Te generará un Excel con dos pestañas (Facturas Emitidas y Recibidas) descartando los "gastitos" de caja automáticamente.
 
