@@ -5,6 +5,9 @@ from datetime import datetime, date, timedelta
 import time
 import json
 import urllib.parse
+import hashlib
+import re
+from zoneinfo import ZoneInfo
 import streamlit.components.v1 as components
 import io
 from caja import render_pestana_caja
@@ -195,9 +198,6 @@ if 'alertas_fichaje_ignoradas' not in st.session_state:
 
 def comprobar_fichajes_pendientes():
     try:
-        from zoneinfo import ZoneInfo
-        import re
-        
         ahora_dt = datetime.now(ZoneInfo("Atlantic/Canary"))
         hoy_str = ahora_dt.date().isoformat()
         
@@ -247,7 +247,11 @@ def comprobar_fichajes_pendientes():
     except Exception as e: pass
     return None
 
-bloqueo = comprobar_fichajes_pendientes()
+# El administrador entra libremente sin ser bloqueado por el guardián
+bloqueo = None
+if st.session_state.get('rol') != "Admin":
+    bloqueo = comprobar_fichajes_pendientes()
+
 if bloqueo:
     st.markdown("<style>.block-container { max-width: 700px !important; padding-top: 50px !important; }</style>", unsafe_allow_html=True)
     if bloqueo['tipo'] == "ENTRADA":
