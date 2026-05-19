@@ -491,7 +491,7 @@ def render_pestana_contabilidad(client):
         # Recuperar datos de Tickets
         res_v_inf = client.table("ventas_historial").select("id, created_at, total, metodo_pago, cliente_deuda, productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).neq("estado", "DEVUELTO").execute()
         # Recuperar datos de Facturas Emitidas
-        res_f_inf = client.table("facturas").select("numero_factura, created_at, total_neto, total_igic, total_final, forma_pago, clientes(nombre_dueno), productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+        res_f_inf = client.table("facturas").select("numero_factura, created_at, total_neto, total_igic, total_final, forma_pago, clientes(nombre_dueno, cif), productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
         # Recuperar datos de Compras/Gastos
         res_c_inf = client.table("compras").select("id, created_at, tipo, total, estado, productos, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
 
@@ -520,6 +520,7 @@ def render_pestana_contabilidad(client):
                     "Tipo Documento": "Ticket de Venta (TPV)",
                     "Nº Documento": f"T-{t['id']}",
                     "Cliente": t.get('cliente_deuda') if t.get('cliente_deuda') else "Mostrador",
+                    "CIF Cliente": "",
                     "Ventas Productos (0% IGIC) (€)": base_prod,
                     "Base Servicios (€)": base_serv,
                     "Cuota IGIC Servicios (€)": igic_serv,
@@ -530,6 +531,7 @@ def render_pestana_contabilidad(client):
         if res_f_inf.data:
             for f in res_f_inf.data:
                 cliente_nom = f['clientes']['nombre_dueno'] if f.get('clientes') else "N/A"
+                cliente_cif = f['clientes'].get('cif', '') if f.get('clientes') else ""
                 tot_f = float(f.get('total_final', 0))
                 
                 if f.get('productos'):
@@ -549,6 +551,7 @@ def render_pestana_contabilidad(client):
                     "Tipo Documento": "Factura Emitida",
                     "Nº Documento": f"F-{f['numero_factura']}",
                     "Cliente": cliente_nom,
+                    "CIF Cliente": cliente_cif,
                     "Ventas Productos (0% IGIC) (€)": base_prod,
                     "Base Servicios (€)": base_serv,
                     "Cuota IGIC Servicios (€)": igic_serv,
@@ -602,7 +605,8 @@ def render_pestana_contabilidad(client):
                             igic_c = round(igic_b * ratio, 2)
                     except: pass
                 
-                prov_nombre = f"{c['proveedores']['nombre_empresa']} ({c['proveedores'].get('cif','')})" if isinstance(c.get('proveedores'), dict) else "Acreedor / Gasto General"
+                prov_nombre = c['proveedores']['nombre_empresa'] if isinstance(c.get('proveedores'), dict) else "Acreedor / Gasto General"
+                prov_cif = c['proveedores'].get('cif', '') if isinstance(c.get('proveedores'), dict) else ""
                 
                 dt_c = pd.to_datetime(c['created_at'])
                 if dt_c.tzinfo is None: dt_c = dt_c.tz_localize('UTC')
@@ -610,6 +614,7 @@ def render_pestana_contabilidad(client):
                 compras_list.append({
                     "Nº Interno": c['id'], "Fecha": dt_c.tz_convert('Atlantic/Canary').strftime('%d/%m/%Y'),
                     "Categoría Contable": cat_contable, "Concepto / Referencia": concepto, "Proveedor / Beneficiario": prov_nombre,
+                    "CIF Proveedor": prov_cif,
                     "Base Imponible (€)": base_c, "Cuota IGIC (€)": igic_c, "Importe Total (€)": float(c['total']),
                     "Estado": c['estado'], "Es_Factura": es_factura
                 })
@@ -718,7 +723,7 @@ def render_pestana_contabilidad(client):
             df_asesor_f = pd.DataFrame()
             if not df_ventas_unificadas.empty:
                 df_solo_facturas = df_ventas_unificadas[df_ventas_unificadas['Tipo Documento'] == 'Factura Emitida'].copy()
-                if not df_solo_facturas.empty: df_asesor_f = df_solo_facturas[['Nº Documento', 'Fecha', 'Cliente', 'Ventas Productos (0% IGIC) (€)', 'Base Servicios (€)', 'Cuota IGIC Servicios (€)', 'Importe Total (€)', 'Método de Pago']]
+                if not df_solo_facturas.empty: df_asesor_f = df_solo_facturas[['Nº Documento', 'Fecha', 'Cliente', 'CIF Cliente', 'Ventas Productos (0% IGIC) (€)', 'Base Servicios (€)', 'Cuota IGIC Servicios (€)', 'Importe Total (€)', 'Método de Pago']]
             
             if not df_asesor_f.empty or not df_facturas_rec.empty:
                 dict_facturas = {}
