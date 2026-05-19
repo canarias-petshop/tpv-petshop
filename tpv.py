@@ -207,6 +207,26 @@ def render_pestana_tpv(client):
                                         "IGIC": igic_hist, "Manual": False, "Desc. %": desc_pct_hist, "Motivo_Desc": motivo_desc_hist
                                     })
                                     
+                                    # --- VOLCAR EXTRAS DE LA FICHA AL CARRITO COMO LÍNEAS INDEPENDIENTES ---
+                                    if isinstance(t.get('Extras'), list):
+                                        for idx_ext, ext in enumerate(t['Extras']):
+                                            ext_nom = str(ext.get('Servicio', 'Extra'))
+                                            ext_precio = float(ext.get('Precio', 0.0))
+                                            ext_igic = float(ext.get('IGIC', 7.0))
+                                            
+                                            id_ext_hist = f"cita_hist_ext_{c['id']}_{idx_t}_{idx_ext}"
+                                            if not df_inv.empty:
+                                                match_ext = df_inv[df_inv['nombre'].astype(str).str.strip().str.lower() == ext_nom.lower()]
+                                                if not match_ext.empty:
+                                                    id_ext_hist = str(match_ext.iloc[0]['id'])
+                                                    ext_nom = match_ext.iloc[0]['nombre']
+                                            
+                                            st.session_state.carrito.append({
+                                                "id": id_ext_hist, "Producto": f"+ {ext_nom} ({masc['nombre']})", "Cantidad": 1,
+                                                "Precio": ext_precio, "Subtotal": ext_precio,
+                                                "IGIC": ext_igic, "Manual": False, "Desc. %": 0.0, "Motivo_Desc": ""
+                                            })
+                                            
                                 st.session_state.cliente_cobro_tpv = f"{cli['nombre_dueno']} ({cli.get('telefono', '')}) - Puntos: {cli.get('puntos') or 0}"
                                 st.session_state.llave_busqueda_tpv += 1
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1

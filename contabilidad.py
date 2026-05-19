@@ -504,7 +504,6 @@ def render_pestana_contabilidad(client):
                         
                         if es_servicio:
                             igic_porcentaje = float(p.get('IGIC', 7.0))
-                            if igic_porcentaje <= 0: igic_porcentaje = 7.0
                             base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
                             igic_linea = pvp_con_desc - base_linea
                             
@@ -591,8 +590,7 @@ def render_pestana_contabilidad(client):
                         pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
                         
                         if es_servicio:
-                            igic_porcentaje = float(p.get('IGIC %', 7.0))
-                            if igic_porcentaje <= 0: igic_porcentaje = 7.0
+                            igic_porcentaje = float(p.get('IGIC', p.get('IGIC %', 7.0)))
                             base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
                             igic_linea = pvp_con_desc - base_linea
                             

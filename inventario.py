@@ -106,7 +106,7 @@ def render_pestana_inventario(client):
                 if 'cantidad_reponer' not in df_solo_productos.columns: df_solo_productos['cantidad_reponer'] = 5
                 if 'fecha_caducidad' not in df_solo_productos.columns: df_solo_productos['fecha_caducidad'] = None
 
-                sub_prod, sub_serv = st.tabs(["📦 Inventario", "✂️ Servicios"])
+                sub_prod, sub_serv, sub_interno = st.tabs(["📦 Inventario", "✂️ Servicios", "🏢 Uso Interno"])
                 
                 with sub_prod:
                     # --- TABLA DE PRODUCTOS MEJORADA ---
@@ -259,5 +259,40 @@ def render_pestana_inventario(client):
                         st.success("Catálogo de servicios actualizado")
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.rerun()
+                        
+                with sub_interno:
+                    st.markdown("#### 🏢 Traspaso para Uso Interno (Peluquería)")
+                    st.info("💡 Descuenta productos del almacén para uso profesional en la tienda (champús, mascarillas...). Esto ajusta el stock sin generar ingresos en la caja, pero deja registro contable de uso interno a 0€.")
+                    
+                    c_ui1, c_ui2, c_ui3 = st.columns([2, 1, 1], vertical_alignment="bottom")
+                    with c_ui1:
+                        opciones_ui = df_solo_productos.apply(lambda x: f"{x['nombre']} | SKU: {x['sku']} (Stock: {x['stock_actual']})", axis=1).tolist()
+                        prod_ui = st.selectbox("Selecciona el producto a consumir:", opciones_ui, index=None, placeholder="Busca un producto...")
+                    with c_ui2:
+                        cant_ui = st.number_input("Cantidad a retirar", min_value=1, value=1, step=1)
+                    with c_ui3:
+                        if st.button("🔽 Retirar de Stock", type="primary", use_container_width=True):
+                            if prod_ui:
+                                sku_ui = prod_ui.split(" | SKU: ")[1].split(" (Stock")[0]
+                                item_ui = df_solo_productos[df_solo_productos['sku'] == sku_ui].iloc[0]
+                                
+                                if item_ui['stock_actual'] >= cant_ui:
+                                    nuevo_stock = item_ui['stock_actual'] - cant_ui
+                                    client.table("productos").update({"stock_actual": int(nuevo_stock)}).eq("id", item_ui['id']).execute()
+                                    
+                                    # Registro en compras (Traspaso Interno a coste cero)
+                                    client.table("compras").insert({
+                                        "proveedor_id": None, "total": 0.0, "estado": "Pagado",
+                                        "tipo": f"Uso Interno | {item_ui['nombre']}", "fecha_vencimiento": str(pd.Timestamp.today().date()),
+                                        "productos": [{"id": str(item_ui['id']), "Código": sku_ui, "Descripción": item_ui['nombre'], "Cantidad": cant_ui, "Base Ud": 0.0, "IGIC %": 0.0, "Desc %": 0.0, "PVP (€)": 0.0}],
+                                        "pagado": 0.0, "pendiente": 0.0
+                                    }).execute()
+                                    
+                                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                    st.success(f"Se han retirado {cant_ui} unidad(es) de {item_ui['nombre']} para uso interno."); time.sleep(1.5); st.rerun()
+                                else:
+                                    st.error("No hay suficiente stock para realizar este traspaso.")
+                            else:
+                                st.warning("Selecciona un producto primero.")
             else:
                 st.info("Inventario vacío.")

@@ -75,11 +75,14 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
         if "Precio con desc. (€)" not in df_hist.columns:
             df_hist["Precio con desc. (€)"] = df_hist["Importe (€)"]
             
-    columnas_hist = ["Fecha", "Trabajo / Servicio", "Tratamiento", "Peluquera/o", "Inicio de sesión", "Fin de sesión", "Duración (min)", "Precio Base (€)", "Precio con desc. (€)", "Nota Sesión"]
+    columnas_hist = ["Fecha", "Trabajo / Servicio", "Tratamiento", "Peluquera/o", "Inicio de sesión", "Fin de sesión", "Duración (min)", "Precio Base (€)", "Precio con desc. (€)", "Nota Sesión", "Extras"]
     
     for col in columnas_hist:
         if col not in df_hist.columns: 
-            df_hist[col] = None if col in ["Duración (min)", "Precio Base (€)", "Precio con desc. (€)", "Inicio de sesión", "Fin de sesión", "Fecha"] else ""
+            if col == "Extras":
+                df_hist[col] = [[] for _ in range(len(df_hist))]
+            else:
+                df_hist[col] = None if col in ["Duración (min)", "Precio Base (€)", "Precio con desc. (€)", "Inicio de sesión", "Fin de sesión", "Fecha"] else ""
         
     df_hist = df_hist[columnas_hist]
     
@@ -123,10 +126,81 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
             "Duración (min)": st.column_config.NumberColumn("Duración (Auto)", min_value=0, step=5, disabled=True, help="Se calcula sola al guardar si indicas Inicio y Fin"),
             "Precio Base (€)": st.column_config.NumberColumn("Precio Catálogo (€)", format="%.2f", min_value=0.0),
             "Precio con desc. (€)": st.column_config.NumberColumn("Precio Final (€)", format="%.2f", min_value=0.0),
-            "Nota Sesión": st.column_config.TextColumn("Nota Sesión")
+            "Nota Sesión": st.column_config.TextColumn("Nota Sesión"),
+            "Extras": None
         }
     )
     
+    with st.expander("✨ Añadir / Ver Extras de la Sesión (Nudos, Mascarillas...)", expanded=False):
+        fechas_disponibles = df_hist['Fecha'].dropna().dt.strftime('%d/%m/%Y').unique().tolist()
+        if fechas_disponibles:
+            f_sel_extra = st.selectbox("Selecciona la fecha de la sesión:", fechas_disponibles, key=f"f_ext_{prefix}_{m_id}")
+            
+            idx_obj = df_hist[df_hist['Fecha'].dt.strftime('%d/%m/%Y') == f_sel_extra].index[-1]
+            lista_extras_actual = df_hist.at[idx_obj, 'Extras']
+            if not isinstance(lista_extras_actual, list): lista_extras_actual = []
+            
+            if lista_extras_actual:
+                st.markdown("**Extras actuales en esta sesión:**")
+                for e in lista_extras_actual:
+                    st.markdown(f"- {e.get('Servicio')} | {e.get('Minutos', 0)} min | {e.get('Precio', 0):.2f}€ (IGIC: {e.get('IGIC', 0)}%)")
+            
+            st.markdown("---")
+            c_e1, c_e2, c_e3 = st.columns([2, 1, 1])
+            with c_e1: 
+                serv_extra = st.selectbox("Extra Aplicado", servicios_lista, key=f"se_ext_{prefix}_{m_id}")
+            with c_e2: 
+                h_ini_ext = st.time_input("Inicio Extra (Opcional)", value=None, key=f"hi_ext_{prefix}_{m_id}")
+            with c_e3: 
+                h_fin_ext = st.time_input("Fin Extra (Opcional)", value=None, key=f"hf_ext_{prefix}_{m_id}")
+            
+            if st.button("➕ Añadir Extra a la Sesión", use_container_width=True, key=f"btn_add_ext_{prefix}_{m_id}"):
+                minutos_ext = 0
+                if h_ini_ext and h_fin_ext:
+                    minutos_ext = (h_fin_ext.hour * 60 + h_fin_ext.minute) - (h_ini_ext.hour * 60 + h_ini_ext.minute)
+                    if minutos_ext < 0: minutos_ext += 24 * 60
+                
+                precio_ext = 0.0
+                if serv_extra in precios_servicios:
+                    precio_cat = float(precios_servicios[serv_extra])
+                    if any(kw in serv_extra.lower() for kw in ["hora", "nudos", "agresivos", "nerviosos"]) and minutos_ext > 0:
+                        precio_ext = round((precio_cat / 60) * minutos_ext, 2)
+                    else:
+                        precio_ext = precio_cat
+                
+                igic_ext = 7.0
+                try:
+                    res_igic = client.table("productos").select("igic_tipo").eq("nombre", serv_extra).execute()
+                    if res_igic.data: igic_ext = float(res_igic.data[0].get('igic_tipo', 7.0))
+                except: pass
+                
+                nuevo_extra = {"Servicio": serv_extra, "Minutos": minutos_ext, "Precio": precio_ext, "IGIC": igic_ext}
+                
+                hist_to_save = ed_hist.copy() # Tomamos lo que hay en el editor
+                
+                idx_to_update = hist_to_save[hist_to_save['Fecha'].dt.strftime('%d/%m/%Y') == f_sel_extra].index[-1]
+                lista_ext_save = hist_to_save.at[idx_to_update, 'Extras']
+                if not isinstance(lista_ext_save, list): lista_ext_save = []
+                lista_ext_save.append(nuevo_extra)
+                hist_to_save.at[idx_to_update, 'Extras'] = lista_ext_save
+                
+                # Sumar el precio al total visual
+                precio_desc_actual = float(hist_to_save.at[idx_to_update, 'Precio con desc. (€)'] or 0.0)
+                hist_to_save.at[idx_to_update, 'Precio con desc. (€)'] = precio_desc_actual + precio_ext
+                
+                hist_to_save['Fecha'] = pd.to_datetime(hist_to_save['Fecha'], errors='coerce').dt.strftime('%d/%m/%Y').fillna("")
+                for i, r in hist_to_save.iterrows():
+                    for time_col in ['Inicio de sesión', 'Fin de sesión']:
+                        val = r.get(time_col)
+                        val_str = val.strftime('%H:%M') if hasattr(val, 'strftime') else (str(val) if pd.notnull(val) and str(val).strip() not in ["", "None", "NaT"] else "")
+                        hist_to_save.at[i, time_col] = val_str
+                
+                hist_to_save = hist_to_save.fillna("")
+                client.table("mascotas").update({"historial_trabajos": hist_to_save.to_dict(orient='records')}).eq("id", m_id).execute()
+                
+                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                st.success(f"Extra añadido."); time.sleep(1); st.rerun()
+
     st.markdown("#### 📝 Diario y Observaciones Clínicas")
     obs_actuales = strip_pref(m_data.get('observaciones', ''))
     notas_clinicas = st.text_area("Anota aquí alergias, estado de piel, carácter o recordatorios extensos:", value=obs_actuales, height=120, key=f"notas_clinicas_{prefix}_{m_id}")
