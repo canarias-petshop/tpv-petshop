@@ -23,7 +23,7 @@ def get_citas_ag_cached(_client, v):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
+        _r = _client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, especie, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
@@ -385,6 +385,10 @@ def render_pestana_agenda(client):
                     msg_cita = f"¡Hola {cliente_info.get('nombre_dueno', '')}! 🐾 Te escribimos de Animalarium para recordarte la cita de {mascota_info.get('nombre', '')} el día {dt_obj.strftime('%d/%m/%Y')} a las {dt_obj.strftime('%H:%M')}. Por favor, confírmanos tu asistencia. ¡Te esperamos! ✂️"
                     url_wa = generar_enlace_wa(cliente_info.get('telefono', ''), msg_cita)
 
+                    nombre_m = mascota_info.get('nombre', 'N/A')
+                    especie_m = mascota_info.get('especie', '')
+                    if especie_m: nombre_m += f" ({especie_m})"
+
                     citas_formateadas.append({
                         "Ver Ficha": False,
                         "mascota_id": mascota_info.get('id'),
@@ -396,7 +400,7 @@ def render_pestana_agenda(client):
                         "Duración (min)": dur,
                         "Peluquero/a": assigned_e,
                         "Servicio": s_clean,
-                        "Mascota": mascota_info.get('nombre', 'N/A'),
+                        "Mascota": nombre_m,
                         "Dueño": cliente_info.get('nombre_dueno', 'N/A'),
                         "Teléfono": cliente_info.get('telefono', 'N/A'),
                         "Observaciones": c.get('observaciones', ''),
@@ -534,6 +538,8 @@ def render_pestana_agenda(client):
                         dur = c.get('duracion_minutos') if c.get('duracion_minutos') is not None else 60
                         dt_end = dt_start + pd.Timedelta(minutes=dur)
                         mascota = c.get('mascotas', {}).get('nombre', 'Mascota')
+                        especie = c.get('mascotas', {}).get('especie', '')
+                        if especie: mascota += f" ({especie})"
                         
                         estado_c, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
                         emoji = EMOJIS_ESTADO.get(estado_c, "🟢")
@@ -623,6 +629,8 @@ def render_pestana_agenda(client):
                         
                         col_dia = dt_start.strftime('%A\n%d/%m')
                         mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
+                        especie = cita.get('mascotas', {}).get('especie', '')
+                        if especie: mascota_nombre += f" ({especie})"
                         
                         estado_c, s_clean, assigned_e = parse_cita_estado(cita.get('servicio', ''))
                         emoji = EMOJIS_ESTADO.get(estado_c, "🟢")
