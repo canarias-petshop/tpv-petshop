@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import date, timedelta
 import time
 import urllib.parse
+import calendar
 
 @st.cache_data(show_spinner=False, ttl=15)
 def get_masc_ag_cached(_client, v):
@@ -62,6 +63,19 @@ def get_canc_ag_cached(_client, v):
 @st.cache_data(show_spinner=False, ttl=15)
 def get_sin_hist_ag_cached(_client, v, h_str):
     return _client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", h_str).like("servicio", "%[ESTADO: Confirmada]%").execute().data
+
+@st.cache_data(show_spinner=False, ttl=15)
+def get_turnos_ag_cached(_client, v, f_ini, f_fin):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("personal_cuadrantes").select("fecha, turno, personal_empleados(nombre)").gte("fecha", f_ini).lte("fecha", f_fin).range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
 
 def render_pestana_agenda(client):
     if 'llave_agenda_cita' not in st.session_state: st.session_state.llave_agenda_cita = 0
@@ -152,7 +166,7 @@ def render_pestana_agenda(client):
         return estado, servicio_raw.strip(), emp
     
     # --- PESTAÑAS DE VISTAS ---
-    sub_agenda, sub_diario, sub_semanal, sub_recordatorios, sub_cancelaciones, sub_sin_historial = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal", "🔔 Recordatorios", "🚫 Cancelaciones", "🚨 Sin Historial"])
+    sub_agenda, sub_diario, sub_semanal, sub_mensual, sub_recordatorios, sub_cancelaciones, sub_sin_historial = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal", "📅 Vista Mensual", "🔔 Recordatorios", "🚫 Cancelaciones", "🚨 Sin Historial"])
     
     with sub_agenda:
         c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
@@ -492,6 +506,18 @@ def render_pestana_agenda(client):
             st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
             ocultar_libres = st.checkbox("Ocultar tramos libres (Vista compacta)", value=False)
         
+        # --- Turnos del día actual ---
+        turnos_dia = get_turnos_ag_cached(client, st.session_state.get('db_version', 0), str(dia_ver), str(dia_ver))
+        textos_t = []
+        if turnos_dia:
+            for t in turnos_dia:
+                nm = t.get('personal_empleados', {}).get('nombre', 'Desconocido') if t.get('personal_empleados') else 'Desconocido'
+                tr = t.get('turno', '')
+                if tr and tr.lower() not in ["", "libre", "vacaciones", "-"]:
+                    textos_t.append(f"**{nm}**: {tr}")
+        if textos_t: st.success("👥 **Personal trabajando hoy:** " + " | ".join(textos_t))
+        else: st.warning("👥 **Personal trabajando hoy:** Nadie tiene turno asignado.")
+        
         # Creamos una cuadrícula estricta adaptada a la selección
         horas_trabajo = [f"{h:02d}:{m:02d}" for h in range(rango_horas[0], rango_horas[1]) for m in range(0, 60, 5)]
         df_cuadrante = pd.DataFrame({"Hora": horas_trabajo})
@@ -569,6 +595,22 @@ def render_pestana_agenda(client):
         # Diccionario para agrupar citas por columna (día)
         citas_por_dia = {dia: [] for dia in nombres_dias_col}
 
+        # --- Insertar los turnos al inicio de cada día ---
+        turnos_semana = get_turnos_ag_cached(client, st.session_state.get('db_version', 0), str(start_of_week), str(end_of_week))
+        for i, d in enumerate(dias_semana_dt):
+            d_str = str(d.date())
+            t_hoy = [t for t in turnos_semana if t['fecha'] == d_str]
+            textos_t = []
+            for t in t_hoy:
+                nm = t.get('personal_empleados', {}).get('nombre', '') if t.get('personal_empleados') else ''
+                tr = t.get('turno', '')
+                if tr and tr.lower() not in ["", "libre", "vacaciones", "-"]:
+                    textos_t.append(f"👥 {nm}: {tr}")
+            col_dia = nombres_dias_col[i]
+            dt_dummy = pd.to_datetime(f"{d_str} 00:00:00") # Lo ponemos a las 00:00 para que se ordene arriba del todo
+            if textos_t: citas_por_dia[col_dia].append((dt_dummy, "\n".join(textos_t)))
+            else: citas_por_dia[col_dia].append((dt_dummy, "👥 Sin turnos"))
+
         if res_citas.data:
             for cita in res_citas.data:
                 try:
@@ -608,6 +650,65 @@ def render_pestana_agenda(client):
             df_semana = pd.DataFrame(citas_por_dia)
             st.dataframe(df_semana, use_container_width=True, hide_index=True)
             
+    with sub_mensual:
+        st.markdown("#### 📅 Calendario Mensual (Turnos y Volumen de Citas)")
+        c_mes1, c_mes2, _ = st.columns([1, 1, 2])
+        hoy_mes = date.today()
+        with c_mes1:
+            meses_lista = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+            mes_sel = st.selectbox("Mes:", range(1, 13), format_func=lambda x: meses_lista[x-1], index=hoy_mes.month-1)
+        with c_mes2:
+            anio_sel = st.selectbox("Año:", range(hoy_mes.year - 1, hoy_mes.year + 4), index=1)
+            
+        cal = calendar.monthcalendar(anio_sel, mes_sel)
+        f_ini_mes = date(anio_sel, mes_sel, 1)
+        _, last_day = calendar.monthrange(anio_sel, mes_sel)
+        f_fin_mes = date(anio_sel, mes_sel, last_day)
+        
+        turnos_mes = get_turnos_ag_cached(client, st.session_state.get('db_version', 0), str(f_ini_mes), str(f_fin_mes))
+        res_citas_mes = client.table("citas").select("fecha_hora, servicio").gte("fecha_hora", f"{f_ini_mes}T00:00:00").lte("fecha_hora", f"{f_fin_mes}T23:59:59").execute()
+        
+        citas_por_dia_mes = {}
+        if res_citas_mes.data:
+            for c in res_citas_mes.data:
+                if "[ESTADO: Cancelada]" not in c.get('servicio', ''):
+                    try:
+                        d_str = c['fecha_hora'][:10]
+                        citas_por_dia_mes[d_str] = citas_por_dia_mes.get(d_str, 0) + 1
+                    except: pass
+        
+        dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+        cal_data = []
+        
+        for semana in cal:
+            fila = {}
+            for i, dia in enumerate(semana):
+                if dia == 0:
+                    fila[dias_semana_nombres[i]] = ""
+                else:
+                    d_obj = date(anio_sel, mes_sel, dia)
+                    d_str = str(d_obj)
+                    festivo = es_festivo(d_obj)
+                    
+                    header = f"🗓️ {dia}"
+                    if festivo: header += f" ({festivo})"
+                        
+                    t_hoy = [t for t in turnos_mes if t['fecha'] == d_str]
+                    t_textos = []
+                    for t in t_hoy:
+                        nm = t.get('personal_empleados', {}).get('nombre', '') if t.get('personal_empleados') else ''
+                        tr = t.get('turno', '')
+                        if tr and tr.lower() not in ["", "libre", "vacaciones", "-"]:
+                            t_textos.append(f"👥 {nm}: {tr}")
+                    
+                    t_bloque = "\n".join(t_textos) if t_textos else "👥 Sin turnos"
+                    num_citas = citas_por_dia_mes.get(d_str, 0)
+                    c_bloque = f"📝 {num_citas} cita(s)" if num_citas > 0 else "📝 Libre"
+                    fila[dias_semana_nombres[i]] = f"{header}\n\n{t_bloque}\n\n{c_bloque}"
+            cal_data.append(fila)
+            
+        st.data_editor(pd.DataFrame(cal_data), use_container_width=True, hide_index=True, disabled=True, column_config={col: st.column_config.TextColumn(col, width="large") for col in dias_semana_nombres})
+
     with sub_recordatorios:
         st.markdown("#### 🔔 Centro de Recordatorios (Citas y Mantenimiento)")
         st.info("Espacio centralizado para gestionar las confirmaciones de citas y mantenimientos diarios (vía WhatsApp o llamada telefónica).")
