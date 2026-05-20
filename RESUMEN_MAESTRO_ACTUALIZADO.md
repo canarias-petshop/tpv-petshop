@@ -196,13 +196,15 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
   - *Archivo Fiscal Automático y Túnel Docker:* Las imágenes capturadas desde la tablet traspasan la burbuja de seguridad de Docker a través de un túnel (`/facturas_digitales`) y se guardan directamente en el OneDrive del dueño, ordenadas por Año y Mes.
 - **Scripts Locales de Procesamiento en Lote:** Creado el script independiente `procesar_facturas_lote.py` para automatizar la inserción de facturas atrasadas a la base de datos con IA de forma masiva desde Windows.
 - **Reseteo Limpio de Formularios (UI) (Completado):** Se aplicaron "llaves dinámicas" (`st.session_state.llave_...`) a todos los formularios del programa (Agenda, Proveedores, TPV, Facturación, etc.). Esto garantiza que, al pulsar "Guardar" y hacer el refresco de pantalla (`st.rerun()`), los campos se vacíen completamente, erradicando los datos fantasma y los registros duplicados accidentales.
+- **Módulo de Tareas y Proyectos (Completado):** Integración de `tareas.py` con separación de roles (Los empleados ven sus rutinas diarias; el Administrador gestiona el Roadmap de proyectos internos a largo plazo).
+- **Orden Alfabético Absoluto (Completado):** Refactorización de las tablas del CRM (Clientes y Mascotas) para ordenar de la A a la Z ignorando el formato de mayúsculas y minúsculas.
 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
-*   **PRIORIDAD 1 - Orden Alfabético CRM:** Ajustar el ordenamiento (A-Z) en el directorio de clientes para que no mande las minúsculas al final de la lista.
-*   **PRIORIDAD 2 - Bancos y Tesorería:** Crear y aislar las cuentas "Revolut (Negocio)" y "Revolut (Nómina)".
-*   **PRIORIDAD 3 - Gestor de Proyectos y Tareas:** Crear una pestaña centralizada para "Proyectos Internos" (a nivel de gerencia) y "Tareas de Empleados" (asignación de rutinas y checklist).
+*   **PRIORIDAD 1 - Bancos y Tesorería:** Crear y aislar las cuentas "Revolut (Negocio)" y "Revolut (Nómina)" (Creación manual desde la interfaz de la app).
+*   **PRIORIDAD 2 - Cumplimiento Antifraude (Fase 3):** Sustituir el borrado físico de registros en 'Archivo Contable' y 'Compras' por un sistema legal de "Anulación" que deje los importes a 0€ y revierta el stock (Hito en revisión técnica por conflictos en BD).
+*   **PRIORIDAD 3 - Marketing Activo:** Iniciar desarrollo del Club de Cumpleaños y radar Win-Back.
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
@@ -256,12 +258,6 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 *   **Comercialización y Escalabilidad (Vender el programa):**
     *   *Objetivo:* Preparar el sistema para venderlo a otras tiendas o clínicas (Modelo SaaS).
     *   *Pasos a dar:* Crear una estructura de "Multitienda" o un proceso de instalación para que cada cliente (otra clínica) tenga su base de datos totalmente separada y privada.
-*   **Gestor de Proyectos Internos:**
-    *   *Objetivo:* Añadir una pestaña dedicada a planificar y estructurar los proyectos futuros de la tienda a medio y largo plazo.
-*   **Calendario de Tareas para Trabajadores:**
-    *   *Objetivo:* Crear una sección (pestaña o subpestaña) de "Tareas Pendientes" específica para los empleados.
-    *   *Pasos a dar:* Integrar un gestor visual donde la administración pueda asignar rutinas o tareas concretas, llevando un registro y control de lo mandado. Así queda constancia para todos, ellos pueden consultarlo, marcarlo al terminar y no se pierde nada de vista.
-
 *   **Registro Inteligente de Alimentación por Mascota:**
     *   *Objetivo:* Anotar qué pienso específico consume cada mascota en su ficha. Soluciona el clásico "ponme el pienso del otro día", especialmente útil para clientes con varios animales que consumen dietas distintas.
     *   *Pasos a dar (Fase Avanzada):* Crear un historial de alimentación en el CRM. En el futuro, cruzar el tamaño del saco comprado con la ración diaria recomendada (según el peso del animal) para generar y enviar una alerta de WhatsApp días antes de que se le agote, asegurando la recompra automática.
