@@ -598,7 +598,7 @@ def render_pestana_agenda(client):
         # --- Insertar los turnos al inicio de cada día ---
         turnos_semana = get_turnos_ag_cached(client, st.session_state.get('db_version', 0), str(start_of_week), str(end_of_week))
         for i, d in enumerate(dias_semana_dt):
-            d_str = str(d.date())
+            d_str = str(d)
             t_hoy = [t for t in turnos_semana if t['fecha'] == d_str]
             textos_t = []
             for t in t_hoy:
