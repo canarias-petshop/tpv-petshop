@@ -479,6 +479,7 @@ def render_pestana_tpv(client):
                 if st.button("🛒 Nueva Venta", use_container_width=True, type="primary"):
                     st.session_state.ticket_actual = None
                     st.session_state.vale_aplicado = None
+                    st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
                     st.session_state.llave_busqueda_tpv += 1
                     st.rerun()
 
@@ -819,6 +820,7 @@ def render_pestana_tpv(client):
                             }
                             st.session_state.carrito = []
                             st.session_state.vale_aplicado = None
+                            st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
                             st.session_state.llave_busqueda_tpv += 1
                             st.rerun()
                             
