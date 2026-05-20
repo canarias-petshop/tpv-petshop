@@ -563,7 +563,7 @@ def render_pestana_agenda(client):
         dias_semana_dt = [(start_of_week + timedelta(days=i)) for i in range(7)]
         nombres_dias_col = []
         for d in dias_semana_dt:
-            fest = es_festivo(d.date())
+            fest = es_festivo(d)
             nombres_dias_col.append(d.strftime('%A\n%d/%m') + (f"\n{fest}" if fest else ""))
 
         # Diccionario para agrupar citas por columna (día)
