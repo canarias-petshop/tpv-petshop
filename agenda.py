@@ -68,6 +68,24 @@ def render_pestana_agenda(client):
 
     st.markdown("<h3 style='margin-bottom: 5px;'>📅 Agenda Animalarium</h3>", unsafe_allow_html=True)
 
+    def es_festivo(d: date):
+        fijos = {
+            (1, 1): "🎊 Año Nuevo", (1, 6): "🎁 Reyes", (2, 2): "🕯️ Candelaria (TF)",
+            (5, 1): "👷 Trabajador", (5, 3): "✝️ Cruz (S/C)",
+            (5, 30): "🇮🇨 Día Canarias", (8, 15): "⛪ Asunción",
+            (10, 12): "🇪🇸 Hispanidad", (11, 1): "🕯️ Todos Santos",
+            (12, 6): "📜 Constitución", (12, 8): "⛪ Inmaculada", (12, 25): "🎄 Navidad"
+        }
+        variables = {
+            date(2024, 2, 13): "🎭 Carnaval (S/C)", date(2024, 3, 28): "✝️ Jueves Santo", date(2024, 3, 29): "✝️ Viernes Santo",
+            date(2025, 3, 4): "🎭 Carnaval (S/C)", date(2025, 4, 17): "✝️ Jueves Santo", date(2025, 4, 18): "✝️ Viernes Santo",
+            date(2026, 2, 17): "🎭 Carnaval (S/C)", date(2026, 4, 2): "✝️ Jueves Santo", date(2026, 4, 3): "✝️ Viernes Santo",
+            date(2027, 2, 9): "🎭 Carnaval (S/C)", date(2027, 3, 25): "✝️ Jueves Santo", date(2027, 3, 26): "✝️ Viernes Santo"
+        }
+        if (d.month, d.day) in fijos: return fijos[(d.month, d.day)]
+        if d in variables: return variables[d]
+        return ""
+
     def generar_enlace_wa(telefono, mensaje):
         tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
         if not tel_limpio: return None
@@ -464,6 +482,9 @@ def render_pestana_agenda(client):
         c_diario1, c_diario2, c_diario3 = st.columns([1, 1.5, 1])
         with c_diario1:
             dia_ver = st.date_input("Selecciona un día para ver los huecos libres:", value=date.today())
+            fest_diario = es_festivo(dia_ver)
+            if fest_diario:
+                st.info(f"🌴 **Día Festivo:** {fest_diario}")
         with c_diario2:
             rango_defecto = (9, 21) if dia_ver.weekday() < 5 else (10, 14)
             rango_horas = st.slider("⏱️ Rango de horas visible:", min_value=6, max_value=23, value=rango_defecto, format="%d:00")
@@ -540,7 +561,10 @@ def render_pestana_agenda(client):
         st.markdown(f"##### Semana del {start_of_week.strftime('%d/%m/%Y')} al {end_of_week.strftime('%d/%m/%Y')}")
 
         dias_semana_dt = [(start_of_week + timedelta(days=i)) for i in range(7)]
-        nombres_dias_col = [d.strftime('%A\n%d/%m') for d in dias_semana_dt]
+        nombres_dias_col = []
+        for d in dias_semana_dt:
+            fest = es_festivo(d.date())
+            nombres_dias_col.append(d.strftime('%A\n%d/%m') + (f"\n{fest}" if fest else ""))
 
         # Diccionario para agrupar citas por columna (día)
         citas_por_dia = {dia: [] for dia in nombres_dias_col}

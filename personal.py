@@ -9,6 +9,24 @@ import hashlib
 def render_pestana_personal(client: SyncPostgrestClient):
     st.header("⏱️ Control de Personal y Horarios")
 
+    def es_festivo(d: date):
+        fijos = {
+            (1, 1): "🎊 Año Nuevo", (1, 6): "🎁 Reyes", (2, 2): "🕯️ Candelaria (TF)",
+            (5, 1): "👷 Trabajador", (5, 3): "✝️ Cruz (S/C)",
+            (5, 30): "🇮🇨 Día Canarias", (8, 15): "⛪ Asunción",
+            (10, 12): "🇪🇸 Hispanidad", (11, 1): "🕯️ Todos Santos",
+            (12, 6): "📜 Constitución", (12, 8): "⛪ Inmaculada", (12, 25): "🎄 Navidad"
+        }
+        variables = {
+            date(2024, 2, 13): "🎭 Carnaval (S/C)", date(2024, 3, 28): "✝️ Jueves Santo", date(2024, 3, 29): "✝️ Viernes Santo",
+            date(2025, 3, 4): "🎭 Carnaval (S/C)", date(2025, 4, 17): "✝️ Jueves Santo", date(2025, 4, 18): "✝️ Viernes Santo",
+            date(2026, 2, 17): "🎭 Carnaval (S/C)", date(2026, 4, 2): "✝️ Jueves Santo", date(2026, 4, 3): "✝️ Viernes Santo",
+            date(2027, 2, 9): "🎭 Carnaval (S/C)", date(2027, 3, 25): "✝️ Jueves Santo", date(2027, 3, 26): "✝️ Viernes Santo"
+        }
+        if (d.month, d.day) in fijos: return fijos[(d.month, d.day)]
+        if d in variables: return variables[d]
+        return ""
+
     # 1. Cargar empleados activos
     try:
         empleados_res = client.table("personal_empleados").select("*").eq("activo", True).execute()
@@ -107,7 +125,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
             if not df_cuadrante.empty:
                 df_emp = pd.DataFrame(empleados)[['id', 'nombre']]
                 df_cuadrante = df_cuadrante.merge(df_emp, left_on='empleado_id', right_on='id')
-                df_cuadrante['Fecha_Str'] = pd.to_datetime(df_cuadrante['fecha']).apply(lambda x: f"{dias_es[x.weekday()]} {x.strftime('%d/%m')}")
+                df_cuadrante['Fecha_Str'] = pd.to_datetime(df_cuadrante['fecha']).apply(lambda x: f"{dias_es[x.weekday()]} {x.strftime('%d/%m')}" + (f" {es_festivo(x.date())}" if es_festivo(x.date()) else ""))
                 df_pivot = df_cuadrante.pivot_table(index='nombre', columns='Fecha_Str', values='turno', aggfunc='first')
             else:
                 df_pivot = pd.DataFrame()
@@ -118,7 +136,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                 st.markdown(f"<h5 style='margin-bottom: 5px; color: #005275; margin-top: 10px;'>Semana del {curr_w.strftime('%d/%m/%Y')} al {w_end.strftime('%d/%m/%Y')}</h5>", unsafe_allow_html=True)
                 
                 fechas_semana = [curr_w + timedelta(days=x) for x in range(7)]
-                cols_semana = [f"{dias_es[d.weekday()]} {d.strftime('%d/%m')}" for d in fechas_semana]
+                cols_semana = [f"{dias_es[d.weekday()]} {d.strftime('%d/%m')}" + (f" {es_festivo(d)}" if es_festivo(d) else "") for d in fechas_semana]
                 
                 if not df_pivot.empty:
                     # Mostrar solo las columnas de esta semana, rellenar si no hay turno
@@ -190,7 +208,10 @@ def render_pestana_personal(client: SyncPostgrestClient):
                         
                     col_config = {"id_emp": None, "Empleado": st.column_config.TextColumn("Empleado", disabled=True)}
                     for d in fechas_semana:
-                        col_config[d.isoformat()] = st.column_config.TextColumn(f"{dias_es[d.weekday()]} {d.strftime('%d/%m')}")
+                        fest = es_festivo(d)
+                        col_name = f"{dias_es[d.weekday()]} {d.strftime('%d/%m')}"
+                        if fest: col_name += f" ({fest})"
+                        col_config[d.isoformat()] = st.column_config.TextColumn(col_name)
                         
                     ed_grid = st.data_editor(pd.DataFrame(grid_data), column_config=col_config, hide_index=True, use_container_width=True, key=f"ed_grid_{curr_w.isoformat()}")
                     edited_dfs.append((fechas_semana, ed_grid))
