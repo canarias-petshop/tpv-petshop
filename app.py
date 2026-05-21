@@ -280,7 +280,8 @@ if bloqueo:
                 pin_in = st.text_input("Tu PIN de 4 dígitos", type="password", max_chars=4)
                 if st.form_submit_button("Registrar Entrada", type="primary", use_container_width=True):
                     if pin_in == bloqueo['pin']:
-                        ahora_iso = datetime.now(ZoneInfo("Atlantic/Canary")).isoformat()
+                        ahora_dt = datetime.now(ZoneInfo("Atlantic/Canary"))
+                        ahora_iso = ahora_dt.isoformat()
                         
                         # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
                         res_ult = client.table("personal_fichajes").select("*").eq("empleado_id", bloqueo['emp_id']).eq("fecha", bloqueo['hora'].date().isoformat()).order("id", desc=True).limit(1).execute()
@@ -384,7 +385,7 @@ if st.session_state.rol == "Admin":
 else:
     nombres_pestanas = [
         "💰 Control Caja", "🛒 Caja", "📜 Historial", "👥 Clientes", 
-        "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", "📑 Facturación", 
+        "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", 
         "🐶 Servicios Animalarium", "⏱️ Personal", "📖 Ayuda"
     ]
 
@@ -414,7 +415,6 @@ else:
     with tabs[4]: render_pestana_inventario(client)
     with tabs[5]: render_pestana_proveedores(client)
     with tabs[6]: render_pestana_agenda(client)
-    with tabs[7]: render_pestana_facturacion(client)
-    with tabs[8]: render_pestana_servicios(client)
-    with tabs[9]: render_pestana_personal(client)
-    with tabs[10]: render_pestana_manual()
+    with tabs[7]: render_pestana_servicios(client)
+    with tabs[8]: render_pestana_personal(client)
+    with tabs[9]: render_pestana_manual()
