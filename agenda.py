@@ -584,50 +584,89 @@ def render_pestana_agenda(client):
         st.dataframe(df_cuadrante, use_container_width=True, hide_index=True, height=600)
 
     with sub_semanal:
-        st.markdown("#### 🗓️ Cuadrante de Trabajo Semanal (Vista Flexible)")
-        dia_referencia = st.date_input("Selecciona una fecha para ver su semana:", value=date.today(), key="semana_picker")
-        
+        st.markdown("#### 🗓️ Cuadrante de Trabajo Semanal (Vista Calendario)")
+        c_sem1, c_sem2, _ = st.columns([1, 1, 2])
+        with c_sem1:
+            dia_referencia = st.date_input("Selecciona una fecha de inicio:", value=date.today(), key="semana_picker")
+        with c_sem2:
+            num_semanas = st.selectbox("Semanas a la vista:", [1, 2], index=1)
+            
         start_of_week = dia_referencia - timedelta(days=dia_referencia.weekday())
-        end_of_week = start_of_week + timedelta(days=6)
-
-        st.markdown(f"##### Semana del {start_of_week.strftime('%d/%m/%Y')} al {end_of_week.strftime('%d/%m/%Y')}")
-
-        dias_semana_dt = [(start_of_week + timedelta(days=i)) for i in range(7)]
-        nombres_dias_col = []
-        for d in dias_semana_dt:
-            fest = es_festivo(d)
-            nombres_dias_col.append(d.strftime('%A\n%d/%m') + (f"\n{fest}" if fest else ""))
-
-        # Diccionario para agrupar citas por columna (día)
-        citas_por_dia = {dia: [] for dia in nombres_dias_col}
-
-        # --- Insertar los turnos al inicio de cada día ---
-        turnos_semana = get_turnos_ag_cached(client, st.session_state.get('db_version', 0), str(start_of_week), str(end_of_week))
-        for i, d in enumerate(dias_semana_dt):
-            d_str = str(d)
-            t_hoy = [t for t in turnos_semana if t['fecha'] == d_str]
-            textos_t = []
-            for t in t_hoy:
-                nm = t.get('personal_empleados', {}).get('nombre', '') if t.get('personal_empleados') else ''
-                tr = t.get('turno', '')
-                if tr and tr.lower() not in ["", "libre", "vacaciones", "-"]:
-                    textos_t.append(f"👥 {nm}: {tr}")
-            col_dia = nombres_dias_col[i]
-            dt_dummy = pd.to_datetime(f"{d_str} 00:00:00") # Lo ponemos a las 00:00 para que se ordene arriba del todo
-            if textos_t: citas_por_dia[col_dia].append((dt_dummy, "\n".join(textos_t)))
-            else: citas_por_dia[col_dia].append((dt_dummy, "👥 Sin turnos"))
-
-        if res_citas.data:
-            for cita in res_citas.data:
-                try:
-                    dt_start = pd.to_datetime(cita['fecha_hora'])
-                    if dt_start.tzinfo: dt_start = dt_start.tz_localize(None)
-                    if start_of_week <= dt_start.date() <= end_of_week:
-                        if "[ESTADO: Cancelada]" in cita.get('servicio', ''): continue
+        end_of_period = start_of_week + timedelta(days=(7 * num_semanas) - 1)
+        
+        st.markdown(f"##### Mostrando del {start_of_week.strftime('%d/%m/%Y')} al {end_of_period.strftime('%d/%m/%Y')}")
+        
+        dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+        turnos_semana = get_turnos_ag_cached(client, st.session_state.get('db_version', 0), str(start_of_week), str(end_of_period))
+        
+        html_week = '''
+        <style>
+            .weekly-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; background-color: white; margin-bottom: 20px;}
+            .weekly-table th { background-color: #005275; color: white; padding: 8px 5px; text-align: center; font-weight: bold; border: 1px solid #ddd; }
+            .weekly-table td { border: 1px solid #ddd; vertical-align: top; padding: 6px; background-color: #fafafa; }
+            .day-header-w { font-weight: bold; font-size: 1.05em; color: #333; margin-bottom: 6px; border-bottom: 1px solid #eee; padding-bottom: 4px; display: flex; justify-content: space-between;}
+            .festivo-w { color: #d32f2f; font-size: 0.8em; font-weight: normal; text-align: right; max-width: 60%; line-height: 1.1;}
+            .cita-card { background-color: white; border-left: 4px solid #4caf50; padding: 6px; margin-bottom: 6px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 0.85em; line-height: 1.3; word-wrap: break-word;}
+            .turno-card { background-color: #e1f5fe; border-left: 4px solid #0288d1; padding: 4px 6px; margin-bottom: 8px; border-radius: 4px; font-size: 0.8em; word-wrap: break-word; color: #333;}
+            .td-today-w { background-color: #fffde7 !important; border: 2px solid #fbc02d !important; }
+        </style>
+        '''
+        
+        hoy_str_w = str(date.today())
+        
+        for w in range(num_semanas):
+            html_week += '<table class="weekly-table"><tr>'
+            for dia_n in dias_semana_nombres:
+                html_week += f"<th>{dia_n}</th>"
+            html_week += "</tr><tr>"
+            
+            for d_idx in range(7):
+                d_obj = start_of_week + timedelta(days=(w*7) + d_idx)
+                d_str = str(d_obj)
+                festivo = es_festivo(d_obj)
+                
+                is_today = (d_str == hoy_str_w)
+                td_class = "td-today-w" if is_today else ""
+                
+                html_week += f"<td class='{td_class}'>"
+                
+                # Header
+                header_text = f"<span>{d_obj.strftime('%d/%m')}</span>"
+                if festivo:
+                    header_text += f"<span class='festivo-w'>{festivo}</span>"
+                html_week += f"<div class='day-header-w'>{header_text}</div>"
+                
+                # Turnos
+                t_hoy = [t for t in turnos_semana if t['fecha'] == d_str]
+                if t_hoy:
+                    t_textos = []
+                    for t in t_hoy:
+                        nm = t.get('personal_empleados', {}).get('nombre', '') if t.get('personal_empleados') else ''
+                        tr = t.get('turno', '')
+                        if tr and tr.lower() not in ["", "libre", "vacaciones", "-"]:
+                            t_textos.append(f"<b>{nm}</b>: {tr}")
+                    if t_textos:
+                        html_week += f"<div class='turno-card'>👥 {'<br>'.join(t_textos)}</div>"
+                
+                # Citas
+                citas_hoy = []
+                if res_citas.data:
+                    for cita in res_citas.data:
+                        try:
+                            dt_start = pd.to_datetime(cita['fecha_hora'])
+                            if dt_start.tzinfo: dt_start = dt_start.tz_localize(None)
+                            if dt_start.date() == d_obj:
+                                if "[ESTADO: Cancelada]" in cita.get('servicio', ''): continue
+                                citas_hoy.append((dt_start, cita))
+                        except Exception: pass
+                
+                citas_hoy.sort(key=lambda x: x[0])
+                
+                if citas_hoy:
+                    for dt_start, cita in citas_hoy:
                         duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
                         dt_end = dt_start + timedelta(minutes=duracion)
                         
-                        col_dia = dt_start.strftime('%A\n%d/%m')
                         mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
                         especie = cita.get('mascotas', {}).get('especie', '')
                         if especie: mascota_nombre += f" ({especie})"
@@ -635,28 +674,26 @@ def render_pestana_agenda(client):
                         estado_c, s_clean, assigned_e = parse_cita_estado(cita.get('servicio', ''))
                         emoji = EMOJIS_ESTADO.get(estado_c, "🟢")
                         
-                        texto_cita = f"{emoji} {dt_start.strftime('%H:%M')}-{dt_end.strftime('%H:%M')} | {mascota_nombre} ({assigned_e})"
-                        citas_por_dia[col_dia].append((dt_start, texto_cita))
-                except Exception: pass
-        
-        # Ordenar cronológicamente y preparar para la tabla
-        max_filas = 0
-        for dia in nombres_dias_col:
-            citas_por_dia[dia].sort(key=lambda x: x[0])  # Ordenar por hora de inicio
-            citas_por_dia[dia] = [c[1] for c in citas_por_dia[dia]]  # Quedarnos solo con el texto
-            if len(citas_por_dia[dia]) > max_filas:
-                max_filas = len(citas_por_dia[dia])
-                
-        if max_filas == 0:
-            df_semana = pd.DataFrame([["" for _ in nombres_dias_col]], columns=nombres_dias_col)
-            st.info("Semana completamente libre. No hay citas agendadas.")
-        else:
-            # Rellenar con blancos las listas más cortas para cuadrar el DataFrame
-            for dia in nombres_dias_col:
-                while len(citas_por_dia[dia]) < max_filas:
-                    citas_por_dia[dia].append("")
-            df_semana = pd.DataFrame(citas_por_dia)
-            st.dataframe(df_semana, use_container_width=True, hide_index=True)
+                        border_color = "#4caf50"
+                        if "Cambio" in estado_c: border_color = "#2196f3"
+                        elif "recogida" in estado_c.lower(): border_color = "#9c27b0"
+                        elif "Pendiente" in estado_c: border_color = "#ffeb3b"
+                        
+                        html_week += f"""
+                        <div class='cita-card' style='border-left-color: {border_color};'>
+                            <b>{dt_start.strftime('%H:%M')}-{dt_end.strftime('%H:%M')}</b> {emoji}<br>
+                            🐾 {mascota_nombre}<br>
+                            ✂️ {s_clean} <br>
+                            👩‍🦰 {assigned_e}
+                        </div>
+                        """
+                else:
+                    html_week += "<div style='color:#bbb; font-size:0.8em; text-align:center; margin-top:10px;'><i>Libre</i></div>"
+                    
+                html_week += "</td>"
+            html_week += "</tr></table>"
+            
+        st.markdown(html_week, unsafe_allow_html=True)
             
     with sub_mensual:
         st.markdown("#### 📅 Calendario Mensual (Turnos y Volumen de Citas)")
