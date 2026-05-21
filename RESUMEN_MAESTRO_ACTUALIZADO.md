@@ -43,6 +43,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Simetría y Alineación UI:** Cajas de cobro en efectivo alineadas a la base (`vertical_alignment="bottom"`) para mantener proporciones perfectas en pantallas táctiles.
 - **Pagos Parciales Multicanal:** Permite introducir cantidades exactas no solo en efectivo, sino también en Tarjeta y Bizum, gestionando sobrepagos o dejando el resto como deuda pendiente (sin crear la deuda ni guardarla hasta finalizar el cobro).
 - **Cobro Rápido Inteligente (Lectura de Ficha Clínica):** El botón de cobro de agenda ahora tiene "Inteligencia Dual". Lee primero la **Ficha Clínica** para volcar al carrito todos los servicios y extras reales registrados hoy (ej. "Extra Nudos"), con sus precios finales. Si la ficha está vacía, lee la cita original por defecto. Además, incluye **Búsqueda Inversa** para emparejar nombres de citas antiguas (largas) con nombres de catálogo nuevos (cortos) evitando bloqueos en la caja.
+- **Limpieza Automática (Auto-Reset):** Al finalizar un cobro o pulsar "Nueva Venta", el sistema no solo vacía el carrito y los vales, sino que también resetea automáticamente el selector de clientes a "Ninguno (Venta Anónima)" para evitar cobros erróneos al cliente anterior.
 - **Detalle en Tickets:** El método de pago exacto (y su desglose en caso de ser mixto) se imprime y envía por email en el ticket al cliente.
 - **Bloqueo Inteligente de Deudas y Contraseñas:** Se ha desactivado el autocompletado nativo del navegador para evitar que salten gestores de contraseñas. No se puede fiar dinero a clientes anónimos; el sistema obliga a seleccionar al cliente desde el panel VIP.
 - **Selector dinámico de banco/datáfono:** Al cobrar con tarjeta o de forma mixta, permite enviar el dinero directamente a la cuenta bancaria seleccionada (y su datáfono) en tiempo real.
@@ -114,10 +115,13 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 
 📅 **10. Agenda y Citas (Inteligente)**
 - Gestor de citas vinculado a las fichas de las mascotas y cruzado con los horarios de los empleados.
+- **Identificación Rápida de Especie:** El directorio y las vistas de la agenda muestran automáticamente si la mascota es Perro, Gato, etc., al lado de su nombre para facilitar la preparación del peluquero.
 - **Ocultación Inteligente:** Botón (toggle) para ocultar automáticamente las citas pasadas en el directorio y agilizar la visualización diaria.
 - **Centro de Recordatorios (Automatización Matutina):** Panel unificado que escanea la agenda para mostrar las citas del próximo día hábil (saltando domingos) y las alertas de mantenimiento. Incluye un **indicador de Canal Preferido** (WhatsApp, Llamada, SMS) en la ficha del cliente.
 - **Buscador Inteligente de Huecos:** Al seleccionar una mascota, lee su historial, **muestra un panel informativo con su duración media y peluquero preferido**, lee los cuadrantes y ofrece los tramos libres exactos.
 - **Validación de Identidad:** El desplegable de nueva cita muestra el teléfono del dueño junto al nombre de la mascota para evitar confusiones.
+- **Radar de Festivos:** Detecta y marca visualmente las fiestas nacionales, autonómicas de Canarias y locales de Santa Cruz de Tenerife en todas las vistas de la agenda y cuadrantes, ayudando a la planificación de cierres.
+- **Inyección de Turnos en Vivo:** Las vistas Diaria, Semanal y Mensual informan en la cabecera de cada día quién está trabajando y su horario exacto, permitiendo asignar citas directamente sin tener que cambiar a la pestaña de Personal.
 - **Anotaciones / Observaciones Especiales:** Campo dedicado para anotar las peticiones de corte o trato específico de la mascota que pide el cliente al llamar.
 - **Estado "Pendiente" por Defecto:** Las citas nacen en un estado neutro (Pendiente 🟡) para adaptarse al flujo real de llamadas de confirmación unos días antes.
 - **Estados Compuestos:** Emojis dinámicos combinados para identificar rápidamente servicios especiales (ej: Servicio de recogida pendiente 🟣🟡 / confirmado 🟣🟢).
@@ -126,8 +130,9 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Carga Dinámica de Servicios:** El desplegable de servicios en la agenda lee en tiempo real el catálogo de servicios de la pestaña de Inventario.
 - **Creación Rápida de Fichas:** Permite agendar una cita para una mascota no registrada, generando automáticamente su familia y ficha básica en la base de datos sin tener que salir de la agenda.
 - **Directorio Editable Avanzado:** Tabla interactiva con casilla de **Borrado Seguro Definitivo**, asignación de Peluquero/a y un **desplegable de Servicios conectado al inventario** para correcciones rápidas. Si el usuario fuerza una cita manualmente en una hora ocupada, el sistema obliga a registrar un motivo justificativo.
-- Cuadrante diario interactivo con vista de bloques de 5 minutos.
-- Cuadrante semanal en formato "tarjetas" visuales.
+- **Vista Diaria:** Cuadrante interactivo con vista de bloques de 5 minutos y ocultación de huecos libres.
+- **Vista Semanal:** Formato "tarjetas" visuales ordenadas cronológicamente.
+- **Vista Mensual (NUEVA):** Calendario clásico a mes vista que resume el volumen total de citas, el personal asignado ese día y si existen festivos, ideal para planificar a varias semanas vista.
 - **Módulo de Estadísticas:** Panel de análisis de rendimiento con KPIs (Tasa de Cancelación, Horas trabajadas) y gráficas interactivas de volumen por día, carga por peluquero y servicios top.
 
 🏦 **11. Bancos y Tesorería**
@@ -159,6 +164,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Refactorización Modular (Hito D Completado):** Se han extraído exitosamente los 12 módulos funcionales a archivos independientes (`inventario.py`, `tpv.py`, `crm.py`, `historial.py`, `caja.py`, `estadisticas.py`, `proveedores.py`, `facturacion.py`, `contabilidad.py`, `agenda.py`, `bancos.py` y `personal.py`). Todos están importados y funcionando correctamente dentro de un `app.py` completamente limpio y simplificado, que ahora actúa únicamente como enrutador principal.
 - **Data Trimming y Rendimiento (Completado):** Se reemplazaron todas las peticiones masivas a Supabase (`select("*")`) por selecciones estrictas de columnas en los 12 módulos. Esto ha reducido drásticamente el tamaño del JSON de descarga, acelerando la navegación entre pestañas en la tablet.
 - **Estandarización Horaria Global (Canarias) (Completado):** Implementada la conversión forzada inteligente desde el UTC de la base de datos a la zona horaria 'Atlantic/Canary' en todo el sistema (apertura/cierre de cajas, emisión de tickets, facturas, contabilidad, CRM y backups), garantizando fechas exactas incluso en los cambios bianuales de hora.
+- **Mejoras UX Agenda y TPV (Completado):** Implementada la nueva vista Mensual en la agenda, visibilidad de los turnos en vivo en las vistas diaria/semanal, marca de especie de la mascota, radar automático de festivos en Canarias/Tenerife y reseteo automático del cliente en el TPV tras cada cobro para evitar cruces.
 - **Escudo Anti-Doble Clic Global (Completado):** Desplegada una doble capa de seguridad para evitar cobros o documentos duplicados por latencia de internet. Front-End: Inyección JS que desactiva botones críticos durante 4 segundos. Back-End: Candado de tiempo (Cooldown de 3 segundos) en Python para ignorar peticiones simultáneas idénticas.
 - **Sistema de Roles y Seguridad (Completado):** Se implementó inicio de sesión dual (Admin / Empleado). El sistema construye las pestañas dinámicamente, ocultando por completo los módulos sensibles (Contabilidad y Bancos) al personal no autorizado, pero manteniendo visibles Estadísticas y Facturación para el aprendizaje de los empleados.
 - **Testeo y Automatización Funcional (Completado):** Se han conectado lógicamente varios módulos para evitar trabajos dobles: El saldo final de caja es el fondo inicial del día siguiente, los gastos de caja viajan solos a Contabilidad y la Agenda bloquea las citas si se marcan vacaciones en el Cuadrante Visual.
