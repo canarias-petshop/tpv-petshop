@@ -90,6 +90,12 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
     df_hist["Duración (min)"] = pd.to_numeric(df_hist["Duración (min)"], errors="coerce")
     df_hist["Precio Base (€)"] = pd.to_numeric(df_hist["Precio Base (€)"], errors="coerce")
     df_hist["Precio con desc. (€)"] = pd.to_numeric(df_hist["Precio con desc. (€)"], errors="coerce")
+    # --- SANITIZACIÓN EXTREMA DE TIPOS PARA PYARROW ---
+    df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%d/%m/%Y", errors="coerce").dt.date
+    df_hist["Fecha"] = df_hist["Fecha"].apply(lambda x: x if pd.notnull(x) else None)
+    
+    for col in ["Duración (min)", "Precio Base (€)", "Precio con desc. (€)"]:
+        df_hist[col] = pd.to_numeric(df_hist[col], errors="coerce").astype("float64")
     
     def parse_time_safe(t):
         if pd.isna(t) or str(t).strip() in ["", "nan", "None", "NaT"]: return None
@@ -99,6 +105,9 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
     df_hist["Inicio de sesión"] = df_hist["Inicio de sesión"].apply(parse_time_safe)
     df_hist["Fin de sesión"] = df_hist["Fin de sesión"].apply(parse_time_safe)
     
+    for col in ["Trabajo / Servicio", "Tratamiento", "Peluquera/o", "Nota Sesión"]:
+        df_hist[col] = df_hist[col].apply(lambda x: str(x).strip() if pd.notnull(x) and str(x).lower() not in ["nan", "none", "nat"] else "")
+    
     # --- FIX: Calcular duración automáticamente en la vista si hay horas ---
     for idx, row in df_hist.iterrows():
         ini = row.get('Inicio de sesión')
@@ -107,6 +116,12 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
             minutos = (fin.hour * 60 + fin.minute) - (ini.hour * 60 + ini.minute)
             if minutos < 0: minutos += 24 * 60
             df_hist.at[idx, 'Duración (min)'] = minutos
+        if ini and fin and hasattr(ini, 'hour') and hasattr(fin, 'hour'):
+            try:
+                minutos = (fin.hour * 60 + fin.minute) - (ini.hour * 60 + ini.minute)
+                if minutos < 0: minutos += 24 * 60
+                df_hist.at[idx, 'Duración (min)'] = minutos
+            except: pass
 
     # Evitar que Streamlit oculte servicios antiguos que ya no coinciden con el catálogo
     servicios_usados = [s for s in df_hist["Trabajo / Servicio"].dropna().unique().tolist() if str(s).strip() != ""]
@@ -114,8 +129,10 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
 
     st.markdown("💡 *Nota: Si indicas **Inicio** y **Fin**, o seleccionas un **Servicio**, los **Precios, Descuentos y Duración** se calcularán solos al hacer clic en **Guardar**.*")
     
-    ed_hist = st.data_editor(
-        df_hist, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_hist_{prefix}_{m_id}",
+    df_visual = df_hist.drop(columns=["Extras"]) if "Extras" in df_hist.columns else df_hist
+    
+    ed_hist_visual = st.data_editor(
+        df_visual, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"ed_hist_{prefix}_{m_id}",
         column_config={
             "Fecha": st.column_config.DateColumn("Fecha (D/M/A)", format="DD/MM/YYYY"),
             "Trabajo / Servicio": st.column_config.SelectboxColumn("Servicio Realizado", options=opciones_seguras),
@@ -126,17 +143,23 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
             "Duración (min)": st.column_config.NumberColumn("Duración (Auto)", min_value=0, step=5, disabled=True, help="Se calcula sola al guardar si indicas Inicio y Fin"),
             "Precio Base (€)": st.column_config.NumberColumn("Precio Catálogo (€)", format="%.2f", min_value=0.0),
             "Precio con desc. (€)": st.column_config.NumberColumn("Precio Final (€)", format="%.2f", min_value=0.0),
-            "Nota Sesión": st.column_config.TextColumn("Nota Sesión"),
-            "Extras": None
+            "Nota Sesión": st.column_config.TextColumn("Nota Sesión")
         }
     )
     
+    # Restaurar la columna Extras sin que PyArrow la dibuje
+    ed_hist = ed_hist_visual.copy()
+    if "Extras" in df_hist.columns:
+        ed_hist["Extras"] = ed_hist.index.map(lambda i: df_hist.at[i, "Extras"] if i in df_hist.index else [])
+    else:
+        ed_hist["Extras"] = [[] for _ in range(len(ed_hist))]
+
     with st.expander("✨ Añadir / Ver Extras de la Sesión (Nudos, Mascarillas...)", expanded=False):
-        fechas_disponibles = df_hist['Fecha'].dropna().dt.strftime('%d/%m/%Y').unique().tolist()
+        fechas_disponibles = pd.to_datetime(df_hist['Fecha'], errors='coerce').dropna().dt.strftime('%d/%m/%Y').unique().tolist()
         if fechas_disponibles:
             f_sel_extra = st.selectbox("Selecciona la fecha de la sesión:", fechas_disponibles, key=f"f_ext_{prefix}_{m_id}")
             
-            idx_obj = df_hist[df_hist['Fecha'].dt.strftime('%d/%m/%Y') == f_sel_extra].index[-1]
+            idx_obj = df_hist[pd.to_datetime(df_hist['Fecha'], errors='coerce').dt.strftime('%d/%m/%Y') == f_sel_extra].index[-1]
             lista_extras_actual = df_hist.at[idx_obj, 'Extras']
             if not isinstance(lista_extras_actual, list): lista_extras_actual = []
             
@@ -178,7 +201,7 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
                 
                 hist_to_save = ed_hist.copy() # Tomamos lo que hay en el editor
                 
-                idx_to_update = hist_to_save[hist_to_save['Fecha'].dt.strftime('%d/%m/%Y') == f_sel_extra].index[-1]
+                idx_to_update = hist_to_save[pd.to_datetime(hist_to_save['Fecha'], errors='coerce').dt.strftime('%d/%m/%Y') == f_sel_extra].index[-1]
                 lista_ext_save = hist_to_save.at[idx_to_update, 'Extras']
                 if not isinstance(lista_ext_save, list): lista_ext_save = []
                 lista_ext_save.append(nuevo_extra)
