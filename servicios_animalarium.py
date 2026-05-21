@@ -36,12 +36,21 @@ def render_pestana_servicios(client):
         st.markdown("#### 🐕 Registro de Servicio de Paseo")
         col_p1, col_p2 = st.columns([1, 2.2])
         with col_p1:
+            sel_cli_p = st.selectbox("1. Seleccionar Cliente:", opc_cli, key=f"sp_sel_{st.session_state.llave_srv_paseo}")
+            
+            def_nom_p, def_tel_p, def_masc_p = "", "", ""
+            if "no registrado" not in sel_cli_p:
+                cli_data = mapa_cli[sel_cli_p]
+                def_nom_p = cli_data.get('nombre_dueno', '')
+                def_tel_p = cli_data.get('telefono', '')
+                mascotas = cli_data.get('mascotas', [])
+                if mascotas and isinstance(mascotas, list) and len(mascotas) > 0: def_masc_p = mascotas[0].get('nombre', '')
+                
             with st.form("form_paseo", clear_on_submit=True):
-                sel_cli_p = st.selectbox("1. Seleccionar Cliente:", opc_cli, key=f"sp_sel_{st.session_state.llave_srv_paseo}")
-                st.markdown("<p style='font-size:12px; color:gray; margin:0;'>O rellénalo a mano:</p>", unsafe_allow_html=True)
-                p_cli_man = st.text_input("Nombre Dueño")
-                p_tel_man = st.text_input("Teléfono")
-                p_masc_man = st.text_input("Nombre Mascota *")
+                st.markdown("<p style='font-size:12px; color:gray; margin:0;'>Datos (Modifica si es necesario):</p>", unsafe_allow_html=True)
+                p_cli_man = st.text_input("Nombre Dueño", value=def_nom_p)
+                p_tel_man = st.text_input("Teléfono", value=def_tel_p)
+                p_masc_man = st.text_input("Nombre Mascota *", value=def_masc_p)
                 
                 st.markdown("---")
                 p_tipo = st.selectbox("2. Tipo de Paseo:", ["Paseo por la ciudad", "Paseo al monte"])
@@ -51,9 +60,6 @@ def render_pestana_servicios(client):
                 if st.form_submit_button("Guardar Paseo", type="primary", use_container_width=True):
                     final_cli = p_cli_man
                     final_tel = p_tel_man
-                    if "no registrado" not in sel_cli_p:
-                        final_cli = mapa_cli[sel_cli_p]['nombre_dueno']
-                        final_tel = mapa_cli[sel_cli_p].get('telefono','')
                         
                     if final_cli and p_masc_man:
                         try:
@@ -102,12 +108,21 @@ def render_pestana_servicios(client):
         st.markdown("#### 🎓 Registro de Adiestramiento y Educación")
         col_a1, col_a2 = st.columns([1, 2.2])
         with col_a1:
+            sel_cli_a = st.selectbox("1. Seleccionar Cliente:", opc_cli, key=f"sa_sel_{st.session_state.llave_srv_adiest}")
+            
+            def_nom_a, def_tel_a, def_masc_a = "", "", ""
+            if "no registrado" not in sel_cli_a:
+                cli_data = mapa_cli[sel_cli_a]
+                def_nom_a = cli_data.get('nombre_dueno', '')
+                def_tel_a = cli_data.get('telefono', '')
+                mascotas = cli_data.get('mascotas', [])
+                if mascotas and isinstance(mascotas, list) and len(mascotas) > 0: def_masc_a = mascotas[0].get('nombre', '')
+                
             with st.form("form_adiest", clear_on_submit=True):
-                sel_cli_a = st.selectbox("1. Seleccionar Cliente:", opc_cli, key=f"sa_sel_{st.session_state.llave_srv_adiest}")
-                st.markdown("<p style='font-size:12px; color:gray; margin:0;'>O rellénalo a mano:</p>", unsafe_allow_html=True)
-                a_cli_man = st.text_input("Nombre Dueño")
-                a_tel_man = st.text_input("Teléfono")
-                a_masc_man = st.text_input("Nombre Mascota *")
+                st.markdown("<p style='font-size:12px; color:gray; margin:0;'>Datos (Modifica si es necesario):</p>", unsafe_allow_html=True)
+                a_cli_man = st.text_input("Nombre Dueño", value=def_nom_a)
+                a_tel_man = st.text_input("Teléfono", value=def_tel_a)
+                a_masc_man = st.text_input("Nombre Mascota *", value=def_masc_a)
                 
                 st.markdown("---")
                 a_motivo = st.text_input("2. Nivel / Problema a tratar *", placeholder="Ej: Tirar de la correa, obediencia básica...")
@@ -117,9 +132,6 @@ def render_pestana_servicios(client):
                 if st.form_submit_button("Guardar Adiestramiento", type="primary", use_container_width=True):
                     final_cli = a_cli_man
                     final_tel = a_tel_man
-                    if "no registrado" not in sel_cli_a:
-                        final_cli = mapa_cli[sel_cli_a]['nombre_dueno']
-                        final_tel = mapa_cli[sel_cli_a].get('telefono','')
                         
                     if final_cli and a_masc_man and a_motivo:
                         try:
@@ -171,13 +183,24 @@ def render_pestana_servicios(client):
             col_r1, col_r2 = st.columns([1, 2.2])
             with col_r1:
                 st.markdown("#### 🚐 Solicitar Recogida")
+                
+                sel_cli_r = st.selectbox("1. Seleccionar Cliente:", opc_cli, key=f"sr_sel_{st.session_state.llave_srv_reco}")
+                
+                def_nom_r, def_tel_r, def_dir_r, def_masc_r = "", "", "", ""
+                if "no registrado" not in sel_cli_r:
+                    cli_data = mapa_cli[sel_cli_r]
+                    def_nom_r = cli_data.get('nombre_dueno', '')
+                    def_tel_r = cli_data.get('telefono', '')
+                    def_dir_r = cli_data.get('direccion', '')
+                    mascotas = cli_data.get('mascotas', [])
+                    if mascotas and isinstance(mascotas, list) and len(mascotas) > 0: def_masc_r = mascotas[0].get('nombre', '')
+                
                 with st.form("form_recogida", clear_on_submit=True):
-                    sel_cli_r = st.selectbox("1. Seleccionar Cliente:", opc_cli, key=f"sr_sel_{st.session_state.llave_srv_reco}")
-                    st.markdown("<p style='font-size:12px; color:gray; margin:0;'>O rellénalo a mano:</p>", unsafe_allow_html=True)
-                    r_cli_man = st.text_input("Nombre Dueño")
-                    r_tel_man = st.text_input("Teléfono")
-                    r_masc_man = st.text_input("Nombre Mascota *")
-                    r_dir_man = st.text_input("Dirección de Recogida")
+                    st.markdown("<p style='font-size:12px; color:gray; margin:0;'>Datos (Modifica si es necesario):</p>", unsafe_allow_html=True)
+                    r_cli_man = st.text_input("Nombre Dueño", value=def_nom_r)
+                    r_tel_man = st.text_input("Teléfono", value=def_tel_r)
+                    r_masc_man = st.text_input("Nombre Mascota *", value=def_masc_r)
+                    r_dir_man = st.text_input("Dirección de Recogida", value=def_dir_r)
                     
                     st.markdown("---")
                     r_fecha = st.text_input("2. Día y Hora de Recogida *", placeholder="Ej: Martes a las 11:30")
@@ -187,10 +210,6 @@ def render_pestana_servicios(client):
                         final_cli = r_cli_man
                         final_tel = r_tel_man
                         final_dir = r_dir_man
-                        if "no registrado" not in sel_cli_r:
-                            final_cli = mapa_cli[sel_cli_r]['nombre_dueno']
-                            final_tel = mapa_cli[sel_cli_r].get('telefono','')
-                            if not final_dir: final_dir = mapa_cli[sel_cli_r].get('direccion', '')
                             
                         if final_cli and r_masc_man and r_fecha:
                             try:
@@ -249,14 +268,22 @@ def render_pestana_servicios(client):
             col_d1, col_d2 = st.columns([1, 2.2])
             with col_d1:
                 st.markdown("#### 🛵 Registrar Pedido a Domicilio")
+                
+                sel_cli_dom = st.selectbox("1. Buscar Cliente:", opc_cli, key=f"nd_sel_{st.session_state.llave_srv_dom}")
+                
+                def_nom_d, def_tel_d, def_dir_d = "", "", ""
+                if "no registrado" not in sel_cli_dom:
+                    cli_data_d = mapa_cli[sel_cli_dom]
+                    def_nom_d = cli_data_d.get('nombre_dueno', '')
+                    def_tel_d = cli_data_d.get('telefono', '')
+                    def_dir_d = cli_data_d.get('direccion', '')
+                
                 with st.form("n_domicilio", clear_on_submit=True):
-                    sel_cli_dom = st.selectbox("1. Buscar Cliente:", opc_cli, key=f"nd_sel_{st.session_state.llave_srv_dom}")
-                    
-                    st.markdown("<p style='font-size:12px; color:gray; margin:0;'>O rellenar si no está registrado/modificar:</p>", unsafe_allow_html=True)
+                    st.markdown("<p style='font-size:12px; color:gray; margin:0;'>Datos de entrega (Modifica si es necesario):</p>", unsafe_allow_html=True)
                     c_nom_d, c_tel_d = st.columns(2)
-                    with c_nom_d: d_cli_man = st.text_input("Nombre", key=f"nd_nom_{st.session_state.llave_srv_dom}")
-                    with c_tel_d: d_tel_man = st.text_input("Teléfono", key=f"nd_tel_{st.session_state.llave_srv_dom}")
-                    d_dir_man = st.text_input("Dirección de entrega", key=f"nd_dir_{st.session_state.llave_srv_dom}")
+                    with c_nom_d: d_cli_man = st.text_input("Nombre", value=def_nom_d, key=f"nd_nom_{st.session_state.llave_srv_dom}")
+                    with c_tel_d: d_tel_man = st.text_input("Teléfono", value=def_tel_d, key=f"nd_tel_{st.session_state.llave_srv_dom}")
+                    d_dir_man = st.text_input("Dirección de entrega", value=def_dir_d, key=f"nd_dir_{st.session_state.llave_srv_dom}")
                     
                     st.markdown("---")
                     d_prod = st.text_area("2. Detalle del pedido *", key=f"nd_prod_{st.session_state.llave_srv_dom}")
@@ -265,11 +292,6 @@ def render_pestana_servicios(client):
                         final_cli = d_cli_man
                         final_tel = d_tel_man
                         final_dir = d_dir_man
-                        
-                        if "no registrado" not in sel_cli_dom:
-                            final_cli = mapa_cli[sel_cli_dom]['nombre_dueno']
-                            final_tel = mapa_cli[sel_cli_dom].get('telefono','')
-                            if not final_dir: final_dir = mapa_cli[sel_cli_dom].get('direccion', '')
                                 
                         if final_cli and d_prod:
                             try:
