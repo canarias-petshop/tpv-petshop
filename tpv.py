@@ -485,8 +485,14 @@ def render_pestana_tpv(client):
 
         else:
             if st.session_state.carrito:
+                # --- FIX: Normalizar carrito para evitar fallos de PyArrow (Tipos mixtos) ---
+                for item in st.session_state.carrito:
+                    if 'Desc. %' not in item: item['Desc. %'] = 0.0
+                    if 'Motivo_Desc' not in item: item['Motivo_Desc'] = ""
+                    if 'id' not in item: item['id'] = "0"
+                    if 'Manual' not in item: item['Manual'] = False
+                    
                 df_car = pd.DataFrame(st.session_state.carrito)
-                if 'Desc. %' not in df_car.columns: df_car['Desc. %'] = 0.0
 
                 edited_df = st.data_editor(
                     df_car,
