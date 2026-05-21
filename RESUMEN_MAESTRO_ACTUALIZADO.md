@@ -27,16 +27,16 @@ Para futuras importaciones masivas, el sistema utiliza scripts extractores intel
 6. **Filtro Anti-Duplicados:** El script lee toda la base de datos de Supabase antes de empezar y omite cualquier línea cuyo Nombre o Código EAN ya exista en el TPV, evitando fallos en la caja.
 7. **Categorización y Vínculos:** Asigna el IGIC (3% en productos), enlaza directamente con la ID exacta del proveedor y pone los stocks a 0 listos para el Centro de Envíos.
 
-## 2. Módulos Completados (14 Pestañas Funcionales)
-El sistema cuenta con **14 módulos principales operativos** en el código (`app.py`):
+## 2. Módulos Completados (15 Pestañas Funcionales)
+El sistema cuenta con **15 módulos principales operativos** ordenados estratégicamente en el código (`app.py`):
 
-📦 **1. Inventario y Servicios**
+📦 **Inventario y Servicios**
 - Separación inteligente entre "Productos" (con control de stock) y "Servicios" (peluquería, veterinaria).
 - Cálculo automático de Base Imponible e IGIC.
 - **Flexibilidad Fiscal de Servicios:** Desbloqueada la posibilidad de asignar IGIC 0% (u otros porcentajes) a servicios específicos como los extras de cosmética.
 - **Uso Interno (Peluquería):** Nueva sub-pestaña para retirar productos del almacén para uso profesional (ej. champús). Descuenta el stock sin generar ingresos en caja, pero deja un registro contable a 0€ para el control estricto de consumos.
 
-🛒 **2. Terminal de Caja (TPV)**
+🛒 **Terminal de Caja (TPV)**
 - Buscador manual y escáner de pistola **(con añadido de 1 clic, auto-vaciado y reseteo instantáneo tras cada lectura exitosa o fallida)**. Formulario de artículo manual también con reseteo automático.
 - **Estabilización de Componentes:** Prevención de "filas fantasma" vacías en el carrito para evitar bloqueos del sistema o bucles de recarga infinitos.
 - **Optimización TPV Tablet:** Código JS global inyectado para desactivar el texto predictivo y autocorrector del teclado. Interfaz de ticket de cobro compactada (`zoom`) para mantener los botones de imprimir/email siempre visibles sin scroll.
@@ -44,15 +44,16 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Pagos Parciales Multicanal:** Permite introducir cantidades exactas no solo en efectivo, sino también en Tarjeta y Bizum, gestionando sobrepagos o dejando el resto como deuda pendiente (sin crear la deuda ni guardarla hasta finalizar el cobro).
 - **Cobro Rápido Inteligente (Lectura de Ficha Clínica):** El botón de cobro de agenda ahora tiene "Inteligencia Dual". Lee primero la **Ficha Clínica** para volcar al carrito todos los servicios y extras reales registrados hoy (ej. "Extra Nudos"), con sus precios finales. Si la ficha está vacía, lee la cita original por defecto. Además, incluye **Búsqueda Inversa** para emparejar nombres de citas antiguas (largas) con nombres de catálogo nuevos (cortos) evitando bloqueos en la caja.
 - **Limpieza Automática (Auto-Reset):** Al finalizar un cobro o pulsar "Nueva Venta", el sistema no solo vacía el carrito y los vales, sino que también resetea automáticamente el selector de clientes a "Ninguno (Venta Anónima)" para evitar cobros erróneos al cliente anterior.
-- **Detalle en Tickets:** El método de pago exacto (y su desglose en caso de ser mixto) se imprime y envía por email en el ticket al cliente.
-- **Bloqueo Inteligente de Deudas y Contraseñas:** Se ha desactivado el autocompletado nativo del navegador para evitar que salten gestores de contraseñas. No se puede fiar dinero a clientes anónimos; el sistema obliga a seleccionar al cliente desde el panel VIP.
+- **Pedidos a Domicilio Automatizados:** Casilla interactiva para enviar la compra a domicilio. Al cobrar, el sistema descuenta stock, ingresa el dinero y genera automáticamente una orden de reparto en el módulo de Servicios Extra.
+- **Tickets por Email en Arte ASCII:** El envío de tickets por correo dibuja una maquetación visual tipo ticket de máquina registradora para mejor legibilidad. El sistema extrae el email de la ficha del cliente y abre una pestaña nueva en el navegador para evitar bloqueos internos.
+- **Bloqueo Inteligente de Deudas y Contraseñas:** Desactivado agresivo de autocompletado en el navegador (inputs "readonly" temporales) para evitar que salten gestores de contraseñas cruzando datos de empleados y clientes. Obligación de asociar cliente VIP para poder dejar dinero a deber.
 - **Selector dinámico de banco/datáfono:** Al cobrar con tarjeta o de forma mixta, permite enviar el dinero directamente a la cuenta bancaria seleccionada (y su datáfono) en tiempo real.
 - **Sistema de Fidelización VIP Saneado y Diferido:** Suma 1 punto por cada 10€ de compra. Canjea puntos a 0.50€/pto. Si un cliente deja dinero a deber, **los puntos no se suman hasta que abone la deuda** posteriormente. La contabilidad reajusta proporcionalmente las bases imponibles e IGIC al aplicar puntos.
-- **Ticket Regalo:** Opción de imprimir un ticket alternativo sin precios con un aviso legal de devoluciones para cambios de productos regalados.
+- **Ticket Regalo:** Opción de imprimir un ticket alternativo con la cabecera completa del negocio sin precios y con un aviso legal de devoluciones para cambios de productos regalados.
 - **Integración Total de Vales de Tienda:** El TPV permite introducir códigos de vales, descuenta su saldo del total, actualiza la base de datos de vales automáticamente y lo refleja en el método de pago del ticket (ej. `Efectivo + Vale (VALE-XXXX)`), calculando correctamente los impuestos y bases imponibles.
 - Impresión térmica directa a Star Micronics (protocolo `starpassprnt://`) estabilizada: se eliminaron las recargas forzadas y se implementó un **auto-retorno a la pantalla de Nueva Venta a los 30 segundos** de inactividad.
 
-👥 **3. Clientes y Mascotas (CRM)**
+👥 **Clientes y Mascotas (CRM)**
 - Directorio principal mejorado con la visibilidad del **teléfono del dueño** directamente en el listado de mascotas.
 - **Unificación Inteligente de Dueños (Merge):** Desde la tabla editable de mascotas, al corregir o asignar el nombre del dueño, el sistema detecta si ya existe en la base de datos y fusiona automáticamente sus mascotas, teléfonos, puntos y deudas, eliminando duplicados sin dejar registros huérfanos.
 - **Soporte para Familias:** Capacidad de registrar un Contacto Principal (para avisos automáticos) y un Contacto Secundario (Alternativo) con sus respectivos teléfonos, ambos reconocibles por el buscador.
@@ -63,21 +64,21 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Registro de Cancelaciones (Políticas Estrictas):** El CRM detecta automáticamente cuántas veces ha cancelado una mascota y muestra una alerta roja en su ficha para que los empleados lo tengan en cuenta al darle cita.
 - **Gestor de Deudas de Tienda (Pagos Pendientes):** Nueva sub-pestaña que agrupa automáticamente a los clientes morosos del TPV. Alerta visualmente a los 14 días y genera un mensaje de WhatsApp para reclamarlo. Además, incluye un **Sistema de Cobro Integrado con Pagos Fraccionados** que permite abonar partes de la deuda introduciendo la cantidad exacta y seleccionando el método (Efectivo/Bancos), actualizando saldos y sumando Puntos VIP proporcionalmente de forma automática.
 
-📜 **4. Historial Operativo**
+📜 **Historial Operativo**
 - Registro en vivo de todos los tickets con **generación de Hash SHA-256 encadenado**.
 - **Bloqueo Ley Antifraude (VeriFactu):** Borrado de tickets desactivado. Edición limitada exclusivamente a corregir el método de pago en tickets del turno actual, forzando la selección del datáfono/banco específico (Caixa, CajaSiete...) para evitar descuadres. Al hacer el Cierre Z, los tickets quedan bloqueados (Candado 🔒).
 - **Políticas de Devolución (Vales y Abonos):** Límite legal de 14 días implementado con alerta visual (permite forzar en casos excepcionales). Al devolver, se puede generar un **Ticket de Abono** (reintegro con importes negativos) o un **Vale de Tienda** con código alfanumérico único para retener la liquidez en el negocio. Ambas opciones restauran el stock automáticamente.
 - **Blindaje de Lectura:** Manejo seguro de tickets antiguos (`null safe`) para garantizar que la app nunca se cuelgue al revisar el historial, incluso si faltan datos en descuentos o productos.
 - Reimpresión de tickets antiguos conservando método de pago original.
 
-💰 **5. Control de Caja Fuerte**
+💰 **Control de Caja Fuerte**
 - Apertura de turnos con sugerencia automática del Fondo Inicial basada en el arqueo del día anterior.
 - Calculadora visual de monedas y billetes para el arqueo.
 - Registro de entradas y salidas manuales, con envío automatizado categorizado (Gastos de tienda, Servicios Exteriores, Impuestos, Proveedores) a Contabilidad.
 - Generación e impresión del Cierre Z desglosando las tarjetas de forma **100% dinámica por cada datáfono/banco** registrado que haya tenido movimientos.
 - **Sumatorio Automático:** El resumen del Cierre Z incluye la suma total de las ventas (Efectivo + Tarjetas + Bizum) calculada y mostrada en un bloque destacado.
 
-📈 **6. Estadísticas y Salud Financiera**
+📈 **Estadísticas y Salud Financiera**
 - **Estructura en Pestañas:** Ahora organizado en dos grandes bloques para mayor claridad visual: "Salud Financiera" y "Estadísticas Comerciales y Operativas".
 - **Salud Financiera (Dashboard):** Análisis realista del balance financiero cruzando datos de ventas TPV vs Facturas de proveedores y Gastos Fijos mensualizados.
 - **Seguridad de Acceso:** Panel oculto a empleados y restringido **exclusivamente para el rol Administrador**.
@@ -86,13 +87,13 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Análisis y Rendimiento de Agenda:** Gráficos multiproyección para analizar volumen de citas, distribución de estados y rendimiento temporal directamente integrado junto a las estadísticas de caja.
 - **Top 10 de Ventas:** Business Intelligence depurado que respeta el nombre exacto de los productos/servicios para mantener congruencia con el catálogo.
 
-🚚 **7. Gestión de Proveedores y Pedidos**
+🚚 **Gestión de Proveedores y Pedidos**
 - Directorio de proveedores con sus datos fiscales, de reparto y **control de Pedido Mínimo** para portes gratis.
 - **Centro de Envíos:** Panel de alertas visuales en tiempo real que indica las horas de corte de los proveedores para envíos pendientes.
 - **Smart Restock Centralizado (Auto-Distribuidor Inteligente):** Sistema de detección de stock bajo con casillas de verificación para desmarcar productos y un botón de "Auto-distribuir" que genera borradores automáticos. **Novedad: Si un producto tiene varios proveedores, el sistema rastrea y escoge automáticamente al que tenga el precio de coste más bajo para maximizar la rentabilidad.**
 - Integración de buscador de catálogo y formularios de artículos manuales *dentro* del detalle de cada borrador para evitar duplicidades de botones en la interfaz.
 
-📑 **8. Facturación Legal y Stock**
+📑 **Facturación Legal y Stock**
 - *Sub-1 Emisión:* Emisión de facturas a clientes calculando dinámicamente el desglose interno de Base Imponible y Cuota de IGIC, aunque el empleado solo introduzca el PVP Público.
 - **Generación de Hash SHA-256 por factura y bloqueo total de borrado (Cumplimiento VeriFactu).**
 - *Sub-2 Compras:* Registro de facturas de proveedores mediante escáner OCR por IA (Gemini). Incluye **Túnel Docker a OneDrive** para almacenar el archivo fiscal de la foto ordenado automáticamente por Año y Mes sin intervención humana.
@@ -100,7 +101,7 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - *Sub-3 Archivo:* Archivo histórico de documentos con **Filtros Dinámicos Flexibles** (ignoran mayúsculas y plurales para encontrar siempre el gasto) y columna de **Fecha de Registro** exacta.
 - *Sub-4 Pagos Pendientes:* Panel exclusivo para **deudas de mercancía a proveedores**, con **Calendario Visual de Vencimientos** y gráfico semanal. Capacidad de realizar **Pagos Parciales** indicando la cantidad exacta entregada hoy, descontándola de Bancos o Caja Fuerte.
 
-📊 **9. Contabilidad e Informes para Asesoría**
+📊 **Contabilidad e Informes para Asesoría**
 - **Estructura Lineal y Libro Mayor:** Reorganización del flujo (`Puntuales > Fijos > Calendarios > Pagos Pendientes > Archivo Contable > Descargas`). El 'Archivo Contable' sirve como Libro Mayor inalterable de todos los movimientos de la empresa.
 - **Calendarios Especializados:** División visual estricta entre **Gastos Operativos** (alquiler, nóminas) y **Calendario de Impuestos** (IRPF, IGIC). Las alertas de vencimientos críticos se han compactado en desplegables (expanders) para no saturar la vista.
 - **Centro de Pagos de Gastos:** Panel de pagos pendientes aislado exclusivamente para facturas de servicios y reparaciones, sin mezclar con el stock de proveedores de la tienda.
@@ -113,7 +114,13 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Cápsulas de Texto:** Integración de "copywriting" pre-redactado listo para copiar y pegar.
 - *Pendiente (Prioridad):* Club de Cumpleaños, Recuperación Win-back y Email Masivo.
 
-📅 **10. Agenda y Citas (Inteligente)**
+ **Servicios Extra de Animalarium (NUEVO)**
+- Módulo independiente para gestionar logística y servicios externos (Paseos, Educación, Entregas/Recogidas).
+- **Peticiones Abiertas:** Los servicios de Paseo y Adiestramiento usan un formato de "Buzón de Disponibilidad" sin horas estrictas para facilitar la organización de rutas y grupos.
+- **Autocompletado de Clientes:** Al seleccionar un cliente registrado, el sistema rellena instantáneamente su teléfono, dirección y un selector múltiple para elegir qué mascotas recibirán el servicio.
+- **Botones de Conexión:** Cada petición de servicio genera enlaces automáticos de WhatsApp. Uno para avisar al cliente (ej. "¡Vamos en camino a recoger a Bobby!") y otro de comunicación interna (para mandar el aviso al equipo encargado).
+
+📅 **Agenda y Citas (Inteligente)**
 - Gestor de citas vinculado a las fichas de las mascotas y cruzado con los horarios de los empleados.
 - **Identificación Rápida de Especie:** El directorio y las vistas de la agenda muestran automáticamente si la mascota es Perro, Gato, etc., al lado de su nombre para facilitar la preparación del peluquero.
 - **Ocultación Inteligente:** Botón (toggle) para ocultar automáticamente las citas pasadas en el directorio y agilizar la visualización diaria.
@@ -132,22 +139,24 @@ El sistema cuenta con **14 módulos principales operativos** en el código (`app
 - **Directorio Editable Avanzado:** Tabla interactiva con casilla de **Borrado Seguro Definitivo**, asignación de Peluquero/a y un **desplegable de Servicios conectado al inventario** para correcciones rápidas. Si el usuario fuerza una cita manualmente en una hora ocupada, el sistema obliga a registrar un motivo justificativo.
 - **Vista Diaria:** Cuadrante interactivo con vista de bloques de 5 minutos y ocultación de huecos libres.
 - **Vista Semanal:** Formato "tarjetas" visuales ordenadas cronológicamente.
-- **Vista Mensual (NUEVA):** Diseño premium en formato "Calendario de Pared" (Grid HTML/CSS inyectado) a mes vista que resume el volumen total de citas, los turnos del personal asignado ese día y los festivos, ajustándose a la pantalla sin necesidad de scroll lateral.
+- **Vistas Rediseñadas (CSS Grid):** Tanto la vista Diaria, Semanal (a 1 o 2 semanas vista) como la Mensual utilizan un formato HTML/CSS avanzado estético y adaptable que resume el volumen de citas, turnos y festivos sin descuadres.
 - **Módulo de Estadísticas:** Panel de análisis de rendimiento con KPIs (Tasa de Cancelación, Horas trabajadas) y gráficas interactivas de volumen por día, carga por peluquero y servicios top.
 
-🏦 **11. Bancos y Tesorería**
+🏦 **Bancos y Tesorería**
 - Directorio de cuentas bancarias de la empresa (CaixaBank, Caja Siete, etc.).
 - Gestión de IBAN, titulares y control en tiempo real del saldo y liquidez disponible.
 - **Transferencias Internas:** Movimiento de dinero entre cuentas bancarias o ingreso de efectivo sobrante desde la Caja Fuerte a la cuenta del banco (actualizando el saldo bancario y retirando de la caja si hay turno activo).
+- **Cuentas Revolut:** Integración total de cuentas online separadas (Negocio / Nóminas).
 
-⏱️ **12. Personal y Control de Horario**
+⏱️ **Personal y Control de Horario**
 - Fichaje rápido de entrada/salida para empleados mediante PIN de 4 dígitos (con ajuste estricto a la zona horaria de Canarias).
 - **Registro Inalterable Laboral:** Generación de firma criptográfica Hash SHA-256 encadenada en cada fichaje para cumplir con la estricta normativa laboral y evitar modificaciones manuales del administrador.
 - **Guardián de Fichajes:** Sistema de bloqueo inteligente de pantalla al abrir la app que lee los cuadrantes diarios. Si un empleado está en turno y no ha fichado entrada (o no ficha salida al terminar), bloquea la navegación obligándolo a fichar o a justificar la ausencia/retraso. **El rol Administrador dispone de acceso libre incondicional ("puerta VIP") ignorando el bloqueo.**
+- **Cooldown Anti-Errores:** Escudo de 30 minutos de bloqueo automático tras cada fichaje para evitar salidas dobles o marcajes erróneos por solapamiento de compañeros en el mostrador.
 - Visualización de cuadrante de trabajo apilado por semanas (sin scroll horizontal).
 - **Panel de Administrador:** Gestión de la plantilla, Editor Visual Masivo de Cuadrantes (tipo Excel para planificar el mes completo en segundos) y registro histórico de horas trabajadas para nóminas.
 
-📖 **13. Ayuda y Procedimientos (NUEVO)**
+📖 **Ayuda y Procedimientos**
 - Manuales de usuario interactivos (Empleados y Administrador) integrados directamente en la aplicación.
 - Buscador inteligente en tiempo real que pliega y despliega las secciones relevantes según el término buscado.
 - Privacidad automatizada: Los empleados solo ven su propio manual operativo, mientras que el Administrador tiene acceso a los manuales gerenciales completos.
@@ -208,9 +217,9 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
-*   **PRIORIDAD 1 - Bancos y Tesorería:** Crear y aislar las cuentas "Revolut (Negocio)" y "Revolut (Nómina)" (Creación manual desde la interfaz de la app).
-*   **PRIORIDAD 2 - Cumplimiento Antifraude (Fase 3):** Sustituir el borrado físico de registros en 'Archivo Contable' y 'Compras' por un sistema legal de "Anulación" que deje los importes a 0€ y revierta el stock (Hito en revisión técnica por conflictos en BD).
-*   **PRIORIDAD 3 - Marketing Activo:** Iniciar desarrollo del Club de Cumpleaños y radar Win-Back.
+*   **PRIORIDAD 1 - Cumplimiento Antifraude Fase 3 (VeriFactu):** Sustituir el borrado físico de registros en 'Archivo Contable' y 'Compras' por un sistema legal de "Anulación" que deje los importes a 0€ y revierta el stock.
+*   **PRIORIDAD 2 - Marketing Activo:** Iniciar desarrollo del Club de Cumpleaños y radar de recuperación Win-Back.
+*   **PRIORIDAD 3 - Gestión Visual de Productos:** Incorporación de fechas de caducidad y lotes al Inventario.
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
