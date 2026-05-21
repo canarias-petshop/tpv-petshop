@@ -266,6 +266,22 @@ if bloqueo:
                 if st.form_submit_button("Registrar Entrada", type="primary", use_container_width=True):
                     if pin_in == bloqueo['pin']:
                         ahora_iso = datetime.now(ZoneInfo("Atlantic/Canary")).isoformat()
+                        
+                        # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
+                        res_ult = client.table("personal_fichajes").select("*").eq("empleado_id", bloqueo['emp_id']).eq("fecha", bloqueo['hora'].date().isoformat()).order("id", desc=True).limit(1).execute()
+                        if res_ult.data:
+                            str_h = res_ult.data[0].get('hora_salida') or res_ult.data[0].get('hora_entrada')
+                            if str_h:
+                                try:
+                                    h_ult = datetime.fromisoformat(str_h)
+                                    if h_ult.tzinfo is None: h_ult = h_ult.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
+                                    else: h_ult = h_ult.astimezone(ZoneInfo("Atlantic/Canary"))
+                                    m_diff = int((ahora_dt - h_ult).total_seconds() / 60)
+                                    if m_diff < 30:
+                                        st.error(f"⏳ Bloqueo temporal anti-errores. El usuario ya fichó hace {m_diff} minuto(s).")
+                                        st.stop()
+                                except: pass
+                                
                         res_last = client.table("personal_fichajes").select("hash_actual").order("id", desc=True).limit(1).execute()
                         hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
                         data_to_hash = f"FICHAJE|IN|{bloqueo['emp_id']}|{ahora_iso}|{hash_anterior}"
@@ -292,6 +308,22 @@ if bloqueo:
                     if pin_out == bloqueo['pin']:
                         ahora_dt = datetime.now(ZoneInfo("Atlantic/Canary"))
                         ahora_iso = ahora_dt.isoformat()
+                        
+                        # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
+                        res_ult = client.table("personal_fichajes").select("*").eq("empleado_id", bloqueo['emp_id']).eq("fecha", bloqueo['hora'].date().isoformat()).order("id", desc=True).limit(1).execute()
+                        if res_ult.data:
+                            str_h = res_ult.data[0].get('hora_salida') or res_ult.data[0].get('hora_entrada')
+                            if str_h:
+                                try:
+                                    h_ult = datetime.fromisoformat(str_h)
+                                    if h_ult.tzinfo is None: h_ult = h_ult.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
+                                    else: h_ult = h_ult.astimezone(ZoneInfo("Atlantic/Canary"))
+                                    m_diff = int((ahora_dt - h_ult).total_seconds() / 60)
+                                    if m_diff < 30:
+                                        st.error(f"⏳ Bloqueo temporal anti-errores. El usuario ya fichó hace {m_diff} minuto(s).")
+                                        st.stop()
+                                except: pass
+                                
                         f_abierto = bloqueo['f_abierto']
                         h_ent = datetime.fromisoformat(f_abierto['hora_entrada'])
                         if h_ent.tzinfo is None: h_ent = h_ent.replace(tzinfo=ZoneInfo("Atlantic/Canary"))

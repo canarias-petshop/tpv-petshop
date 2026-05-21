@@ -72,6 +72,11 @@ def render_pestana_servicios(client):
                 if res_p.data:
                     df_p = pd.DataFrame(res_p.data)
                     df_p_vista = df_p[['id', 'cliente', 'mascota', 'telefono', 'tipo_paseo', 'fecha', 'observaciones', 'estado']].copy()
+                    df_p_vista['Avisar Equipo'] = None
+                    for idx, row in df_p_vista.iterrows():
+                        msg = f"¡Nuevo Paseo! 🐕\nCliente: {row['cliente']}\nMascota: {row['mascota']}\nTipo: {row['tipo_paseo']}\nFecha: {row['fecha']}\nObs: {row.get('observaciones', '')}"
+                        df_p_vista.at[idx, 'Avisar Equipo'] = f"https://wa.me/34645749708?text={urllib.parse.quote(msg)}"
+                    
                     df_p_vista.insert(0, "Borrar", False)
                     ed_p = st.data_editor(
                         df_p_vista, hide_index=True, use_container_width=True, num_rows="dynamic",
@@ -79,7 +84,8 @@ def render_pestana_servicios(client):
                             "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"),
                             "id": None, "cliente": "Cliente", "mascota": "Mascota", "telefono": "Tel.",
                             "tipo_paseo": "Tipo", "fecha": "Fecha/Hora", "observaciones": "Obs.",
-                            "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "En curso", "Completado", "Cancelado"])
+                            "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "En curso", "Completado", "Cancelado"]),
+                            "Avisar Equipo": st.column_config.LinkColumn("👩‍💼 Equipo", display_text="💬 Avisar")
                         }, key="ed_paseos"
                     )
                     if st.button("💾 Guardar Cambios en Paseos", type="primary"):
@@ -132,6 +138,11 @@ def render_pestana_servicios(client):
                 if res_a.data:
                     df_a = pd.DataFrame(res_a.data)
                     df_a_vista = df_a[['id', 'cliente', 'mascota', 'telefono', 'motivo', 'fecha_sesion', 'observaciones', 'estado']].copy()
+                    df_a_vista['Avisar Equipo'] = None
+                    for idx, row in df_a_vista.iterrows():
+                        msg = f"¡Nuevo Adiestramiento! 🎓\nCliente: {row['cliente']}\nMascota: {row['mascota']}\nMotivo: {row['motivo']}\nFecha: {row['fecha_sesion']}\nObs: {row.get('observaciones', '')}"
+                        df_a_vista.at[idx, 'Avisar Equipo'] = f"https://wa.me/34645749708?text={urllib.parse.quote(msg)}"
+                        
                     df_a_vista.insert(0, "Borrar", False)
                     ed_a = st.data_editor(
                         df_a_vista, hide_index=True, use_container_width=True, num_rows="dynamic",
@@ -139,7 +150,8 @@ def render_pestana_servicios(client):
                             "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"),
                             "id": None, "cliente": "Cliente", "mascota": "Mascota", "telefono": "Tel.",
                             "motivo": "Motivo", "fecha_sesion": "Fecha/Hora", "observaciones": "Obs.",
-                            "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Evaluación", "En curso", "Completado", "Cancelado"])
+                            "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Evaluación", "En curso", "Completado", "Cancelado"]),
+                            "Avisar Equipo": st.column_config.LinkColumn("👩‍💼 Equipo", display_text="💬 Avisar")
                         }, key="ed_adiest"
                     )
                     if st.button("💾 Guardar Cambios en Sesiones", type="primary"):
@@ -197,6 +209,7 @@ def render_pestana_servicios(client):
                     if res_r.data:
                         df_r = pd.DataFrame(res_r.data)
                         if 'WhatsApp' not in df_r.columns: df_r['WhatsApp'] = None
+                        if 'Avisar Equipo' not in df_r.columns: df_r['Avisar Equipo'] = None
                         
                         for idx, row in df_r.iterrows():
                             tel_enc = str(row.get('telefono', ''))
@@ -206,7 +219,10 @@ def render_pestana_servicios(client):
                                 mensaje_r = f"¡Hola {row['cliente']}! 🐾 Vamos de camino a recoger a {row['mascota']} en {row.get('direccion', 'su domicilio')} para su sesión de peluquería en Animalarium. ¡Nos vemos en unos minutos! 🚐"
                                 df_r.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_r)}"
                                 
-                        df_r_vista = df_r[['id', 'cliente', 'mascota', 'telefono', 'direccion', 'fecha_recogida', 'estado', 'WhatsApp']].copy()
+                            msg_eq = f"¡Nueva Recogida! 🚐\nCliente: {row['cliente']}\nMascota: {row['mascota']}\nDirección: {row.get('direccion', '')}\nFecha: {row['fecha_recogida']}\nObs: {row.get('observaciones', '')}"
+                            df_r.at[idx, 'Avisar Equipo'] = f"https://wa.me/34645749708?text={urllib.parse.quote(msg_eq)}"
+                                
+                        df_r_vista = df_r[['id', 'cliente', 'mascota', 'telefono', 'direccion', 'fecha_recogida', 'estado', 'WhatsApp', 'Avisar Equipo']].copy()
                         df_r_vista.insert(0, "Borrar", False)
                         ed_r = st.data_editor(
                             df_r_vista, hide_index=True, use_container_width=True, num_rows="dynamic",
@@ -215,7 +231,8 @@ def render_pestana_servicios(client):
                                 "id": None, "cliente": "Cliente", "mascota": "Mascota", "telefono": "Tel.",
                                 "direccion": "Dirección", "fecha_recogida": "Hora Recogida",
                                 "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "En camino", "Recogido", "Entregado vuelta", "Cancelado"]),
-                                "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
+                                "WhatsApp": st.column_config.LinkColumn("📱 Cliente", display_text="💬 WhatsApp"),
+                                "Avisar Equipo": st.column_config.LinkColumn("👩‍💼 Equipo", display_text="💬 Avisar")
                             }, key="ed_reco"
                         )
                         if st.button("💾 Guardar Cambios en Recogidas", type="primary"):
@@ -278,6 +295,7 @@ def render_pestana_servicios(client):
                         df_d['Fecha'] = dt_d.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y')
                         
                         if 'WhatsApp' not in df_d.columns: df_d['WhatsApp'] = None
+                        if 'Avisar Equipo' not in df_d.columns: df_d['Avisar Equipo'] = None
                         
                         for idx, row in df_d.iterrows():
                             tel_enc = str(row.get('telefono', ''))
@@ -287,7 +305,10 @@ def render_pestana_servicios(client):
                                 mensaje_dom = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium. Tu pedido a domicilio ya está en camino a la dirección: {row['direccion']}. ¡Un saludo!"
                                 df_d.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_dom)}"
                                 
-                        df_d_vista = df_d[['id', 'Fecha', 'nombre_cliente', 'telefono', 'direccion', 'detalle_pedido', 'estado', 'WhatsApp']]
+                            msg_eq = f"¡Nuevo Pedido a Domicilio! 🛵\nCliente: {row['nombre_cliente']}\nDirección: {row.get('direccion', '')}\nPedido: {row['detalle_pedido']}"
+                            df_d.at[idx, 'Avisar Equipo'] = f"https://wa.me/34645749708?text={urllib.parse.quote(msg_eq)}"
+                                
+                        df_d_vista = df_d[['id', 'Fecha', 'nombre_cliente', 'telefono', 'direccion', 'detalle_pedido', 'estado', 'WhatsApp', 'Avisar Equipo']].copy()
                         df_d_vista.insert(0, "Borrar", False)
                         ed_d = st.data_editor(
                             df_d_vista, hide_index=True, use_container_width=True, num_rows="dynamic", height=300, key="ed_tabla_domicilio",
@@ -296,7 +317,8 @@ def render_pestana_servicios(client):
                                 "id": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                 "direccion": "Dirección", "detalle_pedido": "Pedido",
                                 "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "En Reparto", "Entregado", "Cancelado"]),
-                                "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
+                                "WhatsApp": st.column_config.LinkColumn("📱 Cliente", display_text="💬 WhatsApp"),
+                                "Avisar Equipo": st.column_config.LinkColumn("👩‍💼 Equipo", display_text="💬 Avisar")
                             }
                         )
                         if st.button("💾 Guardar Cambios en Pedidos", type="primary"):

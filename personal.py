@@ -58,6 +58,25 @@ def render_pestana_personal(client: SyncPostgrestClient):
                         hoy = ahora_dt.date().isoformat()
                         ahora = ahora_dt.isoformat()
                         
+                        # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
+                        res_ultimo = client.table("personal_fichajes").select("*").eq("empleado_id", emp_sel['id']).eq("fecha", hoy).order("id", desc=True).limit(1).execute()
+                        if res_ultimo.data:
+                            ultimo = res_ultimo.data[0]
+                            str_hora = ultimo.get('hora_salida') or ultimo.get('hora_entrada')
+                            if str_hora:
+                                try:
+                                    hora_ultima = datetime.fromisoformat(str_hora)
+                                    if hora_ultima.tzinfo is None:
+                                        hora_ultima = hora_ultima.replace(tzinfo=tz_canarias)
+                                    else:
+                                        hora_ultima = hora_ultima.astimezone(tz_canarias)
+                                        
+                                    min_diff = int((ahora_dt - hora_ultima).total_seconds() / 60)
+                                    if min_diff < 30:
+                                        st.error(f"⏳ **Bloqueo Activo:** El usuario **{nombre_sel}** ya fichó hace {min_diff} minuto(s). Por seguridad anti-errores, debes esperar {30 - min_diff} minutos más para volver a fichar con este usuario.")
+                                        st.stop()
+                                except: pass
+                        
                         # Buscar si ya tiene una entrada sin salida hoy
                         fichajes_res = client.table("personal_fichajes").select("*").eq("empleado_id", emp_sel['id']).eq("fecha", hoy).is_("hora_salida", "null").execute()
                         fichajes = fichajes_res.data
