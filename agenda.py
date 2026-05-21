@@ -686,20 +686,47 @@ def render_pestana_agenda(client):
                     except: pass
         
         dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-        cal_data = []
+        html_cal = '''
+        <style>
+            .calendar-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; background-color: white; }
+            .calendar-table th { background-color: #005275; color: white; padding: 8px; text-align: center; font-weight: bold; border: 1px solid #ddd; }
+            .calendar-table td { border: 1px solid #ddd; vertical-align: top; padding: 8px; height: 130px; word-wrap: break-word; }
+            .day-header { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: flex-start; }
+            .day-header.festivo { color: #d32f2f; }
+            .festivo-text { font-size: 0.7em; font-weight: normal; text-align: right; max-width: 60%; line-height: 1.1; }
+            .turnos-bloque { font-size: 0.85em; color: #444; margin-bottom: 10px; line-height: 1.4; }
+            .citas-bloque { font-size: 0.9em; font-weight: bold; color: #2e7d32; background-color: #e8f5e9; padding: 4px; border-radius: 4px; text-align: center; display: block; }
+            .citas-vacio { font-size: 0.9em; color: #9e9e9e; background-color: #f5f5f5; padding: 4px; border-radius: 4px; text-align: center; display: block; }
+            .td-empty { background-color: #f9f9f9; }
+            .td-today { background-color: #fffde7; border: 2px solid #fbc02d !important; }
+        </style>
+        <table class="calendar-table">
+            <tr>
+        '''
+        for dia_n in dias_semana_nombres:
+            html_cal += f"<th>{dia_n}</th>"
+        html_cal += "</tr>"
         
+        hoy_str = str(date.today())
+
         for semana in cal:
-            fila = {}
+            html_cal += "<tr>"
             for i, dia in enumerate(semana):
                 if dia == 0:
-                    fila[dias_semana_nombres[i]] = ""
+                    html_cal += "<td class='td-empty'></td>"
                 else:
                     d_obj = date(anio_sel, mes_sel, dia)
                     d_str = str(d_obj)
                     festivo = es_festivo(d_obj)
                     
-                    header = f"🗓️ {dia}"
-                    if festivo: header += f" ({festivo})"
+                    is_today = (d_str == hoy_str)
+                    td_class = "td-today" if is_today else ""
+                    
+                    html_cal += f"<td class='{td_class}'>"
+                    
+                    header_class = "day-header festivo" if festivo else "day-header"
+                    header_text = f"<span>{dia}</span><span class='festivo-text'>{festivo}</span>" if festivo else f"<span>{dia}</span>"
+                    html_cal += f"<div class='{header_class}'>{header_text}</div>"
                         
                     t_hoy = [t for t in turnos_mes if t['fecha'] == d_str]
                     t_textos = []
@@ -707,15 +734,24 @@ def render_pestana_agenda(client):
                         nm = t.get('personal_empleados', {}).get('nombre', '') if t.get('personal_empleados') else ''
                         tr = t.get('turno', '')
                         if tr and tr.lower() not in ["", "libre", "vacaciones", "-"]:
-                            t_textos.append(f"👥 {nm}: {tr}")
+                            t_textos.append(f"👥 <b>{nm}</b>: {tr}")
                     
-                    t_bloque = "\n".join(t_textos) if t_textos else "👥 Sin turnos"
+                    t_bloque = "<br>".join(t_textos) if t_textos else "<i style='color:#bbb;'>Sin turnos</i>"
+                    html_cal += f"<div class='turnos-bloque'>{t_bloque}</div>"
+                    
                     num_citas = citas_por_dia_mes.get(d_str, 0)
-                    c_bloque = f"📝 {num_citas} cita(s)" if num_citas > 0 else "📝 Libre"
-                    fila[dias_semana_nombres[i]] = f"{header}\n\n{t_bloque}\n\n{c_bloque}"
-            cal_data.append(fila)
+                    if num_citas > 0:
+                        c_bloque = f"📝 {num_citas} cita(s)"
+                        html_cal += f"<div class='citas-bloque'>{c_bloque}</div>"
+                    else:
+                        c_bloque = "Libre"
+                        html_cal += f"<div class='citas-vacio'>{c_bloque}</div>"
+                        
+                    html_cal += "</td>"
+            html_cal += "</tr>"
             
-        st.data_editor(pd.DataFrame(cal_data), use_container_width=True, hide_index=True, disabled=True, column_config={col: st.column_config.TextColumn(col, width="large") for col in dias_semana_nombres})
+        html_cal += "</table>"
+        st.markdown(html_cal, unsafe_allow_html=True)
 
     with sub_recordatorios:
         st.markdown("#### 🔔 Centro de Recordatorios (Citas y Mantenimiento)")
