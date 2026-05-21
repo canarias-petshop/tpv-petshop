@@ -43,7 +43,7 @@ def render_pestana_historial(client):
             </style>
             </head><body><div id="botones-container">
                 <button class="btn-print" onclick="imprimirConStar()">🖨️ IMPRIMIR ABONO</button>
-                <a href="mailto:?subject=Justificante%20Devolucion&body={urllib.parse.quote(cuerpo_email)}" target="_top" style="text-decoration: none; flex: 1;">
+                <a href="mailto:?subject=Justificante%20Devolucion&body={urllib.parse.quote(cuerpo_email)}" target="_blank" style="text-decoration: none; flex: 1;">
                     <button class="btn-print" style="background-color: #2e7d32;">✉️ ENVIAR EMAIL</button></a></div>
             <div class="escala-mini"><div id="ticket-impresion"><div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
                 {logo_html}<b style="font-size: 34px;">ABONO / DEVOLUCIÓN</b><br>
@@ -431,7 +431,7 @@ def render_pestana_historial(client):
                         </head><body>
                         <div class="pantalla">
                             <button class="btn-print" onclick="reimprimirConStar()">🖨️ IMPRIMIR COPIA (TABLET STAR)</button>
-                            <a href="mailto:?subject=Copia%20de%20Ticket%20-%20Animalarium&body={body_encoded}" target="_top" style="text-decoration: none;">
+                            <a href="mailto:?subject=Copia%20de%20Ticket%20-%20Animalarium&body={body_encoded}" target="_blank" style="text-decoration: none;">
                                 <button class="btn-print btn-email">✉️ ENVIAR COPIA POR EMAIL</button>
                             </a>
                         </div>

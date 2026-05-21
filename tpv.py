@@ -343,7 +343,7 @@ def render_pestana_tpv(client):
             <div id="botones-container">
                 <button class="btn-print" onclick="imprimirConStar('ticket-impresion')">🖨️ IMPRIMIR TICKET</button>
                 <button class="btn-print" style="background-color: #9c27b0;" onclick="imprimirConStar('ticket-regalo')">🎁 TICKET REGALO</button>
-                <a href="mailto:{t.get('email_cliente', '')}?subject=Ticket%20de%20Compra%20-%20Animalarium&body={body_encoded}" target="_top" style="text-decoration: none; flex: 1;">
+                <a href="mailto:{t.get('email_cliente', '')}?subject=Ticket%20de%20Compra%20-%20Animalarium&body={body_encoded}" target="_blank" style="text-decoration: none; flex: 1;">
                     <button class="btn-print btn-email">✉️ ENVIAR EMAIL</button>
                 </a>
             </div>
