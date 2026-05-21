@@ -21,6 +21,7 @@ from bancos import render_pestana_bancos
 from agenda import render_pestana_agenda
 from proveedores import render_pestana_proveedores
 from contabilidad import render_pestana_contabilidad
+from servicios_animalarium import render_pestana_servicios
 from personal import render_pestana_personal
 from manual import render_pestana_manual
 from marketing import render_pestana_marketing
@@ -329,15 +330,15 @@ with c_rol:
 if st.session_state.rol == "Admin":
     nombres_pestanas = [
         "💰 Control Caja", "🛒 Caja", "📜 Historial", "👥 Clientes", 
-        "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", 
-        "📑 Facturación", "📊 Contabilidad", "🎯 Marketing y Ofertas", 
+        "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", "📑 Facturación", 
+        "🐶 Servicios Animalarium", "📊 Contabilidad", "🎯 Marketing y Ofertas", 
         "📈 Estadísticas", "⏱️ Personal", "🏦 Bancos", "📖 Ayuda"
     ]
 else:
     nombres_pestanas = [
         "💰 Control Caja", "🛒 Caja", "📜 Historial", "👥 Clientes", 
-        "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", 
-        "⏱️ Personal", "📖 Ayuda"
+        "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", "📑 Facturación", 
+        "🐶 Servicios Animalarium", "⏱️ Personal", "📖 Ayuda"
     ]
 
 tabs = st.tabs(nombres_pestanas)
@@ -351,12 +352,13 @@ if st.session_state.rol == "Admin":
     with tabs[5]: render_pestana_proveedores(client)
     with tabs[6]: render_pestana_agenda(client)
     with tabs[7]: render_pestana_facturacion(client)
-    with tabs[8]: render_pestana_contabilidad(client)
-    with tabs[9]: render_pestana_marketing(client)
-    with tabs[10]: render_pestana_estadisticas(client)
-    with tabs[11]: render_pestana_personal(client)
-    with tabs[12]: render_pestana_bancos(client)
-    with tabs[13]: render_pestana_manual()
+    with tabs[8]: render_pestana_servicios(client)
+    with tabs[9]: render_pestana_contabilidad(client)
+    with tabs[10]: render_pestana_marketing(client)
+    with tabs[11]: render_pestana_estadisticas(client)
+    with tabs[12]: render_pestana_personal(client)
+    with tabs[13]: render_pestana_bancos(client)
+    with tabs[14]: render_pestana_manual()
 else:
     with tabs[0]: render_pestana_caja(client)
     with tabs[1]: render_pestana_tpv(client)
@@ -365,5 +367,7 @@ else:
     with tabs[4]: render_pestana_inventario(client)
     with tabs[5]: render_pestana_proveedores(client)
     with tabs[6]: render_pestana_agenda(client)
-    with tabs[7]: render_pestana_personal(client)
-    with tabs[8]: render_pestana_manual()
+    with tabs[7]: render_pestana_facturacion(client)
+    with tabs[8]: render_pestana_servicios(client)
+    with tabs[9]: render_pestana_personal(client)
+    with tabs[10]: render_pestana_manual()
