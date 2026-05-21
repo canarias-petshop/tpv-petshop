@@ -272,7 +272,7 @@ def render_pestana_crm(client):
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
-        sub_cli, sub_masc, sub_encargos, sub_domicilio, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "🚚 Pedidos a Domicilio", "💸 Pagos Pendientes"])
+        sub_cli, sub_masc, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "💸 Pagos Pendientes"])
         
         with sub_cli:
             @st.cache_data(show_spinner=False, ttl=15)
