@@ -82,18 +82,33 @@ components.html("""
 <script>
     const doc = window.parent.document;
     function disableAuto() {
-        const inputs = doc.querySelectorAll('input');
+        const inputs = doc.querySelectorAll('input, textarea');
         inputs.forEach(input => {
-            input.setAttribute('autocomplete', 'new-password');
-            input.setAttribute('data-lpignore', 'true');
-            input.setAttribute('data-form-type', 'other');
-            input.setAttribute('data-1p-ignore', 'true');
-            input.setAttribute('autocorrect', 'off');
-            input.setAttribute('autocapitalize', 'off');
-            input.setAttribute('spellcheck', 'false');
-            if (!input.hasAttribute('data-autoselect')) {
-                input.addEventListener('focus', function() { this.select(); });
-                input.setAttribute('data-autoselect', 'true');
+            if (input.getAttribute('data-autofill-blocked') !== 'true') {
+                // Bloqueo agresivo de autocompletado y gestores de contraseñas
+                input.setAttribute('autocomplete', 'off-random-string');
+                input.setAttribute('data-lpignore', 'true');
+                input.setAttribute('data-form-type', 'other');
+                input.setAttribute('data-1p-ignore', 'true');
+                input.setAttribute('data-bwignore', 'true');
+                input.setAttribute('autocorrect', 'off');
+                input.setAttribute('autocapitalize', 'off');
+                input.setAttribute('spellcheck', 'false');
+                
+                // Truco para evitar que las contraseñas se autocompleten al cargar la página
+                if (input.type === 'password' && !input.hasAttribute('readonly-trick')) {
+                    input.setAttribute('readonly', 'readonly');
+                    input.addEventListener('focus', function() { this.removeAttribute('readonly'); });
+                    input.addEventListener('blur', function() { if (this.value === '') this.setAttribute('readonly', 'readonly'); });
+                    input.setAttribute('readonly-trick', 'true');
+                }
+
+                if (!input.hasAttribute('data-autoselect')) {
+                    input.addEventListener('focus', function() { this.select(); });
+                    input.setAttribute('data-autoselect', 'true');
+                }
+                
+                input.setAttribute('data-autofill-blocked', 'true');
             }
         });
             
