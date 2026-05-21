@@ -679,14 +679,7 @@ def render_pestana_agenda(client):
                         elif "recogida" in estado_c.lower(): border_color = "#9c27b0"
                         elif "Pendiente" in estado_c: border_color = "#ffeb3b"
                         
-                        html_week += f"""
-                        <div class='cita-card' style='border-left-color: {border_color};'>
-                            <b>{dt_start.strftime('%H:%M')}-{dt_end.strftime('%H:%M')}</b> {emoji}<br>
-                            🐾 {mascota_nombre}<br>
-                            ✂️ {s_clean} <br>
-                            👩‍🦰 {assigned_e}
-                        </div>
-                        """
+                        html_week += f"<div class='cita-card' style='border-left-color: {border_color};'><b>{dt_start.strftime('%H:%M')}-{dt_end.strftime('%H:%M')}</b> {emoji}<br>🐾 {mascota_nombre}<br>✂️ {s_clean} <br>👩‍🦰 {assigned_e}</div>"
                 else:
                     html_week += "<div style='color:#bbb; font-size:0.8em; text-align:center; margin-top:10px;'><i>Libre</i></div>"
                     
