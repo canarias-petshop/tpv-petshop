@@ -560,11 +560,16 @@ def render_pestana_tpv(client):
                 with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli, index=idx_cli)
                 st.session_state.cliente_cobro_tpv = cliente_fidelidad
                 
+                st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
+                enviar_domicilio_check = st.checkbox("🚚 Enviar pedido a Domicilio")
                 enviar_domicilio = False
                 dir_entrega = ""
-                if "Ninguno" not in cliente_fidelidad:
-                    enviar_domicilio = st.checkbox("🚚 Enviar pedido a Domicilio")
-                    if enviar_domicilio:
+                
+                if enviar_domicilio_check:
+                    if "Ninguno" in cliente_fidelidad:
+                        st.warning("⚠️ Selecciona un cliente arriba ('Asociar Cliente') para poder enviarlo a domicilio.")
+                    else:
+                        enviar_domicilio = True
                         base_str_check = cliente_fidelidad.rsplit(") - Puntos:")[0]
                         cli_check_nombre = base_str_check.rsplit(" (", 1)[0].strip()
                         cli_data_dom = next((c for c in res_cli_puntos.data if c['nombre_dueno'] == cli_check_nombre), {})
