@@ -578,27 +578,26 @@ def render_pestana_agenda(client):
         
         if ocultar_libres:
             df_cuadrante = df_cuadrante[df_cuadrante["Estado"] != "🟩 Libre"]
-            if df_cuadrante.empty:
 
         if not df_cuadrante.empty:
             html_daily = '''
-<style>
-.daily-table { width: 100%; border-collapse: collapse; font-size: 14px; background-color: white; margin-bottom: 10px; }
-.daily-table th { background-color: #005275; color: white; padding: 10px; text-align: left; font-weight: bold; border: 1px solid #ddd; position: sticky; top: 0; z-index: 1;}
-.daily-table td { border: 1px solid #ddd; padding: 8px 10px; vertical-align: middle; }
-.time-col { width: 80px; font-weight: bold; color: #444; text-align: center !important; background-color: #f5f5f5; border-right: 2px solid #ddd !important; }
-.status-col { width: 110px; font-weight: bold; }
-.detail-col { color: #333; }
-.row-hover:hover { background-color: #f0f8ff; }
-.st-libre { color: #2e7d32; }
-.st-ocupado { color: #d32f2f; }
-.st-liberado { color: #1976d2; }
-.st-multiple { color: #f57c00; }
-</style>
-<div style="max-height: 600px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
-<table class="daily-table">
-<tr><th class="time-col">Hora</th><th class="status-col">Estado</th><th>Detalle</th></tr>
-'''
+            <style>
+            .daily-table { width: 100%; border-collapse: collapse; font-size: 14px; background-color: white; margin-bottom: 10px; }
+            .daily-table th { background-color: #005275; color: white; padding: 10px; text-align: left; font-weight: bold; border: 1px solid #ddd; position: sticky; top: 0; z-index: 1;}
+            .daily-table td { border: 1px solid #ddd; padding: 8px 10px; vertical-align: middle; }
+            .time-col { width: 80px; font-weight: bold; color: #444; text-align: center !important; background-color: #f5f5f5; border-right: 2px solid #ddd !important; }
+            .status-col { width: 110px; font-weight: bold; }
+            .detail-col { color: #333; }
+            .row-hover:hover { background-color: #f0f8ff; }
+            .st-libre { color: #2e7d32; }
+            .st-ocupado { color: #d32f2f; }
+            .st-liberado { color: #1976d2; }
+            .st-multiple { color: #f57c00; }
+            </style>
+            <div style="max-height: 600px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
+            <table class="daily-table">
+            <tr><th class="time-col">Hora</th><th class="status-col">Estado</th><th>Detalle</th></tr>
+            '''
             for _, row in df_cuadrante.iterrows():
                 estado = row["Estado"]
                 st_class = "st-libre"
@@ -613,8 +612,6 @@ def render_pestana_agenda(client):
         else:
             if ocultar_libres:
                 st.info("No hay citas programadas para este día.")
-                
-        st.dataframe(df_cuadrante, use_container_width=True, hide_index=True, height=600)
             else:
                 st.info("No hay horas disponibles en el rango seleccionado.")
 
