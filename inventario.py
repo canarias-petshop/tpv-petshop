@@ -130,10 +130,9 @@ def render_pestana_inventario(client):
                     elif ord_inv == "Menor Stock": df_solo_productos = df_solo_productos.sort_values(by="stock_actual", ascending=True)
                     elif ord_inv == "Mayor Precio": df_solo_productos = df_solo_productos.sort_values(by="precio_pvp", ascending=False)
 
-                    df_visual_p = df_solo_productos.drop(columns=["productos_proveedores"]) if "productos_proveedores" in df_solo_productos.columns else df_solo_productos
                     # Ahora permitimos borrar filas con num_rows="dynamic"
                     edit_p = st.data_editor(
-                        df_visual_p,
+                        df_solo_productos,
                         column_config={
                             "id": None, "categoria": None, "categoria_filt": None, "productos_proveedores": None,
                             "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
@@ -216,10 +215,9 @@ def render_pestana_inventario(client):
                     # Añadimos la columna calculada de Cuota de IGIC para mostrar el desglose
                     df_solo_servicios['Cuota IGIC (€)'] = df_solo_servicios['precio_pvp'] - df_solo_servicios['precio_base']
 
-                    df_visual_s = df_solo_servicios.drop(columns=["productos_proveedores"]) if "productos_proveedores" in df_solo_servicios.columns else df_solo_servicios
                     # Habilitamos num_rows="dynamic" para que puedas borrar servicios
                     edit_s = st.data_editor(
-                        df_visual_s,
+                        df_solo_servicios,
                         column_config={
                             "id": None, "categoria": None, "categoria_filt": None,
                             "sku": "Código", "nombre": "Descripción del Servicio",
