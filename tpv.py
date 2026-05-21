@@ -283,31 +283,47 @@ def render_pestana_tpv(client):
                 metodo_display = re.sub(r'\s-\s[^|]+', '', metodo_display)
 
             # --- PREPARACIÓN DEL EMAIL ---
-            cuerpo_email = "Hola,\n\nGracias por su compra en Animalarium. Adjuntamos el detalle de su ticket:\n\n"
+            cuerpo_email = (
+                "Hola,\n\nAdjuntamos el detalle de su ticket de compra:\n\n"
+                "================================\n"
+                "          ANIMALARIUM\n"
+                "     Raquel Trujillo Hernández\n"
+                "          DNI: 78854854K\n"
+                "   C/ José Hernández Alfonso, 26\n"
+                "       38009 S/C de Tenerife\n"
+                "================================\n"
+                f"Fecha: {t['fecha']}\n"
+                "--------------------------------\n"
+            )
             for p in t['productos']:
                 desc_item = p.get('Desc. %', p.get('Desc %', 0.0))
                 motivo = p.get('Motivo_Desc', '')
                 if desc_item > 0:
                     motivo_str = f" (Dto. {desc_item}% por {motivo})" if motivo else f" (Dto. {desc_item}%)"
-                    cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€{motivo_str}\n"
+                    cuerpo_email += f"{p['Cantidad']}x {p['Producto']}\n  -> {p['Subtotal']:.2f}€{motivo_str}\n"
                 else:
-                    cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€\n"
+                    cuerpo_email += f"{p['Cantidad']}x {p['Producto']}\n  -> {p['Subtotal']:.2f}€\n"
             
+            cuerpo_email += "--------------------------------\n"
             desc_global = t.get('descuento_global', 0.0)
             if desc_global > 0:
-                cuerpo_email += f"\nDescuento global aplicado: {desc_global}%\n"
+                cuerpo_email += f"Descuento global: {desc_global}%\n"
                 
             if t.get('desc_vale_eur', 0.0) > 0:
-                cuerpo_email += f"\nVale {t['vale_aplicado']} aplicado: -{t['desc_vale_eur']:.2f}€\n"
+                cuerpo_email += f"Vale {t['vale_aplicado']} aplicado: -{t['desc_vale_eur']:.2f}€\n"
 
-            cuerpo_email += f"\nTOTAL PAGADO: {t['total']:.2f}€\n"
+            cuerpo_email += f"TOTAL PAGADO: {t['total']:.2f}€\n"
             cuerpo_email += f"MÉTODO DE PAGO: {metodo_display}\n"
+            cuerpo_email += "================================\n"
+            
             if t.get('cliente_fidel'):
-                cuerpo_email += f"\n🌟 Puntos ganados hoy: +{t['puntos_ganados']}"
-                cuerpo_email += f"\n🌟 Saldo actual: {t.get('nuevo_saldo', 0)} puntos\n"
-                cuerpo_email += "INFO VIP: Ganas 1 pto por cada 10€ de compra. Cada punto equivale a 0.50€ de descuento.\n"
+                cuerpo_email += f"🌟 CLIENTE VIP: {t['cliente_fidel']}\n"
+                cuerpo_email += f"Puntos ganados hoy: +{t['puntos_ganados']}\n"
+                cuerpo_email += f"Saldo actual: {t.get('nuevo_saldo', 0)} puntos\n"
+                cuerpo_email += "INFO VIP: Ganas 1 pto por cada 10€ de compra. (1 pto = 0.50€ dto)\n"
+                cuerpo_email += "================================\n"
                 
-            cuerpo_email += "\nPOLÍTICA DE DEVOLUCIÓN:\nPlazo de 14 días con ticket y embalaje original en perfecto estado.\n\nUn saludo."
+            cuerpo_email += "\nPOLÍTICA DE DEVOLUCIÓN:\nPlazo de 14 días con ticket y embalaje original en perfecto estado.\n\n¡Gracias por su visita!"
             import urllib.parse
             body_encoded = urllib.parse.quote(cuerpo_email)
 
@@ -421,7 +437,12 @@ def render_pestana_tpv(client):
                 <div style="text-align: center; font-family: monospace; width: 100%; font-size: 22px; color: black; font-weight: bold;">
                     {logo_html}
                     <b style="font-size: 34px;">ANIMALARIUM</b><br>
-                    <div style="font-size: 24px; border: 2px solid black; margin: 10px 0;"><b>TICKET REGALO</b></div>
+                    Raquel Trujillo Hernández<br>
+                    DNI: 78854854K<br>
+                    C/ José Hernández Alfonso, 26<br>
+                    38009 S/C de Tenerife
+                    <br><br>
+                    <div style="font-size: 24px; border: 2px solid black; margin: 10px 0; padding: 5px;"><b>TICKET REGALO</b></div>
                     <div style="text-align: left; font-size: 22px;">Fecha: {t['fecha']}</div>
                     <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
                     <table style="width: 100%; font-size: 22px; text-align: left; font-weight: bold;">

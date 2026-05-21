@@ -21,10 +21,22 @@ def render_pestana_historial(client):
         if st.session_state.devolucion_actual:
             d = st.session_state.devolucion_actual
             st.error("✅ DEVOLUCIÓN REALIZADA CON ÉXITO")
-            cuerpo_email = f"Hola,\n\nAdjuntamos el justificante de su devolución correspondiente al ticket original #{d['ticket_original_id']}:\n\n"
+            cuerpo_email = (
+                "Hola,\n\nAdjuntamos el justificante de su devolución correspondiente al ticket original:\n\n"
+                "================================\n"
+                "          ANIMALARIUM\n"
+                "     Raquel Trujillo Hernández\n"
+                "================================\n"
+                f"Fecha: {d['fecha']}\n"
+                f"ABONO DE TICKET #{d['ticket_original_id']}\n"
+                "--------------------------------\n"
+            )
             for p in d['productos']:
-                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {p['Subtotal']:.2f}€\n"
-            cuerpo_email += f"\nTOTAL ABONADO: {d['total']:.2f}€\nMÉTODO DE ABONO: {d['metodo']}\n\nUn saludo."
+                cuerpo_email += f"{p['Cantidad']}x {p['Producto']}\n  -> {-p['Subtotal']:.2f}€\n"
+            cuerpo_email += "--------------------------------\n"
+            cuerpo_email += f"TOTAL ABONADO: {d['total']:.2f}€\n"
+            cuerpo_email += f"MÉTODO DE ABONO: {d['metodo']}\n"
+            cuerpo_email += "================================\n\nUn saludo."
             import urllib.parse
             import base64
             logo_html = ""
@@ -370,42 +382,58 @@ def render_pestana_historial(client):
                             metodo_reprint = re.sub(r'\s-\s[^|]+', '', metodo_reprint)
 
                         # --- PREPARACIÓN DEL EMAIL (HISTORIAL) ---
-                        cuerpo_email = f"Hola,\n\nAdjuntamos la copia de su ticket #{t_id}:\n\n"
+                        cuerpo_email = (
+                            "Hola,\n\nAdjuntamos la copia de su ticket de compra:\n\n"
+                            "================================\n"
+                            "          ANIMALARIUM\n"
+                            "     Raquel Trujillo Hernández\n"
+                            "          DNI: 78854854K\n"
+                            "   C/ José Hernández Alfonso, 26\n"
+                            "       38009 S/C de Tenerife\n"
+                            "================================\n"
+                            f"Fecha: {fecha_t_print}\n"
+                            f"COPIA DE TICKET #{t_id}\n"
+                            "--------------------------------\n"
+                        )
                         for p in prods:
                             desc_item_raw = p.get('Desc. %', p.get('Desc %', 0.0))
                             try:
                                 desc_item = float(desc_item_raw) if desc_item_raw is not None else 0.0
                             except (ValueError, TypeError):
                                 desc_item = 0.0
-                            motivo = p.get('Motivo_Desc', '')
                             sub_val = float(p.get('Subtotal', 0.0))
                             if desc_item > 0:
+                                motivo = p.get('Motivo_Desc', '')
                                 motivo_str = f" (Dto. {desc_item}% por {motivo})" if motivo else f" (Dto. {desc_item}%)"
-                                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {sub_val:.2f}€{motivo_str}\n"
+                                cuerpo_email += f"{p['Cantidad']}x {p['Producto']}\n  -> {sub_val:.2f}€{motivo_str}\n"
                             else:
-                                cuerpo_email += f"- {p['Cantidad']}x {p['Producto']}: {sub_val:.2f}€\n"
+                                cuerpo_email += f"{p['Cantidad']}x {p['Producto']}\n  -> {sub_val:.2f}€\n"
                         
+                        cuerpo_email += "--------------------------------\n"
                         desc_g_re_raw = t_info.get('descuento_global', 0.0)
                         desc_g_re = float(desc_g_re_raw) if desc_g_re_raw is not None else 0.0
                         if desc_g_re > 0:
-                            cuerpo_email += f"\nDescuento global aplicado: {desc_g_re}%\n"
+                            cuerpo_email += f"Descuento global: {desc_g_re}%\n"
                             
                         if desc_vale_eur_meta > 0:
-                            cuerpo_email += f"\nVale {vale_aplicado_meta} aplicado: -{desc_vale_eur_meta:.2f}€\n"
+                            cuerpo_email += f"Vale {vale_aplicado_meta} aplicado: -{desc_vale_eur_meta:.2f}€\n"
 
-                        cuerpo_email += f"\nTOTAL PAGADO: {total_final_calculado:.2f}€\n"
+                        cuerpo_email += f"TOTAL PAGADO: {total_final_calculado:.2f}€\n"
                         cuerpo_email += f"MÉTODO DE PAGO: {metodo_reprint}\n"
+                        cuerpo_email += "================================\n"
                         
                         cliente_vip_reprint = str(t_info.get('cliente_vip_nombre', ''))
                         if cliente_vip_reprint and cliente_vip_reprint != 'nan' and cliente_vip_reprint != 'None':
                             saldo_actual_re = 0
                             res_cli_re = client.table("clientes").select("puntos").eq("nombre_dueno", cliente_vip_reprint).execute()
                             if res_cli_re.data: saldo_actual_re = res_cli_re.data[0].get('puntos', 0)
-                            cuerpo_email += f"\n🌟 Puntos ganados en este ticket: +{t_info.get('puntos_ganados', 0)}"
-                            cuerpo_email += f"\n🌟 Saldo actual disponible: {saldo_actual_re} puntos\n"
-                            cuerpo_email += "INFO VIP: Ganas 1 pto por cada 10€ de compra. Cada punto equivale a 0.50€ de descuento.\n"
+                            cuerpo_email += f"🌟 CLIENTE VIP: {cliente_vip_reprint}\n"
+                            cuerpo_email += f"Puntos ganados en este ticket: +{t_info.get('puntos_ganados', 0)}\n"
+                            cuerpo_email += f"Saldo actual disponible: {saldo_actual_re} puntos\n"
+                            cuerpo_email += "INFO VIP: Ganas 1 pto por cada 10€ de compra.\n"
+                            cuerpo_email += "================================\n"
                             
-                        cuerpo_email += "\nUn saludo,\nAnimalarium."
+                        cuerpo_email += "\nPOLÍTICA DE DEVOLUCIÓN:\nPlazo de 14 días con ticket y embalaje original en perfecto estado.\n\nUn saludo,\nAnimalarium."
                         
                         import urllib.parse
                         body_encoded = urllib.parse.quote(cuerpo_email)
