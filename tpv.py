@@ -343,7 +343,7 @@ def render_pestana_tpv(client):
             <div id="botones-container">
                 <button class="btn-print" onclick="imprimirConStar('ticket-impresion')">🖨️ IMPRIMIR TICKET</button>
                 <button class="btn-print" style="background-color: #9c27b0;" onclick="imprimirConStar('ticket-regalo')">🎁 TICKET REGALO</button>
-                <a href="mailto:?subject=Ticket%20de%20Compra%20-%20Animalarium&body={body_encoded}" target="_top" style="text-decoration: none; flex: 1;">
+                <a href="mailto:{t.get('email_cliente', '')}?subject=Ticket%20de%20Compra%20-%20Animalarium&body={body_encoded}" target="_top" style="text-decoration: none; flex: 1;">
                     <button class="btn-print btn-email">✉️ ENVIAR EMAIL</button>
                 </a>
             </div>
@@ -531,7 +531,7 @@ def render_pestana_tpv(client):
                 all_cli_puntos = []
                 offset = 0
                 while True:
-                    res_cli = client.table("clientes").select("id, nombre_dueno, puntos, telefono, direccion").range(offset, offset + 999).execute()
+                    res_cli = client.table("clientes").select("id, nombre_dueno, puntos, telefono, direccion, email").range(offset, offset + 999).execute()
                     if res_cli.data:
                         all_cli_puntos.extend(res_cli.data)
                         if len(res_cli.data) < 1000: break
@@ -850,7 +850,8 @@ def render_pestana_tpv(client):
                                 "puntos_descontados": puntos_a_descontar, "nuevo_saldo": nuevo_saldo,
                                 "descuento_global": desc_g_val, "pendiente": pendiente,
                                 "vale_aplicado": st.session_state.vale_aplicado['codigo_vale'] if st.session_state.vale_aplicado else None,
-                                "desc_vale_eur": desc_vale_eur if st.session_state.vale_aplicado else 0.0
+                                "desc_vale_eur": desc_vale_eur if st.session_state.vale_aplicado else 0.0,
+                                "email_cliente": cliente_info.get('email', '') if "Ninguno" not in cliente_fidelidad else ""
                             }
                             st.session_state.carrito = []
                             st.session_state.vale_aplicado = None
