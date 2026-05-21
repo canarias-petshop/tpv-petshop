@@ -38,47 +38,37 @@ def render_pestana_servicios(client):
         with col_p1:
             sel_cli_p = st.selectbox("1. Seleccionar Cliente:", opc_cli, key=f"sp_sel_{st.session_state.llave_srv_paseo}")
             
-            def_nom_p, def_tel_p = "", ""
-            opciones_masc_p = []
+            def_nom_p, def_tel_p, def_masc_p = "", "", ""
             if "no registrado" not in sel_cli_p:
                 cli_data = mapa_cli[sel_cli_p]
                 def_nom_p = cli_data.get('nombre_dueno', '')
                 def_tel_p = cli_data.get('telefono', '')
                 mascotas = cli_data.get('mascotas', [])
-                if mascotas and isinstance(mascotas, list):
-                    opciones_masc_p = [m.get('nombre', '') for m in mascotas if m.get('nombre')]
+                if mascotas and isinstance(mascotas, list) and len(mascotas) > 0: def_masc_p = mascotas[0].get('nombre', '')
                 
             with st.form("form_paseo", clear_on_submit=True):
                 st.markdown("<p style='font-size:12px; color:gray; margin:0;'>Datos (Modifica si es necesario):</p>", unsafe_allow_html=True)
                 p_cli_man = st.text_input("Nombre Dueño", value=def_nom_p)
                 p_tel_man = st.text_input("Teléfono", value=def_tel_p)
-                
-                if "no registrado" not in sel_cli_p and opciones_masc_p:
-                    p_masc_sel = st.multiselect("Mascota(s) *", opciones_masc_p, default=opciones_masc_p[:1])
-                    p_masc_man = ", ".join(p_masc_sel)
-                else:
-                    p_masc_man = st.text_input("Nombre Mascota(s) *")
+                p_masc_man = st.text_input("Nombre Mascota *", value=def_masc_p)
                 
                 st.markdown("---")
                 p_tipo = st.selectbox("2. Tipo de Paseo:", ["Paseo por la ciudad", "Paseo al monte"])
-                
-                p_disp = st.text_input("3. Disponibilidad / Preferencia", placeholder="Ej: Mañanas, fines de semana...")
-                
+                p_fecha = st.text_input("3. Fecha y Hora", placeholder="Ej: Mañana a las 10:00, Lunes tarde...")
                 p_obs = st.text_area("4. Observaciones", placeholder="Carácter, rutas preferidas, duración...")
                 
-                if st.form_submit_button("Registrar Petición", type="primary", use_container_width=True):
+                if st.form_submit_button("Guardar Paseo", type="primary", use_container_width=True):
                     final_cli = p_cli_man
                     final_tel = p_tel_man
-                    p_fecha_str = p_disp.strip() if p_disp else "Sin preferencia"
                         
                     if final_cli and p_masc_man:
                         try:
                             client.table("servicios_paseo").insert({
                                 "cliente": final_cli, "mascota": p_masc_man, "telefono": final_tel,
-                                "tipo_paseo": p_tipo, "fecha": p_fecha_str, "observaciones": p_obs, "estado": "Pendiente"
+                                "tipo_paseo": p_tipo, "fecha": p_fecha, "observaciones": p_obs, "estado": "Pendiente"
                             }).execute()
                             st.session_state.llave_srv_paseo += 1
-                            st.success("Petición de paseo registrada."); time.sleep(0.5); st.rerun()
+                            st.success("Paseo registrado."); time.sleep(0.5); st.rerun()
                         except: st.error("⚠️ Crea la tabla 'servicios_paseo' en Supabase.")
                     else: st.warning("Debes indicar el cliente y la mascota.")
         with col_p2:
@@ -90,7 +80,7 @@ def render_pestana_servicios(client):
                     df_p_vista = df_p[['id', 'cliente', 'mascota', 'telefono', 'tipo_paseo', 'fecha', 'observaciones', 'estado']].copy()
                     df_p_vista['Avisar Equipo'] = None
                     for idx, row in df_p_vista.iterrows():
-                        msg = f"¡Petición de Paseo! 🐕\nCliente: {row['cliente']}\nMascota: {row['mascota']}\nTipo: {row['tipo_paseo']}\nDisponibilidad: {row['fecha']}\nObs: {row.get('observaciones', '')}"
+                        msg = f"¡Nuevo Paseo! 🐕\nCliente: {row['cliente']}\nMascota: {row['mascota']}\nTipo: {row['tipo_paseo']}\nFecha: {row['fecha']}\nObs: {row.get('observaciones', '')}"
                         df_p_vista.at[idx, 'Avisar Equipo'] = f"https://wa.me/34645749708?text={urllib.parse.quote(msg)}"
                     
                     df_p_vista.insert(0, "Borrar", False)
@@ -99,7 +89,7 @@ def render_pestana_servicios(client):
                         column_config={
                             "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"),
                             "id": None, "cliente": "Cliente", "mascota": "Mascota", "telefono": "Tel.",
-                            "tipo_paseo": "Tipo", "fecha": "Disponibilidad", "observaciones": "Obs.",
+                            "tipo_paseo": "Tipo", "fecha": "Fecha/Hora", "observaciones": "Obs.",
                             "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "En curso", "Completado", "Cancelado"]),
                             "Avisar Equipo": st.column_config.LinkColumn("👩‍💼 Equipo", display_text="💬 Avisar")
                         }, key="ed_paseos"
@@ -120,37 +110,47 @@ def render_pestana_servicios(client):
         with col_a1:
             sel_cli_a = st.selectbox("1. Seleccionar Cliente:", opc_cli, key=f"sa_sel_{st.session_state.llave_srv_adiest}")
             
-            def_nom_a, def_tel_a, def_masc_a = "", "", ""
+            def_nom_a, def_tel_a = "", ""
+            opciones_masc_a = []
             if "no registrado" not in sel_cli_a:
                 cli_data = mapa_cli[sel_cli_a]
                 def_nom_a = cli_data.get('nombre_dueno', '')
                 def_tel_a = cli_data.get('telefono', '')
                 mascotas = cli_data.get('mascotas', [])
-                if mascotas and isinstance(mascotas, list) and len(mascotas) > 0: def_masc_a = mascotas[0].get('nombre', '')
+                if mascotas and isinstance(mascotas, list):
+                    opciones_masc_a = [m.get('nombre', '') for m in mascotas if m.get('nombre')]
                 
             with st.form("form_adiest", clear_on_submit=True):
                 st.markdown("<p style='font-size:12px; color:gray; margin:0;'>Datos (Modifica si es necesario):</p>", unsafe_allow_html=True)
                 a_cli_man = st.text_input("Nombre Dueño", value=def_nom_a)
                 a_tel_man = st.text_input("Teléfono", value=def_tel_a)
-                a_masc_man = st.text_input("Nombre Mascota *", value=def_masc_a)
+                
+                if "no registrado" not in sel_cli_a and opciones_masc_a:
+                    a_masc_sel = st.multiselect("Mascota(s) *", opciones_masc_a, default=opciones_masc_a[:1])
+                    a_masc_man = ", ".join(a_masc_sel)
+                else:
+                    a_masc_man = st.text_input("Nombre Mascota(s) *")
                 
                 st.markdown("---")
                 a_motivo = st.text_input("2. Nivel / Problema a tratar *", placeholder="Ej: Tirar de la correa, obediencia básica...")
-                a_fecha = st.text_input("3. Fecha de Sesión", placeholder="Ej: Sábado por la mañana")
+                
+                a_disp = st.text_input("3. Disponibilidad / Preferencia", placeholder="Ej: Fines de semana, tardes...")
+                
                 a_obs = st.text_area("4. Observaciones", placeholder="Detalles de la sesión...")
                 
-                if st.form_submit_button("Guardar Adiestramiento", type="primary", use_container_width=True):
+                if st.form_submit_button("Registrar Petición", type="primary", use_container_width=True):
                     final_cli = a_cli_man
                     final_tel = a_tel_man
+                    a_fecha_str = a_disp.strip() if a_disp else "Sin preferencia"
                         
                     if final_cli and a_masc_man and a_motivo:
                         try:
                             client.table("servicios_adiestramiento").insert({
                                 "cliente": final_cli, "mascota": a_masc_man, "telefono": final_tel,
-                                "motivo": a_motivo, "fecha_sesion": a_fecha, "observaciones": a_obs, "estado": "Pendiente"
+                                "motivo": a_motivo, "fecha_sesion": a_fecha_str, "observaciones": a_obs, "estado": "Pendiente"
                             }).execute()
                             st.session_state.llave_srv_adiest += 1
-                            st.success("Sesión registrada."); time.sleep(0.5); st.rerun()
+                            st.success("Petición de adiestramiento registrada."); time.sleep(0.5); st.rerun()
                         except: st.error("⚠️ Crea la tabla 'servicios_adiestramiento' en Supabase.")
                     else: st.warning("Cliente, Mascota y Motivo son obligatorios.")
         with col_a2:
@@ -162,7 +162,7 @@ def render_pestana_servicios(client):
                     df_a_vista = df_a[['id', 'cliente', 'mascota', 'telefono', 'motivo', 'fecha_sesion', 'observaciones', 'estado']].copy()
                     df_a_vista['Avisar Equipo'] = None
                     for idx, row in df_a_vista.iterrows():
-                        msg = f"¡Nuevo Adiestramiento! 🎓\nCliente: {row['cliente']}\nMascota: {row['mascota']}\nMotivo: {row['motivo']}\nFecha: {row['fecha_sesion']}\nObs: {row.get('observaciones', '')}"
+                        msg = f"¡Petición de Adiestramiento! 🎓\nCliente: {row['cliente']}\nMascota: {row['mascota']}\nMotivo: {row['motivo']}\nDisponibilidad: {row['fecha_sesion']}\nObs: {row.get('observaciones', '')}"
                         df_a_vista.at[idx, 'Avisar Equipo'] = f"https://wa.me/34645749708?text={urllib.parse.quote(msg)}"
                         
                     df_a_vista.insert(0, "Borrar", False)
@@ -171,7 +171,7 @@ def render_pestana_servicios(client):
                         column_config={
                             "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"),
                             "id": None, "cliente": "Cliente", "mascota": "Mascota", "telefono": "Tel.",
-                            "motivo": "Motivo", "fecha_sesion": "Fecha/Hora", "observaciones": "Obs.",
+                            "motivo": "Motivo", "fecha_sesion": "Disponibilidad", "observaciones": "Obs.",
                             "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Evaluación", "En curso", "Completado", "Cancelado"]),
                             "Avisar Equipo": st.column_config.LinkColumn("👩‍💼 Equipo", display_text="💬 Avisar")
                         }, key="ed_adiest"
