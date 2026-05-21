@@ -186,36 +186,48 @@ def render_pestana_servicios(client):
                 
                 sel_cli_r = st.selectbox("1. Seleccionar Cliente:", opc_cli, key=f"sr_sel_{st.session_state.llave_srv_reco}")
                 
-                def_nom_r, def_tel_r, def_dir_r, def_masc_r = "", "", "", ""
+                def_nom_r, def_tel_r, def_dir_r = "", "", ""
+                opciones_masc_r = []
                 if "no registrado" not in sel_cli_r:
                     cli_data = mapa_cli[sel_cli_r]
                     def_nom_r = cli_data.get('nombre_dueno', '')
                     def_tel_r = cli_data.get('telefono', '')
                     def_dir_r = cli_data.get('direccion', '')
                     mascotas = cli_data.get('mascotas', [])
-                    if mascotas and isinstance(mascotas, list) and len(mascotas) > 0: def_masc_r = mascotas[0].get('nombre', '')
+                    if mascotas and isinstance(mascotas, list):
+                        opciones_masc_r = [m.get('nombre', '') for m in mascotas if m.get('nombre')]
                 
                 with st.form("form_recogida", clear_on_submit=True):
                     st.markdown("<p style='font-size:12px; color:gray; margin:0;'>Datos (Modifica si es necesario):</p>", unsafe_allow_html=True)
                     r_cli_man = st.text_input("Nombre Dueño", value=def_nom_r)
                     r_tel_man = st.text_input("Teléfono", value=def_tel_r)
-                    r_masc_man = st.text_input("Nombre Mascota *", value=def_masc_r)
+                    
+                    if "no registrado" not in sel_cli_r and opciones_masc_r:
+                        r_masc_sel = st.multiselect("Mascota(s) *", opciones_masc_r, default=opciones_masc_r[:1])
+                        r_masc_man = ", ".join(r_masc_sel)
+                    else:
+                        r_masc_man = st.text_input("Nombre Mascota(s) *")
+                        
                     r_dir_man = st.text_input("Dirección de Recogida", value=def_dir_r)
                     
                     st.markdown("---")
-                    r_fecha = st.text_input("2. Día y Hora de Recogida *", placeholder="Ej: Martes a las 11:30")
+                    c_f1, c_f2 = st.columns(2)
+                    with c_f1: r_fecha = st.date_input("2. Día de Recogida *", value=date.today())
+                    with c_f2: r_hora = st.time_input("Hora *", value=None)
+                    
                     r_obs = st.text_area("3. Observaciones / Instrucciones especiales")
                     
                     if st.form_submit_button("Guardar Recogida", type="primary", use_container_width=True):
                         final_cli = r_cli_man
                         final_tel = r_tel_man
                         final_dir = r_dir_man
+                        r_fecha_str = f"{r_fecha.strftime('%d/%m/%Y')} {r_hora.strftime('%H:%M') if r_hora else ''}".strip()
                             
-                        if final_cli and r_masc_man and r_fecha:
+                        if final_cli and r_masc_man:
                             try:
                                 client.table("servicios_recogida").insert({
                                     "cliente": final_cli, "mascota": r_masc_man, "telefono": final_tel, "direccion": final_dir,
-                                    "fecha_recogida": r_fecha, "observaciones": r_obs, "estado": "Pendiente"
+                                    "fecha_recogida": r_fecha_str, "observaciones": r_obs, "estado": "Pendiente"
                                 }).execute()
                                 st.session_state.llave_srv_reco += 1
                                 st.success("Recogida registrada."); time.sleep(0.5); st.rerun()
