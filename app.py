@@ -337,7 +337,7 @@ else:
     nombres_pestanas = [
         "💰 Control Caja", "🛒 Caja", "📜 Historial", "👥 Clientes", 
         "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", 
-        "📑 Facturación", "⏱️ Personal", "📖 Ayuda"
+        "⏱️ Personal", "📖 Ayuda"
     ]
 
 tabs = st.tabs(nombres_pestanas)
@@ -365,6 +365,5 @@ else:
     with tabs[4]: render_pestana_inventario(client)
     with tabs[5]: render_pestana_proveedores(client)
     with tabs[6]: render_pestana_agenda(client)
-    with tabs[7]: render_pestana_facturacion(client)
-    with tabs[8]: render_pestana_personal(client)
-    with tabs[9]: render_pestana_manual()
+    with tabs[7]: render_pestana_personal(client)
+    with tabs[8]: render_pestana_manual()
