@@ -556,7 +556,7 @@ def render_pestana_agenda(client):
                                     if df_cuadrante.loc[idx, "Estado"] == "🟩 Libre":
                                         df_cuadrante.loc[idx, "Estado"] = "🔵 Liberado"
                                 else:
-                                    if df_cuadrante.loc[idx, "Estado"] in ["� Libre", "🔵 Liberado"]:
+                                    if df_cuadrante.loc[idx, "Estado"] in ["🟩 Libre", "🔵 Liberado"]:
                                         df_cuadrante.loc[idx, "Estado"] = "🔴 Ocupado"
                                     elif "Ocupado" in df_cuadrante.loc[idx, "Estado"]:
                                         df_cuadrante.loc[idx, "Estado"] = "⚠️ Múltiple"
