@@ -576,6 +576,7 @@ def render_pestana_agenda(client):
                 
         df_cuadrante = df_cuadrante.sort_values("Hora").reset_index(drop=True)
         
+        # --- Renderizado de Cuadrante Diario ---
         if ocultar_libres:
             df_cuadrante = df_cuadrante[df_cuadrante["Estado"] != "🟩 Libre"]
 
