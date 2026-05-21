@@ -531,7 +531,7 @@ def render_pestana_tpv(client):
                 all_cli_puntos = []
                 offset = 0
                 while True:
-                    res_cli = client.table("clientes").select("id, nombre_dueno, puntos, telefono").range(offset, offset + 999).execute()
+                    res_cli = client.table("clientes").select("id, nombre_dueno, puntos, telefono, direccion").range(offset, offset + 999).execute()
                     if res_cli.data:
                         all_cli_puntos.extend(res_cli.data)
                         if len(res_cli.data) < 1000: break
@@ -559,6 +559,16 @@ def render_pestana_tpv(client):
                 with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0.0, max_value=100.0, value=None, step=0.01, format="%.2f")
                 with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli, index=idx_cli)
                 st.session_state.cliente_cobro_tpv = cliente_fidelidad
+                
+                enviar_domicilio = False
+                dir_entrega = ""
+                if "Ninguno" not in cliente_fidelidad:
+                    enviar_domicilio = st.checkbox("🚚 Enviar pedido a Domicilio")
+                    if enviar_domicilio:
+                        base_str_check = cliente_fidelidad.rsplit(") - Puntos:")[0]
+                        cli_check_nombre = base_str_check.rsplit(" (", 1)[0].strip()
+                        cli_data_dom = next((c for c in res_cli_puntos.data if c['nombre_dueno'] == cli_check_nombre), {})
+                        dir_entrega = st.text_input("📍 Dirección de Entrega (Editable):", value=cli_data_dom.get('direccion', ''))
                 
                 desc_g_val = float(desc_g or 0.0)
                 total_f = sub_antes * (1 - desc_g_val / 100)
@@ -802,6 +812,19 @@ def render_pestana_tpv(client):
                             if st.session_state.vale_aplicado and desc_vale_eur > 0:
                                 nuevo_saldo_vale = float(st.session_state.vale_aplicado['saldo_actual']) - desc_vale_eur
                                 client.table("vales_tienda").update({"saldo_actual": nuevo_saldo_vale}).eq("id", st.session_state.vale_aplicado['id']).execute()
+                                
+                            # --- CREACIÓN AUTOMÁTICA DE PEDIDO A DOMICILIO ---
+                            if enviar_domicilio and cliente_fidel_nombre:
+                                detalle_pedido = "\n".join([f"• {p['Cantidad']}x {p['Producto']}" for p in carrito_limpio])
+                                try:
+                                    client.table("pedidos_domicilio").insert({
+                                        "nombre_cliente": cliente_fidel_nombre,
+                                        "telefono": cliente_info.get('telefono', ''),
+                                        "direccion": dir_entrega,
+                                        "detalle_pedido": detalle_pedido,
+                                        "estado": "Pendiente"
+                                    }).execute()
+                                except Exception as e: pass
                             
                             for i in carrito_limpio:
                                 if not i.get('Manual', False) and 'id' in i:
