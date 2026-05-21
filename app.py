@@ -326,42 +326,45 @@ with c_rol:
         st.rerun()
 
 # --- DEFINICIÓN DINÁMICA DE PESTAÑAS SEGÚN ROL ---
-nombres_pestanas = [
-    "📦 Inventario", "🛒 Caja", "👥 Clientes", "📜 Historial", 
-    "💰 Control Caja", "🚚 Proveedores y Pedidos", "📑 Facturación",
-    "📅 Agenda", "⏱️ Personal", "📖 Ayuda"
-]
-
-# Si es Administrador, inyectamos las pestañas sensibles
 if st.session_state.rol == "Admin":
-    nombres_pestanas.insert(5, "📈 Estadísticas")
-    nombres_pestanas.insert(8, "📊 Contabilidad")
-    nombres_pestanas.insert(9, "🎯 Marketing y Ofertas")
-    nombres_pestanas.append("🏦 Bancos")
+    nombres_pestanas = [
+        "💰 Control Caja", "🛒 Caja", "📜 Historial", "👥 Clientes", 
+        "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", 
+        "📑 Facturación", "📊 Contabilidad", "🎯 Marketing y Ofertas", 
+        "📈 Estadísticas", "⏱️ Personal", "🏦 Bancos", "📖 Ayuda"
+    ]
+else:
+    nombres_pestanas = [
+        "💰 Control Caja", "🛒 Caja", "📜 Historial", "👥 Clientes", 
+        "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", 
+        "📑 Facturación", "⏱️ Personal", "📖 Ayuda"
+    ]
 
 tabs = st.tabs(nombres_pestanas)
 
-# Renderizamos las pestañas comunes
-with tabs[0]: render_pestana_inventario(client)
-with tabs[1]: render_pestana_tpv(client)
-with tabs[2]: render_pestana_crm(client)
-with tabs[3]: render_pestana_historial(client)
-with tabs[4]: render_pestana_caja(client)
-
-# Las últimas pestañas cambian de posición/existencia según el rol
 if st.session_state.rol == "Admin":
-    with tabs[5]: render_pestana_estadisticas(client)
-    with tabs[6]: render_pestana_proveedores(client)
+    with tabs[0]: render_pestana_caja(client)
+    with tabs[1]: render_pestana_tpv(client)
+    with tabs[2]: render_pestana_historial(client)
+    with tabs[3]: render_pestana_crm(client)
+    with tabs[4]: render_pestana_inventario(client)
+    with tabs[5]: render_pestana_proveedores(client)
+    with tabs[6]: render_pestana_agenda(client)
     with tabs[7]: render_pestana_facturacion(client)
     with tabs[8]: render_pestana_contabilidad(client)
     with tabs[9]: render_pestana_marketing(client)
-    with tabs[10]: render_pestana_agenda(client)
+    with tabs[10]: render_pestana_estadisticas(client)
     with tabs[11]: render_pestana_personal(client)
-    with tabs[12]: render_pestana_manual()
-    with tabs[13]: render_pestana_bancos(client)
+    with tabs[12]: render_pestana_bancos(client)
+    with tabs[13]: render_pestana_manual()
 else:
+    with tabs[0]: render_pestana_caja(client)
+    with tabs[1]: render_pestana_tpv(client)
+    with tabs[2]: render_pestana_historial(client)
+    with tabs[3]: render_pestana_crm(client)
+    with tabs[4]: render_pestana_inventario(client)
     with tabs[5]: render_pestana_proveedores(client)
-    with tabs[6]: render_pestana_facturacion(client)
-    with tabs[7]: render_pestana_agenda(client)
+    with tabs[6]: render_pestana_agenda(client)
+    with tabs[7]: render_pestana_facturacion(client)
     with tabs[8]: render_pestana_personal(client)
     with tabs[9]: render_pestana_manual()
