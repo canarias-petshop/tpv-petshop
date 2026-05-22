@@ -6,6 +6,9 @@ import time
 import pandas as pd
 
 def render_pestana_contabilidad(client):
+    if 'llave_cont_pago_venc' not in st.session_state: st.session_state.llave_cont_pago_venc = 0
+    if 'llave_cont_pago' not in st.session_state: st.session_state.llave_cont_pago = 0
+
     st.markdown("<h3 style='margin-top: -15px;'>📊 Contabilidad e Informes para Asesoría</h3>", unsafe_allow_html=True)
     
     sec_gastos, sec_fijos, sec_calendario, sec_pagos, sec_archivo, sec_informes = st.tabs([
