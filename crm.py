@@ -780,7 +780,7 @@ def render_pestana_crm(client):
                         df_e_vista['notas'] = df_e_vista['notas'].fillna("")
                         
                         ed_e = st.data_editor(
-                            df_e_vista, hide_index=True, use_container_width=True, num_rows="dynamic", height=300, key=f"ed_tabla_encargos_{st.session_state.get('db_version', 0)}",
+                            df_e_vista, hide_index=True, use_container_width=True, height=300, key=f"ed_tabla_encargos_{st.session_state.get('db_version', 0)}",
                             column_config={
                                 "id": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                 "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
