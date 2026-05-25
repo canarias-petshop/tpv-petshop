@@ -111,7 +111,8 @@ def render_pestana_historial(client):
         else:
             inicio_caja_actual = pd.to_datetime('2100-01-01', utc=True) # Todo cerrado
 
-        c_f1, c_f2, c_f3 = st.columns([1,1,1])
+        c_f0, c_f1, c_f2, c_f3 = st.columns([1.5, 1.5, 1, 1])
+        with c_f0: b_ticket = st.text_input("🔍 Buscar Nº Ticket:", placeholder="Ej: 145 (Ignora fechas)")
         with c_f1: preset = st.selectbox("Filtro rápido:", ["Esta semana", "Este mes", "Trimestre Actual", "Todo el año"])
         
         hoy = date.today()
@@ -120,10 +121,13 @@ def render_pestana_historial(client):
         elif preset == "Trimestre Actual": f_ini = hoy.replace(month=((hoy.month-1)//3)*3+1, day=1)
         else: f_ini = hoy.replace(month=1, day=1)
 
-        with c_f2: f_inicio_v = st.date_input("Desde:", value=f_ini)
-        with c_f3: f_fin_v = st.date_input("Hasta:", value=hoy)
+        with c_f2: f_inicio_v = st.date_input("Desde:", value=f_ini, disabled=bool(b_ticket))
+        with c_f3: f_fin_v = st.date_input("Hasta:", value=hoy, disabled=bool(b_ticket))
 
-        res_v = client.table("ventas_historial").select("*").gte("created_at", f"{f_inicio_v}T00:00:00").lte("created_at", f"{f_fin_v}T23:59:59").order("id", desc=True).execute()
+        if b_ticket and b_ticket.strip().isdigit():
+            res_v = client.table("ventas_historial").select("*").eq("id", int(b_ticket.strip())).execute()
+        else:
+            res_v = client.table("ventas_historial").select("*").gte("created_at", f"{f_inicio_v}T00:00:00").lte("created_at", f"{f_fin_v}T23:59:59").order("id", desc=True).execute()
         
         if res_v.data:
             df_v = pd.DataFrame(res_v.data)
@@ -309,6 +313,28 @@ def render_pestana_historial(client):
                             except:
                                 dias_pasados = 0
                                 
+                            # --- CONFIGURACIÓN DEL REEMBOLSO ---
+                            try:
+                                res_b_abono = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+                                bancos_abono = res_b_abono.data if res_b_abono.data else []
+                            except:
+                                bancos_abono = []
+                            
+                            opciones_abono = ["💵 Efectivo (Caja Fuerte)"] + [f"💳 Tarjeta ({b['nombre_banco']})" for b in bancos_abono] + ["📱 Bizum"]
+                            
+                            metodo_orig = str(t_info.get('metodo_pago', ''))
+                            idx_abono_def = 0
+                            if "Tarjeta" in metodo_orig:
+                                for i, op in enumerate(opciones_abono):
+                                    if op.replace("💳 Tarjeta (", "").replace(")", "") in metodo_orig:
+                                        idx_abono_def = i
+                                        break
+                            elif "Bizum" in metodo_orig:
+                                idx_abono_def = len(opciones_abono) - 1
+
+                            st.markdown("##### ⚙️ Configurar Devolución")
+                            sel_metodo_abono = st.selectbox("Método de reembolso (Si se devuelve dinero):", opciones_abono, index=idx_abono_def)
+                                
                             if dias_pasados > 14:
                                 st.warning(f"⚠️ Han pasado {dias_pasados} días (Límite 14).")
                                 c_btn1, c_btn2 = st.columns(2)
@@ -345,6 +371,24 @@ def render_pestana_historial(client):
                                         
                                 client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_id)).execute()
                                 
+                                if btn_abono:
+                                    if "Efectivo" in sel_metodo_abono:
+                                        res_caja_ab = client.table("control_caja").select("id").eq("estado", "Abierta").execute()
+                                        if res_caja_ab.data:
+                                            client.table("movimientos_caja").insert({
+                                                "id_caja": res_caja_ab.data[0]['id'],
+                                                "tipo": "Retirada",
+                                                "cantidad": total_final_calculado,
+                                                "motivo": f"Devolución en efectivo Ticket #{t_id}"
+                                            }).execute()
+                                    elif "Tarjeta" in sel_metodo_abono:
+                                        nombre_banco = sel_metodo_abono.replace("💳 Tarjeta (", "").replace(")", "")
+                                        banco = next((b for b in bancos_abono if b['nombre_banco'] == nombre_banco), None)
+                                        if banco:
+                                            client.table("cuentas_bancarias").update({
+                                                "saldo_actual": banco['saldo_actual'] - total_final_calculado
+                                            }).eq("id", banco['id']).execute()
+                                
                                 if btn_vale:
                                     codigo_vale = "VALE-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
                                     try:
@@ -360,7 +404,7 @@ def render_pestana_historial(client):
                                 else:
                                     st.session_state.devolucion_actual = {
                                         "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"), "productos": prods,
-                                        "total": total_final_calculado, "metodo": t_info.get('metodo_pago', 'Desconocido'), "ticket_original_id": t_id
+                                        "total": total_final_calculado, "metodo": sel_metodo_abono, "ticket_original_id": t_id
                                     }
                                 st.rerun()
                                 
