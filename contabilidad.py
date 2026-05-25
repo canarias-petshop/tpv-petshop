@@ -222,8 +222,9 @@ def render_pestana_contabilidad(client):
                             opciones_pago = [f"{r['ID_Pago']} ({r['Importe']}€)" for _, r in pendientes_list.iterrows()]
                             sel_pago = st.selectbox("Selecciona el gasto a marcar como pagado:", opciones_pago, key=f"cp_sel_{st.session_state.llave_cont_pago_venc}")
                             if st.form_submit_button("✅ Registrar Pago y Archivar", type="primary"):
-                                id_sel = sel_pago.split(" (")[0]
-                                importe_sel = float(sel_pago.split("(")[1].replace("€)", ""))
+                                partes = sel_pago.rsplit(" (", 1)
+                                id_sel = partes[0]
+                                importe_sel = float(partes[1].replace("€)", ""))
                                 client.table("compras").insert({
                                     "tipo": id_sel, "total": importe_sel, 
                                     "estado": "Pagado", "fecha_vencimiento": str(date.today())
