@@ -99,18 +99,35 @@ def render_pestana_contabilidad(client):
                     ed_gf = st.data_editor(df_gf_vista, hide_index=True, use_container_width=True, height=210,
                         column_config={
                             "Desactivar": st.column_config.CheckboxColumn("🛑 Quitar"),
-                            "concepto": "Concepto", "importe_estimado": st.column_config.NumberColumn("Importe (€)", format="%.2f", step=0.01),
-                            "dia_cargo": "Día del Mes", "frecuencia": "Frecuencia", "id": None
+                            "concepto": "Concepto", 
+                            "importe_estimado": st.column_config.NumberColumn("Importe (€)", format="%.2f", step=0.01),
+                            "dia_cargo": st.column_config.NumberColumn("Día del Mes", min_value=1, max_value=31, step=1), 
+                            "frecuencia": st.column_config.SelectboxColumn("Frecuencia", options=["Mensual", "Bimestral", "Trimestral", "Anual"]), 
+                            "id": None
                         })
                     if st.button("💾 Guardar Cambios en Gastos Fijos"):
+                        # Procesar eliminaciones
                         filas_desactivar = ed_gf[ed_gf["Desactivar"] == True]
                         for _, r in filas_desactivar.iterrows():
                             client.table("gastos_recurrentes").update({"activo": False}).eq("id", r['id']).execute()
+                        
+                        # Procesar modificaciones del resto de filas activas
+                        filas_mantener = ed_gf[ed_gf["Desactivar"] == False]
+                        for _, r in filas_mantener.iterrows():
+                            client.table("gastos_recurrentes").update({
+                                "concepto": str(r['concepto']),
+                                "importe_estimado": float(r['importe_estimado']),
+                                "dia_cargo": int(r['dia_cargo']),
+                                "frecuencia": str(r['frecuencia'])
+                            }).eq("id", r['id']).execute()
+                            
+                        st.success("Cambios en gastos fijos actualizados correctamente.")
+                        time.sleep(0.5)
                         st.rerun()
                 else:
                     st.info("No hay gastos fijos registrados.")
-            except:
-                st.info("🔧 Ejecuta el código SQL en Supabase para activar esta función.")
+            except Exception as e:
+                st.error(f"🔧 Error al cargar o guardar gastos fijos: {e}")
 
     with sec_calendario:
         st.markdown("#### 📅 Calendarios de Vencimientos (Operativos e Impuestos)")
