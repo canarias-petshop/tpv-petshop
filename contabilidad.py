@@ -469,15 +469,18 @@ def render_pestana_contabilidad(client):
             except:
                 return default
 
-        def calcular_bases_e_igic(productos_raw, desc_global, is_factura=False):
+        def calcular_bases_e_igic_y_lineas(productos_raw, desc_global, is_factura, doc_id_str, fecha_str, cliente_nom):
             b_prod, b_serv, i_serv = 0.0, 0.0, 0.0
-            if not productos_raw: return b_prod, b_serv, i_serv
+            l_prod, l_serv = [], []
+            if not productos_raw: return b_prod, b_serv, i_serv, l_prod, l_serv
             if isinstance(productos_raw, str):
                 try:
                     import json; productos_raw = json.loads(productos_raw)
-                except: return b_prod, b_serv, i_serv
+                except: return b_prod, b_serv, i_serv, l_prod, l_serv
             if isinstance(productos_raw, dict): productos_raw = [productos_raw]
                 
+            factor_desc = (1 - safe_float(desc_global) / 100)
+            
             for p in productos_raw:
                 if not isinstance(p, dict): continue
                 precio_pvp = safe_float(p.get('Precio Venta' if is_factura else 'Precio', p.get('Precio', 0.0)))
@@ -497,19 +500,37 @@ def render_pestana_contabilidad(client):
                             es_servicio = False
 
                 pvp_con_desc = (precio_pvp * cant) * (1 - desc_item / 100)
+                pvp_final_linea = pvp_con_desc * factor_desc
+                nombre_prod = str(p.get('Producto', p.get('Descripción', '')))
+
                 if es_servicio:
                     igic_porcentaje = safe_float(p.get('IGIC %', p.get('IGIC', 7.0)))
                     base_linea = pvp_con_desc / (1 + igic_porcentaje / 100)
+                    
+                    base_final_linea = base_linea * factor_desc
+                    igic_final_linea = pvp_final_linea - base_final_linea
+                    
                     b_serv += base_linea
                     i_serv += (pvp_con_desc - base_linea)
+                    
+                    l_serv.append({
+                        "Fecha": fecha_str, "Documento": doc_id_str, "Cliente": cliente_nom,
+                        "Servicio": nombre_prod, "Cantidad": cant, "Precio Unit. Final (€)": round(pvp_final_linea/cant if cant>0 else 0, 2),
+                        "Base Imponible (€)": round(base_final_linea, 2), "IGIC %": igic_porcentaje,
+                        "Cuota IGIC (€)": round(igic_final_linea, 2), "Total (€)": round(pvp_final_linea, 2)
+                    })
                 else:
                     b_prod += pvp_con_desc
+                    l_prod.append({
+                        "Fecha": fecha_str, "Documento": doc_id_str, "Cliente": cliente_nom,
+                        "Producto": nombre_prod, "Cantidad": cant, "Precio Unit. Final (€)": round(pvp_final_linea/cant if cant>0 else 0, 2),
+                        "Total (0% IGIC) (€)": round(pvp_final_linea, 2)
+                    })
                     
-            factor_desc = (1 - safe_float(desc_global) / 100)
-            return round(b_prod * factor_desc, 2), round(b_serv * factor_desc, 2), round(i_serv * factor_desc, 2)
+            return round(b_prod * factor_desc, 2), round(b_serv * factor_desc, 2), round(i_serv * factor_desc, 2), l_prod, l_serv
 
         # Recuperar datos de Tickets
-        res_v_inf = client.table("ventas_historial").select("id, created_at, total, metodo_pago, cliente_deuda, productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).neq("estado", "DEVUELTO").execute()
+        res_v_inf = client.table("ventas_historial").select("id, created_at, total, metodo_pago, estado, cliente_deuda, productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
         # Recuperar datos de Facturas Emitidas
         res_f_inf = client.table("facturas").select("numero_factura, created_at, total_neto, total_igic, total_final, forma_pago, clientes(nombre_dueno, cif), productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
         # Recuperar datos de Compras/Gastos
@@ -517,11 +538,24 @@ def render_pestana_contabilidad(client):
 
         # Construir el SUPER INFORME UNIFICADO DE VENTAS
         ventas_unificadas = []
+        devoluciones_unificadas = []
+        todas_lineas_prod = []
+        todas_lineas_serv = []
         
         if res_v_inf.data:
             for t in res_v_inf.data:
+                estado_doc = t.get('estado', 'Completado')
                 desc_global = float(t.get('descuento_global', 0.0))
-                base_prod, base_serv, igic_serv = calcular_bases_e_igic(t.get('productos'), desc_global, is_factura=False)
+                
+                dt_t = pd.to_datetime(t['created_at'])
+                if dt_t.tzinfo is None: dt_t = dt_t.tz_localize('UTC')
+                fecha_str = dt_t.tz_convert('Atlantic/Canary').strftime('%d/%m/%Y')
+                doc_id_str = f"T-{t['id']}"
+                cliente_nom = t.get('cliente_deuda') if t.get('cliente_deuda') else "Mostrador"
+                
+                base_prod, base_serv, igic_serv, l_p, l_s = calcular_bases_e_igic_y_lineas(
+                    t.get('productos'), desc_global, False, doc_id_str, fecha_str, cliente_nom
+                )
                 
                 # Parche de Seguridad Contable: Ajuste proporcional si hubo canjeo de puntos (descuento en euros)
                 total_calc = base_prod + base_serv + igic_serv
@@ -531,22 +565,33 @@ def render_pestana_contabilidad(client):
                     base_prod = round(base_prod * ratio, 2)
                     base_serv = round(base_serv * ratio, 2)
                     igic_serv = round(igic_serv * ratio, 2)
+                    for lp in l_p: lp["Total (0% IGIC) (€)"] = round(lp["Total (0% IGIC) (€)"] * ratio, 2)
+                    for ls in l_s:
+                        ls["Base Imponible (€)"] = round(ls["Base Imponible (€)"] * ratio, 2)
+                        ls["Cuota IGIC (€)"] = round(ls["Cuota IGIC (€)"] * ratio, 2)
+                        ls["Total (€)"] = round(ls["Total (€)"] * ratio, 2)
                 
-                dt_t = pd.to_datetime(t['created_at'])
-                if dt_t.tzinfo is None: dt_t = dt_t.tz_localize('UTC')
-                
-                ventas_unificadas.append({
-                    "Fecha": dt_t.tz_convert('Atlantic/Canary').strftime('%d/%m/%Y'),
+                ticket_dict = {
+                    "Fecha": fecha_str,
                     "Tipo Documento": "Ticket de Venta (TPV)",
-                    "Nº Documento": f"T-{t['id']}",
-                    "Cliente": t.get('cliente_deuda') if t.get('cliente_deuda') else "Mostrador",
+                    "Nº Documento": doc_id_str,
+                    "Cliente": cliente_nom,
                     "CIF Cliente": "",
                     "Ventas Productos (0% IGIC) (€)": base_prod,
                     "Base Servicios (€)": base_serv,
                     "Cuota IGIC Servicios (€)": igic_serv,
                     "Importe Total (€)": float(t['total']),
                     "Método de Pago": t['metodo_pago']
-                })
+                }
+                
+                if estado_doc == 'DEVUELTO':
+                    ticket_dict["Estado"] = "DEVUELTO (Anulado)"
+                    devoluciones_unificadas.append(ticket_dict)
+                else:
+                    ticket_dict["Estado"] = estado_doc
+                    ventas_unificadas.append(ticket_dict)
+                    todas_lineas_prod.extend(l_p)
+                    todas_lineas_serv.extend(l_s)
                 
         if res_f_inf.data:
             for f in res_f_inf.data:
@@ -554,36 +599,57 @@ def render_pestana_contabilidad(client):
                 cliente_cif = f['clientes'].get('cif', '') if f.get('clientes') else ""
                 tot_f = float(f.get('total_final', 0))
                 
+                dt_f = pd.to_datetime(f['created_at'])
+                if dt_f.tzinfo is None: dt_f = dt_f.tz_localize('UTC')
+                fecha_str = dt_f.tz_convert('Atlantic/Canary').strftime('%d/%m/%Y')
+                doc_id_str = f"F-{f['numero_factura']}"
+                
                 if f.get('productos'):
-                    desc_global = float(f.get('descuento_global', 0.0))
-                    base_prod, base_serv, igic_serv = calcular_bases_e_igic(f.get('productos'), desc_global, is_factura=True)
+                    base_prod, base_serv, igic_serv, l_p, l_s = calcular_bases_e_igic_y_lineas(
+                        f.get('productos'), desc_global, True, doc_id_str, fecha_str, cliente_nom
+                    )
                 else:
                     # Si no hay productos (facturas antiguas sin JSON), asumimos fallback a total neto (en Servicios)
                     base_serv = float(f.get('total_neto', round(tot_f / 1.07, 2)))
                     igic_serv = float(f.get('total_igic', round(tot_f - base_serv, 2)))
                     base_prod = 0.0
-
-                dt_f = pd.to_datetime(f['created_at'])
-                if dt_f.tzinfo is None: dt_f = dt_f.tz_localize('UTC')
+                    l_p, l_s = [], []
+                    l_s.append({
+                        "Fecha": fecha_str, "Documento": doc_id_str, "Cliente": cliente_nom,
+                        "Servicio": "Servicios Varios (Sin desglose)", "Cantidad": 1, "Precio Unit. Final (€)": tot_f,
+                        "Base Imponible (€)": base_serv, "IGIC %": 7.0,
+                        "Cuota IGIC (€)": igic_serv, "Total (€)": tot_f
+                    })
 
                 ventas_unificadas.append({
-                    "Fecha": dt_f.tz_convert('Atlantic/Canary').strftime('%d/%m/%Y'),
+                    "Fecha": fecha_str,
                     "Tipo Documento": "Factura Emitida",
-                    "Nº Documento": f"F-{f['numero_factura']}",
+                    "Nº Documento": doc_id_str,
                     "Cliente": cliente_nom,
                     "CIF Cliente": cliente_cif,
                     "Ventas Productos (0% IGIC) (€)": base_prod,
                     "Base Servicios (€)": base_serv,
                     "Cuota IGIC Servicios (€)": igic_serv,
                     "Importe Total (€)": tot_f,
-                    "Método de Pago": f['forma_pago']
+                    "Método de Pago": f['forma_pago'],
+                    "Estado": "Completado"
                 })
+                todas_lineas_prod.extend(l_p)
+                todas_lineas_serv.extend(l_s)
 
         df_ventas_unificadas = pd.DataFrame(ventas_unificadas)
         if not df_ventas_unificadas.empty:
             df_ventas_unificadas['Fecha_dt'] = pd.to_datetime(df_ventas_unificadas['Fecha'], format='%d/%m/%Y')
             df_ventas_unificadas = df_ventas_unificadas.sort_values(by="Fecha_dt").drop(columns=['Fecha_dt'])
             
+        df_devoluciones = pd.DataFrame(devoluciones_unificadas)
+        if not df_devoluciones.empty:
+            df_devoluciones['Fecha_dt'] = pd.to_datetime(df_devoluciones['Fecha'], format='%d/%m/%Y')
+            df_devoluciones = df_devoluciones.sort_values(by="Fecha_dt").drop(columns=['Fecha_dt'])
+            
+        df_lineas_prod = pd.DataFrame(todas_lineas_prod)
+        df_lineas_serv = pd.DataFrame(todas_lineas_serv)
+
         # --- PROCESAR COMPRAS Y GASTOS (Separando Facturas de Tickets) ---
         compras_list = []
         if res_c_inf.data:
@@ -730,12 +796,18 @@ def render_pestana_contabilidad(client):
                 
                 dict_exportacion = {
                     "Resumen por Método de Pago": resumen_pagos,
-                    "Desglose Detallado": df_ventas_unificadas
+                    "Ventas Confirmadas": df_ventas_unificadas
                 }
+                if not df_devoluciones.empty:
+                    dict_exportacion["Devoluciones (Anuladas)"] = df_devoluciones
+                if not df_lineas_serv.empty:
+                    dict_exportacion["Desglose Servicios"] = df_lineas_serv
+                if not df_lineas_prod.empty:
+                    dict_exportacion["Desglose Productos"] = df_lineas_prod
                 
                 excel_unificado = generar_excel_formateado(dict_exportacion)
                 st.download_button("📥 Descargar Ventas", excel_unificado, f"Ventas_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                st.markdown(f"<p style='font-size:12px;'>*Total: {df_ventas_unificadas['Importe Total (€)'].sum():.2f}€*</p>", unsafe_allow_html=True)
+                st.markdown(f"<p style='font-size:12px;'>*Total de Ventas Válidas: {df_ventas_unificadas['Importe Total (€)'].sum():.2f}€*</p>", unsafe_allow_html=True)
             else: st.write("Sin ventas.")
 
         with c_down2:
