@@ -224,6 +224,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 *   **PRIORIDAD 3 - Cumplimiento Antifraude Fase 3 (VeriFactu):** Sustituir el botón de borrado físico en 'Archivo Contable', 'Compras' y 'Facturación' por un sistema legal de **"Anulación"**. Esto dejará los importes a 0€ y revertirá el stock asociado, pero conservará la línea de la factura para cumplir con Hacienda.
 *   **PRIORIDAD 4 - Marketing Activo:** Iniciar desarrollo del Club de Cumpleaños y radar de recuperación Win-Back.
 *   **PRIORIDAD 5 - Gestión Visual de Productos:** Incorporación de fechas de caducidad y lotes al Inventario.
+*   **PRIORIDAD 6 - Optimización Visual Táctil (Tablet):** Implementar *Media Queries* CSS en `app.py` para aumentar automáticamente el tamaño de textos, tablas y botones solo cuando se use en pantallas pequeñas (Tablets), manteniendo el diseño original compacto e intacto en el PC.
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
