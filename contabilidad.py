@@ -94,12 +94,19 @@ def render_pestana_contabilidad(client):
                 res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
                 if res_gf.data:
                     df_gf = pd.DataFrame(res_gf.data)
-                    df_gf_vista = df_gf[['id', 'concepto', 'importe_estimado', 'dia_cargo', 'frecuencia']].copy()
+                    df_gf_vista = df_gf[['id', 'concepto', 'categoria', 'importe_estimado', 'dia_cargo', 'frecuencia']].copy()
                     df_gf_vista.insert(0, "Desactivar", False)
                     ed_gf = st.data_editor(df_gf_vista, hide_index=True, use_container_width=True, height=210,
                         column_config={
                             "Desactivar": st.column_config.CheckboxColumn("🛑 Quitar"),
                             "concepto": "Concepto", 
+                            "categoria": st.column_config.SelectboxColumn("Categoría", options=[
+                                "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)",
+                                "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)",
+                                "Financiación y Seguros (Préstamos, Tarjetas, Pólizas, Comisiones...)",
+                                "Publicidad y Marketing (Redes sociales, Promociones, Web...)",
+                                "Impuestos y Tasas (IGIC, IRPF, Tributos...)"
+                            ]),
                             "importe_estimado": st.column_config.NumberColumn("Importe (€)", format="%.2f", step=0.01),
                             "dia_cargo": st.column_config.NumberColumn("Día del Mes", min_value=1, max_value=31, step=1), 
                             "frecuencia": st.column_config.SelectboxColumn("Frecuencia", options=["Mensual", "Bimestral", "Trimestral", "Anual"]), 
@@ -116,6 +123,7 @@ def render_pestana_contabilidad(client):
                         for _, r in filas_mantener.iterrows():
                             client.table("gastos_recurrentes").update({
                                 "concepto": str(r['concepto']),
+                                "categoria": str(r['categoria']),
                                 "importe_estimado": float(r['importe_estimado']),
                                 "dia_cargo": int(r['dia_cargo']),
                                 "frecuencia": str(r['frecuencia'])
@@ -174,6 +182,13 @@ def render_pestana_contabilidad(client):
             if proyeccion:
                 df_proy = pd.DataFrame(proyeccion).sort_values("Fecha Vencimiento")
                 
+                # --- NUEVA GRÁFICA VISUAL DE VENCIMIENTOS ---
+                st.markdown("##### 📊 Concentración de Pagos (Próximos 60 días)")
+                df_chart_cal = df_proy.copy()
+                df_chart_cal['Día'] = df_chart_cal['Fecha Vencimiento'].dt.strftime('%d/%m')
+                chart_data_cal = df_chart_cal.groupby('Día')['Importe'].sum().reset_index().set_index('Día')
+                st.bar_chart(chart_data_cal, color="#d32f2f", height=200)
+
                 # --- SISTEMA DE ALERTAS UNIFICADO ---
                 df_alarmas = df_proy[(df_proy['Estado'] == "Pendiente ❌") & (df_proy['Fecha Vencimiento'] <= (hoy_dt + pd.Timedelta(days=dias_alerta)))]
                 if not df_alarmas.empty:
