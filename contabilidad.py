@@ -210,7 +210,7 @@ def render_pestana_contabilidad(client):
                 col_c1, col_c2 = st.columns(2)
                 with col_c1:
                     st.markdown("##### 🏢 Gastos Operativos (Fijos)")
-                    st.caption("Alquiler, Nóminas, Luz, Seguros, etc.")
+                    st.caption("Alquiler, Nóminas, Seguros Sociales, Luz, Seguros, etc.")
                     if not df_operativos.empty:
                         df_op_v = df_operativos[['Fecha Vencimiento', 'Concepto', 'Importe', 'Estado']].copy()
                         df_op_v['Fecha Vencimiento'] = df_op_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
@@ -219,7 +219,7 @@ def render_pestana_contabilidad(client):
                         st.info("No hay gastos fijos operativos configurados.")
                 with col_c2:
                     st.markdown("##### 🏛️ Calendario de Impuestos")
-                    st.caption("Trimestrales, Seguros Sociales, IGIC, IRPF...")
+                    st.caption("Trimestrales, IGIC, IRPF, Retenciones (Mod. 115)...")
                     if not df_impuestos.empty:
                         df_imp_v = df_impuestos[['Fecha Vencimiento', 'Concepto', 'Importe', 'Estado']].copy()
                         df_imp_v['Fecha Vencimiento'] = df_imp_v['Fecha Vencimiento'].dt.strftime('%d/%m/%Y')
