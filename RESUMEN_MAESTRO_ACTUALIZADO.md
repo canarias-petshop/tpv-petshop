@@ -219,9 +219,9 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
-*   **PRIORIDAD 1 (URGENTE) - Nuevo Módulo "Proyectos y Eventos":** Mover toda la gestión de Talleres y Eventos fuera del módulo de Marketing hacia una nueva pestaña propia. Allí se dividirán en: Proyectos de gerencia (Kanban visual) y Eventos clasificados (Externos/Ferias, Talleres de peluquería, Eventos Propios). Dejando Marketing exclusivo para campañas.
-*   **PRIORIDAD 2 (URGENTE) - Validación de Facturas IA en Borrador:** Modificar el script de IA para que las importaciones de facturas entren en estado "Borrador" y no sumen stock hasta que el usuario las revise y confirme con un botón en Facturación.
-*   **PRIORIDAD 3 - Cumplimiento Antifraude Fase 3 (VeriFactu):** Sustituir el borrado físico de registros en 'Archivo Contable' y 'Compras' por un sistema legal de "Anulación" que deje los importes a 0€ y revierta el stock.
+*   **PRIORIDAD 1 (URGENTE) - Nuevo Módulo "Proyectos y Eventos":** Mover la gestión de Talleres y Eventos fuera del módulo de Marketing hacia una pestaña propia. Dividir en: Proyectos (Kanban) y Eventos clasificados (Ferias, Talleres, Eventos Propios).
+*   **PRIORIDAD 2 (URGENTE) - Facturas IA en Borrador (Validación Manual):** Modificar el script de la IA para que las importaciones masivas de facturas se guarden en estado "Borrador". Así, **NO sumarán stock automáticamente** al inventario hasta que el usuario las revise y las apruebe manualmente desde el TPV.
+*   **PRIORIDAD 3 - Cumplimiento Antifraude Fase 3 (VeriFactu):** Sustituir el botón de borrado físico en 'Archivo Contable', 'Compras' y 'Facturación' por un sistema legal de **"Anulación"**. Esto dejará los importes a 0€ y revertirá el stock asociado, pero conservará la línea de la factura para cumplir con Hacienda.
 *   **PRIORIDAD 4 - Marketing Activo:** Iniciar desarrollo del Club de Cumpleaños y radar de recuperación Win-Back.
 *   **PRIORIDAD 5 - Gestión Visual de Productos:** Incorporación de fechas de caducidad y lotes al Inventario.
 
