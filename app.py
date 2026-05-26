@@ -41,8 +41,8 @@ st.markdown("""
         label { font-size: 1.1rem !important; font-weight: 500 !important; margin-bottom: 2px !important; }
         
         /* 3. Cuadros de texto y números más grandes para escribir fácil */
-        input:not([type="time"]):not([type="date"]), select { font-size: 1.1rem !important; padding: 8px !important; }
-        input[type="time"], input[type="date"] { font-size: 1.1rem !important; }
+        div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, select { font-size: 1.1rem !important; padding: 8px !important; }
+        div[data-testid="stTimeInput"] input, div[data-testid="stDateInput"] input { font-size: 1.1rem !important; }
         .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: 0px !important; }
         
         /* 4. Botones: tamaño adecuado para uso táctil sin ser excesivos */
