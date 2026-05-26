@@ -34,6 +34,83 @@ def render_pestana_tareas(client):
     with tab_empleados:
         st.markdown("#### 👥 Plannings y Funciones del Personal")
         
+        # --- CALENDARIO VISUAL DE EMPLEADOS ---
+        c_cale1, c_cale2 = st.columns([1, 3])
+        with c_cale1:
+            dia_ref_emp = st.date_input("Ver semana del:", value=date.today(), key="sem_ref_emp")
+        
+        start_week_emp = dia_ref_emp - timedelta(days=dia_ref_emp.weekday())
+        end_week_emp = start_week_emp + timedelta(days=6)
+        
+        try:
+            res_plan_cal = client.table("tareas_plannings").select("*").eq("activo", True).execute()
+            plan_activos = res_plan_cal.data if res_plan_cal.data else []
+            
+            res_reg_cal = client.table("tareas_registro").select("tarea_id, fecha_completada, personal_empleados(nombre)").gte("fecha_completada", str(start_week_emp)).lte("fecha_completada", str(end_week_emp)).execute()
+            registros_sem = res_reg_cal.data if res_reg_cal.data else []
+        except:
+            plan_activos = []
+            registros_sem = []
+            
+        dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+        html_cal_emp = '''
+        <style>
+            .cal-emp-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; background-color: white; margin-bottom: 20px;}
+            .cal-emp-table th { background-color: #005275; color: white; padding: 6px; text-align: center; border: 1px solid #ddd; }
+            .cal-emp-table td { border: 1px solid #ddd; vertical-align: top; padding: 5px; height: 100px; background-color: #fafafa; }
+            .day-head-emp { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
+            .td-today-emp { background-color: #fffde7 !important; border: 2px solid #fbc02d !important; }
+            .tarea-emp-card { background-color: white; border-left: 4px solid #f57c00; padding: 5px; margin-bottom: 5px; border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 0.8em; line-height: 1.2; word-wrap: break-word;}
+            .te-pend { border-left-color: #f57c00; }
+            .te-comp { border-left-color: #4caf50; opacity: 0.8; }
+            .te-asig { font-size: 0.85em; color: #666; display: block; margin-top: 2px;}
+            .te-who { font-size: 0.85em; color: #2e7d32; display: block; margin-top: 2px; font-weight: bold;}
+        </style>
+        <table class="cal-emp-table"><tr>
+        '''
+        for d_name in dias_semana_nombres: html_cal_emp += f"<th>{d_name}</th>"
+        html_cal_emp += "</tr><tr>"
+        
+        hoy_str_emp = str(date.today())
+        for i in range(7):
+            d_obj = start_week_emp + timedelta(days=i)
+            d_str = str(d_obj)
+            td_class = "td-today-emp" if d_str == hoy_str_emp else ""
+            
+            html_cal_emp += f"<td class='{td_class}'>"
+            html_cal_emp += f"<div class='day-head-emp'>{d_obj.strftime('%d/%m')}</div>"
+            
+            regs_dia = [r for r in registros_sem if r.get('fecha_completada') == d_str]
+            hechas_ids_dia = {r['tarea_id']: r for r in regs_dia}
+            
+            for p in plan_activos:
+                created_date = str(p.get('created_at', '2000-01-01'))[:10]
+                aplica = False
+                if d_str >= created_date:
+                    if p.get('periodicidad') == 'Diaria': aplica = True
+                    elif p.get('periodicidad') == 'Puntual' and str(p.get('fecha_puntual')) == d_str: aplica = True
+                    elif p.get('periodicidad') == 'Semanal' and d_obj.weekday() == 0: aplica = True
+                    elif p.get('periodicidad') == 'Mensual' and d_obj.day == 1: aplica = True
+                
+                is_done = p['id'] in hechas_ids_dia
+                
+                if is_done:
+                    r_info = hechas_ids_dia[p['id']]
+                    who = r_info.get('personal_empleados', {}).get('nombre', 'Alguien') if isinstance(r_info.get('personal_empleados'), dict) else 'Alguien'
+                    html_cal_emp += f"<div class='tarea-emp-card te-comp'><b>✅ {p['tarea']}</b><span class='te-who'>Por: {who}</span></div>"
+                elif aplica:
+                    nom_asig = mapa_emp_inv.get(p.get('empleado_id'), p.get('rol_asignado', 'General'))
+                    if d_str < hoy_str_emp:
+                        html_cal_emp += f"<div class='tarea-emp-card te-pend' style='border-left-color: #e53935; opacity: 0.8;'><b>❌ {p['tarea']}</b><span class='te-asig' style='color:#e53935;'>Olvidada</span></div>"
+                    else:
+                        html_cal_emp += f"<div class='tarea-emp-card te-pend'><b>⏳ {p['tarea']}</b><span class='te-asig'>Para: {nom_asig}</span></div>"
+                        
+            html_cal_emp += "</td>"
+        html_cal_emp += "</tr></table>"
+        
+        st.markdown(html_cal_emp, unsafe_allow_html=True)
+        st.markdown("---")
+        
         if is_admin:
             sub_tabs_emp = st.tabs(["📋 Rutinas para Hoy", "✅ Historial de Cumplimiento", "⚙️ Configurar Plannings/Roles"])
         else:
