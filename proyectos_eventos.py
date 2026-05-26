@@ -6,10 +6,11 @@ import time
 def render_pestana_proyectos_eventos(client):
     st.markdown("<h3 style='margin-top: -15px;'>🗓️ Proyectos, Reuniones y Eventos</h3>", unsafe_allow_html=True)
     
-    tab_macro, tab_reuniones, tab_eventos = st.tabs([
+    tab_macro, tab_ferias, tab_talleres, tab_reuniones = st.tabs([
         "🚀 Proyectos de Expansión", 
-        "⛔ Reuniones y Bloqueos", 
-        "🎟️ Eventos y Talleres"
+        "🎪 Ferias y Eventos Externos",
+        "🎟️ Talleres y Cursos (Clientes)",
+        "⛔ Reuniones y Bloqueos"
     ])
 
     with tab_macro:
@@ -195,9 +196,135 @@ def render_pestana_proyectos_eventos(client):
             except Exception as e:
                 st.info("Crea la tabla agenda_bloqueos en Supabase para habilitar esta vista.")
 
-    with tab_eventos:
-        st.markdown("#### 🎟️ Gestión de Eventos y Talleres")
-        st.info("Organiza cursos de fin de semana (cepillado, nutrición, etc.), controla el aforo y gestiona las reservas de los clientes.")
+    with tab_ferias:
+        st.markdown("#### 🎪 Gestión de Ferias y Eventos Externos")
+        st.info("Organiza la logística, stands y tareas de eventos corporativos o ferias (Ej: 100x100 Mascota).")
+        
+        try:
+            res_ferias = client.table("eventos_ferias").select("*").order("created_at", desc=True).execute()
+            ferias = res_ferias.data if res_ferias.data else []
+        except Exception:
+            ferias = []
+            
+        opciones_f = ["➕ Crear Nueva Feria / Evento"] + [f"{f['titulo']} ({f['estado']})" for f in ferias]
+        f_sel_str = st.selectbox("Selecciona un evento:", opciones_f)
+        
+        if f_sel_str == "➕ Crear Nueva Feria / Evento":
+            with st.form("form_nueva_feria", clear_on_submit=True):
+                f_tit = st.text_input("Título de la Feria/Evento *", placeholder="Ej: Feria 100x100 Mascota")
+                f_lug = st.text_input("Lugar / Recinto")
+                c1, c2 = st.columns(2)
+                with c1: f_ini = st.date_input("Fecha Inicio", value=date.today())
+                with c2: f_fin = st.date_input("Fecha Fin", value=date.today())
+                
+                f_stands = st.text_area("Logística / Stands", placeholder="Ej: 2 stands de 3x2, necesitamos 4 mesas...")
+                f_planos = st.text_input("Enlace a Planos (Canva, Google Drive, OneDrive...)", placeholder="https://...")
+                f_pres = st.number_input("Presupuesto Estimado (€)", min_value=0.0, format="%.2f", step=100.0)
+                
+                if st.form_submit_button("Crear Feria", type="primary", use_container_width=True):
+                    if f_tit:
+                        client.table("eventos_ferias").insert({
+                            "titulo": f_tit, "fecha_inicio": str(f_ini), "fecha_fin": str(f_fin),
+                            "lugar": f_lug, "presupuesto": float(f_pres), "coste_real": 0.0,
+                            "logistica_stands": f_stands, "enlaces_planos": f_planos, "estado": "Planificación"
+                        }).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.success("Feria creada."); time.sleep(1); st.rerun()
+                    else: st.warning("El título es obligatorio.")
+        else:
+            idx = opciones_f.index(f_sel_str) - 1
+            f_actual = ferias[idx]
+            f_id = f_actual['id']
+            
+            c_f1, c_f2, c_f3 = st.columns(3)
+            with c_f1: st.metric("Lugar", f_actual.get('lugar', 'No definido'))
+            with c_f2: 
+                desviacion = f_actual['presupuesto'] - f_actual['coste_real']
+                st.metric("Presupuesto vs Coste", f"{f_actual['coste_real']} €", delta=f"{desviacion:.2f} € (Margen)", delta_color="normal" if desviacion >=0 else "inverse")
+            with c_f3: 
+                f_i = pd.to_datetime(f_actual.get('fecha_inicio', '')).strftime('%d/%m/%Y') if f_actual.get('fecha_inicio') else '---'
+                f_f = pd.to_datetime(f_actual.get('fecha_fin', '')).strftime('%d/%m/%Y') if f_actual.get('fecha_fin') else '---'
+                st.metric("Fechas", f"{f_i} ➔ {f_f}")
+                
+            st.markdown("---")
+            t_ftareas, t_flog = st.tabs(["📌 Lluvia de Ideas y Preparación", "⚙️ Logística, Planos y Ajustes"])
+            
+            with t_ftareas:
+                c_ft1, c_ft2 = st.columns([1, 2])
+                with c_ft1:
+                    st.markdown("##### ➕ Añadir Tarea")
+                    with st.form(f"nueva_tar_fer_{f_id}", clear_on_submit=True):
+                        ft_tar = st.text_input("Tarea / Idea *")
+                        ft_res = st.text_input("Responsable")
+                        ft_lim = st.date_input("Fecha Límite", value=date.today())
+                        if st.form_submit_button("Añadir Tarea", use_container_width=True):
+                            if ft_tar:
+                                client.table("eventos_ferias_tareas").insert({
+                                    "feria_id": f_id, "tarea": ft_tar, "responsable": ft_res, "fecha_limite": str(ft_lim), "estado": "Pendiente ⏳"
+                                }).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success("Añadida."); time.sleep(0.5); st.rerun()
+                            else: st.warning("Escribe la tarea.")
+                with c_ft2:
+                    st.markdown("##### 📋 Panel de Preparación")
+                    res_ft = client.table("eventos_ferias_tareas").select("*").eq("feria_id", f_id).order("fecha_limite", desc=False).execute()
+                    if res_ft.data:
+                        df_ft = pd.DataFrame(res_ft.data)
+                        df_ft['Fecha'] = pd.to_datetime(df_ft['fecha_limite']).dt.strftime('%d/%m/%Y')
+                        df_v_ft = df_ft[['id', 'Fecha', 'tarea', 'responsable', 'estado']].copy()
+                        df_v_ft.insert(0, "Borrar", False)
+                        
+                        ed_ft = st.data_editor(
+                            df_v_ft, hide_index=True, use_container_width=True,
+                            column_config={
+                                "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"),
+                                "id": None, "tarea": "Tarea / Idea", "responsable": "Responsable",
+                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente ⏳", "En curso 🏗️", "Completado ✅"])
+                            }, key=f"ed_ftar_{f_id}"
+                        )
+                        if st.button("💾 Guardar Cambios en Tareas", type="primary"):
+                            for _, r in ed_ft[ed_ft["Borrar"] == True].iterrows():
+                                client.table("eventos_ferias_tareas").delete().eq("id", r['id']).execute()
+                            for _, r in ed_ft[ed_ft["Borrar"] == False].iterrows():
+                                client.table("eventos_ferias_tareas").update({"estado": str(r['estado']), "tarea": str(r['tarea']), "responsable": str(r['responsable'])}).eq("id", r['id']).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            st.success("Guardado"); time.sleep(0.5); st.rerun()
+                    else: st.info("No hay tareas asignadas para esta feria.")
+            
+            with t_flog:
+                with st.form(f"ajustes_fer_{f_id}"):
+                    st.markdown("##### ⚙️ Configuración Logística")
+                    fa_tit = st.text_input("Título", value=f_actual['titulo'])
+                    fa_est = st.selectbox("Estado", ["Planificación", "En curso", "Pausado", "Completado", "Cancelado"], index=["Planificación", "En curso", "Pausado", "Completado", "Cancelado"].index(f_actual.get('estado', 'Planificación')))
+                    c_fa1, c_fa2 = st.columns(2)
+                    with c_fa1: fa_pres = st.number_input("Presupuesto (€)", value=float(f_actual['presupuesto']), step=10.0)
+                    with c_fa2: fa_coste = st.number_input("Coste Real (€)", value=float(f_actual.get('coste_real', 0.0)), step=10.0)
+                    fa_stands = st.text_area("Logística / Stands", value=f_actual.get('logistica_stands', ''), height=100)
+                    fa_planos = st.text_input("Enlace a Planos/Documentos", value=f_actual.get('enlaces_planos', ''))
+                    
+                    if st.form_submit_button("💾 Guardar Detalles Logísticos", type="primary"):
+                        client.table("eventos_ferias").update({
+                            "titulo": fa_tit, "estado": fa_est, "presupuesto": float(fa_pres),
+                            "coste_real": float(fa_coste), "logistica_stands": fa_stands, "enlaces_planos": fa_planos
+                        }).eq("id", f_id).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.success("Detalles guardados."); time.sleep(0.5); st.rerun()
+                        
+                if f_actual.get('enlaces_planos'):
+                    url_plano = f_actual['enlaces_planos']
+                    if not url_plano.startswith('http'): url_plano = 'https://' + url_plano
+                    st.markdown(f"**🔗 Enlace asociado:** <a href='{url_plano}' target='_blank'>Abrir Documento / Plano en nueva pestaña</a>", unsafe_allow_html=True)
+                        
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("🗑️ Eliminar Feria Completa", type="secondary"):
+                    client.table("eventos_ferias_tareas").delete().eq("feria_id", f_id).execute()
+                    client.table("eventos_ferias").delete().eq("id", f_id).execute()
+                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                    st.warning("Feria eliminada."); time.sleep(1); st.rerun()
+
+    with tab_talleres:
+        st.markdown("#### 🎟️ Gestión de Talleres y Cursos (Clientes)")
+        st.info("Organiza cursos presenciales en la tienda (cepillado, nutrición, etc.), controla el aforo y gestiona las reservas de los clientes.")
         c_ev1, c_ev2 = st.columns([1, 2.5])
         with c_ev1:
             with st.container(border=True):
