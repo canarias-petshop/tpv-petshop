@@ -263,7 +263,7 @@ def render_pestana_crm(client):
                             motivo_final = motivo_extra if motivo_solape == "Otro motivo" else motivo_solape
                             servicio_final += f" [Forzado: {motivo_final}]"
                             
-                        servicio_final = f"[ESTADO: Confirmada] {servicio_final}"
+                        servicio_final = f"[ESTADO: Pendiente] {servicio_final}"
                             
                         client.table("citas").insert({
                             "mascotas_id": m_id, "fecha_hora": f"{f_fecha} {hora_final_str}", 
