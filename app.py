@@ -26,6 +26,7 @@ from personal import render_pestana_personal
 from manual import render_pestana_manual
 from marketing import render_pestana_marketing
 from tareas import render_pestana_tareas
+from proyectos_eventos import render_pestana_proyectos_eventos
 
 # --- 1. CONFIGURACIÓN Y ESTILO ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
@@ -379,8 +380,8 @@ if st.session_state.rol == "Admin":
     nombres_pestanas = [
         "💰 Control Caja", "🛒 Caja", "📜 Historial", "👥 Clientes", 
         "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", "📑 Facturación", 
-        "🐶 Servicios Animalarium", "📊 Contabilidad", "🎯 Marketing y Ofertas", 
-        "📈 Estadísticas", "⏱️ Personal", "🏦 Bancos", "✅ Tareas", "📖 Ayuda"
+        "🐶 Servicios Animalarium", "📊 Contabilidad", "🎯 Marketing y Ofertas", "🗓️ Proyectos y Eventos",
+        "� Estadísticas", "⏱️ Personal", "🏦 Bancos", "✅ Tareas", "📖 Ayuda"
     ]
 else:
     nombres_pestanas = [
@@ -403,11 +404,12 @@ if st.session_state.rol == "Admin":
     with tabs[8]: render_pestana_servicios(client)
     with tabs[9]: render_pestana_contabilidad(client)
     with tabs[10]: render_pestana_marketing(client)
-    with tabs[11]: render_pestana_estadisticas(client)
-    with tabs[12]: render_pestana_personal(client)
-    with tabs[13]: render_pestana_bancos(client)
-    with tabs[14]: render_pestana_tareas(client)
-    with tabs[15]: render_pestana_manual()
+    with tabs[11]: render_pestana_proyectos_eventos(client)
+    with tabs[12]: render_pestana_estadisticas(client)
+    with tabs[13]: render_pestana_personal(client)
+    with tabs[14]: render_pestana_bancos(client)
+    with tabs[15]: render_pestana_tareas(client)
+    with tabs[16]: render_pestana_manual()
 else:
     with tabs[0]: render_pestana_caja(client)
     with tabs[1]: render_pestana_tpv(client)
