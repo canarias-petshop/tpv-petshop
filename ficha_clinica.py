@@ -165,8 +165,36 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
             
             if lista_extras_actual:
                 st.markdown("**Extras actuales en esta sesión:**")
-                for e in lista_extras_actual:
-                    st.markdown(f"- {e.get('Servicio')} | {e.get('Minutos', 0)} min | {e.get('Precio', 0):.2f}€ (IGIC: {e.get('IGIC', 0)}%)")
+                for i, e in enumerate(lista_extras_actual):
+                    col_txt, col_btn = st.columns([5, 1], vertical_alignment="center")
+                    with col_txt:
+                        st.markdown(f"- {e.get('Servicio')} | {e.get('Minutos', 0)} min | {e.get('Precio', 0):.2f}€ (IGIC: {e.get('IGIC', 0)}%)")
+                    with col_btn:
+                        if st.button("🗑️", key=f"del_ext_{prefix}_{m_id}_{f_sel_extra.replace('/', '')}_{i}"):
+                            hist_to_save = ed_hist.copy()
+                            idx_to_update = hist_to_save[pd.to_datetime(hist_to_save['Fecha'], errors='coerce').dt.strftime('%d/%m/%Y') == f_sel_extra].index[-1]
+                            lista_ext_save = hist_to_save.at[idx_to_update, 'Extras']
+                            
+                            if isinstance(lista_ext_save, list) and i < len(lista_ext_save):
+                                extra_borrado = lista_ext_save.pop(i)
+                                precio_restar = float(extra_borrado.get('Precio', 0.0))
+                                
+                                precio_desc_actual = float(hist_to_save.at[idx_to_update, 'Precio con desc. (€)'] or 0.0)
+                                hist_to_save.at[idx_to_update, 'Precio con desc. (€)'] = max(0.0, precio_desc_actual - precio_restar)
+                                hist_to_save.at[idx_to_update, 'Extras'] = lista_ext_save
+                                
+                                hist_to_save['Fecha'] = pd.to_datetime(hist_to_save['Fecha'], errors='coerce').dt.strftime('%d/%m/%Y').fillna("")
+                                for ix, r in hist_to_save.iterrows():
+                                    for time_col in ['Inicio de sesión', 'Fin de sesión']:
+                                        val = r.get(time_col)
+                                        val_str = val.strftime('%H:%M') if hasattr(val, 'strftime') else (str(val) if pd.notnull(val) and str(val).strip() not in ["", "None", "NaT"] else "")
+                                        hist_to_save.at[ix, time_col] = val_str
+                                
+                                hist_to_save = hist_to_save.fillna("")
+                                client.table("mascotas").update({"historial_trabajos": hist_to_save.to_dict(orient='records')}).eq("id", m_id).execute()
+                                
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success("Extra eliminado."); time.sleep(0.5); st.rerun()
             
             st.markdown("---")
             c_e1, c_e2, c_e3 = st.columns([2, 1, 1])
