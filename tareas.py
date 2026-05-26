@@ -24,17 +24,16 @@ def render_pestana_tareas(client):
     opciones_asignacion = opciones_rol + [f"👤 {e['nombre']}" for e in empleados]
 
     if is_admin:
-        tabs = st.tabs(["👥 1. Gestión de Empleados", "👔 2. Gestión de Dueños"])
-        tab_empleados, tab_duenos = tabs
+        tabs = st.tabs([" 1. Calendario General", "👤 2. Mi Ficha de Trabajo", "⚙️ 3. Gestión y Dueños"])
+        tab_general, tab_individual, tab_admin = tabs
     else:
-        tabs = st.tabs(["👥 1. Mis Plannings y Tareas"])
-        tab_empleados = tabs[0]
-        tab_duenos = None
+        tabs = st.tabs([" 1. Calendario General", "👤 2. Mi Ficha de Trabajo"])
+        tab_general, tab_individual = tabs[0], tabs[1]
+        tab_admin = None
         
-    with tab_empleados:
-        st.markdown("#### 👥 Plannings y Funciones del Personal")
-        
-        # --- CALENDARIO VISUAL DE EMPLEADOS ---
+    with tab_general:
+        st.markdown("#### 📅 Calendario General de Plannings")
+        st.info("Visión global de todas las rutinas de la tienda para esta semana.")
         c_cale1, c_cale2 = st.columns([1, 3])
         with c_cale1:
             dia_ref_emp = st.date_input("Ver semana del:", value=date.today(), key="sem_ref_emp")
@@ -109,80 +108,164 @@ def render_pestana_tareas(client):
         html_cal_emp += "</tr></table>"
         
         st.markdown(html_cal_emp, unsafe_allow_html=True)
-        st.markdown("---")
         
-        if is_admin:
-            sub_tabs_emp = st.tabs(["📋 Rutinas para Hoy", "✅ Historial de Cumplimiento", "⚙️ Configurar Plannings/Roles"])
-        else:
-            sub_tabs_emp = st.tabs(["📋 Mis Tareas para Hoy", "✅ Mi Historial"])
+    with tab_individual:
+        st.markdown("#### 👤 Mi Ficha de Trabajo Individual")
+        st.info("Selecciona tu nombre para ver y marcar exclusivamente las tareas que debes cubrir hoy.")
         
-        with sub_tabs_emp[0]:
-            st.write(f"**Tareas a realizar hoy ({date.today().strftime('%d/%m/%Y')})**")
-            try:
-                # Leer plannings activos
-                res_plan = client.table("tareas_plannings").select("*").eq("activo", True).execute()
-                # Leer lo que ya se ha completado hoy
-                hoy_str = str(date.today())
-                res_reg = client.table("tareas_registro").select("tarea_id").eq("fecha_completada", hoy_str).execute()
-                tareas_hechas_hoy = [r['tarea_id'] for r in res_reg.data] if res_reg.data else []
+        mi_nombre = st.selectbox("👋 ¿Quién eres?", [e['nombre'] for e in empleados], key="sel_quien_soy_ind")
+        mi_emp_id = mapa_emp.get(mi_nombre)
+        
+        hoy_str = str(date.today())
+        hoy_obj = date.today()
+        
+        try:
+            res_plan = client.table("tareas_plannings").select("*").eq("activo", True).execute()
+            plan_activos_hoy = res_plan.data if res_plan.data else []
+            res_reg = client.table("tareas_registro").select("tarea_id").eq("fecha_completada", hoy_str).execute()
+            tareas_hechas_hoy = [r['tarea_id'] for r in res_reg.data] if res_reg.data else []
+            
+            pendientes_mias = []
+            for p in plan_activos_hoy:
+                if p['id'] in tareas_hechas_hoy: continue
                 
-                if res_plan.data:
-                    pendientes = []
-                    for p in res_plan.data:
-                        # Omitimos las que ya se han hecho hoy
-                        if p['id'] not in tareas_hechas_hoy:
-                            nom_asig = mapa_emp_inv.get(p['empleado_id'], p.get('rol_asignado', 'General'))
-                            pendientes.append({
-                                "id": p['id'], "Tarea": p['tarea'], "Asignado a": nom_asig, "Frecuencia": p['periodicidad']
-                            })
+                created_date = str(p.get('created_at', '2000-01-01'))[:10]
+                aplica = False
+                if hoy_str >= created_date:
+                    if p.get('periodicidad') == 'Diaria': aplica = True
+                    elif p.get('periodicidad') == 'Puntual' and str(p.get('fecha_puntual')) == hoy_str: aplica = True
+                    elif p.get('periodicidad') == 'Semanal' and hoy_obj.weekday() == 0: aplica = True
+                    elif p.get('periodicidad') == 'Mensual' and hoy_obj.day == 1: aplica = True
                     
-                    if pendientes:
-                        df_pend = pd.DataFrame(pendientes)
-                        df_pend.insert(0, "¡Hecho!", False)
-                        
-                        st.info("Marca la casilla '¡Hecho!' y pulsa Guardar para registrar que has completado la tarea.")
-                        ed_pend = st.data_editor(
-                            df_pend, hide_index=True, use_container_width=True,
-                            column_config={"¡Hecho!": st.column_config.CheckboxColumn("✅ ¡Hecho!"), "id": None}, key="ed_tareas_pend"
-                        )
-                        
-                        c_he1, c_he2 = st.columns([1, 2])
-                        with c_he1: emp_completado = st.selectbox("¿Quién completó la(s) tarea(s)?", [e['nombre'] for e in empleados])
-                        with c_he2:
-                            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                            if st.button("💾 Registrar Tareas Completadas", type="primary"):
-                                id_emp_comp = mapa_emp.get(emp_completado)
-                                filas_hechas = ed_pend[ed_pend["¡Hecho!"] == True]
-                                if not filas_hechas.empty and id_emp_comp:
-                                    inserts = [{"tarea_id": r['id'], "empleado_id": id_emp_comp, "fecha_completada": hoy_str} for _, r in filas_hechas.iterrows()]
-                                    client.table("tareas_registro").insert(inserts).execute()
-                                    st.success("¡Buen trabajo! Tareas registradas."); time.sleep(1); st.rerun()
-                    else:
-                        st.success("🎉 ¡Todas las tareas de hoy están completadas!")
-                else:
-                    st.info("No hay plannings configurados.")
-            except:
-                st.error("🔧 Fallo de lectura. Asegúrate de haber ejecutado el nuevo código SQL.")
+                if aplica:
+                    is_for_me = False
+                    if p.get('empleado_id') == mi_emp_id: is_for_me = True
+                    elif not p.get('empleado_id'): is_for_me = True # Para roles y 'Cualquiera'
+                    
+                    if is_for_me:
+                        nom_asig = mapa_emp_inv.get(p.get('empleado_id'), p.get('rol_asignado', 'General'))
+                        pendientes_mias.append({
+                            "id": p['id'], "Tarea": p['tarea'], "Asignado a": nom_asig, "Frecuencia": p['periodicidad']
+                        })
             
-        with sub_tabs_emp[1]:
-            st.write("**Historial (Quién hizo qué)**")
-            try:
-                res_hist = client.table("tareas_registro").select("fecha_completada, personal_empleados(nombre), tareas_plannings(tarea, periodicidad)").order("fecha_completada", desc=True).limit(100).execute()
-                if res_hist.data:
-                    hist_data = []
-                    for h in res_hist.data:
-                        emp = h.get('personal_empleados', {}).get('nombre', 'Desconocido') if h.get('personal_empleados') else 'Desconocido'
-                        tar = h.get('tareas_plannings', {}).get('tarea', 'Tarea borrada') if h.get('tareas_plannings') else 'Tarea borrada'
-                        per = h.get('tareas_plannings', {}).get('periodicidad', '-') if h.get('tareas_plannings') else '-'
-                        fecha = pd.to_datetime(h['fecha_completada']).strftime('%d/%m/%Y')
-                        hist_data.append({"Fecha": fecha, "Empleado": emp, "Tarea": tar, "Tipo": per})
-                    st.dataframe(pd.DataFrame(hist_data), use_container_width=True, hide_index=True)
-                else:
-                    st.info("Aún no hay registros de tareas completadas.")
-            except: pass
+            if pendientes_mias:
+                df_pend = pd.DataFrame(pendientes_mias)
+                df_pend.insert(0, "¡Hecho!", False)
+                
+                st.markdown(f"**Tus tareas para hoy ({hoy_obj.strftime('%d/%m/%Y')})**")
+                ed_pend = st.data_editor(
+                    df_pend, hide_index=True, use_container_width=True,
+                    column_config={"¡Hecho!": st.column_config.CheckboxColumn("✅ ¡Hecho!"), "id": None}, key="ed_tareas_pend_ind"
+                )
+                if st.button("💾 Registrar Mis Tareas Completadas", type="primary", use_container_width=True):
+                    filas_hechas = ed_pend[ed_pend["¡Hecho!"] == True]
+                    if not filas_hechas.empty and mi_emp_id:
+                        inserts = [{"tarea_id": r['id'], "empleado_id": mi_emp_id, "fecha_completada": hoy_str} for _, r in filas_hechas.iterrows()]
+                        client.table("tareas_registro").insert(inserts).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.success("¡Buen trabajo! Tareas registradas."); time.sleep(1); st.rerun()
+            else:
+                st.success(f"🎉 ¡Genial, {mi_nombre}! No tienes tareas pendientes asignadas para hoy.")
+        except Exception as e:
+            st.error(f"Error cargando tareas individuales: {e}")
+
+    if tab_admin:
+        with tab_admin:
+            st.markdown("#### ⚙️ Configuración y Administración General")
+            sub_admin = st.tabs(["👔 1. Calendario y Tareas de Dueños", "⚙️ 2. Configurar Plannings", "✅ 3. Historial de Cumplimiento"])
             
-        if is_admin:
-            with sub_tabs_emp[2]:
+            with sub_admin[0]:
+                c_cal1, c_cal2 = st.columns([1, 3])
+                with c_cal1:
+                    dia_ref_due = st.date_input("Ver semana del:", value=date.today(), key="sem_ref_due")
+                
+                start_week_due = dia_ref_due - timedelta(days=dia_ref_due.weekday())
+                end_week_due = start_week_due + timedelta(days=6)
+                
+                try:
+                    res_cal_due = client.table("tareas_duenos").select("*").gte("fecha_programada", str(start_week_due)).lte("fecha_programada", str(end_week_due)).execute()
+                    tareas_sem = res_cal_due.data if res_cal_due.data else []
+                except:
+                    tareas_sem = []
+                    
+                dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+                html_cal_due = '''
+                <style>
+                    .cal-due-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; background-color: white; margin-bottom: 20px;}
+                    .cal-due-table th { background-color: #005275; color: white; padding: 6px; text-align: center; border: 1px solid #ddd; }
+                    .cal-due-table td { border: 1px solid #ddd; vertical-align: top; padding: 5px; height: 100px; background-color: #fafafa; }
+                    .day-head-due { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
+                    .td-today-due { background-color: #fffde7 !important; border: 2px solid #fbc02d !important; }
+                    .tarea-card { background-color: white; border-left: 4px solid #f57c00; padding: 5px; margin-bottom: 5px; border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 0.85em; line-height: 1.2; word-wrap: break-word;}
+                    .t-pend { border-left-color: #f57c00; }
+                    .t-cur { border-left-color: #2196f3; }
+                    .t-comp { border-left-color: #4caf50; opacity: 0.7; text-decoration: line-through; }
+                </style>
+                <table class="cal-due-table"><tr>
+                '''
+                for d_name in dias_semana_nombres: html_cal_due += f"<th>{d_name}</th>"
+                html_cal_due += "</tr><tr>"
+                
+                hoy_str_g = str(date.today())
+                for i in range(7):
+                    d_obj = start_week_due + timedelta(days=i)
+                    d_str = str(d_obj)
+                    td_class = "td-today-due" if d_str == hoy_str_g else ""
+                    
+                    html_cal_due += f"<td class='{td_class}'>"
+                    html_cal_due += f"<div class='day-head-due'>{d_obj.strftime('%d/%m')}</div>"
+                    
+                    t_dia = [t for t in tareas_sem if t.get('fecha_programada') == d_str]
+                    for t in t_dia:
+                        est = t.get('estado', '')
+                        t_class = "t-pend"; icon = "⏳"
+                        if "curso" in est.lower(): t_class = "t-cur"; icon = "🏗️"
+                        elif "completada" in est.lower(): t_class = "t-comp"; icon = "✅"
+                        html_cal_due += f"<div class='tarea-card {t_class}'><b>{icon} {t['titulo']}</b><br><span style='color:#666;'>{t.get('periodicidad','')}</span></div>"
+                        
+                    html_cal_due += "</td>"
+                html_cal_due += "</tr></table>"
+                
+                st.markdown(html_cal_due, unsafe_allow_html=True)
+                st.markdown("---")
+                
+                c_due1, c_due2 = st.columns([1, 2])
+                with c_due1:
+                    with st.form("form_nueva_gestion", clear_on_submit=True):
+                        st.markdown("##### ➕ Nueva Gestión / Reunión")
+                        g_titulo = st.text_input("Asunto / Tarea *", key=f"g_tit_{st.session_state.llave_tarea_due}")
+                        g_fecha = st.date_input("Fecha", value=date.today(), key=f"g_fec_{st.session_state.llave_tarea_due}")
+                        g_frecuencia = st.selectbox("Periodicidad", ["Puntual", "Semanal", "Mensual", "Anual"], key=f"g_fre_{st.session_state.llave_tarea_due}")
+                        g_notas = st.text_area("Notas", key=f"g_not_{st.session_state.llave_tarea_due}")
+                        
+                        if st.form_submit_button("Programar", type="primary", use_container_width=True):
+                            if g_titulo:
+                                client.table("tareas_duenos").insert({"titulo": g_titulo, "fecha_programada": str(g_fecha), "periodicidad": g_frecuencia, "notas": g_notas, "estado": "Pendiente ⏳"}).execute()
+                                st.session_state.llave_tarea_due += 1
+                                st.success("Agendado."); time.sleep(0.5); st.rerun()
+                            else: st.warning("El asunto es obligatorio.")
+                        
+                with c_due2:
+                    try:
+                        res_due = client.table("tareas_duenos").select("*").order("fecha_programada", desc=False).execute()
+                        if res_due.data:
+                            df_due = pd.DataFrame(res_due.data)
+                            df_due['Fecha'] = pd.to_datetime(df_due['fecha_programada']).dt.strftime('%d/%m/%Y')
+                            df_v_due = df_due[['id', 'Fecha', 'titulo', 'periodicidad', 'estado', 'notas']].copy()
+                            df_v_due.insert(0, "Borrar", False)
+                            
+                            ed_due = st.data_editor(
+                                df_v_due, hide_index=True, use_container_width=True, height=350,
+                                column_config={"Borrar": st.column_config.CheckboxColumn("🗑️", width="small"), "id": None, "titulo": "Asunto", "periodicidad": "Frecuencia", "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente ⏳", "En curso 🏗️", "Completada ✅"])}, key="ed_duenos"
+                            )
+                            if st.button("💾 Guardar Cambios", type="primary"):
+                                for _, rb in ed_due[ed_due["Borrar"] == True].iterrows(): client.table("tareas_duenos").delete().eq("id", rb['id']).execute()
+                                for _, rv in ed_due[ed_due["Borrar"] == False].iterrows(): client.table("tareas_duenos").update({"titulo": str(rv['titulo']), "estado": str(rv['estado']), "notas": str(rv['notas'])}).eq("id", rv['id']).execute()
+                                st.success("Guardado"); time.sleep(0.5); st.rerun()
+                        else: st.info("No hay gestiones pendientes.")
+                    except: pass
+                    
+            with sub_admin[1]:
                 c_p1, c_p2 = st.columns([1, 2])
                 with c_p1:
                     with st.form("form_nuevo_plan", clear_on_submit=True):
@@ -224,98 +307,18 @@ def render_pestana_tareas(client):
                                     client.table("tareas_plannings").update({"activo": False}).eq("id", rb['id']).execute()
                                 st.success("Actualizado"); time.sleep(0.5); st.rerun()
                     except: pass
-                
-    if tab_duenos:
-        with tab_duenos:
-            st.markdown("#### 👔 Gestiones, Reuniones y Calendario de Gerencia")
-            
-            # --- CALENDARIO VISUAL DE GERENCIA ---
-            c_cal1, c_cal2 = st.columns([1, 3])
-            with c_cal1:
-                dia_ref_due = st.date_input("Ver semana del:", value=date.today(), key="sem_ref_due")
-            
-            start_week_due = dia_ref_due - timedelta(days=dia_ref_due.weekday())
-            end_week_due = start_week_due + timedelta(days=6)
-            
-            try:
-                res_cal_due = client.table("tareas_duenos").select("*").gte("fecha_programada", str(start_week_due)).lte("fecha_programada", str(end_week_due)).execute()
-                tareas_sem = res_cal_due.data if res_cal_due.data else []
-            except:
-                tareas_sem = []
-                
-            dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-            html_cal_due = '''
-            <style>
-                .cal-due-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; background-color: white; margin-bottom: 20px;}
-                .cal-due-table th { background-color: #005275; color: white; padding: 6px; text-align: center; border: 1px solid #ddd; }
-                .cal-due-table td { border: 1px solid #ddd; vertical-align: top; padding: 5px; height: 100px; background-color: #fafafa; }
-                .day-head-due { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
-                .td-today-due { background-color: #fffde7 !important; border: 2px solid #fbc02d !important; }
-                .tarea-card { background-color: white; border-left: 4px solid #f57c00; padding: 5px; margin-bottom: 5px; border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 0.85em; line-height: 1.2; word-wrap: break-word;}
-                .t-pend { border-left-color: #f57c00; }
-                .t-cur { border-left-color: #2196f3; }
-                .t-comp { border-left-color: #4caf50; opacity: 0.7; text-decoration: line-through; }
-            </style>
-            <table class="cal-due-table"><tr>
-            '''
-            for d_name in dias_semana_nombres: html_cal_due += f"<th>{d_name}</th>"
-            html_cal_due += "</tr><tr>"
-            
-            hoy_str = str(date.today())
-            for i in range(7):
-                d_obj = start_week_due + timedelta(days=i)
-                d_str = str(d_obj)
-                td_class = "td-today-due" if d_str == hoy_str else ""
-                
-                html_cal_due += f"<td class='{td_class}'>"
-                html_cal_due += f"<div class='day-head-due'>{d_obj.strftime('%d/%m')}</div>"
-                
-                t_dia = [t for t in tareas_sem if t.get('fecha_programada') == d_str]
-                for t in t_dia:
-                    est = t.get('estado', '')
-                    t_class = "t-pend"; icon = "⏳"
-                    if "curso" in est.lower(): t_class = "t-cur"; icon = "🏗️"
-                    elif "completada" in est.lower(): t_class = "t-comp"; icon = "✅"
-                    html_cal_due += f"<div class='tarea-card {t_class}'><b>{icon} {t['titulo']}</b><br><span style='color:#666;'>{t.get('periodicidad','')}</span></div>"
-                    
-                html_cal_due += "</td>"
-            html_cal_due += "</tr></table>"
-            
-            st.markdown(html_cal_due, unsafe_allow_html=True)
-            st.markdown("---")
-            
-            c_due1, c_due2 = st.columns([1, 2])
-            with c_due1:
-                with st.form("form_nueva_gestion", clear_on_submit=True):
-                    st.markdown("##### ➕ Nueva Gestión / Reunión")
-                    g_titulo = st.text_input("Asunto / Tarea *", key=f"g_tit_{st.session_state.llave_tarea_due}")
-                    g_fecha = st.date_input("Fecha", value=date.today(), key=f"g_fec_{st.session_state.llave_tarea_due}")
-                    g_frecuencia = st.selectbox("Periodicidad", ["Puntual", "Semanal", "Mensual", "Anual"], key=f"g_fre_{st.session_state.llave_tarea_due}")
-                    g_notas = st.text_area("Notas", key=f"g_not_{st.session_state.llave_tarea_due}")
-                    
-                    if st.form_submit_button("Programar", type="primary", use_container_width=True):
-                        if g_titulo:
-                            client.table("tareas_duenos").insert({"titulo": g_titulo, "fecha_programada": str(g_fecha), "periodicidad": g_frecuencia, "notas": g_notas, "estado": "Pendiente ⏳"}).execute()
-                            st.session_state.llave_tarea_due += 1
-                            st.success("Agendado."); time.sleep(0.5); st.rerun()
-                        else: st.warning("El asunto es obligatorio.")
-                    
-            with c_due2:
+            with sub_admin[2]:
                 try:
-                    res_due = client.table("tareas_duenos").select("*").order("fecha_programada", desc=False).execute()
-                    if res_due.data:
-                        df_due = pd.DataFrame(res_due.data)
-                        df_due['Fecha'] = pd.to_datetime(df_due['fecha_programada']).dt.strftime('%d/%m/%Y')
-                        df_v_due = df_due[['id', 'Fecha', 'titulo', 'periodicidad', 'estado', 'notas']].copy()
-                        df_v_due.insert(0, "Borrar", False)
-                        
-                        ed_due = st.data_editor(
-                            df_v_due, hide_index=True, use_container_width=True, height=350,
-                            column_config={"Borrar": st.column_config.CheckboxColumn("🗑️", width="small"), "id": None, "titulo": "Asunto", "periodicidad": "Frecuencia", "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente ⏳", "En curso 🏗️", "Completada ✅"])}, key="ed_duenos"
-                        )
-                        if st.button("💾 Guardar Cambios", type="primary"):
-                            for _, rb in ed_due[ed_due["Borrar"] == True].iterrows(): client.table("tareas_duenos").delete().eq("id", rb['id']).execute()
-                            for _, rv in ed_due[ed_due["Borrar"] == False].iterrows(): client.table("tareas_duenos").update({"titulo": str(rv['titulo']), "estado": str(rv['estado']), "notas": str(rv['notas'])}).eq("id", rv['id']).execute()
-                            st.success("Guardado"); time.sleep(0.5); st.rerun()
-                    else: st.info("No hay gestiones pendientes.")
+                    res_hist = client.table("tareas_registro").select("fecha_completada, personal_empleados(nombre), tareas_plannings(tarea, periodicidad)").order("fecha_completada", desc=True).limit(100).execute()
+                    if res_hist.data:
+                        hist_data = []
+                        for h in res_hist.data:
+                            emp = h.get('personal_empleados', {}).get('nombre', 'Desconocido') if h.get('personal_empleados') else 'Desconocido'
+                            tar = h.get('tareas_plannings', {}).get('tarea', 'Tarea borrada') if h.get('tareas_plannings') else 'Tarea borrada'
+                            per = h.get('tareas_plannings', {}).get('periodicidad', '-') if h.get('tareas_plannings') else '-'
+                            fecha = pd.to_datetime(h['fecha_completada']).strftime('%d/%m/%Y')
+                            hist_data.append({"Fecha": fecha, "Empleado": emp, "Tarea": tar, "Tipo": per})
+                        st.dataframe(pd.DataFrame(hist_data), use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Aún no hay registros de tareas completadas.")
                 except: pass
