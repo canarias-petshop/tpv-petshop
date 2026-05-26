@@ -270,7 +270,6 @@ if st.session_state.get('rol') != "Admin":
     bloqueo = comprobar_fichajes_pendientes()
 
 if bloqueo:
-    st.markdown("<style>.block-container { max-width: 700px !important; padding-top: 50px !important; }</style>", unsafe_allow_html=True)
     if bloqueo['tipo'] == "ENTRADA":
         st.error(f"### 🚨 Control de Presencia: Falta Fichaje")
         st.warning(f"El turno de **{bloqueo['empleado']}** comenzaba a las **{bloqueo['hora'].strftime('%H:%M')}** y no consta su entrada en el sistema.")
@@ -359,7 +358,7 @@ if bloqueo:
                 st.selectbox("Motivo", ["Sigue atendiendo clientes", "Saldrá más tarde", "Limpiando tienda"])
                 if st.form_submit_button("Posponer aviso", use_container_width=True):
                     st.session_state.alertas_fichaje_ignoradas.append(bloqueo['id']); st.rerun()
-    st.stop()
+    st.markdown("---")
 
 # --- CABECERA COMPACTA ---
 c_logo, c_titulo, c_rol = st.columns([0.08, 0.82, 0.10], vertical_alignment="center")
