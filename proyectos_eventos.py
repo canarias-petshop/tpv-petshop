@@ -6,46 +6,129 @@ import time
 def render_pestana_proyectos_eventos(client):
     st.markdown("<h3 style='margin-top: -15px;'>🗓️ Proyectos, Reuniones y Eventos</h3>", unsafe_allow_html=True)
     
-    tab_kanban, tab_reuniones, tab_eventos = st.tabs([
-        "📋 Proyectos (Kanban)", 
+    tab_macro, tab_reuniones, tab_eventos = st.tabs([
+        "🚀 Proyectos de Expansión", 
         "⛔ Reuniones y Bloqueos", 
         "🎟️ Eventos y Talleres"
     ])
 
-    with tab_kanban:
-        st.markdown("#### 📋 Panel Kanban de Proyectos")
-        st.info("Visualiza las tareas de gerencia por estados (Crea y edita tareas desde la pestaña 'Tareas' > 'Gestión de Dueños').")
+    with tab_macro:
+        st.markdown("#### 🚀 Gestión de Macro-Proyectos")
+        st.info("Administra proyectos a gran escala (Ej: Abrir nueva clínica, Reformas). Para tareas del día a día, usa la pestaña 'Tareas'.")
+        
         try:
-            res_due = client.table("tareas_duenos").select("*").order("fecha_programada", desc=False).execute()
-            if res_due.data:
-                df_due = pd.DataFrame(res_due.data)
-                c_pend, c_cur, c_comp = st.columns(3)
+            res_macro = client.table("proyectos_macro").select("*").order("created_at", desc=True).execute()
+            proyectos = res_macro.data if res_macro.data else []
+        except Exception:
+            proyectos = []
+            
+        opciones_proy = ["➕ Crear Nuevo Proyecto"] + [f"{p['titulo']} ({p['estado']})" for p in proyectos]
+        proy_sel_str = st.selectbox("Selecciona un proyecto:", opciones_proy)
+        
+        if proy_sel_str == "➕ Crear Nuevo Proyecto":
+            with st.form("form_nuevo_macro", clear_on_submit=True):
+                m_tit = st.text_input("Título del Proyecto *", placeholder="Ej: Apertura Clínica Veterinaria")
+                m_desc = st.text_area("Descripción / Objetivos")
+                c1, c2 = st.columns(2)
+                with c1: m_ini = st.date_input("Fecha Inicio", value=date.today())
+                with c2: m_fin = st.date_input("Fecha Fin Estimada", value=date.today())
+                c3, c4 = st.columns(2)
+                with c3: m_pres = st.number_input("Presupuesto Estimado (€)", min_value=0.0, format="%.2f", step=100.0)
+                with c4: m_est = st.selectbox("Estado", ["Planificación", "En curso", "Pausado", "Completado", "Cancelado"])
                 
-                with c_pend:
-                    st.markdown("<h5 style='background-color:#ffebee; padding:10px; border-radius:5px;'>⏳ Pendientes</h5>", unsafe_allow_html=True)
-                    for _, r in df_due[df_due['estado'].str.contains('Pendiente')].iterrows():
-                        with st.container(border=True):
-                            st.markdown(f"**{r['titulo']}**")
-                            st.caption(f"📅 {pd.to_datetime(r['fecha_programada']).strftime('%d/%m/%Y')}")
-                            if r.get('notas'): st.write(f"📝 {r['notas']}")
-                with c_cur:
-                    st.markdown("<h5 style='background-color:#fff3e0; padding:10px; border-radius:5px;'>🏗️ En curso</h5>", unsafe_allow_html=True)
-                    for _, r in df_due[df_due['estado'].str.contains('curso')].iterrows():
-                        with st.container(border=True):
-                            st.markdown(f"**{r['titulo']}**")
-                            st.caption(f"📅 {pd.to_datetime(r['fecha_programada']).strftime('%d/%m/%Y')}")
-                            if r.get('notas'): st.write(f"📝 {r['notas']}")
-                with c_comp:
-                    st.markdown("<h5 style='background-color:#e8f5e9; padding:10px; border-radius:5px;'>✅ Completadas</h5>", unsafe_allow_html=True)
-                    for _, r in df_due[df_due['estado'].str.contains('Completada')].iterrows():
-                        with st.container(border=True):
-                            st.markdown(f"**{r['titulo']}**")
-                            st.caption(f"📅 {pd.to_datetime(r['fecha_programada']).strftime('%d/%m/%Y')}")
-                            if r.get('notas'): st.write(f"📝 {r['notas']}")
-            else:
-                st.info("No hay proyectos o tareas en la base de datos.")
-        except Exception as e:
-            st.error(f"Error cargando Kanban: {e}")
+                if st.form_submit_button("Crear Proyecto", type="primary", use_container_width=True):
+                    if m_tit:
+                        client.table("proyectos_macro").insert({
+                            "titulo": m_tit, "descripcion": m_desc, "estado": m_est,
+                            "fecha_inicio": str(m_ini), "fecha_fin_estimada": str(m_fin),
+                            "presupuesto_estimado": float(m_pres), "coste_real": 0.0
+                        }).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.success("Proyecto creado."); time.sleep(1); st.rerun()
+                    else: st.warning("El título es obligatorio.")
+        else:
+            idx = opciones_proy.index(proy_sel_str) - 1
+            p_actual = proyectos[idx]
+            p_id = p_actual['id']
+            
+            c_m1, c_m2, c_m3 = st.columns(3)
+            with c_m1: st.metric("Presupuesto Estimado", f"{p_actual['presupuesto_estimado']:.2f} €")
+            with c_m2: 
+                desviacion = p_actual['presupuesto_estimado'] - p_actual['coste_real']
+                st.metric("Coste Real Acumulado", f"{p_actual['coste_real']:.2f} €", delta=f"{desviacion:.2f} € (Margen)", delta_color="normal" if desviacion >=0 else "inverse")
+            with c_m3: 
+                f_i = pd.to_datetime(p_actual.get('fecha_inicio', '')).strftime('%d/%m/%Y') if p_actual.get('fecha_inicio') else '---'
+                f_f = pd.to_datetime(p_actual.get('fecha_fin_estimada', '')).strftime('%d/%m/%Y') if p_actual.get('fecha_fin_estimada') else '---'
+                st.metric("Fechas", f"{f_i} ➔ {f_f}")
+            
+            st.markdown("---")
+            t_hitos, t_ajustes = st.tabs(["📌 Hitos y Tareas (Línea de tiempo)", "⚙️ Ajustes del Proyecto"])
+            
+            with t_hitos:
+                c_h1, c_h2 = st.columns([1, 2])
+                with c_h1:
+                    st.markdown("##### ➕ Añadir Hito")
+                    with st.form(f"nuevo_hito_{p_id}", clear_on_submit=True):
+                        h_tit = st.text_input("Título del Hito *")
+                        h_lim = st.date_input("Fecha Límite", value=date.today())
+                        h_res = st.text_input("Responsable")
+                        if st.form_submit_button("Añadir Hito", use_container_width=True):
+                            if h_tit:
+                                client.table("proyectos_hitos").insert({
+                                    "proyecto_id": p_id, "titulo": h_tit, "fecha_limite": str(h_lim), "responsable": h_res, "estado": "Pendiente ⏳"
+                                }).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success("Añadido."); time.sleep(0.5); st.rerun()
+                            else: st.warning("Escribe el título.")
+                with c_h2:
+                    st.markdown("##### 📅 Calendario de Hitos")
+                    res_hitos = client.table("proyectos_hitos").select("*").eq("proyecto_id", p_id).order("fecha_limite", desc=False).execute()
+                    if res_hitos.data:
+                        df_hitos = pd.DataFrame(res_hitos.data)
+                        df_hitos['Fecha'] = pd.to_datetime(df_hitos['fecha_limite']).dt.strftime('%d/%m/%Y')
+                        
+                        df_v_hitos = df_hitos[['id', 'Fecha', 'titulo', 'responsable', 'estado']].copy()
+                        df_v_hitos.insert(0, "Borrar", False)
+                        
+                        ed_h = st.data_editor(
+                            df_v_hitos, hide_index=True, use_container_width=True,
+                            column_config={
+                                "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"),
+                                "id": None, "titulo": "Hito", "responsable": "Responsable",
+                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente ⏳", "En curso 🏗️", "Completado ✅", "Bloqueado 🛑"])
+                            }, key=f"ed_hitos_{p_id}"
+                        )
+                        if st.button("💾 Guardar Cambios en Hitos", type="primary"):
+                            for _, r in ed_h[ed_h["Borrar"] == True].iterrows():
+                                client.table("proyectos_hitos").delete().eq("id", r['id']).execute()
+                            for _, r in ed_h[ed_h["Borrar"] == False].iterrows():
+                                client.table("proyectos_hitos").update({"estado": str(r['estado']), "titulo": str(r['titulo']), "responsable": str(r['responsable'])}).eq("id", r['id']).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            st.success("Guardado"); time.sleep(0.5); st.rerun()
+                    else: st.info("No hay hitos en este proyecto. Añade el primero en el panel izquierdo.")
+            
+            with t_ajustes:
+                with st.form(f"ajustes_proy_{p_id}"):
+                    st.markdown("##### ⚙️ Propiedades del Proyecto")
+                    a_tit = st.text_input("Título", value=p_actual['titulo'])
+                    a_est = st.selectbox("Estado", ["Planificación", "En curso", "Pausado", "Completado", "Cancelado"], index=["Planificación", "En curso", "Pausado", "Completado", "Cancelado"].index(p_actual['estado']))
+                    c_a1, c_a2 = st.columns(2)
+                    with c_a1: a_pres = st.number_input("Presupuesto Estimado (€)", value=float(p_actual['presupuesto_estimado']), step=10.0)
+                    with c_a2: a_coste = st.number_input("Coste Real Acumulado (€)", value=float(p_actual['coste_real']), step=10.0)
+                    a_desc = st.text_area("Descripción / Notas", value=p_actual.get('descripcion', ''))
+                    if st.form_submit_button("💾 Guardar Ajustes del Proyecto", type="primary"):
+                        client.table("proyectos_macro").update({
+                            "titulo": a_tit, "estado": a_est, "presupuesto_estimado": float(a_pres),
+                            "coste_real": float(a_coste), "descripcion": a_desc
+                        }).eq("id", p_id).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.success("Ajustes guardados."); time.sleep(0.5); st.rerun()
+                        
+                if st.button("🗑️ Eliminar Proyecto Completo", type="secondary"):
+                    client.table("proyectos_hitos").delete().eq("proyecto_id", p_id).execute()
+                    client.table("proyectos_macro").delete().eq("id", p_id).execute()
+                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                    st.warning("Proyecto eliminado."); time.sleep(1); st.rerun()
 
     with tab_reuniones:
         st.markdown("#### ⛔ Gestión de Reuniones y Bloqueos de Agenda")
