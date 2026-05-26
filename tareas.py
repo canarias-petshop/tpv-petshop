@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import time
-from datetime import date
+from datetime import date, timedelta
 
 def render_pestana_tareas(client):
     if 'llave_tarea_plan' not in st.session_state: st.session_state.llave_tarea_plan = 0
@@ -151,6 +151,61 @@ def render_pestana_tareas(client):
     if tab_duenos:
         with tab_duenos:
             st.markdown("#### 👔 Gestiones, Reuniones y Calendario de Gerencia")
+            
+            # --- CALENDARIO VISUAL DE GERENCIA ---
+            c_cal1, c_cal2 = st.columns([1, 3])
+            with c_cal1:
+                dia_ref_due = st.date_input("Ver semana del:", value=date.today(), key="sem_ref_due")
+            
+            start_week_due = dia_ref_due - timedelta(days=dia_ref_due.weekday())
+            end_week_due = start_week_due + timedelta(days=6)
+            
+            try:
+                res_cal_due = client.table("tareas_duenos").select("*").gte("fecha_programada", str(start_week_due)).lte("fecha_programada", str(end_week_due)).execute()
+                tareas_sem = res_cal_due.data if res_cal_due.data else []
+            except:
+                tareas_sem = []
+                
+            dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+            html_cal_due = '''
+            <style>
+                .cal-due-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; background-color: white; margin-bottom: 20px;}
+                .cal-due-table th { background-color: #005275; color: white; padding: 6px; text-align: center; border: 1px solid #ddd; }
+                .cal-due-table td { border: 1px solid #ddd; vertical-align: top; padding: 5px; height: 100px; background-color: #fafafa; }
+                .day-head-due { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
+                .td-today-due { background-color: #fffde7 !important; border: 2px solid #fbc02d !important; }
+                .tarea-card { background-color: white; border-left: 4px solid #f57c00; padding: 5px; margin-bottom: 5px; border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 0.85em; line-height: 1.2; word-wrap: break-word;}
+                .t-pend { border-left-color: #f57c00; }
+                .t-cur { border-left-color: #2196f3; }
+                .t-comp { border-left-color: #4caf50; opacity: 0.7; text-decoration: line-through; }
+            </style>
+            <table class="cal-due-table"><tr>
+            '''
+            for d_name in dias_semana_nombres: html_cal_due += f"<th>{d_name}</th>"
+            html_cal_due += "</tr><tr>"
+            
+            hoy_str = str(date.today())
+            for i in range(7):
+                d_obj = start_week_due + timedelta(days=i)
+                d_str = str(d_obj)
+                td_class = "td-today-due" if d_str == hoy_str else ""
+                
+                html_cal_due += f"<td class='{td_class}'>"
+                html_cal_due += f"<div class='day-head-due'>{d_obj.strftime('%d/%m')}</div>"
+                
+                t_dia = [t for t in tareas_sem if t.get('fecha_programada') == d_str]
+                for t in t_dia:
+                    est = t.get('estado', '')
+                    t_class = "t-pend"; icon = "⏳"
+                    if "curso" in est.lower(): t_class = "t-cur"; icon = "🏗️"
+                    elif "completada" in est.lower(): t_class = "t-comp"; icon = "✅"
+                    html_cal_due += f"<div class='tarea-card {t_class}'><b>{icon} {t['titulo']}</b><br><span style='color:#666;'>{t.get('periodicidad','')}</span></div>"
+                    
+                html_cal_due += "</td>"
+            html_cal_due += "</tr></table>"
+            
+            st.markdown(html_cal_due, unsafe_allow_html=True)
+            st.markdown("---")
             
             c_due1, c_due2 = st.columns([1, 2])
             with c_due1:
