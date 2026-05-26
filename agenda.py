@@ -77,6 +77,12 @@ def get_turnos_ag_cached(_client, v, f_ini, f_fin):
         else: break
     return _all
 
+@st.cache_data(show_spinner=False, ttl=15)
+def get_bloqueos_ag_cached(_client, v, f_ini, f_fin):
+    try:
+        return _client.table("agenda_bloqueos").select("*").gte("fecha", f_ini).lte("fecha", f_fin).execute().data
+    except: return []
+
 def render_pestana_agenda(client):
     if 'llave_agenda_cita' not in st.session_state: st.session_state.llave_agenda_cita = 0
 
@@ -528,6 +534,8 @@ def render_pestana_agenda(client):
         df_cuadrante["Estado"] = "🟩 Libre"
         df_cuadrante["Detalle"] = ""
         
+        bloqueos_dia = get_bloqueos_ag_cached(client, st.session_state.get('db_version', 0), str(dia_ver), str(dia_ver))
+        
         if res_citas.data:
             for c in res_citas.data:
                 try:
@@ -574,6 +582,23 @@ def render_pestana_agenda(client):
                                     df_cuadrante.loc[idx, "Detalle"] = texto_add
                 except: pass
                 
+        if bloqueos_dia:
+            for b in bloqueos_dia:
+                try:
+                    dt_start = pd.to_datetime(f"{dia_ver} {b['hora_inicio']}")
+                    dt_end = pd.to_datetime(f"{dia_ver} {b['hora_fin']}")
+                    for idx, row in df_cuadrante.iterrows():
+                        q_time = pd.to_datetime(f"{dia_ver} {row['Hora']}")
+                        if dt_start <= q_time < dt_end:
+                            df_cuadrante.loc[idx, "Estado"] = "⛔ Bloqueo"
+                            texto_add = f"⛔ [{b.get('empleado_afectado','Todas')}] {b['titulo']}"
+                            if df_cuadrante.loc[idx, "Detalle"]:
+                                if texto_add not in df_cuadrante.loc[idx, "Detalle"]:
+                                    df_cuadrante.loc[idx, "Detalle"] = texto_add + "  |  " + df_cuadrante.loc[idx, "Detalle"]
+                            else:
+                                df_cuadrante.loc[idx, "Detalle"] = texto_add
+                except: pass
+                
         df_cuadrante = df_cuadrante.sort_values("Hora").reset_index(drop=True)
         
         # --- Renderizado de Cuadrante Diario ---
@@ -594,6 +619,7 @@ def render_pestana_agenda(client):
             .st-ocupado { color: #d32f2f; }
             .st-liberado { color: #1976d2; }
             .st-multiple { color: #f57c00; }
+            .st-bloqueo { color: #9c27b0; font-weight: bold; }
             </style>
             <div style="max-height: 600px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
             <table class="daily-table">
@@ -605,6 +631,7 @@ def render_pestana_agenda(client):
                 if "Ocupado" in estado: st_class = "st-ocupado"
                 elif "Liberado" in estado: st_class = "st-liberado"
                 elif "Múltiple" in estado: st_class = "st-multiple"
+                elif "Bloqueo" in estado: st_class = "st-bloqueo"
                 
                 html_daily += f"<tr class='row-hover'><td class='time-col'>{row['Hora']}</td><td class='status-col {st_class}'>{estado}</td><td class='detail-col'>{row['Detalle']}</td></tr>"
                 
@@ -631,6 +658,7 @@ def render_pestana_agenda(client):
         
         dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
         turnos_semana = get_turnos_ag_cached(client, st.session_state.get('db_version', 0), str(start_of_week), str(end_of_period))
+        bloqueos_semana = get_bloqueos_ag_cached(client, st.session_state.get('db_version', 0), str(start_of_week), str(end_of_period))
         
         html_week = '''
         <style>
@@ -680,6 +708,14 @@ def render_pestana_agenda(client):
                             t_textos.append(f"<b>{nm}</b>: {tr}")
                     if t_textos:
                         html_week += f"<div class='turno-card'>👥 {'<br>'.join(t_textos)}</div>"
+                
+                # Bloqueos y Reuniones
+                b_hoy = [b for b in bloqueos_semana if b['fecha'] == d_str]
+                if b_hoy:
+                    for b in b_hoy:
+                        h_ini = b['hora_inicio'][:5]
+                        h_fin = b['hora_fin'][:5]
+                        html_week += f"<div class='cita-card' style='border-left-color: #9c27b0; background-color: #f3e5f5;'><b>{h_ini}-{h_fin}</b> ⛔<br>📌 {b['titulo']}<br>👥 Afecta: {b.get('empleado_afectado','Todas')}</div>"
                 
                 # Citas
                 citas_hoy = []
@@ -737,6 +773,7 @@ def render_pestana_agenda(client):
         f_fin_mes = date(anio_sel, mes_sel, last_day)
         
         turnos_mes = get_turnos_ag_cached(client, st.session_state.get('db_version', 0), str(f_ini_mes), str(f_fin_mes))
+        bloqueos_mes = get_bloqueos_ag_cached(client, st.session_state.get('db_version', 0), str(f_ini_mes), str(f_fin_mes))
         res_citas_mes = client.table("citas").select("fecha_hora, servicio").gte("fecha_hora", f"{f_ini_mes}T00:00:00").lte("fecha_hora", f"{f_fin_mes}T23:59:59").execute()
         
         citas_por_dia_mes = {}
@@ -801,6 +838,12 @@ def render_pestana_agenda(client):
                     
                     t_bloque = "<br>".join(t_textos) if t_textos else "<i style='color:#bbb;'>Sin turnos</i>"
                     html_cal += f"<div class='turnos-bloque'>{t_bloque}</div>"
+                    
+                    b_hoy = [b for b in bloqueos_mes if b['fecha'] == d_str]
+                    if b_hoy:
+                        for b in b_hoy:
+                            c_bloque = f"⛔ {b['titulo']} ({b['hora_inicio'][:5]})"
+                            html_cal += f"<div class='turnos-bloque' style='color:#880e4f; font-weight:bold; background-color:#fce4ec; padding:2px; border-radius:3px; margin-top:2px;'>{c_bloque}</div>"
                     
                     num_citas = citas_por_dia_mes.get(d_str, 0)
                     if num_citas > 0:
