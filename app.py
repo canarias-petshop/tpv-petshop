@@ -381,7 +381,7 @@ if st.session_state.rol == "Admin":
         "💰 Control Caja", "🛒 Caja", "📜 Historial", "👥 Clientes", 
         "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", "📑 Facturación", 
         "🐶 Servicios Animalarium", "📊 Contabilidad", "🎯 Marketing y Ofertas", "🗓️ Proyectos y Eventos",
-        "� Estadísticas", "⏱️ Personal", "🏦 Bancos", "✅ Tareas", "📖 Ayuda"
+        "📈 Estadísticas", "⏱️ Personal", "🏦 Bancos", "✅ Tareas", "📖 Ayuda"
     ]
 else:
     nombres_pestanas = [
