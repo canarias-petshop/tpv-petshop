@@ -45,7 +45,7 @@ def render_pestana_tareas(client):
             res_plan_cal = client.table("tareas_plannings").select("*").eq("activo", True).execute()
             plan_activos = res_plan_cal.data if res_plan_cal.data else []
             
-            res_reg_cal = client.table("tareas_registro").select("tarea_id, fecha_completada, personal_empleados(nombre)").gte("fecha_completada", str(start_week_emp)).lte("fecha_completada", str(end_week_emp)).execute()
+            res_reg_cal = client.table("tareas_registro").select("tarea_id, fecha_completada, notas, personal_empleados(nombre)").gte("fecha_completada", str(start_week_emp)).lte("fecha_completada", str(end_week_emp)).execute()
             registros_sem = res_reg_cal.data if res_reg_cal.data else []
         except:
             plan_activos = []
@@ -96,7 +96,8 @@ def render_pestana_tareas(client):
                 if is_done:
                     r_info = hechas_ids_dia[p['id']]
                     who = r_info.get('personal_empleados', {}).get('nombre', 'Alguien') if isinstance(r_info.get('personal_empleados'), dict) else 'Alguien'
-                    html_cal_emp += f"<div class='tarea-emp-card te-comp'><b>✅ {p['tarea']}</b><span class='te-who'>Por: {who}</span></div>"
+                    nota_html = f"<br><span style='color:#555; font-size: 0.9em;'>📝 {r_info.get('notas')}</span>" if r_info.get('notas') else ""
+                    html_cal_emp += f"<div class='tarea-emp-card te-comp'><b>✅ {p['tarea']}</b><span class='te-who'>Por: {who}</span>{nota_html}</div>"
                 elif aplica:
                     nom_asig = mapa_emp_inv.get(p.get('empleado_id'), p.get('rol_asignado', 'General'))
                     if d_str < hoy_str_emp:
@@ -151,16 +152,22 @@ def render_pestana_tareas(client):
             if pendientes_mias:
                 df_pend = pd.DataFrame(pendientes_mias)
                 df_pend.insert(0, "¡Hecho!", False)
+                df_pend["Notas"] = ""
                 
                 st.markdown(f"**Tus tareas para hoy ({hoy_obj.strftime('%d/%m/%Y')})**")
                 ed_pend = st.data_editor(
                     df_pend, hide_index=True, use_container_width=True,
-                    column_config={"¡Hecho!": st.column_config.CheckboxColumn("✅ ¡Hecho!"), "id": None}, key="ed_tareas_pend_ind"
+                    column_config={"¡Hecho!": st.column_config.CheckboxColumn("✅ ¡Hecho!"), "id": None, "Notas": st.column_config.TextColumn("📝 Anotación (Opcional)")}, key="ed_tareas_pend_ind"
                 )
                 if st.button("💾 Registrar Mis Tareas Completadas", type="primary", use_container_width=True):
                     filas_hechas = ed_pend[ed_pend["¡Hecho!"] == True]
                     if not filas_hechas.empty and mi_emp_id:
-                        inserts = [{"tarea_id": r['id'], "empleado_id": mi_emp_id, "fecha_completada": hoy_str} for _, r in filas_hechas.iterrows()]
+                        inserts = []
+                        for _, r in filas_hechas.iterrows():
+                            nota_val = r.get('Notas')
+                            nota_texto = str(nota_val).strip() if pd.notna(nota_val) else ""
+                            inserts.append({"tarea_id": r['id'], "empleado_id": mi_emp_id, "fecha_completada": hoy_str, "notas": nota_texto})
+                            
                         client.table("tareas_registro").insert(inserts).execute()
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.success("¡Buen trabajo! Tareas registradas."); time.sleep(1); st.rerun()
@@ -309,7 +316,7 @@ def render_pestana_tareas(client):
                     except: pass
             with sub_admin[2]:
                 try:
-                    res_hist = client.table("tareas_registro").select("fecha_completada, personal_empleados(nombre), tareas_plannings(tarea, periodicidad)").order("fecha_completada", desc=True).limit(100).execute()
+                    res_hist = client.table("tareas_registro").select("fecha_completada, notas, personal_empleados(nombre), tareas_plannings(tarea, periodicidad)").order("fecha_completada", desc=True).limit(100).execute()
                     if res_hist.data:
                         hist_data = []
                         for h in res_hist.data:
@@ -317,7 +324,8 @@ def render_pestana_tareas(client):
                             tar = h.get('tareas_plannings', {}).get('tarea', 'Tarea borrada') if h.get('tareas_plannings') else 'Tarea borrada'
                             per = h.get('tareas_plannings', {}).get('periodicidad', '-') if h.get('tareas_plannings') else '-'
                             fecha = pd.to_datetime(h['fecha_completada']).strftime('%d/%m/%Y')
-                            hist_data.append({"Fecha": fecha, "Empleado": emp, "Tarea": tar, "Tipo": per})
+                            nota = h.get('notas', '')
+                            hist_data.append({"Fecha": fecha, "Empleado": emp, "Tarea": tar, "Tipo": per, "Anotación": nota})
                         st.dataframe(pd.DataFrame(hist_data), use_container_width=True, hide_index=True)
                     else:
                         st.info("Aún no hay registros de tareas completadas.")
