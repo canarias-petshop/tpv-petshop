@@ -41,7 +41,7 @@ def calcular_duracion_media(historial):
 def fetch_ficha_alerts_cached(_client, v, mid, hoy):
     try:
         r1 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).lt("fecha_hora", hoy).like("servicio", "%[ESTADO: Confirmada]%").execute().data
-        r2 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).like("servicio", "%[ESTADO: Cancelada]%").execute().data
+        r2 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%").execute().data
         return r1, r2
     except: return [], []
 

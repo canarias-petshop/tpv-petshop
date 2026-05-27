@@ -58,7 +58,7 @@ def get_futuras_ag_cached(_client, v, h_str):
 
 @st.cache_data(show_spinner=False, ttl=15)
 def get_canc_ag_cached(_client, v):
-    return _client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").like("servicio", "%[ESTADO: Cancelada]%").order("fecha_hora", desc=True).limit(200).execute().data
+    return _client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%").order("fecha_hora", desc=True).limit(200).execute().data
 
 @st.cache_data(show_spinner=False, ttl=15)
 def get_sin_hist_ag_cached(_client, v, h_str):
@@ -146,9 +146,9 @@ def render_pestana_agenda(client):
         servicios_lista = ["Otro"]
         precios_servicios = {}
 
-    ESTADOS_CITA = ["Confirmada", "Cancelada", "Cambio de cita", "Servicio de recogida pendiente", "Servicio de recogida confirmado", "Cambio (día antes)", "Cambio (mismo día)", "Oferta / Descuento", "Pendiente"]
+    ESTADOS_CITA = ["Confirmada", "Asistió", "Cancelada", "No presentado", "Cambio de cita", "Servicio de recogida pendiente", "Servicio de recogida confirmado", "Cambio (día antes)", "Cambio (mismo día)", "Oferta / Descuento", "Pendiente"]
     EMOJIS_ESTADO = {
-        "Confirmada": "🟢", "Cancelada": "💖", "Cambio de cita": "🔵", 
+        "Confirmada": "🟢", "Asistió": "✅", "Cancelada": "💖", "No presentado": "❌", "Cambio de cita": "🔵", 
         "Servicio de recogida": "🟣", "Servicio de recogida pendiente": "🟣🟡", "Servicio de recogida confirmado": "🟣🟢",
         "Cambio (día antes)": "🟠", 
         "Cambio (mismo día)": "⚪", "Oferta / Descuento": "🟩", "Pendiente": "🟡"
@@ -265,7 +265,7 @@ def render_pestana_agenda(client):
                             
                             solapa = False
                             for c in citas_dia:
-                                if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Cambio" in c.get('servicio', ''): continue
+                                if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Cambio" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
                                 c_ini = pd.to_datetime(c['fecha_hora'])
                                 if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                                 c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
@@ -296,7 +296,7 @@ def render_pestana_agenda(client):
                         dt_ini_man = pd.to_datetime(f"{fecha_c} {hora_manual.strftime('%H:%M')}")
                         dt_fin_man = dt_ini_man + pd.Timedelta(minutes=duracion_c)
                         for c in citas_dia:
-                            if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Cambio" in c.get('servicio', ''): continue
+                            if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Cambio" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
                             c_ini = pd.to_datetime(c['fecha_hora'])
                             if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                             c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
@@ -539,7 +539,7 @@ def render_pestana_agenda(client):
         if res_citas.data:
             for c in res_citas.data:
                 try:
-                    if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
+                    if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
                     dt_start = pd.to_datetime(c['fecha_hora'])
                     if dt_start.tzinfo: dt_start = dt_start.tz_localize(None)
                     if dt_start.date() == dia_ver:
@@ -734,7 +734,7 @@ def render_pestana_agenda(client):
                             dt_start = pd.to_datetime(cita['fecha_hora'])
                             if dt_start.tzinfo: dt_start = dt_start.tz_localize(None)
                             if dt_start.date() == d_obj:
-                                if "[ESTADO: Cancelada]" in cita.get('servicio', ''): continue
+                                if "[ESTADO: Cancelada]" in cita.get('servicio', '') or "[ESTADO: No presentado]" in cita.get('servicio', ''): continue
                                 citas_hoy.append((dt_start, cita))
                         except Exception: pass
                 
@@ -796,7 +796,7 @@ def render_pestana_agenda(client):
         citas_por_dia_mes = {}
         if res_citas_mes.data:
             for c in res_citas_mes.data:
-                if "[ESTADO: Cancelada]" not in c.get('servicio', ''):
+                if "[ESTADO: Cancelada]" not in c.get('servicio', '') and "[ESTADO: No presentado]" not in c.get('servicio', ''):
                     try:
                         d_str = c['fecha_hora'][:10]
                         if d_str not in citas_por_dia_mes:
@@ -919,7 +919,7 @@ def render_pestana_agenda(client):
         citas_manana = []
         if res_manana.data:
             for c in res_manana.data:
-                if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
+                if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
                 mascota_info = c.get('mascotas', {}) or {}
                 cliente_info = mascota_info.get('clientes', {}) or {}
                 dueno = cliente_info.get('nombre_dueno', 'Dueño')
@@ -1020,10 +1020,10 @@ def render_pestana_agenda(client):
                 st.success("✨ ¡Genial! Tienes la agenda al día. Ninguna mascota supera los días de alerta o ya tienen su cita.")
 
     with sub_cancelaciones:
-        st.markdown("#### 🚫 Registro de Cancelaciones")
-        st.info("Aquí aparecen todas las citas que han sido marcadas como 'Cancelada' desde el Directorio. Estas citas liberan su hueco automáticamente en la agenda para que puedas dárselo a otro.")
+        st.markdown("#### 🚫 Registro de Cancelaciones y Plantones")
+        st.info("Aquí aparecen todas las citas que han sido marcadas como 'Cancelada' o 'No presentado' desde el Directorio. Estas citas liberan su hueco automáticamente en la agenda para que puedas dárselo a otro.")
         canceladas = []
-        res_canc = client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").like("servicio", "%[ESTADO: Cancelada]%").order("fecha_hora", desc=True).limit(200).execute()
+        res_canc = client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%").order("fecha_hora", desc=True).limit(200).execute()
         if res_canc.data:
             for c in res_canc.data:
                 mascota_info = c.get('mascotas', {})
