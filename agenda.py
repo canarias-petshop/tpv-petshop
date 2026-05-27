@@ -196,12 +196,17 @@ def render_pestana_agenda(client):
                 
                 pref_actual = "Cualquiera"
                 dur_media = 60
+                strikes = 0
                 if mascota_sel:
                     m_id_sel = dict_mascotas[mascota_sel]
                     res_m_info = client.table("mascotas").select("observaciones, historial_trabajos").eq("id", m_id_sel).execute()
                     if res_m_info.data:
                         obs = res_m_info.data[0].get('observaciones', '')
                         import re
+                        from ficha_clinica import fetch_ficha_alerts_cached
+                        _, r_canc = fetch_ficha_alerts_cached(client, st.session_state.get('db_version', 0), m_id_sel, str(date.today()))
+                        strikes = len(r_canc) if r_canc else 0
+                        
                         m_pref = re.search(r'\[Pref:\s*(.*?)\]', str(obs))
                         if m_pref: pref_actual = m_pref.group(1)
                         
@@ -319,11 +324,19 @@ def render_pestana_agenda(client):
                 servicio_sel = st.selectbox("Servicio *", servicios_lista, key=f"ag_serv_{st.session_state.llave_agenda_cita}")
                 f_obs = st.text_input("📝 Observaciones / Petición (Opcional)", key=f"ag_obs_{st.session_state.llave_agenda_cita}")
                 
+                if strikes >= 2:
+                    st.error(f"🚨 **CLIENTE REINCIDENTE ({strikes} faltas):** Por política, es obligatorio cobrar fianza o pago por adelantado para agendar.")
+                    fianza_pagada = st.checkbox("✅ Confirmo cobro de fianza o pago por adelantado", key=f"ag_fianza_{st.session_state.llave_agenda_cita}")
+                else:
+                    fianza_pagada = False
+                
                 if st.button("Guardar Cita", type="primary", use_container_width=True):
                     m_id_final = None
                     
                     if solapa_manual and (not motivo_solape or (motivo_solape == "Otro motivo" and not motivo_extra)):
                         st.error("Debes indicar un motivo para forzar la cita en una hora ocupada.")
+                    elif strikes >= 2 and not fianza_pagada:
+                        st.error("Debes confirmar el cobro de la fianza para poder agendar a este cliente.")
                     else:
                         if crear_rapido:
                             if n_mascota and n_cliente:
@@ -357,7 +370,10 @@ def render_pestana_agenda(client):
                                 motivo_final = motivo_extra if motivo_solape == "Otro motivo" else motivo_solape
                                 servicio_final += f" [Forzado: {motivo_final}]"
                                 
-                            servicio_final = f"[ESTADO: Pendiente] {servicio_final}"
+                            if fianza_pagada:
+                                servicio_final = f"[ESTADO: Pendiente] [💰 FIANZA PAGADA] {servicio_final}"
+                            else:
+                                servicio_final = f"[ESTADO: Pendiente] {servicio_final}"
                             fecha_hora_str = f"{fecha_c} {hora_final_str}"
                             
                             client.table("citas").insert({
