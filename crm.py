@@ -540,12 +540,6 @@ def render_pestana_crm(client):
                 with c_m5: nx_peso = st.text_input("Peso (kg)", key=f"nx_peso_{st.session_state.llave_crm_masc}")
                 with c_m6: nx_pref = st.selectbox("Peluquero/a Pref.", ["Cualquiera"] + empleados_lista, key=f"nx_pref_{st.session_state.llave_crm_masc}")
                 
-                if strikes >= 2:
-                    st.error(f"🚨 **CLIENTE REINCIDENTE ({strikes} faltas):** Por política, es obligatorio cobrar fianza o pago por adelantado para agendar.")
-                    fianza_pagada = st.checkbox("✅ Confirmo cobro de fianza o pago por adelantado", key=f"fianza_{prefix}_{m_id}")
-                else:
-                    fianza_pagada = False
-
                 if st.form_submit_button("Añadir Mascota", use_container_width=True):
                     if nx_nom and sel_cli:
                         final_obs_extra = f"[Pref: {nx_pref}]" if nx_pref != "Cualquiera" else ""
