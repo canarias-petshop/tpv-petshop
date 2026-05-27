@@ -62,7 +62,7 @@ El sistema cuenta con **15 módulos principales operativos** ordenados estratég
 - **Historial Clínico Inteligente:** Registro de sesiones de peluquería con **desplegable de servicios vinculado al inventario en tiempo real**, **auto-asignación de precios** si se deja en blanco y cálculo de duración exacto al guardar la sesión.
 - **Módulo de Extras Dinámicos:** La ficha clínica incluye ahora un panel específico (expander) para añadir extras a la sesión (ej. Mascarillas, Extra Nudos). Permite registrar la hora exacta de inicio y fin del extra, calculando el precio automáticamente por minuto según la tarifa del catálogo y sumándolo al importe total de la sesión.
 - **Alerta de Citas Sin Cerrar:** El sistema detecta si hay citas pasadas confirmadas en la agenda que no se han registrado en el historial de la mascota, mostrando una alerta roja bloqueante hasta que se guarde la sesión clínica.
-- **Registro de Cancelaciones y Plantones (Políticas Estrictas):** El CRM rastrea el historial de la mascota y muestra una alerta roja global si el cliente acumula "Cancelaciones" o "No presentados" (plantones), para aplicar las políticas de restricción de reservas.
+- **Política Híbrida de Cancelaciones y Fianzas:** Sistema automático de faltas (Strikes) que rastrea los estados `Cancelada`, `Anulada`, `No presentado` y `Cambio (mismo día)`. El sistema otorga 1 falta de margen de confianza. Al acumular 2 faltas o más, el cliente queda bloqueado en la Agenda y el CRM con una alerta roja, obligando al empleado a registrar un pago por adelantado/fianza (`[💰 FIANZA PAGADA]`) para poder agendar su cita.
 - **Gestor de Deudas de Tienda (Pagos Pendientes):** Nueva sub-pestaña que agrupa automáticamente a los clientes morosos del TPV. Alerta visualmente a los 14 días y genera un mensaje de WhatsApp para reclamarlo. Además, incluye un **Sistema de Cobro Integrado con Pagos Fraccionados** que permite abonar partes de la deuda introduciendo la cantidad exacta y seleccionando el método (Efectivo/Bancos), actualizando saldos y sumando Puntos VIP proporcionalmente de forma automática.
 - **Gestor de Encargos Sincronizado:** Panel de pedidos de clientes protegido contra desincronización entre varios ordenadores/tablets. Impide la adición manual errónea de filas, cuenta con paginación ilimitada para evitar la desaparición de registros antiguos, agrupa las alertas de retraso para evitar cuelgues visuales y el botón de guardado procesa línea a línea para evitar sobreescrituras cruzadas entre empleados.
 
@@ -238,12 +238,6 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 *   **URGENCIA 3 - Marketing Activo:** Iniciar desarrollo del Club de Cumpleaños y radar de recuperación Win-Back.
 *   **URGENCIA 4 - Gestión Visual de Productos:** Incorporación de fechas de caducidad y lotes al Inventario.
 *   **URGENCIA 5 - Optimización Visual Táctil (Tablet):** Implementar *Media Queries* CSS en `app.py` para aumentar automáticamente el tamaño de textos, tablas y botones solo cuando se use en pantallas pequeñas (Tablets), manteniendo el diseño original compacto e intacto en el PC.
-
-### 🗣️ DEBATE INTERNO PENDIENTE DE RESOLUCIÓN (Políticas de Cancelación)
-El CRM ya está preparado para contabilizar los nuevos estados `Asistió` y `No presentado`. Queda pendiente debatir en la empresa qué directiva penalizadora se va a implementar para programar las alertas en el software:
-*   **Opción A (Strikes / Restricción de Reservas):** Los plantones o cancelaciones de última hora restan "puntos de confianza". A los 2 strikes, el cliente entra en una lista negra temporal donde no se le da cita anticipada o se le exige pagar por adelantado vía Bizum.
-*   **Opción B (Fianza Universal Clínica):** Cobrar una fianza simbólica generalizada (ej. 10€) a todos los clientes al agendar, que se descuenta del total. Si anulan con más de 48h, el saldo se guarda; si anulan tarde o no asisten, la fianza se pierde y el sistema le añade un sobrecargo por reubicación en su próximo ticket de caja.
-*   *(Decidir para programar el comportamiento del Pop-Up de Alerta del CRM).*
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
