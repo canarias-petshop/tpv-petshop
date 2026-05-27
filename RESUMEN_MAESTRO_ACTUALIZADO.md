@@ -42,6 +42,7 @@ El sistema cuenta con **15 módulos principales operativos** ordenados estratég
 - **Optimización TPV Tablet:** Código JS global inyectado para desactivar el texto predictivo y autocorrector del teclado. Interfaz de ticket de cobro compactada (`zoom`) para mantener los botones de imprimir/email siempre visibles sin scroll.
 - **Simetría y Alineación UI:** Cajas de cobro en efectivo alineadas a la base (`vertical_alignment="bottom"`) para mantener proporciones perfectas en pantallas táctiles.
 - **Pagos Parciales Multicanal:** Permite introducir cantidades exactas no solo en efectivo, sino también en Tarjeta y Bizum, gestionando sobrepagos o dejando el resto como deuda pendiente (sin crear la deuda ni guardarla hasta finalizar el cobro).
+- **Diccionario Exacto de Clientes:** Selección en caja protegida por mapeo de diccionario en backend, erradicando los "Errores de Supabase" al cobrar a clientes con nombres complejos, espacios adicionales o falta de teléfono.
 - **Cobro Rápido Inteligente (Lectura de Ficha Clínica):** El botón de cobro de agenda ahora tiene "Inteligencia Dual". Lee primero la **Ficha Clínica** para volcar al carrito todos los servicios y extras reales registrados hoy (ej. "Extra Nudos"), con sus precios finales. Si la ficha está vacía, lee la cita original por defecto. Además, incluye **Búsqueda Inversa** para emparejar nombres de citas antiguas (largas) con nombres de catálogo nuevos (cortos) evitando bloqueos en la caja.
 - **Limpieza Automática (Auto-Reset):** Al finalizar un cobro o pulsar "Nueva Venta", el sistema no solo vacía el carrito y los vales, sino que también resetea automáticamente el selector de clientes a "Ninguno (Venta Anónima)" para evitar cobros erróneos al cliente anterior.
 - **Pedidos a Domicilio Automatizados:** Casilla interactiva para enviar la compra a domicilio. Al cobrar, el sistema descuenta stock, ingresa el dinero y genera automáticamente una orden de reparto en el módulo de Servicios Extra.
@@ -61,7 +62,7 @@ El sistema cuenta con **15 módulos principales operativos** ordenados estratég
 - **Historial Clínico Inteligente:** Registro de sesiones de peluquería con **desplegable de servicios vinculado al inventario en tiempo real**, **auto-asignación de precios** si se deja en blanco y cálculo de duración exacto al guardar la sesión.
 - **Módulo de Extras Dinámicos:** La ficha clínica incluye ahora un panel específico (expander) para añadir extras a la sesión (ej. Mascarillas, Extra Nudos). Permite registrar la hora exacta de inicio y fin del extra, calculando el precio automáticamente por minuto según la tarifa del catálogo y sumándolo al importe total de la sesión.
 - **Alerta de Citas Sin Cerrar:** El sistema detecta si hay citas pasadas confirmadas en la agenda que no se han registrado en el historial de la mascota, mostrando una alerta roja bloqueante hasta que se guarde la sesión clínica.
-- **Registro de Cancelaciones (Políticas Estrictas):** El CRM detecta automáticamente cuántas veces ha cancelado una mascota y muestra una alerta roja en su ficha para que los empleados lo tengan en cuenta al darle cita.
+- **Registro de Cancelaciones y Plantones (Políticas Estrictas):** El CRM rastrea el historial de la mascota y muestra una alerta roja global si el cliente acumula "Cancelaciones" o "No presentados" (plantones), para aplicar las políticas de restricción de reservas.
 - **Gestor de Deudas de Tienda (Pagos Pendientes):** Nueva sub-pestaña que agrupa automáticamente a los clientes morosos del TPV. Alerta visualmente a los 14 días y genera un mensaje de WhatsApp para reclamarlo. Además, incluye un **Sistema de Cobro Integrado con Pagos Fraccionados** que permite abonar partes de la deuda introduciendo la cantidad exacta y seleccionando el método (Efectivo/Bancos), actualizando saldos y sumando Puntos VIP proporcionalmente de forma automática.
 - **Gestor de Encargos Sincronizado:** Panel de pedidos de clientes protegido contra desincronización entre varios ordenadores/tablets. Impide la adición manual errónea de filas, cuenta con paginación ilimitada para evitar la desaparición de registros antiguos, agrupa las alertas de retraso para evitar cuelgues visuales y el botón de guardado procesa línea a línea para evitar sobreescrituras cruzadas entre empleados.
 
@@ -110,10 +111,23 @@ El sistema cuenta con **15 módulos principales operativos** ordenados estratég
   1. Ventas globales. 2. **Facturas para IGIC (Pestaña Emitidas y Recibidas separadas)**. 3. Tickets y Gastos menores. 4. Informe de Gastos Fijos actuales.
 
 🎯 **Módulo Extra: Marketing y Ofertas (Admin)**
-- **Planificador Anual:** Calendario visual de campañas con alarma predictiva (30-45 días) para evitar quedarse sin contenido.
-- **Gestión de Eventos y Talleres:** Control de aforo, inscripciones y reservas (con estrategia de "Bono Redimible" en tienda).
-- **Cápsulas de Texto:** Integración de "copywriting" pre-redactado listo para copiar y pegar.
+- **Panel de Objetivos y ROI:** Definición de KPIs numéricos (ej: aumentar ventas, captar clientes) con barras de progreso interactivas para medir el éxito real de las acciones publicitarias.
+- **Plan Maestro y Dashboard Financiero:** Calendario visual de publicaciones y acciones integrado con un control estricto de **Presupuesto Asignado vs Gasto Real**.
+- **Análisis por Canales:** Gráficas automatizadas que muestran cómo se distribuye la inversión publicitaria entre medios Digitales (RRSS), Físicos (Cartelería) y Tradicionales (Radio).
+- **Campañas Especiales:** Espacio aislado para gestionar la inversión en ferias externas o en la iniciativa privada *Innovate*.
 - *Pendiente (Prioridad):* Club de Cumpleaños, Recuperación Win-back y Email Masivo.
+
+🗓️ **Proyectos, Reuniones y Eventos (NUEVO)**
+- Módulo puramente corporativo y de gestión logística ajeno a las ventas de la tienda.
+- **Macro-Proyectos (Expansión):** Panel de control para aperturas o reformas, con seguimiento de presupuesto, costes reales acumulados y un calendario tipo Kanban para los Hitos o Tareas del proyecto.
+- **Ferias y Eventos Externos:** Fichas técnicas para controlar la logística de stands en ferias (dimensiones, material necesario), enlaces directos a planos (Drive/Canva) y panel de lluvia de ideas exclusivo del evento.
+- **Talleres y Cursos (Clientes):** Gestor de aforos presenciales en la tienda, con inscripciones, control de reservas pagadas e inserción de clientes.
+- **Gestor de Reuniones y Bloqueos:** Creación de clases, reuniones de equipo o formaciones que **bloquean automáticamente los tramos correspondientes en la Agenda de Peluquería** para evitar que se den citas por error.
+
+✅ **Planificación y Tareas (Equipo y Gerencia)**
+- **Calendario General de Plannings:** Cuadrícula visual semanal de toda la tienda. Las tareas olvidadas de días anteriores se marcan automáticamente en rojo (❌ Olvidada).
+- **Ficha Individual (Empleados):** Selector de personal que aísla el ruido y muestra únicamente las tareas asignadas a la persona que está consultando ese día. Incluye un sistema de **"Anotaciones"** para dejar partes o reportes de incidencias al completar el trabajo.
+- **Calendario de Gerencia (Dueños):** Espacio privado para organizar el trabajo de los gerentes (visitas a bancos, papeleos) con su propio calendario visual e histórico de cumplimiento.
 
  **Servicios Extra de Animalarium (NUEVO)**
 - Módulo independiente para gestionar logística y servicios externos (Paseos, Educación, Entregas/Recogidas).
@@ -126,13 +140,13 @@ El sistema cuenta con **15 módulos principales operativos** ordenados estratég
 - **Identificación Rápida de Especie:** El directorio y las vistas de la agenda muestran automáticamente si la mascota es Perro, Gato, etc., al lado de su nombre para facilitar la preparación del peluquero.
 - **Ocultación Inteligente:** Botón (toggle) para ocultar automáticamente las citas pasadas en el directorio y agilizar la visualización diaria.
 - **Centro de Recordatorios (Automatización Matutina):** Panel unificado que escanea la agenda para mostrar las citas del próximo día hábil (saltando domingos) y las alertas de mantenimiento. Incluye un **indicador de Canal Preferido** (WhatsApp, Llamada, SMS) en la ficha del cliente.
-- **Buscador Inteligente de Huecos:** Al seleccionar una mascota, lee su historial, **muestra un panel informativo con su duración media y peluquero preferido**, lee los cuadrantes y ofrece los tramos libres exactos.
+- **Buscador Inteligente de Huecos:** Al seleccionar una mascota, lee su historial, **muestra un panel informativo con su duración media y peluquero preferido**, lee los cuadrantes (y bloqueos de reuniones) y ofrece los tramos libres exactos.
 - **Validación de Identidad:** El desplegable de nueva cita muestra el teléfono del dueño junto al nombre de la mascota para evitar confusiones.
 - **Radar de Festivos:** Detecta y marca visualmente las fiestas nacionales, autonómicas de Canarias y locales de Santa Cruz de Tenerife en todas las vistas de la agenda y cuadrantes, ayudando a la planificación de cierres.
-- **Inyección de Turnos en Vivo:** Las vistas Diaria, Semanal y Mensual informan en la cabecera de cada día quién está trabajando y su horario exacto, permitiendo asignar citas directamente sin tener que cambiar a la pestaña de Personal.
+- **Inyección de Información en Vivo (Vistas):** Las vistas Diaria, Semanal y Mensual informan en la cabecera quién está trabajando, muestran los **Bloqueos/Reuniones** de forma prominente en color morado, y detallan en cada tarjeta de cita el **Nombre del Dueño, Teléfono y Raza** para minimizar clics.
 - **Anotaciones / Observaciones Especiales:** Campo dedicado para anotar las peticiones de corte o trato específico de la mascota que pide el cliente al llamar.
 - **Estado "Pendiente" por Defecto:** Las citas nacen en un estado neutro (Pendiente 🟡) para adaptarse al flujo real de llamadas de confirmación unos días antes.
-- **Estados Compuestos:** Emojis dinámicos combinados para identificar rápidamente servicios especiales (ej: Servicio de recogida pendiente 🟣🟡 / confirmado 🟣🟢).
+- **Estados Compuestos y de Asistencia:** Incluye "Asistió ✅" y "No presentado ❌". Emojis dinámicos combinados para identificar rápidamente servicios especiales.
 - **Filtro por Peluquero/a Preferido:** Si el cliente tiene un profesional asignado en su ficha, el sistema detecta automáticamente su preferencia y limita la sugerencia de huecos exclusivamente al horario de esa persona concreta.
 - **Liberación Inteligente de Huecos y Cancelaciones:** Las citas incluyen estados dinámicos (Confirmada 🟢, Cancelada 💖, Cambio de cita 🔵, etc.). Al marcar una cita como "Cancelada" o "Cambio", **el sistema libera su hueco automáticamente** en el buscador y el cuadrante.
 - **Carga Dinámica de Servicios:** El desplegable de servicios en la agenda lee en tiempo real el catálogo de servicios de la pestaña de Inventario.
@@ -152,7 +166,7 @@ El sistema cuenta con **15 módulos principales operativos** ordenados estratég
 ⏱️ **Personal y Control de Horario**
 - Fichaje rápido de entrada/salida para empleados mediante PIN de 4 dígitos (con ajuste estricto a la zona horaria de Canarias).
 - **Registro Inalterable Laboral:** Generación de firma criptográfica Hash SHA-256 encadenada en cada fichaje para cumplir con la estricta normativa laboral y evitar modificaciones manuales del administrador.
-- **Guardián de Fichajes:** Sistema de bloqueo inteligente de pantalla al abrir la app que lee los cuadrantes diarios. Si un empleado está en turno y no ha fichado entrada (o no ficha salida al terminar), bloquea la navegación obligándolo a fichar o a justificar la ausencia/retraso. **El rol Administrador dispone de acceso libre incondicional ("puerta VIP") ignorando el bloqueo.**
+- **Guardián de Fichajes (Banner No Bloqueante):** Sistema de alerta inteligente que lee los cuadrantes y despliega un "Banner superior" para obligar a fichar, pero **sin interrumpir ni paralizar el uso de la caja** para otros compañeros. El Administrador dispone de acceso VIP ignorando los bloqueos.
 - **Cooldown Anti-Errores:** Escudo de 30 minutos de bloqueo automático tras cada fichaje para evitar salidas dobles o marcajes erróneos por solapamiento de compañeros en el mostrador.
 - Visualización de cuadrante de trabajo apilado por semanas (sin scroll horizontal).
 - **Panel de Administrador:** Gestión de la plantilla, Editor Visual Masivo de Cuadrantes (tipo Excel para planificar el mes completo en segundos) y registro histórico de horas trabajadas para nóminas.
@@ -179,19 +193,19 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Sistema de Roles y Seguridad (Completado):** Se implementó inicio de sesión dual (Admin / Empleado). El sistema construye las pestañas dinámicamente, ocultando por completo los módulos sensibles (Contabilidad y Bancos) al personal no autorizado, pero manteniendo visibles Estadísticas y Facturación para el aprendizaje de los empleados.
 - **Testeo y Automatización Funcional (Completado):** Se han conectado lógicamente varios módulos para evitar trabajos dobles: El saldo final de caja es el fondo inicial del día siguiente, los gastos de caja viajan solos a Contabilidad y la Agenda bloquea las citas si se marcan vacaciones en el Cuadrante Visual.
 - **Cierre Z Dinámico y Agenda Inteligente Total (Completado):** Implementación de la selección dinámica de la cuenta receptora para los pagos con tarjeta en el TPV y la sugerencia cruzada de huecos en la Agenda de citas. El cuadrante diario cuenta con una vista compacta inteligente que detecta solapamientos permitidos (⚠️ Múltiple) y comprime visualmente las citas largas.
-- **Sincronización Horaria y Bloqueos de Agenda (Completado):** Configuración de la zona horaria (Atlantic/Canary) para los fichajes y el cálculo de solapamientos. Sincronización absoluta de las 3 vistas de la Agenda, bloqueando horas ocupadas y documentando excepciones de agendamiento.
+- **Sincronización Horaria y Bloqueos de Agenda (Completado):** Configuración de la zona horaria (Atlantic/Canary) para fichajes y solapamientos. Sincronización de las 3 vistas de la Agenda (visibilidad total de Reuniones/Clases con alertas de color morado) y bloqueo automatizado de horas ocupadas.
 - **Optimización Extrema de Tablet y UI TPV (Completado):** Inyección JS global anti-autocorrector y anti-gestores de contraseñas. Agilización del buscador a 1 clic con reseteo automático de inputs. Ticket en pantalla rediseñado con impresión de deudas pendientes y política de puntos.
 - **Políticas Estrictas y Estabilidad UI (Completado):** Se introdujeron las alertas de penalización de mascotas, el panel inteligente al agendar, la lista de servicios viva, el auto-borrado del escáner en TPV y se protegió la sesión eliminando el refresco forzado al enviar impresiones por Bluetooth/Wifi.
 - **Saneamiento Fiscal y Contable (Completado):** Corrección de la lógica de Base Imponible e IGIC. Los tickets y facturas ahora diferencian la venta de "Servicios" (que desglosa IGIC) de la venta de "Productos" (que reporta todo como Base Imponible). Todo a prueba de fallos mediante parseo seguro de datos legados.
 - **Automatizaciones Finales y Deep Linking (Completado):** Implementación del "Centro WhatsApp" y "Centro de Envíos" para establecer una rutina matutina clara.
-- **Reorganización ERP (Completado):** Separación total de Catálogo (Inventario) y Compras (Proveedores y Pedidos), logrando un flujo de trabajo profesional sin botones duplicados ni sobrecarga visual.
+- **Reorganización ERP Multiestructura (Completado):** Desacoplamiento masivo de módulos operativos. (1) Catálogos separados de Compras. (2) Creación del Módulo "Proyectos y Eventos" separado de "Marketing". (3) Separación de "Tareas Visuales y Plannings" en pestañas individuales (General vs Fichas Personales).
 - **Auto-Distribuidor Inteligente de Pedidos (Completado):** Se implementó una lógica de selección automática que, al generar borradores de reposición, compara precios entre proveedores para un mismo artículo y asigna la compra al que ofrece el menor coste.
 - **Bloqueo Fiscal VeriFactu - Fase 2 (Completado):** Implementación de inalterabilidad en tickets y facturas. Generación de Hash SHA-256 encadenado y bloqueo de edición post-Cierre Z, cumpliendo la Ley Antifraude española.
 - **Contabilidad Predictiva y Eventos (Completado):** Implementación del calendario visual a 60 días para gastos recurrentes en Contabilidad y creación del gestor de aforos para Talleres presenciales.
 - **Plan de Marketing Anual (Completado):** Despliegue del calendario de campañas 2026 con textos redactados por temporadas y alarmas de contenido.
 - **Refactorización de Estadísticas y Salud Financiera (Completado):** Panel rediseñado para cruzar automáticamente las ventas del TPV con las facturas de proveedores y el prorrateo exacto de gastos fijos (mensualizando cuotas anuales o trimestrales), proporcionando un Beneficio Neto estimado real mes a mes.
 - **Estructuración Contable Avanzada (Completado):** Reorganización de las categorías de gastos fijos para alinearlas con los estándares de la asesoría y mejorar la lectura financiera del negocio.
-- **Estabilización de Interfaz y Prevención de Errores (Completado):** Implementados parches de seguridad en el TPV para evitar bucles infinitos por filas vacías, manejo seguro de tickets antiguos con datos nulos en Historial, soporte para un segundo contacto familiar en el CRM, y cálculos automáticos de tiempo en fichas clínicas.
+- **Estabilización de Interfaz y Prevención de Errores (Completado):** Implementados parches de seguridad en el TPV (resolviendo fallos de diccionarios en despliegues con clientes sin teléfono o con espacios), reparación de CSS para selectores nativos de Hora y fecha, y cálculos automáticos de tiempo en fichas clínicas.
 - **Paginación Ilimitada (Bypass Límite 1000 filas de Supabase) (Completado):** Implementado un sistema de bucle de lectura en todos los módulos (Inventario, TPV, Facturación, Agenda, CRM) garantizando que el sistema escale sin perder productos o clientes independientemente del tamaño de la base de datos.
 - **Precisión Decimal Global (Completado):** Habilitada la entrada de decimales en todos los campos numéricos del ERP para permitir precios y saldos exactos.
 - **Integración Avanzada de Gastos Fijos y Agenda (Completado):** Se implementó el cruce de estados (Pagado/Pendiente) para los gastos fijos directamente con la tabla de compras en Contabilidad, y se extrajo la lógica de la Ficha Clínica a un módulo independiente (`ficha_clinica.py`), lo que permite abrir y editar el historial completo de cualquier mascota directamente desde las tablas de la Agenda ("Ver Ficha").
@@ -219,12 +233,17 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 ## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
 
 ### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
-*   **PRIORIDAD 1 (URGENTE) - Nuevo Módulo "Proyectos y Eventos":** Mover la gestión de Talleres y Eventos fuera del módulo de Marketing hacia una pestaña propia. Dividir en: Proyectos (Kanban) y Eventos clasificados (Ferias, Talleres, Eventos Propios).
-*   **PRIORIDAD 2 (URGENTE) - Facturas IA en Borrador (Validación Manual):** Modificar el script de la IA para que las importaciones masivas de facturas se guarden en estado "Borrador". Así, **NO sumarán stock automáticamente** al inventario hasta que el usuario las revise y las apruebe manualmente desde el TPV.
-*   **PRIORIDAD 3 - Cumplimiento Antifraude Fase 3 (VeriFactu):** Sustituir el botón de borrado físico en 'Archivo Contable', 'Compras' y 'Facturación' por un sistema legal de **"Anulación"**. Esto dejará los importes a 0€ y revertirá el stock asociado, pero conservará la línea de la factura para cumplir con Hacienda.
-*   **PRIORIDAD 4 - Marketing Activo:** Iniciar desarrollo del Club de Cumpleaños y radar de recuperación Win-Back.
-*   **PRIORIDAD 5 - Gestión Visual de Productos:** Incorporación de fechas de caducidad y lotes al Inventario.
-*   **PRIORIDAD 6 - Optimización Visual Táctil (Tablet):** Implementar *Media Queries* CSS en `app.py` para aumentar automáticamente el tamaño de textos, tablas y botones solo cuando se use en pantallas pequeñas (Tablets), manteniendo el diseño original compacto e intacto en el PC.
+*   **URGENCIA 1 - Facturas IA en Borrador (Validación Manual):** Actualizar `facturacion.py` y `procesar_facturas_lote.py` para admitir envíos multi-página (PDF/Múltiples fotos juntas). La IA debe volcar los resultados en un estado de "Borrador" que **NO sumará stock automáticamente** al inventario hasta que el equipo de tienda las valide visualmente con un botón en el archivo de documentos.
+*   **URGENCIA 2 - Cumplimiento Antifraude Fase 3 (VeriFactu):** Sustituir el botón de borrado físico en 'Archivo Contable', 'Compras' y 'Facturación' por un sistema legal de **"Anulación"**. Esto dejará los importes a 0€ y revertirá el stock asociado, pero conservará la línea de la factura para cumplir con Hacienda.
+*   **URGENCIA 3 - Marketing Activo:** Iniciar desarrollo del Club de Cumpleaños y radar de recuperación Win-Back.
+*   **URGENCIA 4 - Gestión Visual de Productos:** Incorporación de fechas de caducidad y lotes al Inventario.
+*   **URGENCIA 5 - Optimización Visual Táctil (Tablet):** Implementar *Media Queries* CSS en `app.py` para aumentar automáticamente el tamaño de textos, tablas y botones solo cuando se use en pantallas pequeñas (Tablets), manteniendo el diseño original compacto e intacto en el PC.
+
+### 🗣️ DEBATE INTERNO PENDIENTE DE RESOLUCIÓN (Políticas de Cancelación)
+El CRM ya está preparado para contabilizar los nuevos estados `Asistió` y `No presentado`. Queda pendiente debatir en la empresa qué directiva penalizadora se va a implementar para programar las alertas en el software:
+*   **Opción A (Strikes / Restricción de Reservas):** Los plantones o cancelaciones de última hora restan "puntos de confianza". A los 2 strikes, el cliente entra en una lista negra temporal donde no se le da cita anticipada o se le exige pagar por adelantado vía Bizum.
+*   **Opción B (Fianza Universal Clínica):** Cobrar una fianza simbólica generalizada (ej. 10€) a todos los clientes al agendar, que se descuenta del total. Si anulan con más de 48h, el saldo se guarda; si anulan tarde o no asisten, la fianza se pierde y el sistema le añade un sobrecargo por reubicación en su próximo ticket de caja.
+*   *(Decidir para programar el comportamiento del Pop-Up de Alerta del CRM).*
 
 ### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
 * Se completó el blindaje RLS en la base de datos con `service_role` key.
