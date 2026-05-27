@@ -796,7 +796,7 @@ def render_pestana_agenda(client):
         citas_por_dia_mes = {}
         if res_citas_mes.data:
             for c in res_citas_mes.data:
-            if "[ESTADO: Cancelada]" not in c.get('servicio', '') and "[ESTADO: No presentado]" not in c.get('servicio', '') and "[ESTADO: Anulada]" not in c.get('servicio', ''):
+                if "[ESTADO: Cancelada]" not in c.get('servicio', '') and "[ESTADO: No presentado]" not in c.get('servicio', '') and "[ESTADO: Anulada]" not in c.get('servicio', ''):
                     try:
                         d_str = c['fecha_hora'][:10]
                         if d_str not in citas_por_dia_mes:
