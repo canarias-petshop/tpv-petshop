@@ -151,6 +151,10 @@ def render_pestana_crm(client):
             res_citas = client.table("citas").select("fecha_hora, duracion_minutos, servicio").gte("fecha_hora", fecha_inicio_q).lte("fecha_hora", fecha_fin_q).execute()
             citas_dia = res_citas.data if res_citas.data else []
             
+            from ficha_clinica import fetch_ficha_alerts_cached
+            _, r_canc = fetch_ficha_alerts_cached(client, st.session_state.get('db_version', 0), m_id, str(date.today()))
+            strikes = len(r_canc) if r_canc else 0
+            
             # Obtener todos los turnos del día
             res_turnos = client.table("personal_cuadrantes").select("empleado_id, turno, personal_empleados(nombre)").eq("fecha", str(f_fecha)).execute()
             turnos_dict = {}
@@ -246,6 +250,12 @@ def render_pestana_crm(client):
                         motivo_solape = st.selectbox("Motivo para forzar la cita: *", ["", "Tenemos otro peluquero disponible", "Se va a ayudar con la peluquería", "Se puede hacer a la vez", "Otro motivo"], key=f"mot_{prefix}_{m_id}")
                         if motivo_solape == "Otro motivo":
                             motivo_extra = st.text_input("Especificar otro motivo: *", key=f"mote_{prefix}_{m_id}")
+
+                if strikes >= 2:
+                    st.error(f"🚨 **CLIENTE REINCIDENTE ({strikes} faltas):** Por política, es obligatorio cobrar fianza o pago por adelantado para agendar.")
+                    fianza_pagada = st.checkbox("✅ Confirmo cobro de fianza o pago por adelantado", key=f"fianza_{prefix}_{m_id}")
+                else:
+                    fianza_pagada = False
 
                 if st.form_submit_button("➕ Confirmar Cita", type="primary", use_container_width=True):
                     if solapa_manual and (not motivo_solape or (motivo_solape == "Otro motivo" and not motivo_extra)):
