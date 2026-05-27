@@ -26,6 +26,7 @@ Esta es la pantalla principal para cobrar a los clientes.
 4. **Cobrar:**
    - Selecciona el método de pago (Efectivo, Tarjeta, Bizum). **¡Novedad!** Ahora puedes introducir la cantidad exacta que te entrega el cliente no solo en Efectivo, sino también en **Tarjeta o Bizum**. Esto facilita muchísimo los pagos parciales o mixtos. Al elegir tarjeta o pago mixto, **deberás indicar en qué datáfono o banco lo estás cobrando** para que luego cuadre el Cierre Z.
    - **Dejar a deber:** Si el cliente no te paga la totalidad, asegúrate de **seleccionar su nombre en el desplegable de "Cliente VIP"**. El sistema NO te dejará finalizar el cobro si la venta está como anónima. *Ojo: No ganará puntos hasta que venga a saldar la deuda.*
+   - **Atención a Fianzas:** Si al pasar un servicio de peluquería al TPV ves que tiene la etiqueta **`[💰 FIANZA PAGADA]`**, significa que el cliente adelantó dinero por Bizum al hacer la reserva. ¡Recuerda descontar ese importe (ajustando el precio o aplicando un descuento) antes de cobrar el total!
    - Pulsa el botón verde **"💳 COBRAR TICKET"**.
    - El cajón portamonedas se abrirá (si es efectivo) y el ticket se imprimirá automáticamente. Pasados 30 segundos, la pantalla volverá sola a una Nueva Venta.
 5. **Ticket Regalo:** Al cobrar, en la pantalla del ticket, verás un botón morado "🎁 TICKET REGALO". Este imprime un justificante alternativo sin importes y con la política de devoluciones, ideal para regalos.
@@ -62,7 +63,8 @@ Puedes hacerlo desde la ficha de la mascota (en Clientes) o desde la pestaña "A
 3. El sistema buscará automáticamente los **Tramos Libres** y te los mostrará en el desplegable de "Hora recomendada". Si el peluquero que pide el cliente no trabaja, te avisará.
 4. Selecciona el **Servicio** de la lista (ej. Baño y Corte).
 5. (Opcional) Usa el campo de **Observaciones** para anotar peticiones específicas ("Corte a máquina", "Dejar más largo", etc.).
-6. Pulsa **"➕ Confirmar Cita"**.
+6. **🚨 Política de Reincidentes (Fianzas):** El sistema cuenta automáticamente las faltas (plantones, cancelaciones o cambios en el mismo día). Si el cliente acumula 2 faltas, el botón de agendar se bloqueará con una alerta roja. Para darle cita, infórmale de que por política debe adelantar una fianza (ej. Bizum). Una vez pagada, marca la casilla para desbloquear el botón.
+7. Pulsa **"➕ Confirmar Cita"**.
 
 ### Ver el Cuadrante:
 - **Vista Diaria:** Muestra el día dividido en bloques de 5 minutos.

@@ -70,7 +70,7 @@ Control estricto de la liquidez en las cuentas de la empresa.
 
 ## 7. 👥 Gestión Avanzada de CRM y Agenda
 - **Botón WhatsApp de Ahorro Acumulado:** El CRM lee todos los descuentos del 10% por mantenimiento generados en los historiales de los perros de una familia y te muestra el "Ahorro Total". Al pulsar el botón, les enviará un mensaje celebrándolo.
-- **Directorio de Cancelaciones Estricto:** La agenda contabiliza cuántas veces anula cita un cliente y le pone un aviso visual rojo al empleado para que lo tenga en cuenta.
+- **Política Híbrida de Cancelaciones y Fianzas:** El sistema cuenta automáticamente las faltas (`Cancelada`, `Anulada`, `No presentado`, `Cambio en el mismo día`). Otorga 1 falta de margen de confianza. Al llegar a 2 faltas, bloquea la reserva en Agenda/CRM exigiendo al empleado marcar la confirmación manual de que ha cobrado una Fianza/Adelanto. Así proteges tus ingresos frente a reincidentes sin entorpecer el ritmo de trabajo con los buenos clientes.
 - **Directorio Limpio y Ocultación Inteligente:** Las citas pasadas desaparecen visualmente para aligerar la carga del día a día, pero las puedes revelar con un botón.
 
 ---
