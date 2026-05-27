@@ -189,7 +189,7 @@ def render_pestana_crm(client):
                         
                         solapa = False
                         for c in citas_dia:
-                            if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
+                            if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Anulada]" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
                             c_ini = pd.to_datetime(c['fecha_hora'])
                             if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                             c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
@@ -228,7 +228,7 @@ def render_pestana_crm(client):
                     dt_ini_man = pd.to_datetime(f"{f_fecha} {f_hora_manual.strftime('%H:%M')}")
                     dt_fin_man = dt_ini_man + pd.Timedelta(minutes=f_dur)
                     for c in citas_dia:
-                        if "[ESTADO: Cancelada]" in c.get('servicio', ''): continue
+                        if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Anulada]" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
                         c_ini = pd.to_datetime(c['fecha_hora'])
                         if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
                         c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)

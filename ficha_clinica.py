@@ -29,7 +29,7 @@ def calcular_duracion_media(historial):
 def fetch_ficha_alerts_cached(_client, v, mid, hoy):
     try:
         r1 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).lt("fecha_hora", hoy).like("servicio", "%[ESTADO: Confirmada]%").execute().data
-        r2 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).like("servicio", "%[ESTADO: Cancelada]%").execute().data
+        r2 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%,servicio.ilike.%[ESTADO: Anulada]%").execute().data
         return r1, r2
     except: return [], []
 
@@ -366,15 +366,15 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
         st.success("Historial y notas actualizados correctamente."); time.sleep(0.1); st.rerun()
         
     st.markdown("---")
-    st.markdown("#### 🚫 Historial de Cancelaciones")
+    st.markdown("#### 🚫 Historial de Cancelaciones y Plantones")
     if r_canc:
-        st.warning(f"⚠️ **ALERTA DE POLÍTICA:** Esta mascota tiene **{len(r_canc)}** cancelación(es) registrada(s).")
+        st.warning(f"⚠️ **ALERTA DE POLÍTICA:** Esta mascota tiene **{len(r_canc)}** cancelación(es) / plantón(es) registrada(s).")
         canc_lista = []
         for cx in r_canc:
             dt_c = pd.to_datetime(cx['fecha_hora'])
             import re
             s_raw = cx.get('servicio', '')
-            s_clean = re.sub(r'\[ESTADO:\s*Cancelada\]\s*', '', s_raw).strip()
+            s_clean = re.sub(r'\[ESTADO:\s*.*?\]\s*', '', s_raw).strip()
             canc_lista.append({
                 "Fecha de la Cita": dt_c.strftime('%d/%m/%Y %H:%M'),
                 "Servicio Cancelado": s_clean
