@@ -563,7 +563,14 @@ def render_pestana_tpv(client):
                 res_cli_puntos = DummyRes()
                 res_cli_puntos.data = all_cli_puntos
                 
-                opc_cli = ["Ninguno (Venta Anónima)"] + [f"{c['nombre_dueno']} ({c.get('telefono', '')}) - Puntos: {c.get('puntos') or 0}" for c in res_cli_puntos.data] if res_cli_puntos.data else ["Ninguno (Venta Anónima)"]
+                mapa_clientes_tpv = {}
+                opc_cli = ["Ninguno (Venta Anónima)"]
+                if res_cli_puntos.data:
+                    for c in res_cli_puntos.data:
+                        ptos = c.get('puntos') or 0
+                        etiq = f"{c['nombre_dueno']} ({c.get('telefono', '')}) - Puntos: {ptos}"
+                        opc_cli.append(etiq)
+                        mapa_clientes_tpv[etiq] = c
                 
                 # --- AUTO-SELECCIÓN DE DUEÑO (Viene desde Cobro Rápido) ---
                 idx_cli = 0
@@ -591,9 +598,7 @@ def render_pestana_tpv(client):
                         st.warning("⚠️ Selecciona un cliente arriba ('Asociar Cliente') para poder enviarlo a domicilio.")
                     else:
                         enviar_domicilio = True
-                        base_str_check = cliente_fidelidad.rsplit(") - Puntos:")[0]
-                        cli_check_nombre = base_str_check.rsplit(" (", 1)[0].strip()
-                        cli_data_dom = next((c for c in res_cli_puntos.data if c['nombre_dueno'] == cli_check_nombre), {})
+                        cli_data_dom = mapa_clientes_tpv.get(cliente_fidelidad, {})
                         dir_entrega = st.text_input("📍 Dirección de Entrega (Editable):", value=cli_data_dom.get('direccion', ''))
                 
                 desc_g_val = float(desc_g or 0.0)
@@ -603,15 +608,13 @@ def render_pestana_tpv(client):
                 desc_puntos_eur = 0.0
                 puntos_a_descontar = 0
                 if "Ninguno" not in cliente_fidelidad:
-                    # EXTRAEMOS EL NOMBRE PARA COMPROBAR DEUDAS
-                    base_str_check = cliente_fidelidad.rsplit(") - Puntos:")[0]
-                    cli_check_nombre = base_str_check.rsplit(" (", 1)[0].strip()
+                    cli_info = mapa_clientes_tpv.get(cliente_fidelidad, {})
+                    cli_check_nombre = cli_info.get('nombre_dueno', '')
                     
                     res_deuda_cli = client.table("ventas_historial").select("id").eq("cliente_deuda", cli_check_nombre).eq("estado", "Deuda").limit(1).execute()
                     tiene_deuda = True if res_deuda_cli.data else False
                     
-                    pts_str = cliente_fidelidad.split("- Puntos: ")[1].strip()
-                    puntos_disp = int(pts_str) if pts_str.isdigit() else 0
+                    puntos_disp = int(cli_info.get('puntos') or 0)
                     if puntos_disp > 0:
                         if tiene_deuda:
                             st.error(f"⛔ **{cli_check_nombre}** tiene pagos pendientes. No puede canjear puntos hasta saldar su deuda.")
@@ -783,18 +786,20 @@ def render_pestana_tpv(client):
                             cliente_fidel_nombre = ""
                             puntos_ganados = 0
                             nuevo_saldo = 0
+                            cliente_email = ""
                             if "Ninguno" not in cliente_fidelidad:
-                                base_str = cliente_fidelidad.rsplit(") - Puntos:")[0]
-                                cliente_fidel_nombre = base_str.rsplit(" (", 1)[0].strip()
-                                cliente_info = next(c for c in res_cli_puntos.data if c['nombre_dueno'] == cliente_fidel_nombre)
+                                cliente_info = mapa_clientes_tpv.get(cliente_fidelidad, {})
+                                cliente_fidel_nombre = cliente_info.get('nombre_dueno', '')
+                                cliente_email = cliente_info.get('email', '')
                                 
                                 if pendiente == 0:
                                     puntos_ganados = int(total_f // 10) # 1 punto por cada 10€
                                 else:
                                     puntos_ganados = 0 # ❌ No sumar puntos en el ticket si queda deuda
                                     
-                                nuevo_saldo = cliente_info.get('puntos', 0) - puntos_a_descontar + puntos_ganados
-                                client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cliente_info['id']).execute()
+                                ptos_act = cliente_info.get('puntos') or 0
+                                nuevo_saldo = ptos_act - puntos_a_descontar + puntos_ganados
+                                client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cliente_info.get('id')).execute()
                                 
                             # GENERACIÓN DE HASH (LEY ANTIFRAUDE / VERIFACTU)
                             res_last = client.table("ventas_historial").select("hash_actual").order("id", desc=True).limit(1).execute()
@@ -872,7 +877,7 @@ def render_pestana_tpv(client):
                                 "descuento_global": desc_g_val, "pendiente": pendiente,
                                 "vale_aplicado": st.session_state.vale_aplicado['codigo_vale'] if st.session_state.vale_aplicado else None,
                                 "desc_vale_eur": desc_vale_eur if st.session_state.vale_aplicado else 0.0,
-                                "email_cliente": cliente_info.get('email', '') if "Ninguno" not in cliente_fidelidad else ""
+                                "email_cliente": cliente_email if "Ninguno" not in cliente_fidelidad else ""
                             }
                             st.session_state.carrito = []
                             st.session_state.vale_aplicado = None
