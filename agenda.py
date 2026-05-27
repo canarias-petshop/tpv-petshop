@@ -23,7 +23,7 @@ def get_citas_ag_cached(_client, v):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, especie, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
+            _r = _client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, especie, raza, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
@@ -545,14 +545,23 @@ def render_pestana_agenda(client):
                     if dt_start.date() == dia_ver:
                         dur = c.get('duracion_minutos') if c.get('duracion_minutos') is not None else 60
                         dt_end = dt_start + pd.Timedelta(minutes=dur)
-                        mascota = c.get('mascotas', {}).get('nombre', 'Mascota')
-                        especie = c.get('mascotas', {}).get('especie', '')
+                        
+                        masc_info = c.get('mascotas') or {}
+                        cli_info = masc_info.get('clientes') or {}
+                        
+                        mascota = masc_info.get('nombre', 'Mascota')
+                        especie = masc_info.get('especie', '')
+                        raza = masc_info.get('raza', '')
+                        dueno = cli_info.get('nombre_dueno', 'Sin dueño')
+                        tel = cli_info.get('telefono', 'Sin tel')
+                        
                         if especie: mascota += f" ({especie})"
+                        if raza: mascota += f" - {raza}"
                         
                         estado_c, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
                         emoji = EMOJIS_ESTADO.get(estado_c, "🟢")
                                 
-                        detalle_texto = f"{emoji} [{assigned_e}] {mascota} ({dur} min) - {s_clean}"
+                        detalle_texto = f"{emoji} [{assigned_e}] {mascota} | 👤 {dueno} (📱 {tel}) | ⏱️ {dur} min | ✂️ {s_clean}"
                         
                         # Recorremos la cuadrícula y rellenamos los huecos afectados
                         primer_bloque = True
@@ -736,9 +745,17 @@ def render_pestana_agenda(client):
                         duracion = cita.get('duracion_minutos') if cita.get('duracion_minutos') is not None else 60
                         dt_end = dt_start + timedelta(minutes=duracion)
                         
-                        mascota_nombre = cita.get('mascotas', {}).get('nombre', 'Cita')
-                        especie = cita.get('mascotas', {}).get('especie', '')
+                        masc_info = cita.get('mascotas') or {}
+                        cli_info = masc_info.get('clientes') or {}
+                        
+                        mascota_nombre = masc_info.get('nombre', 'Cita')
+                        especie = masc_info.get('especie', '')
+                        raza = masc_info.get('raza', '')
+                        dueno = cli_info.get('nombre_dueno', 'Sin dueño')
+                        tel = cli_info.get('telefono', 'Sin tel')
+                        
                         if especie: mascota_nombre += f" ({especie})"
+                        if raza: mascota_nombre += f" - {raza}"
                         
                         estado_c, s_clean, assigned_e = parse_cita_estado(cita.get('servicio', ''))
                         emoji = EMOJIS_ESTADO.get(estado_c, "🟢")
@@ -748,7 +765,7 @@ def render_pestana_agenda(client):
                         elif "recogida" in estado_c.lower(): border_color = "#9c27b0"
                         elif "Pendiente" in estado_c: border_color = "#ffeb3b"
                         
-                        html_week += f"<div class='cita-card' style='border-left-color: {border_color};'><b>{dt_start.strftime('%H:%M')}-{dt_end.strftime('%H:%M')}</b> {emoji}<br>🐾 {mascota_nombre}<br>✂️ {s_clean} <br>👩‍🦰 {assigned_e}</div>"
+                        html_week += f"<div class='cita-card' style='border-left-color: {border_color};'><b>{dt_start.strftime('%H:%M')}-{dt_end.strftime('%H:%M')}</b> {emoji}<br>🐾 {mascota_nombre}<br> {dueno} (📱 {tel})<br>✂️ {s_clean} <br>👩‍🦰 {assigned_e}</div>"
                 else:
                     html_week += "<div style='color:#bbb; font-size:0.8em; text-align:center; margin-top:10px;'><i>Libre</i></div>"
                     
@@ -774,7 +791,7 @@ def render_pestana_agenda(client):
         
         turnos_mes = get_turnos_ag_cached(client, st.session_state.get('db_version', 0), str(f_ini_mes), str(f_fin_mes))
         bloqueos_mes = get_bloqueos_ag_cached(client, st.session_state.get('db_version', 0), str(f_ini_mes), str(f_fin_mes))
-        res_citas_mes = client.table("citas").select("fecha_hora, servicio").gte("fecha_hora", f"{f_ini_mes}T00:00:00").lte("fecha_hora", f"{f_fin_mes}T23:59:59").execute()
+        res_citas_mes = client.table("citas").select("fecha_hora, servicio, mascotas(nombre, raza, clientes(nombre_dueno, telefono))").gte("fecha_hora", f"{f_ini_mes}T00:00:00").lte("fecha_hora", f"{f_fin_mes}T23:59:59").execute()
         
         citas_por_dia_mes = {}
         if res_citas_mes.data:
@@ -782,7 +799,9 @@ def render_pestana_agenda(client):
                 if "[ESTADO: Cancelada]" not in c.get('servicio', ''):
                     try:
                         d_str = c['fecha_hora'][:10]
-                        citas_por_dia_mes[d_str] = citas_por_dia_mes.get(d_str, 0) + 1
+                        if d_str not in citas_por_dia_mes:
+                            citas_por_dia_mes[d_str] = []
+                        citas_por_dia_mes[d_str].append(c)
                     except: pass
         
         dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
@@ -845,10 +864,25 @@ def render_pestana_agenda(client):
                             c_bloque = f"⛔ {b['titulo']} ({b['hora_inicio'][:5]})"
                             html_cal += f"<div class='turnos-bloque' style='color:#880e4f; font-weight:bold; background-color:#fce4ec; padding:2px; border-radius:3px; margin-top:2px;'>{c_bloque}</div>"
                     
-                    num_citas = citas_por_dia_mes.get(d_str, 0)
-                    if num_citas > 0:
-                        c_bloque = f"📝 {num_citas} cita(s)"
-                        html_cal += f"<div class='citas-bloque'>{c_bloque}</div>"
+                    citas_hoy = citas_por_dia_mes.get(d_str, [])
+                    if citas_hoy:
+                        c_bloque = f"📝 {len(citas_hoy)} cita(s)"
+                        html_cal += f"<div class='citas-bloque' style='margin-bottom:4px;'>{c_bloque}</div>"
+                        
+                        citas_hoy.sort(key=lambda x: x['fecha_hora'])
+                        for ct in citas_hoy:
+                            try:
+                                hora_str = ct['fecha_hora'][11:16]
+                                m_info = ct.get('mascotas') or {}
+                                c_info = m_info.get('clientes') or {}
+                                n_m = m_info.get('nombre', 'Mascota')
+                                r_m = m_info.get('raza', '')
+                                n_d = c_info.get('nombre_dueno', 'Sin dueño')
+                                t_d = c_info.get('telefono', '')
+                                
+                                str_raza = f" ({r_m})" if r_m else ""
+                                html_cal += f"<div style='font-size:0.75em; line-height:1.2; margin-top:2px; padding:3px; background-color:#e8f5e9; border-left: 2px solid #4caf50; border-radius:2px;'><b>{hora_str}</b> {n_m}{str_raza}<br><span style='color:#555;'>👤 {n_d} 📱 {t_d}</span></div>"
+                            except: pass
                     else:
                         c_bloque = "Libre"
                         html_cal += f"<div class='citas-vacio'>{c_bloque}</div>"
