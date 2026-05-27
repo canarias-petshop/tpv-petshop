@@ -23,7 +23,7 @@ def get_citas_ag_cached(_client, v):
     _all = []
     _off = 0
     while True:
-            _r = _client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, especie, raza, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
+        _r = _client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, especie, raza, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
