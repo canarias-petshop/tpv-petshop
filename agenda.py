@@ -150,7 +150,7 @@ def render_pestana_agenda(client):
     EMOJIS_ESTADO = {
         "Confirmada": "🟢", "Asistió": "✅", "Cancelada": "💖", "Anulada": "🚫", "No presentado": "❌", "Cambio (días después)": "🔵", "Cambio de cita": "🔵", 
         "Servicio de recogida": "🟣", "Servicio de recogida pendiente": "🟣🟡", "Servicio de recogida confirmado": "🟣🟢",
-        "Cambio (día antes)": "", "Cambio (mismo día)": "⚪", 
+        "Cambio (día antes)": "🟤", "Cambio (mismo día)": "⚪", 
         "Oferta / Descuento": "🟩", "Pendiente": "🟡", "Pendiente (Avisar hueco)": "🟡🟠"
     }
 
@@ -566,10 +566,10 @@ def render_pestana_agenda(client):
                     st.write("✅ **Asistió**")
                     st.write("🟩 **Oferta / Dto.**")
                 with c_ley2:
-                    st.write("💖 **Cancelada** (Libera hueco)")
-                    st.write("🚫 **Anulada** (Libera hueco)")
-                    st.write("❌ **No presentado** (Falta)")
-                    st.write("⚪ **Cambio (mismo día)** (Falta)")
+                    st.write("💖 **Cancelada por cliente** (Libera hueco)")
+                    st.write("🚫 **Anulada por tienda** (Libera hueco)")
+                    st.write("❌ **No presentado** (Falta - Libera hueco)")
+                    st.write("⚪ **Cambio (mismo día)** (Falta - Libera hueco)")
                 with c_ley3:
                     st.write("🔵 **Cambio (días después)** (Libera hueco)")
                     st.write("🟤 **Cambio (día antes)** (Libera hueco)")
@@ -577,12 +577,16 @@ def render_pestana_agenda(client):
                     st.write("🟣🟢 **Recogida Confirmada**")
 
                 st.markdown("##### 🚨 Política de Cancelaciones y Reincidentes (Sistema Automático)")
-                st.info("**Sistema de Faltas (Strikes):** El sistema rastrea automáticamente los estados *Cancelada*, *Anulada*, *No presentado* y *Cambio (mismo día)*.")
+                st.info("""**Diferencia entre Cancelada y Anulada:**
+* **Cancelada:** La cancela explícitamente el cliente.
+* **Anulada:** La anulamos nosotros (ej. no abona la fianza tras aviso de 24h).
+
+**Sistema de Faltas (Strikes):** El sistema rastrea automáticamente los estados *Cancelada*, *Anulada*, *No presentado* y *Cambio (mismo día)*.""")
                 st.markdown("""
                 * **Margen de confianza:** Se otorga **1 falta** de margen al cliente sin penalización.
                 * **Bloqueo Automático:** Al acumular **2 faltas o más**, el sistema bloquea el botón de nueva cita con una alerta roja.
                 * **Fianzas / Adelantos:** Para volver a agendar a un cliente bloqueado, se le debe exigir una fianza (ej. Bizum). Al hacer la reserva, deberás marcar la casilla de confirmación, añadiendo la etiqueta `[💰 FIANZA PAGADA]` a la cita para que quede constancia en caja.
-                * **Liberación de Huecos:** Marcar cualquier cita como *Cancelada*, *Anulada* o *Cambio* en la tabla superior libera instantáneamente esa hora en el cuadrante para dársela a otro cliente.
+                * **Liberación de Huecos:** Marcar una cita como *Cancelada*, *Anulada*, *No presentado* o *Cambio* libera instantáneamente esa hora en el cuadrante para cubrirla de manera espontánea.
                 """)
 
     with sub_diario:
