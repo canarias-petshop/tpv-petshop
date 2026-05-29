@@ -935,7 +935,7 @@ def render_pestana_agenda(client):
         citas_manana = []
         if res_manana.data:
             for c in res_manana.data:
-                if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Anulada]" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
+                if "[ESTADO: Pendiente]" not in c.get('servicio', ''): continue
                 mascota_info = c.get('mascotas', {}) or {}
                 cliente_info = mascota_info.get('clientes', {}) or {}
                 dueno = cliente_info.get('nombre_dueno', 'Dueño')
@@ -975,7 +975,7 @@ def render_pestana_agenda(client):
             df_manana = pd.DataFrame(citas_manana).sort_values("Hora")
             st.dataframe(df_manana, use_container_width=True, hide_index=True, column_config={"WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Pedir Confirmación")})
         else:
-            st.success(f"No hay citas programadas para el {nombre_dia_obj.lower()} o ya están todas canceladas.")
+            st.success(f"No hay citas pendientes de confirmación para el {nombre_dia_obj.lower()}.")
 
         st.markdown("---")
         
