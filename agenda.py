@@ -516,6 +516,35 @@ def render_pestana_agenda(client):
             else:
                 st.info("No hay citas agendadas en el sistema.")
                 
+            st.markdown("---")
+            with st.expander("ℹ️ Leyenda de Estados y Políticas de la Agenda", expanded=False):
+                st.markdown("##### 🎨 Leyenda de Estados")
+                c_ley1, c_ley2, c_ley3 = st.columns(3)
+                with c_ley1:
+                    st.write("🟡 **Pendiente** (Por defecto)")
+                    st.write("🟢 **Confirmada**")
+                    st.write("✅ **Asistió**")
+                    st.write("🟩 **Oferta / Dto.**")
+                with c_ley2:
+                    st.write("💖 **Cancelada** (Libera hueco)")
+                    st.write("🚫 **Anulada** (Libera hueco)")
+                    st.write("❌ **No presentado** (Falta)")
+                    st.write("🔵 **Cambio cita** (Libera hueco)")
+                with c_ley3:
+                    st.write("⚪ **Cambio (mismo día)** (Falta)")
+                    st.write("🟠 **Cambio (día antes)**")
+                    st.write("🟣 **Recogida Pendiente**")
+                    st.write("🟣🟢 **Recogida Confirmada**")
+
+                st.markdown("##### 🚨 Política de Cancelaciones y Reincidentes (Sistema Automático)")
+                st.info("**Sistema de Faltas (Strikes):** El sistema rastrea automáticamente los estados *Cancelada*, *Anulada*, *No presentado* y *Cambio (mismo día)*.")
+                st.markdown("""
+                * **Margen de confianza:** Se otorga **1 falta** de margen al cliente.
+                * **Bloqueo Automático:** Al acumular **2 faltas o más**, el sistema bloquea el botón de nueva cita con una alerta roja.
+                * **Fianzas / Adelantos:** Para volver a agendar a un cliente bloqueado, se le debe exigir una fianza (ej. Bizum). Al hacer la reserva, deberás marcar la casilla de confirmación, añadiendo la etiqueta `[💰 FIANZA PAGADA]` a la cita para que quede constancia en caja.
+                * **Liberación de Huecos:** Marcar una cita como cancelada o cambiada en la tabla superior libera instantáneamente esa hora en el buscador para dársela a otro cliente.
+                """)
+
     with sub_diario:
         st.markdown("#### 🕒 Cuadrante de Trabajo Diario (Intervalos de 5 min)")
         
