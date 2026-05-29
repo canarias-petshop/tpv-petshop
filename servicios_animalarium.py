@@ -81,7 +81,8 @@ def render_pestana_servicios(client):
                     df_p_vista['Avisar Equipo'] = None
                     for idx, row in df_p_vista.iterrows():
                         msg = f"¡Nuevo Paseo! 🐕\nCliente: {row['cliente']}\nMascota: {row['mascota']}\nTipo: {row['tipo_paseo']}\nFecha: {row['fecha']}\nObs: {row.get('observaciones', '')}"
-                        df_p_vista.at[idx, 'Avisar Equipo'] = f"https://wa.me/34645749708?text={urllib.parse.quote(msg)}"
+                        tel_aviso = "34610606027" if row['tipo_paseo'] == "Paseo por la ciudad" else "34645749708"
+                        df_p_vista.at[idx, 'Avisar Equipo'] = f"https://wa.me/{tel_aviso}?text={urllib.parse.quote(msg)}"
                     
                     df_p_vista.insert(0, "Borrar", False)
                     ed_p = st.data_editor(
