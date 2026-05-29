@@ -107,6 +107,22 @@ def render_pestana_crm(client):
                 return f"{anios} años"
             except: return ""
 
+        def aproximar_fecha_desde_edad(edad_str, fecha_actual):
+            if not edad_str: return fecha_actual
+            try:
+                import re
+                edad_str = str(edad_str).strip().lower()
+                match = re.search(r'\d+', edad_str)
+                if not match: return fecha_actual
+                num = int(match.group())
+                hoy = pd.to_datetime("today")
+                if "mes" in edad_str:
+                    return (hoy - pd.DateOffset(months=num)).strftime('%Y-%m-%d')
+                else:
+                    return (hoy - pd.DateOffset(years=num)).strftime('%Y-%m-%d')
+            except:
+                return fecha_actual
+
         def get_pref(obs):
             import re
             m = re.search(r'\[Pref:\s*(.*?)\]', str(obs))
@@ -486,7 +502,7 @@ def render_pestana_crm(client):
                                 "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
                                 "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista),
                                 "Sexo": st.column_config.SelectboxColumn("Sexo", options=["", "Macho", "Hembra"]),
-                                "id": None, "Edad": st.column_config.TextColumn(disabled=True), "Duración Media": st.column_config.TextColumn(disabled=True)
+                                "id": None, "Edad": st.column_config.TextColumn("Edad (Editable)", disabled=False, help="Escribe '5 años' o '6 meses' si no conoces la fecha exacta."), "Duración Media": st.column_config.TextColumn(disabled=True)
                             }
                         )
                         
@@ -500,11 +516,21 @@ def render_pestana_crm(client):
                                 
                             # 2. Actualizar mascotas existentes o insertar las nuevas
                             for _, ru in ed_mc.iterrows():
+                                nueva_fecha_mc = str(ru['F. Nacimiento']) if pd.notna(ru['F. Nacimiento']) else ""
+                                if pd.notna(ru['id']):
+                                    orig_match = df_mc_show[df_mc_show['id'] == ru['id']]
+                                    if not orig_match.empty:
+                                        orig_ru = orig_match.iloc[0]
+                                        if str(ru.get('Edad', '')) != str(orig_ru.get('Edad', '')) and str(ru.get('F. Nacimiento', '')) == str(orig_ru.get('F. Nacimiento', '')):
+                                            nueva_fecha_mc = aproximar_fecha_desde_edad(ru.get('Edad', ''), nueva_fecha_mc)
+                                elif ru.get('Edad', '') and not nueva_fecha_mc:
+                                    nueva_fecha_mc = aproximar_fecha_desde_edad(ru.get('Edad', ''), nueva_fecha_mc)
+
                                 final_obs_edit = f"[Pref: {ru['Pref']}] {ru['Observaciones']}".strip() if pd.notna(ru.get('Pref')) and str(ru.get('Pref')) != "Cualquiera" else str(ru['Observaciones'])
                                 if pd.notna(ru['id']):
                                     client.table("mascotas").update({
                                         "nombre": str(ru['Nombre Mascota']), "especie": str(ru['Especie']), "sexo": str(ru.get('Sexo', '')),
-                                        "raza": str(ru['Raza']), "peso": str(ru.get('Peso', '')), "fecha_nacimiento": str(ru['F. Nacimiento']),
+                                        "raza": str(ru['Raza']), "peso": str(ru.get('Peso', '')), "fecha_nacimiento": nueva_fecha_mc,
                                         "observaciones": final_obs_edit
                                     }).eq("id", ru['id']).execute()
                                 else:
@@ -515,7 +541,7 @@ def render_pestana_crm(client):
                                             "sexo": str(ru.get('Sexo', '')) if pd.notna(ru.get('Sexo')) else "",
                                             "raza": str(ru['Raza']) if pd.notna(ru['Raza']) else "",
                                             "peso": str(ru.get('Peso', '')),
-                                            "fecha_nacimiento": str(ru['F. Nacimiento']) if pd.notna(ru['F. Nacimiento']) else "",
+                                            "fecha_nacimiento": nueva_fecha_mc,
                                             "observaciones": final_obs_edit
                                         }).execute()
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
@@ -621,7 +647,7 @@ def render_pestana_crm(client):
                 
                 ed_m = st.data_editor(
                     df_m_vista,
-                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "cliente_id": None, "Dueño": st.column_config.TextColumn("Dueño (Editar)", disabled=False), "Teléfono": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn(disabled=True), "nombre": "Mascota", "sexo": st.column_config.SelectboxColumn("Sexo", options=["", "Macho", "Hembra"]), "peso": "Peso", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
+                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "cliente_id": None, "Dueño": st.column_config.TextColumn("Dueño (Editar)", disabled=False), "Teléfono": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn("Edad (Editable)", disabled=False, help="Escribe '5 años' o '6 meses' si no conoces la fecha exacta."), "nombre": "Mascota", "sexo": st.column_config.SelectboxColumn("Sexo", options=["", "Macho", "Hembra"]), "peso": "Peso", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
                     use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_mascotas", height=400
                 )
                 if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
@@ -632,10 +658,17 @@ def render_pestana_crm(client):
                     
                     for _, row in ed_m_clean.iterrows():
                         if pd.notna(row['id']):
+                            nueva_fecha_m = str(row['fecha_nacimiento']) if pd.notna(row['fecha_nacimiento']) else ""
+                            orig_match = df_m_vista[df_m_vista['id'] == row['id']]
+                            if not orig_match.empty:
+                                orig_ru = orig_match.iloc[0]
+                                if str(row.get('Edad', '')) != str(orig_ru.get('Edad', '')) and str(row.get('fecha_nacimiento', '')) == str(orig_ru.get('fecha_nacimiento', '')):
+                                    nueva_fecha_m = aproximar_fecha_desde_edad(row.get('Edad', ''), nueva_fecha_m)
+
                             final_obs_edit = f"[Pref: {row['Pref']}] {row['observaciones']}".strip() if pd.notna(row.get('Pref')) and str(row.get('Pref')) != "Cualquiera" else str(row['observaciones'])
                             client.table("mascotas").update({
                                 "nombre": str(row['nombre']), "especie": str(row['especie']), "sexo": str(row.get('sexo', '')),
-                                "raza": str(row['raza']), "peso": str(row.get('peso', '')), "fecha_nacimiento": str(row['fecha_nacimiento']),
+                                "raza": str(row['raza']), "peso": str(row.get('peso', '')), "fecha_nacimiento": nueva_fecha_m,
                                 "observaciones": final_obs_edit
                             }).eq("id", row['id']).execute()
                             
