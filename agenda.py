@@ -532,17 +532,17 @@ def render_pestana_agenda(client):
                     st.write("🔵 **Cambio cita** (Libera hueco)")
                 with c_ley3:
                     st.write("⚪ **Cambio (mismo día)** (Falta)")
-                    st.write("🟠 **Cambio (día antes)**")
-                    st.write("🟣 **Recogida Pendiente**")
-                    st.write("🟣🟢 **Recogida Confirmada**")
+                    st.write("🟠 **Cambio (día antes)** (Libera hueco)")
+                    st.write("🟡 **Recogida Pendiente**")
+                    st.write("🟣 **Recogida Confirmada**")
 
                 st.markdown("##### 🚨 Política de Cancelaciones y Reincidentes (Sistema Automático)")
                 st.info("**Sistema de Faltas (Strikes):** El sistema rastrea automáticamente los estados *Cancelada*, *Anulada*, *No presentado* y *Cambio (mismo día)*.")
                 st.markdown("""
-                * **Margen de confianza:** Se otorga **1 falta** de margen al cliente.
+                * **Margen de confianza:** Se otorga **1 falta** de margen al cliente sin penalización.
                 * **Bloqueo Automático:** Al acumular **2 faltas o más**, el sistema bloquea el botón de nueva cita con una alerta roja.
                 * **Fianzas / Adelantos:** Para volver a agendar a un cliente bloqueado, se le debe exigir una fianza (ej. Bizum). Al hacer la reserva, deberás marcar la casilla de confirmación, añadiendo la etiqueta `[💰 FIANZA PAGADA]` a la cita para que quede constancia en caja.
-                * **Liberación de Huecos:** Marcar una cita como cancelada o cambiada en la tabla superior libera instantáneamente esa hora en el buscador para dársela a otro cliente.
+                * **Liberación de Huecos:** Marcar cualquier cita como *Cancelada*, *Anulada* o *Cambio* en la tabla superior libera instantáneamente esa hora en el cuadrante para dársela a otro cliente.
                 """)
 
     with sub_diario:
