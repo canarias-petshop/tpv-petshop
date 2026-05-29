@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import re
 
 def render_pestana_estadisticas(client):
@@ -14,33 +14,94 @@ def render_pestana_estadisticas(client):
     except:
         empleados_reales = []
 
-    # Filtros de mes y año
-    meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     hoy = date.today()
-    
-    c_f1, c_f2, c_f3 = st.columns([1, 1, 2])
-    with c_f1:
-        mes_sel = st.selectbox("Mes a analizar", range(1, 13), format_func=lambda x: meses[x-1], index=hoy.month-1)
-    with c_f2:
-        anio_sel = st.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
         
-    fecha_ini = f"{anio_sel}-{mes_sel:02d}-01T00:00:00"
-    if mes_sel == 12:
-        fecha_fin = f"{anio_sel+1}-01-01T00:00:00"
-    else:
-        fecha_fin = f"{anio_sel}-{mes_sel+1:02d}-01T00:00:00"
+    tipo_periodo = st.selectbox("🗓️ Selecciona el periodo de análisis:", ["Semanal", "Mensual", "Trimestral", "Semestral", "Anual", "Personalizado"], index=1)
+    
+    if tipo_periodo == "Mensual":
+        meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        c_f1, c_f2 = st.columns(2)
+        mes_sel = c_f1.selectbox("Mes", range(1, 13), format_func=lambda x: meses[x-1], index=hoy.month-1)
+        anio_sel = c_f2.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+        fecha_ini_dt = date(anio_sel, mes_sel, 1)
+        if mes_sel == 12: fecha_fin_dt = date(anio_sel+1, 1, 1)
+        else: fecha_fin_dt = date(anio_sel, mes_sel+1, 1)
+        fecha_ini_prev_dt = date(anio_sel - 1, 12, 1) if mes_sel == 1 else date(anio_sel, mes_sel - 1, 1)
+        fecha_fin_prev_dt = fecha_ini_dt
+        label_prev = "vs Mes Ant."
+        factor_fijos = 1.0
+    elif tipo_periodo == "Semanal":
+        c_f1, c_f2 = st.columns(2)
+        sem_ref = c_f1.date_input("Semana del:", value=hoy - timedelta(days=hoy.weekday()))
+        fecha_ini_dt = sem_ref - timedelta(days=sem_ref.weekday())
+        fecha_fin_dt = fecha_ini_dt + timedelta(days=7)
+        fecha_ini_prev_dt = fecha_ini_dt - timedelta(days=7)
+        fecha_fin_prev_dt = fecha_ini_dt
+        label_prev = "vs Sem Ant."
+        factor_fijos = 7.0 / 30.416
+    elif tipo_periodo == "Trimestral":
+        c_f1, c_f2 = st.columns(2)
+        trim_sel = c_f1.selectbox("Trimestre", [1, 2, 3, 4], format_func=lambda x: f"T{x}")
+        anio_sel = c_f2.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+        mes_ini = (trim_sel - 1) * 3 + 1
+        fecha_ini_dt = date(anio_sel, mes_ini, 1)
+        mes_fin = mes_ini + 3
+        if mes_fin > 12: fecha_fin_dt = date(anio_sel+1, 1, 1)
+        else: fecha_fin_dt = date(anio_sel, mes_fin, 1)
+        trim_prev = 4 if trim_sel == 1 else trim_sel - 1
+        anio_prev = anio_sel - 1 if trim_sel == 1 else anio_sel
+        mes_ini_prev = (trim_prev - 1) * 3 + 1
+        fecha_ini_prev_dt = date(anio_prev, mes_ini_prev, 1)
+        fecha_fin_prev_dt = fecha_ini_dt
+        label_prev = "vs Trim Ant."
+        factor_fijos = 3.0
+    elif tipo_periodo == "Semestral":
+        c_f1, c_f2 = st.columns(2)
+        semes_sel = c_f1.selectbox("Semestre", [1, 2], format_func=lambda x: f"S{x}")
+        anio_sel = c_f2.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+        mes_ini = 1 if semes_sel == 1 else 7
+        fecha_ini_dt = date(anio_sel, mes_ini, 1)
+        fecha_fin_dt = date(anio_sel, 7, 1) if semes_sel == 1 else date(anio_sel+1, 1, 1)
+        semes_prev = 2 if semes_sel == 1 else 1
+        anio_prev = anio_sel - 1 if semes_sel == 1 else anio_sel
+        fecha_ini_prev_dt = date(anio_prev, 7, 1) if semes_prev == 2 else date(anio_prev, 1, 1)
+        fecha_fin_prev_dt = fecha_ini_dt
+        label_prev = "vs Semes Ant."
+        factor_fijos = 6.0
+    elif tipo_periodo == "Anual":
+        c_f1, c_f2 = st.columns(2)
+        anio_sel = c_f1.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+        fecha_ini_dt = date(anio_sel, 1, 1)
+        fecha_fin_dt = date(anio_sel+1, 1, 1)
+        fecha_ini_prev_dt = date(anio_sel - 1, 1, 1)
+        fecha_fin_prev_dt = fecha_ini_dt
+        label_prev = "vs Año Ant."
+        factor_fijos = 12.0
+    else: # Personalizado
+        rango = st.date_input("Selecciona rango:", [hoy - timedelta(days=30), hoy])
+        if isinstance(rango, tuple) and len(rango) == 2:
+            fecha_ini_dt, fecha_fin_dt_raw = rango
+            fecha_fin_dt = fecha_fin_dt_raw + timedelta(days=1)
+            delta = fecha_fin_dt - fecha_ini_dt
+            fecha_ini_prev_dt = fecha_ini_dt - delta
+            fecha_fin_prev_dt = fecha_ini_dt
+            factor_fijos = delta.days / 30.416
+        else:
+            fecha_ini_dt = hoy
+            fecha_fin_dt = hoy + timedelta(days=1)
+            fecha_ini_prev_dt = hoy - timedelta(days=1)
+            fecha_fin_prev_dt = hoy
+            factor_fijos = 1.0 / 30.416
+        label_prev = "vs Período Ant."
+
+    fecha_ini = fecha_ini_dt.strftime("%Y-%m-%dT00:00:00")
+    fecha_fin = fecha_fin_dt.strftime("%Y-%m-%dT00:00:00")
+    fecha_ini_prev = fecha_ini_prev_dt.strftime("%Y-%m-%dT00:00:00")
+    fecha_fin_prev = fecha_fin_prev_dt.strftime("%Y-%m-%dT00:00:00")
 
     try:
-        # CÁLCULO MES ANTERIOR (MoM)
-        if mes_sel == 1:
-            mes_prev = 12
-            anio_prev = anio_sel - 1
-        else:
-            mes_prev = mes_sel - 1
-            anio_prev = anio_sel
-            
-        fecha_ini_prev = f"{anio_prev}-{mes_prev:02d}-01T00:00:00"
-        res_ventas_prev = client.table("ventas_historial").select("total, estado").gte("created_at", fecha_ini_prev).lt("created_at", fecha_ini).execute()
+        # CÁLCULO PERIODO ANTERIOR (Comparativa)
+        res_ventas_prev = client.table("ventas_historial").select("total, estado").gte("created_at", fecha_ini_prev).lt("created_at", fecha_fin_prev).execute()
         total_ventas_prev = 0.0
         if res_ventas_prev.data:
             df_vp = pd.DataFrame(res_ventas_prev.data)
@@ -71,7 +132,7 @@ def render_pestana_estadisticas(client):
             df_c = pd.DataFrame(res_compras.data)
             total_compras = df_c['total'].sum()
             
-        # 3. GASTOS FIJOS (Estimación Mensualizada)
+        # 3. GASTOS FIJOS (Estimación Proporcional al periodo)
         res_fijos = client.table("gastos_recurrentes").select("importe_estimado, frecuencia").eq("activo", True).execute()
         total_fijos_mes = 0.0
         if res_fijos.data:
@@ -84,25 +145,27 @@ def render_pestana_estadisticas(client):
                 elif frec == 'Anual': imp = imp / 12
                 total_fijos_mes += imp
                 
+        total_fijos_periodo = total_fijos_mes * factor_fijos
+                
         # CÁLCULOS GLOBALES
-        gastos_totales = total_compras + total_fijos_mes
+        gastos_totales = total_compras + total_fijos_periodo
         balance_neto = total_ventas - gastos_totales
 
         st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
         sub_salud, sub_estad = st.tabs(["💰 1. Salud Financiera", "📊 2. Estadísticas Comerciales y Operativas"])
         
         with sub_salud:
-            st.markdown(f"#### 💰 Balance Financiero ({meses[mes_sel-1]} {anio_sel})")
+            st.markdown(f"#### 💰 Balance Financiero")
             
             col_m1, col_m2, col_m3, col_m4 = st.columns(4)
             with col_m1: 
                 crecimiento_mom = ((total_ventas - total_ventas_prev) / total_ventas_prev) * 100 if total_ventas_prev > 0 else 0.0
-                delta_str_mom = f"{crecimiento_mom:.1f}% vs Mes Ant." if total_ventas_prev > 0 else None
+                delta_str_mom = f"{crecimiento_mom:.1f}% {label_prev}" if total_ventas_prev > 0 else None
                 st.metric(label="Ingresos (Ventas TPV)", value=f"{total_ventas:.2f} €", delta=delta_str_mom)
             with col_m2: 
-                st.metric(label="Prov. y Variables (Facturas)", value=f"-{total_compras:.2f} €", help="Facturas de proveedores, mercancía y gastos puntuales registrados este mes.")
+                st.metric(label="Prov. y Variables (Facturas)", value=f"-{total_compras:.2f} €", help="Facturas de proveedores, mercancía y gastos puntuales registrados en este periodo.")
             with col_m3: 
-                st.metric(label="Gastos Fijos (Prorrateo)", value=f"-{total_fijos_mes:.2f} €", help="Cálculo mensualizado de alquiler, luz, nóminas, préstamos e impuestos trimestrales.")
+                st.metric(label="Gastos Fijos (Prorrateo)", value=f"-{total_fijos_periodo:.2f} €", help="Cálculo proporcional de alquiler, luz, nóminas, préstamos e impuestos trimestrales para este rango de fechas.")
             with col_m4: 
                 delta_str = f"{balance_neto:.2f} €" if balance_neto >= 0 else f"{balance_neto:.2f} €"
                 st.metric(label="Beneficio Neto Estimado", value=f"{balance_neto:.2f} €", delta=delta_str)
@@ -126,54 +189,37 @@ def render_pestana_estadisticas(client):
             col_g1, col_g2 = st.columns([1.5, 1])
             
             with col_g1:
-                c_tit, c_sel = st.columns([1.5, 1])
-                with c_tit: st.markdown("**📊 Evolución de Ingresos**")
-                with c_sel: rango_evo = st.selectbox("Ver por:", ["Mes actual (Diario)", "Últimos 3 meses (Semana)", "Año actual (Mensual)"], label_visibility="collapsed")
+                st.markdown("**📊 Evolución de Ingresos en el Periodo**")
                 
-                if rango_evo == "Mes actual (Diario)":
-                    if not df_v.empty:
-                        ventas_diarias = df_v.groupby('Fecha')['total'].sum().reset_index()
-                        ventas_diarias.set_index('Fecha', inplace=True)
-                        st.bar_chart(ventas_diarias, color="#005275", height=280)
+                if not df_v.empty:
+                    delta_days = (fecha_fin_dt - fecha_ini_dt).days
+                    
+                    if delta_days <= 35:
+                        ventas_evo = df_v.groupby('Fecha')['total'].sum()
+                        ventas_evo.index = ventas_evo.index.strftime('%d/%m')
+                    elif delta_days <= 180:
+                        df_v['Semana'] = df_v['Fecha'].apply(lambda x: x - timedelta(days=x.weekday()))
+                        ventas_evo = df_v.groupby('Semana')['total'].sum()
+                        ventas_evo.index = ventas_evo.index.strftime('%d/%m')
                     else:
-                        st.info("Aún no hay ventas registradas en este mes.")
+                        df_v['Mes'] = df_v['Fecha'].apply(lambda x: x.replace(day=1))
+                        ventas_evo = df_v.groupby('Mes')['total'].sum()
+                        ventas_evo.index = ventas_evo.index.strftime('%m/%Y')
+                        
+                    st.area_chart(ventas_evo, color="#005275", height=280)
                 else:
-                    if rango_evo == "Últimos 3 meses (Semana)":
-                        f_inicio_evo = (pd.to_datetime('today') - pd.Timedelta(days=90)).strftime('%Y-%m-%dT00:00:00')
-                    else:
-                        f_inicio_evo = f"{anio_sel}-01-01T00:00:00"
-                        
-                    res_evo = client.table("ventas_historial").select("created_at, total, estado").gte("created_at", f_inicio_evo).neq("estado", "DEVUELTO").execute()
-                    if res_evo.data:
-                        df_evo = pd.DataFrame(res_evo.data)
-                        dt_evo = pd.to_datetime(df_evo['created_at'])
-                        if dt_evo.dt.tz is None:
-                            dt_evo = dt_evo.dt.tz_localize('UTC')
-                        df_evo['created_at'] = dt_evo.dt.tz_convert('Atlantic/Canary')
-                        
-                        if rango_evo == "Últimos 3 meses (Semana)":
-                            df_evo['Semana'] = df_evo['created_at'].dt.tz_localize(None).dt.to_period('W').apply(lambda r: r.start_time.strftime('%d/%m'))
-                            evo_chart = df_evo.groupby('Semana')['total'].sum()
-                        else:
-                            meses_es_map = {1:"Ene", 2:"Feb", 3:"Mar", 4:"Abr", 5:"May", 6:"Jun", 7:"Jul", 8:"Ago", 9:"Sep", 10:"Oct", 11:"Nov", 12:"Dic"}
-                            df_evo['MesNum'] = df_evo['created_at'].dt.month
-                            df_evo['Mes'] = df_evo['MesNum'].map(meses_es_map)
-                            evo_chart = df_evo.groupby(['MesNum', 'Mes'])['total'].sum().reset_index().set_index('Mes')['total']
-                            
-                        st.bar_chart(evo_chart, color="#005275", height=280)
-                    else:
-                        st.info("No hay datos para este periodo.")
+                    st.info("Aún no hay ventas registradas en este periodo.")
                     
             with col_g2:
                 c_tit2, c_sel2 = st.columns([1, 1.2])
                 with c_tit2: st.markdown("**💸 Estructura Gastos**")
-                with c_sel2: vista_gastos = st.selectbox("Detalle:", ["Resumen Fijos vs Variables", "Desglose Variables"], label_visibility="collapsed")
+                with c_sel2: vista_gastos = st.selectbox("Detalle:", ["Fijos vs Variables", "Desglose Variables"], label_visibility="collapsed")
                 
-                if vista_gastos == "Resumen Fijos vs Variables":
-                    if total_compras > 0 or total_fijos_mes > 0:
+                if vista_gastos == "Fijos vs Variables":
+                    if total_compras > 0 or total_fijos_periodo > 0:
                         df_gastos_pie = pd.DataFrame({
-                            "Categoría": ["Variables/Proveedores", "Fijos Mensualizados"],
-                            "Importe": [total_compras, total_fijos_mes]
+                            "Categoría": ["Variables/Proveedores", "Fijos (Prorrateo)"],
+                            "Importe": [total_compras, total_fijos_periodo]
                         }).set_index("Categoría")
                         st.bar_chart(df_gastos_pie, color="#d32f2f", height=280)
                     else:
@@ -184,7 +230,7 @@ def render_pestana_estadisticas(client):
                         gastos_cat = df_c.groupby('Categoria')['total'].sum()
                         st.bar_chart(gastos_cat, color="#e57373", height=280)
                     else:
-                        st.info("No hay facturas variables este mes.")
+                        st.info("No hay facturas variables en este periodo.")
                     
         with sub_estad:
             def limpiar_producto(n):
@@ -198,11 +244,10 @@ def render_pestana_estadisticas(client):
                 if n_low in ['venta', 'venta manual', 'artículo manual', 'desc.', 'varios', 'kiko', 'auna']: return 'Venta Manual (Genérica)'
                 return n.capitalize()
 
-            # NUEVA FILA DE GRÁFICAS: TOP VENTAS Y MÉTODOS DE PAGO
             col_g3, col_g4 = st.columns([1.5, 1])
             
             with col_g3:
-                st.markdown("**⭐ Top 10 Productos y Servicios (Por Ingresos €)**")
+                st.markdown("**⭐ Top 10 Productos y Servicios**")
                 if not df_v.empty and 'productos' in df_v.columns:
                     lista_prods = []
                     
@@ -219,11 +264,21 @@ def render_pestana_estadisticas(client):
                         if 'Artículo' in df_p.columns and 'Subtotal' in df_p.columns:
                             df_p['Subtotal'] = pd.to_numeric(df_p['Subtotal'], errors='coerce').fillna(0.0)
                             top_prods = df_p.groupby('Artículo')['Subtotal'].sum().sort_values(ascending=False).head(10)
-                            st.bar_chart(top_prods, color="#2e7d32", height=350)
+                            
+                            df_top = top_prods.reset_index()
+                            df_top.columns = ["Servicio / Producto", "Facturación (€)"]
+                            max_val = df_top["Facturación (€)"].max() if not df_top.empty else 100
+                            st.dataframe(
+                                df_top,
+                                column_config={
+                                    "Facturación (€)": st.column_config.ProgressColumn("Ingresos (€)", format="%.2f €", min_value=0, max_value=max_val)
+                                },
+                                hide_index=True, use_container_width=True
+                            )
                         else:
-                            st.info("Formato de productos no compatible en histórico antiguo.")
+                            st.info("Formato de productos no compatible.")
                     else:
-                        st.info("No hay detalle de productos en los tickets de este mes.")
+                        st.info("No hay detalle de productos en los tickets de este periodo.")
                 else:
                     st.info("Aún no hay ventas para generar el ranking.")
                     
@@ -241,7 +296,7 @@ def render_pestana_estadisticas(client):
                     dist_pagos = df_v.groupby('Metodo Simplificado')['total'].sum()
                     st.bar_chart(dist_pagos, color="#f9a825", height=350)
                 else:
-                    st.info("No hay datos de métodos de pago este mes.")
+                    st.info("No hay datos de métodos de pago.")
 
             st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
             
@@ -263,7 +318,7 @@ def render_pestana_estadisticas(client):
                 import re
                 for c in res_citas_roi.data:
                     servicio_raw = c.get('servicio', '')
-                    if "[ESTADO: Cancelada]" in servicio_raw: continue
+                    if "[ESTADO: Cancelada]" in servicio_raw or "[ESTADO: Anulada]" in servicio_raw or "[ESTADO: No presentado]" in servicio_raw or "[ESTADO: Cambio" in servicio_raw: continue
                     
                     # Averiguar a qué empleado pertenece la cita según la agenda
                     emp_cita = None
@@ -299,11 +354,18 @@ def render_pestana_estadisticas(client):
             
             if rendimiento_empleados:
                 df_roi = pd.DataFrame(list(rendimiento_empleados.items()), columns=['Empleado', 'Ingresos Generados (€)']).sort_values(by='Ingresos Generados (€)', ascending=False)
-                c_roi1, c_roi2 = st.columns([1, 2])
-                with c_roi1: st.dataframe(df_roi, use_container_width=True, hide_index=True, column_config={"Ingresos Generados (€)": st.column_config.NumberColumn("Ingresos (€)", format="%.2f", step=0.01)})
-                with c_roi2: st.bar_chart(df_roi.set_index('Empleado'), color="#9c27b0", height=200)
+                c_roi1, c_roi2 = st.columns([1, 1.5])
+                with c_roi1: 
+                    max_roi = df_roi['Ingresos Generados (€)'].max() if not df_roi.empty else 100
+                    st.dataframe(
+                        df_roi, 
+                        column_config={"Ingresos Generados (€)": st.column_config.ProgressColumn("Ingresos (€)", format="%.2f €", min_value=0, max_value=max_roi)},
+                        hide_index=True, use_container_width=True
+                    )
+                with c_roi2: 
+                    st.bar_chart(df_roi.set_index('Empleado'), color="#9c27b0", height=200)
             else:
-                st.info("No hay importes registrados en los historiales de las mascotas para este mes.")
+                st.info("No hay importes registrados en los historiales de las mascotas para este periodo.")
 
             st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
             st.markdown("#### 📊 Análisis y Rendimiento de la Agenda")

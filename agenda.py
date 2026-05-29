@@ -584,7 +584,7 @@ def render_pestana_agenda(client):
         if res_citas.data:
             for c in res_citas.data:
                 try:
-                    if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Anulada]" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
+                    if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Anulada]" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', '') or "[ESTADO: Cambio" in c.get('servicio', ''): continue
                     dt_start = pd.to_datetime(c['fecha_hora'])
                     if dt_start.tzinfo: dt_start = dt_start.tz_localize(None)
                     if dt_start.date() == dia_ver:
@@ -779,7 +779,7 @@ def render_pestana_agenda(client):
                             dt_start = pd.to_datetime(cita['fecha_hora'])
                             if dt_start.tzinfo: dt_start = dt_start.tz_localize(None)
                             if dt_start.date() == d_obj:
-                                if "[ESTADO: Cancelada]" in cita.get('servicio', '') or "[ESTADO: Anulada]" in cita.get('servicio', '') or "[ESTADO: No presentado]" in cita.get('servicio', ''): continue
+                                if "[ESTADO: Cancelada]" in cita.get('servicio', '') or "[ESTADO: Anulada]" in cita.get('servicio', '') or "[ESTADO: No presentado]" in cita.get('servicio', '') or "[ESTADO: Cambio" in cita.get('servicio', ''): continue
                                 citas_hoy.append((dt_start, cita))
                         except Exception: pass
                 
@@ -841,7 +841,7 @@ def render_pestana_agenda(client):
         citas_por_dia_mes = {}
         if res_citas_mes.data:
             for c in res_citas_mes.data:
-                if "[ESTADO: Cancelada]" not in c.get('servicio', '') and "[ESTADO: No presentado]" not in c.get('servicio', '') and "[ESTADO: Anulada]" not in c.get('servicio', ''):
+                if "[ESTADO: Cancelada]" not in c.get('servicio', '') and "[ESTADO: No presentado]" not in c.get('servicio', '') and "[ESTADO: Anulada]" not in c.get('servicio', '') and "[ESTADO: Cambio" not in c.get('servicio', ''):
                     try:
                         d_str = c['fecha_hora'][:10]
                         if d_str not in citas_por_dia_mes:
