@@ -810,6 +810,7 @@ def render_pestana_crm(client):
                         if 'WhatsApp' not in df_e.columns: df_e['WhatsApp'] = None
                         
                         hoy_date = pd.to_datetime('today')
+                        alertas_encargos = []
                         for idx, row in df_e.iterrows():
                             # Generar enlace de WhatsApp dinámico para el encargo
                             tel_enc = str(row.get('telefono', ''))
@@ -827,12 +828,20 @@ def render_pestana_crm(client):
                                 estado_actual = row.get('estado')
                                 
                                 if estado_actual == 'Pendiente' and dias >= 1:
-                                    st.warning(f"⚠️ **PEDIDO RETRASADO:** El encargo de **{row['nombre_cliente']}** se anotó hace {dias} día(s) y sigue Pendiente de pedir al proveedor.")
+                                    alertas_encargos.append(("warning", f"⚠️ **PEDIDO RETRASADO:** El encargo de **{row['nombre_cliente']}** se anotó hace {dias} día(s) y sigue Pendiente de pedir al proveedor."))
                                 elif estado_actual == 'Recibido':
-                                    st.warning(f"🔔 **AVISO PENDIENTE:** El encargo de **{row['nombre_cliente']}** está Recibido. ¡Recuerda avisar al cliente hoy!")
+                                    alertas_encargos.append(("warning", f"🔔 **AVISO PENDIENTE:** El encargo de **{row['nombre_cliente']}** está Recibido. ¡Recuerda avisar al cliente hoy!"))
                                 elif estado_actual == 'Avisado' and dias >= 14:
-                                    st.error(f"🚨 **REVISIÓN NECESARIA:** El encargo de **{row['nombre_cliente']}** lleva 14+ días desde su creación y sigue 'Avisado'. ¿Se entregó y olvidaste marcarlo, o el cliente no vino a buscarlo?")
+                                    alertas_encargos.append(("error", f"🚨 **REVISIÓN NECESARIA:** El encargo de **{row['nombre_cliente']}** lleva 14+ días desde su creación y sigue 'Avisado'. ¿Se entregó y olvidaste marcarlo, o el cliente no vino a buscarlo?"))
                             except Exception: pass
+                            
+                        if alertas_encargos:
+                            with st.expander(f"🚨 Tienes {len(alertas_encargos)} avisos de revisión en tus encargos", expanded=False):
+                                for tipo, msg in alertas_encargos:
+                                    if tipo == "warning":
+                                        st.warning(msg)
+                                    else:
+                                        st.error(msg)
                         
                         df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'notas', 'estado', 'WhatsApp']].copy()
                         df_e_vista['notas'] = df_e_vista['notas'].fillna("")
