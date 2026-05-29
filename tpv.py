@@ -122,7 +122,8 @@ def render_pestana_tpv(client):
                 empleados_tpv = []
 
             if res_citas_hoy.data:
-                citas_validas = [c for c in res_citas_hoy.data if "[ESTADO: Cancelada]" not in c.get('servicio', '')]
+                estados_validos = ["[ESTADO: Confirmada]", "[ESTADO: Oferta / Descuento]", "[ESTADO: Asistió]", "[ESTADO: Servicio de recogida"]
+                citas_validas = [c for c in res_citas_hoy.data if any(est in c.get('servicio', '') for est in estados_validos)]
                 if citas_validas:
                     for c in citas_validas:
                         masc = c.get('mascotas')
