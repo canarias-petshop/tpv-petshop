@@ -146,12 +146,12 @@ def render_pestana_agenda(client):
         servicios_lista = ["Otro"]
         precios_servicios = {}
 
-    ESTADOS_CITA = ["Confirmada", "Asistió", "Cancelada", "Anulada", "No presentado", "Cambio de cita", "Servicio de recogida pendiente", "Servicio de recogida confirmado", "Cambio (día antes)", "Cambio (mismo día)", "Oferta / Descuento", "Pendiente"]
+    ESTADOS_CITA = ["Confirmada", "Asistió", "Cancelada", "Anulada", "No presentado", "Cambio (días después)", "Servicio de recogida pendiente", "Servicio de recogida confirmado", "Cambio (día antes)", "Cambio (mismo día)", "Oferta / Descuento", "Pendiente", "Pendiente (Avisar hueco)"]
     EMOJIS_ESTADO = {
-        "Confirmada": "🟢", "Asistió": "✅", "Cancelada": "💖", "Anulada": "🚫", "No presentado": "❌", "Cambio de cita": "🔵", 
+        "Confirmada": "🟢", "Asistió": "✅", "Cancelada": "💖", "Anulada": "🚫", "No presentado": "❌", "Cambio (días después)": "🔵", "Cambio de cita": "🔵", 
         "Servicio de recogida": "🟣", "Servicio de recogida pendiente": "🟣🟡", "Servicio de recogida confirmado": "🟣🟢",
-        "Cambio (día antes)": "🟠", 
-        "Cambio (mismo día)": "⚪", "Oferta / Descuento": "🟩", "Pendiente": "🟡"
+        "Cambio (día antes)": "", "Cambio (mismo día)": "⚪", 
+        "Oferta / Descuento": "🟩", "Pendiente": "🟡", "Pendiente (Avisar hueco)": "🟡🟠"
     }
 
     def parse_cita_estado(servicio_raw):
@@ -163,6 +163,8 @@ def render_pestana_agenda(client):
             # Migración automática de estados antiguos
             if estado == "Servicio de recogida":
                 estado = "Servicio de recogida pendiente"
+            elif estado == "Cambio de cita":
+                estado = "Cambio (días después)"
             servicio_raw = re.sub(r'\[ESTADO:\s*.*?\]\s*', '', servicio_raw)
             
         emp = "Sin Asignar"
@@ -387,6 +389,43 @@ def render_pestana_agenda(client):
 
         with c_agenda2:
             st.markdown("#### 🗓️ Directorio de Citas (Editable)")
+            
+            # --- RADAR DE LISTA DE ESPERA ---
+            espera_citas = []
+            if res_citas.data:
+                hoy_dt = pd.to_datetime('today')
+                for cx in res_citas.data:
+                    estado_cx, _, _ = parse_cita_estado(cx.get('servicio', ''))
+                    if estado_cx == "Pendiente (Avisar hueco)":
+                        try:
+                            dt_obj_x = pd.to_datetime(cx['fecha_hora'])
+                            if dt_obj_x.tzinfo: dt_obj_x = dt_obj_x.tz_localize(None)
+                            if dt_obj_x >= hoy_dt:
+                                masc_info = cx.get('mascotas') or {}
+                                cli_info = masc_info.get('clientes') or {}
+                                espera_citas.append({
+                                    "Fecha Original": dt_obj_x.strftime('%d/%m/%Y a las %H:%M'),
+                                    "Mascota": masc_info.get('nombre', 'N/A'),
+                                    "Dueño": cli_info.get('nombre_dueno', 'N/A'),
+                                    "Teléfono": cli_info.get('telefono', '')
+                                })
+                        except: pass
+            
+            if espera_citas:
+                with st.expander(f"🚨 Radar de Huecos: {len(espera_citas)} cliente(s) en lista de espera", expanded=True):
+                    st.info("Estos clientes tienen una cita agendada, pero te han pedido que les avises si se cancela alguna cita antes para poder adelantarla.")
+                    for esp in espera_citas:
+                        msg_radar = f"¡Hola {esp['Dueño']}! Nos pediste que te avisáramos si quedaba un hueco libre antes de tu cita del {esp['Fecha Original']} para {esp['Mascota']}. ¡Se nos ha liberado una hora! ¿Te interesa adelantar la cita?"
+                        tel_radar = ''.join(filter(str.isdigit, str(esp['Teléfono'])))
+                        if tel_radar and len(tel_radar) == 9 and not tel_radar.startswith('34'): tel_radar = '34' + tel_radar
+                        url_wa_radar = f"https://wa.me/{tel_radar}?text={urllib.parse.quote(msg_radar)}" if tel_radar else ""
+                        
+                        c_rad1, c_rad2 = st.columns([3, 1])
+                        c_rad1.write(f"🐾 **{esp['Mascota']}** ({esp['Dueño']}) - Cita actual: {esp['Fecha Original']}")
+                        if url_wa_radar: 
+                            c_rad2.markdown(f"<a href='{url_wa_radar}' target='_blank'><button style='width:100%; padding:4px; background-color:#25D366; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;'>💬 Avisar de hueco</button></a>", unsafe_allow_html=True)
+                    st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
+
             mostrar_pasadas = st.toggle("🕰️ Mostrar citas pasadas", value=False)
             
             if res_citas.data:
@@ -522,6 +561,7 @@ def render_pestana_agenda(client):
                 c_ley1, c_ley2, c_ley3 = st.columns(3)
                 with c_ley1:
                     st.write("🟡 **Pendiente** (Por defecto)")
+                    st.write("🟡🟠 **Pendiente (Avisar hueco)**")
                     st.write("🟢 **Confirmada**")
                     st.write("✅ **Asistió**")
                     st.write("🟩 **Oferta / Dto.**")
@@ -529,12 +569,12 @@ def render_pestana_agenda(client):
                     st.write("💖 **Cancelada** (Libera hueco)")
                     st.write("🚫 **Anulada** (Libera hueco)")
                     st.write("❌ **No presentado** (Falta)")
-                    st.write("🔵 **Cambio cita** (Libera hueco)")
-                with c_ley3:
                     st.write("⚪ **Cambio (mismo día)** (Falta)")
-                    st.write("🟠 **Cambio (día antes)** (Libera hueco)")
-                    st.write("🟡 **Recogida Pendiente**")
-                    st.write("🟣 **Recogida Confirmada**")
+                with c_ley3:
+                    st.write("🔵 **Cambio (días después)** (Libera hueco)")
+                    st.write("🟤 **Cambio (día antes)** (Libera hueco)")
+                    st.write("🟣🟡 **Recogida Pendiente**")
+                    st.write("🟣🟢 **Recogida Confirmada**")
 
                 st.markdown("##### 🚨 Política de Cancelaciones y Reincidentes (Sistema Automático)")
                 st.info("**Sistema de Faltas (Strikes):** El sistema rastrea automáticamente los estados *Cancelada*, *Anulada*, *No presentado* y *Cambio (mismo día)*.")
