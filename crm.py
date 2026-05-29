@@ -774,6 +774,7 @@ def render_pestana_crm(client):
             
             with col_en2:
                 st.markdown("#### 📌 Encargos Pendientes")
+                mostrar_entregados = st.toggle("📦 Mostrar encargos entregados", value=False)
                 
                 @st.cache_data(show_spinner=False, ttl=15)
                 def get_encargos_crm(v):
@@ -792,10 +793,19 @@ def render_pestana_crm(client):
                     all_enc = get_encargos_crm(st.session_state.get('db_version', 0))
                     if all_enc:
                         df_e = pd.DataFrame(all_enc)
-                        dt_e = pd.to_datetime(df_e['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp('today', tz='UTC'))
-                        if dt_e.dt.tz is None:
-                            dt_e = dt_e.dt.tz_localize('UTC')
-                        df_e['Fecha'] = dt_e.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y')
+                        if not mostrar_entregados:
+                            df_e = df_e[df_e['estado'] != 'Entregado']
+                            if df_e.empty:
+                                st.info("No hay encargos pendientes. Activa 'Mostrar encargos entregados' para ver el historial.")
+
+                        if not df_e.empty:
+                            dt_e = pd.to_datetime(df_e['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp('today', tz='UTC'))
+                            if dt_e.dt.tz is None:
+                                dt_e = dt_e.dt.tz_localize('UTC')
+                            df_e['Fecha'] = dt_e.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y')
+                        else:
+                            df_e['Fecha'] = ""
+
                         if 'notas' not in df_e.columns: df_e['notas'] = ""
                         if 'WhatsApp' not in df_e.columns: df_e['WhatsApp'] = None
                         
