@@ -233,7 +233,12 @@ def render_pestana_tpv(client):
                                 st.rerun()
                         else:
                             aplica_desc = False
-                            if isinstance(hist, list):
+                            motivo_desc = ""
+                            
+                            if "[ESTADO: Oferta / Descuento]" in c.get('servicio', ''):
+                                aplica_desc = True
+                                motivo_desc = "Oferta en agenda"
+                            elif isinstance(hist, list):
                                 fechas_previas = []
                                 for t in hist:
                                     f_str = t.get('Fecha')
@@ -244,6 +249,7 @@ def render_pestana_tpv(client):
                                     ult_visita = max(fechas_previas)
                                     if (hoy_date - ult_visita).days <= 60:
                                         aplica_desc = True
+                                        motivo_desc = "Visita < 2 meses"
                                         
                             # REDISEÑO DEL BOTÓN
                             precio_mostrar = precio_final * 0.90 if aplica_desc else precio_final
@@ -252,7 +258,6 @@ def render_pestana_tpv(client):
                             
                             if st.button(btn_label, use_container_width=True, key=f"btn_cita_{c['id']}_{st.session_state.llave_busqueda_tpv}"):
                                 desc_pct = 10.0 if aplica_desc else 0.0
-                                motivo_desc = "Visita < 2 meses" if aplica_desc else ""
                                 nombre_linea = f"{s_clean} ({masc['nombre']})"
                                     
                                 st.session_state.carrito.append({
