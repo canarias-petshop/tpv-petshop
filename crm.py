@@ -774,7 +774,7 @@ def render_pestana_crm(client):
             
             with col_en2:
                 st.markdown("#### 📌 Encargos Pendientes")
-                mostrar_entregados = st.toggle("📦 Mostrar encargos entregados", value=False)
+                mostrar_historial = st.toggle("📦 Mostrar historial (Entregados / Cancelados)", value=False)
                 
                 @st.cache_data(show_spinner=False, ttl=15)
                 def get_encargos_crm(v):
@@ -793,10 +793,10 @@ def render_pestana_crm(client):
                     all_enc = get_encargos_crm(st.session_state.get('db_version', 0))
                     if all_enc:
                         df_e = pd.DataFrame(all_enc)
-                        if not mostrar_entregados:
-                            df_e = df_e[df_e['estado'] != 'Entregado']
+                        if not mostrar_historial:
+                            df_e = df_e[~df_e['estado'].isin(['Entregado', 'Cancelado'])]
                             if df_e.empty:
-                                st.info("No hay encargos pendientes. Activa 'Mostrar encargos entregados' para ver el historial.")
+                                st.info("No hay encargos pendientes. Activa 'Mostrar historial' para ver los entregados o cancelados.")
 
                         if not df_e.empty:
                             dt_e = pd.to_datetime(df_e['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp('today', tz='UTC'))
@@ -851,30 +851,41 @@ def render_pestana_crm(client):
                             column_config={
                                 "id": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                 "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
-                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado"]),
+                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado", "Cancelado"]),
                                 "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
                             }
                         )
                         if st.button("💾 Guardar Cambios en Encargos"):
-                            cambios_realizados = 0
+                            errores = False
                             for _, r in ed_e.iterrows():
                                 if pd.notna(r['id']):
                                     orig_match = df_e_vista[df_e_vista['id'] == r['id']]
                                     if not orig_match.empty:
                                         orig_row = orig_match.iloc[0]
-                                        if str(r['estado']) != str(orig_row['estado']) or str(r.get('notas', '')) != str(orig_row['notas']):
-                                            client.table("encargos_clientes").update({
-                                                "estado": str(r['estado']), "notas": str(r.get('notas', ''))
-                                            }).eq("id", r['id']).execute()
-                                            cambios_realizados += 1
+                                        if str(r['estado']) == 'Cancelado' and str(orig_row['estado']) != 'Cancelado' and str(r.get('notas', '')).strip() == '':
+                                            st.error(f"⚠️ Para cancelar el encargo de **{r['nombre_cliente']}**, debes escribir el motivo en la columna 'Observaciones'.")
+                                            errores = True
                                             
-                            if cambios_realizados > 0:
-                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success(f"Se han actualizado {cambios_realizados} encargo(s).")
-                                time.sleep(0.8)
-                                st.rerun()
-                            else:
-                                st.info("No se han detectado cambios.")
+                            if not errores:
+                                cambios_realizados = 0
+                                for _, r in ed_e.iterrows():
+                                    if pd.notna(r['id']):
+                                        orig_match = df_e_vista[df_e_vista['id'] == r['id']]
+                                        if not orig_match.empty:
+                                            orig_row = orig_match.iloc[0]
+                                            if str(r['estado']) != str(orig_row['estado']) or str(r.get('notas', '')) != str(orig_row['notas']):
+                                                client.table("encargos_clientes").update({
+                                                    "estado": str(r['estado']), "notas": str(r.get('notas', ''))
+                                                }).eq("id", r['id']).execute()
+                                                cambios_realizados += 1
+                                                
+                                if cambios_realizados > 0:
+                                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                    st.success(f"Se han actualizado {cambios_realizados} encargo(s).")
+                                    time.sleep(0.8)
+                                    st.rerun()
+                                else:
+                                    st.info("No se han detectado cambios.")
                     else: st.info("No hay encargos activos.")
                 except Exception as e: st.warning(f"Error al cargar encargos: {e}")
                 
