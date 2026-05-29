@@ -196,15 +196,15 @@ def render_pestana_estadisticas(client):
                     
                     if delta_days <= 35:
                         ventas_evo = df_v.groupby('Fecha')['total'].sum()
-                        ventas_evo.index = ventas_evo.index.strftime('%d/%m')
+                        ventas_evo.index = pd.to_datetime(ventas_evo.index).strftime('%d/%m')
                     elif delta_days <= 180:
                         df_v['Semana'] = df_v['Fecha'].apply(lambda x: x - timedelta(days=x.weekday()))
                         ventas_evo = df_v.groupby('Semana')['total'].sum()
-                        ventas_evo.index = ventas_evo.index.strftime('%d/%m')
+                        ventas_evo.index = pd.to_datetime(ventas_evo.index).strftime('%d/%m')
                     else:
                         df_v['Mes'] = df_v['Fecha'].apply(lambda x: x.replace(day=1))
                         ventas_evo = df_v.groupby('Mes')['total'].sum()
-                        ventas_evo.index = ventas_evo.index.strftime('%m/%Y')
+                        ventas_evo.index = pd.to_datetime(ventas_evo.index).strftime('%m/%Y')
                         
                     st.area_chart(ventas_evo, color="#005275", height=280)
                 else:
