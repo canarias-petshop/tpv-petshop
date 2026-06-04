@@ -220,7 +220,7 @@ def render_pestana_agenda(client):
                         else:
                             st.info(f"⏱️ **Info de la mascota:** Sin historial (60 min por defecto) | Peluquero/a pref: {pref_actual}")
                         
-                fecha_c = st.date_input("Fecha *", value=date.today(), key=f"ag_fec_{st.session_state.llave_agenda_cita}")
+                fecha_c = st.date_input("Fecha *", value=pd.Timestamp.now('Atlantic/Canary').date(), key=f"ag_fec_{st.session_state.llave_agenda_cita}")
                 duracion_c = st.number_input("Duración estimada (minutos) *", min_value=5, max_value=300, value=dur_media, step=5, key=f"ag_dur_{st.session_state.llave_agenda_cita}")
                 
                 opciones_emp = ["Cualquiera"] + empleados_lista
@@ -393,7 +393,7 @@ def render_pestana_agenda(client):
             # --- RADAR DE LISTA DE ESPERA ---
             espera_citas = []
             if res_citas.data:
-                hoy_dt = pd.to_datetime('today')
+                hoy_dt = pd.Timestamp.now('Atlantic/Canary').replace(tzinfo=None)
                 for cx in res_citas.data:
                     estado_cx, _, _ = parse_cita_estado(cx.get('servicio', ''))
                     if estado_cx == "Pendiente (Avisar hueco)":
@@ -430,7 +430,7 @@ def render_pestana_agenda(client):
             
             if res_citas.data:
                 citas_formateadas = []
-                hoy_fecha = date.today()
+                hoy_fecha = pd.Timestamp.now('Atlantic/Canary').date()
                 for c in res_citas.data:
                     mascota_info = c.get('mascotas', {})
                     cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
@@ -594,7 +594,7 @@ def render_pestana_agenda(client):
         
         c_diario1, c_diario2, c_diario3 = st.columns([1, 1.5, 1])
         with c_diario1:
-            dia_ver = st.date_input("Selecciona un día para ver los huecos libres:", value=date.today())
+            dia_ver = st.date_input("Selecciona un día para ver los huecos libres:", value=pd.Timestamp.now('Atlantic/Canary').date())
             fest_diario = es_festivo(dia_ver)
             if fest_diario:
                 st.info(f"🌴 **Día Festivo:** {fest_diario}")
@@ -745,7 +745,7 @@ def render_pestana_agenda(client):
         st.markdown("#### 🗓️ Cuadrante de Trabajo Semanal (Vista Calendario)")
         c_sem1, c_sem2, _ = st.columns([1, 1, 2])
         with c_sem1:
-            dia_referencia = st.date_input("Selecciona una fecha de inicio:", value=date.today(), key="semana_picker")
+            dia_referencia = st.date_input("Selecciona una fecha de inicio:", value=pd.Timestamp.now('Atlantic/Canary').date(), key="semana_picker")
         with c_sem2:
             num_semanas = st.selectbox("Semanas a la vista:", [1, 2], index=1)
             
@@ -771,7 +771,7 @@ def render_pestana_agenda(client):
         </style>
         '''
         
-        hoy_str_w = str(date.today())
+        hoy_str_w = str(pd.Timestamp.now('Atlantic/Canary').date())
         
         for w in range(num_semanas):
             html_week += '<table class="weekly-table"><tr>'
@@ -866,7 +866,7 @@ def render_pestana_agenda(client):
     with sub_mensual:
         st.markdown("#### 📅 Calendario Mensual (Turnos y Volumen de Citas)")
         c_mes1, c_mes2, _ = st.columns([1, 1, 2])
-        hoy_mes = date.today()
+        hoy_mes = pd.Timestamp.now('Atlantic/Canary').date()
         with c_mes1:
             meses_lista = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
             mes_sel = st.selectbox("Mes:", range(1, 13), format_func=lambda x: meses_lista[x-1], index=hoy_mes.month-1)
@@ -915,7 +915,7 @@ def render_pestana_agenda(client):
             html_cal += f"<th>{dia_n}</th>"
         html_cal += "</tr>"
         
-        hoy_str = str(date.today())
+        hoy_str = str(pd.Timestamp.now('Atlantic/Canary').date())
 
         for semana in cal:
             html_cal += "<tr>"
@@ -987,7 +987,7 @@ def render_pestana_agenda(client):
         st.info("Espacio centralizado para gestionar las confirmaciones de citas y mantenimientos diarios (vía WhatsApp o llamada telefónica).")
         
         # --- 1. CONFIRMACIONES DEL PRÓXIMO DÍA HÁBIL ---
-        hoy_dt = pd.to_datetime('today')
+        hoy_dt = pd.Timestamp.now('Atlantic/Canary').replace(tzinfo=None)
         manana_dt = hoy_dt + pd.Timedelta(days=1)
         
         # Si el próximo día es domingo (6), saltamos automáticamente al lunes
@@ -1136,7 +1136,7 @@ def render_pestana_agenda(client):
         st.markdown("#### 🚨 Alertas Operativas: Citas sin Registro en Historial")
         st.info("Estas son las citas **confirmadas** de días pasados a las que aún **no se les ha rellenado el importe o el registro del trabajo** en la ficha de la mascota.")
         
-        hoy_str = str(date.today())
+        hoy_str = str(pd.Timestamp.now('Atlantic/Canary').date())
         # Buscamos citas confirmadas anteriores a hoy
         
         d_sin_hist = get_sin_hist_ag_cached(client, st.session_state.get('db_version', 0), hoy_str)

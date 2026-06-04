@@ -49,7 +49,7 @@ def render_pestana_contabilidad(client):
             datos_alertas = [c for c in (res_comp.data or []) if "Factura:" not in str(c.get('tipo', ''))]
             
             if datos_alertas:
-                hoy_date = date.today()
+                hoy_date = pd.Timestamp.now('Atlantic/Canary').date()
                 for c in datos_alertas:
                     dias = (pd.to_datetime(c['fecha_vencimiento']).date() - hoy_date).days
                     clase = "vencido" if dias < 0 else "proximo"
@@ -148,7 +148,7 @@ def render_pestana_contabilidad(client):
             res_compras_gf = client.table("compras").select("tipo").ilike("tipo", "Gastos Fijos | %").execute()
             pagos_registrados = [c['tipo'] for c in res_compras_gf.data] if res_compras_gf.data else []
             
-            hoy_dt = pd.Timestamp(date.today())
+            hoy_dt = pd.Timestamp.now('Atlantic/Canary').normalize()
             futuro_dt = hoy_dt + pd.Timedelta(days=60)
             pasado_dt = hoy_dt - pd.Timedelta(days=30) # Miramos también un mes atrás para ver los atrasados
             proyeccion = []
@@ -242,7 +242,7 @@ def render_pestana_contabilidad(client):
                                 importe_sel = float(partes[1].replace("€)", ""))
                                 client.table("compras").insert({
                                     "tipo": id_sel, "total": importe_sel, 
-                                    "estado": "Pagado", "fecha_vencimiento": str(date.today())
+                                    "estado": "Pagado", "fecha_vencimiento": str(pd.Timestamp.now('Atlantic/Canary').date())
                                 }).execute()
                                 st.session_state.llave_cont_pago_venc += 1
                                 st.success("¡Vencimiento saldado! Se ha guardado automáticamente en el Archivo Contable."); time.sleep(1.5); st.rerun()
@@ -272,7 +272,7 @@ def render_pestana_contabilidad(client):
             )
             df_deudas['pendiente'] = df_deudas['pendiente'].apply(lambda x: max(0.0, x))
             
-            hoy_date = pd.Timestamp(date.today())
+            hoy_date = pd.Timestamp.now('Atlantic/Canary').normalize()
             
             def calc_estado_venc(fecha):
                 if pd.isna(fecha): return "⚪ Sin fecha"
@@ -369,8 +369,8 @@ def render_pestana_contabilidad(client):
         st.info("💡 Este es el **Libro Mayor**. Muestra el historial inalterable de **todos** los movimientos contables registrados (pagados y pendientes). Usa los filtros para localizar cualquier documento.")
         
         c_f1_arc, c_f2_arc = st.columns(2)
-        f_ini_arc = c_f1_arc.date_input("Desde:", pd.to_datetime('today') - pd.Timedelta(days=30), key="arc_i")
-        f_fin_arc = c_f2_arc.date_input("Hasta:", pd.to_datetime('today'), key="arc_f")
+        f_ini_arc = c_f1_arc.date_input("Desde:", pd.Timestamp.now('Atlantic/Canary').date() - pd.Timedelta(days=30), key="arc_i")
+        f_fin_arc = c_f2_arc.date_input("Hasta:", pd.Timestamp.now('Atlantic/Canary').date(), key="arc_f")
 
         res_comp_arc = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini_arc}T00:00:00").lte("created_at", f"{f_fin_arc}T23:59:59").order("id", desc=True).execute()
         if res_comp_arc.data:
@@ -452,8 +452,8 @@ def render_pestana_contabilidad(client):
         st.markdown("#### 📥 Selector de Fechas Personalizado")
         
         c_inf1, c_inf2 = st.columns(2)
-        with c_inf1: f_desde_inf = st.date_input("📅 Desde la fecha:", value=date.today().replace(day=1))
-        with c_inf2: f_hasta_inf = st.date_input("📅 Hasta la fecha:", value=date.today())
+        with c_inf1: f_desde_inf = st.date_input("📅 Desde la fecha:", value=pd.Timestamp.now('Atlantic/Canary').date().replace(day=1))
+        with c_inf2: f_hasta_inf = st.date_input("📅 Hasta la fecha:", value=pd.Timestamp.now('Atlantic/Canary').date())
         
         st.markdown(f"<p style='color: gray; font-size: 13px;'>Filtrando datos entre el <b>{f_desde_inf.strftime('%d/%m/%Y')}</b> y el <b>{f_hasta_inf.strftime('%d/%m/%Y')}</b>.</p>", unsafe_allow_html=True)
         st.markdown("---")

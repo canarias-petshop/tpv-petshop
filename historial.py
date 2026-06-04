@@ -115,7 +115,7 @@ def render_pestana_historial(client):
         with c_f0: b_ticket = st.text_input("🔍 Buscar Nº Ticket:", placeholder="Ej: 145 (Ignora fechas)")
         with c_f1: preset = st.selectbox("Filtro rápido:", ["Esta semana", "Este mes", "Trimestre Actual", "Todo el año"])
         
-        hoy = date.today()
+        hoy = pd.Timestamp.now('Atlantic/Canary').date()
         if preset == "Esta semana": f_ini = hoy - timedelta(days=hoy.weekday())
         elif preset == "Este mes": f_ini = hoy.replace(day=1)
         elif preset == "Trimestre Actual": f_ini = hoy.replace(month=((hoy.month-1)//3)*3+1, day=1)
@@ -400,10 +400,10 @@ def render_pestana_historial(client):
                                             "notas": f"Generado por devolución de ticket #{t_id}"
                                         }).execute()
                                     except: pass
-                                    st.session_state.vale_generado = {"fecha": datetime.now().strftime("%d/%m/%Y %H:%M"), "valor": total_final_calculado, "codigo": codigo_vale}
+                                    st.session_state.vale_generado = {"fecha": pd.Timestamp.now('Atlantic/Canary').strftime("%d/%m/%Y %H:%M"), "valor": total_final_calculado, "codigo": codigo_vale}
                                 else:
                                     st.session_state.devolucion_actual = {
-                                        "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"), "productos": prods,
+                                        "fecha": pd.Timestamp.now('Atlantic/Canary').strftime("%d/%m/%Y %H:%M"), "productos": prods,
                                         "total": total_final_calculado, "metodo": sel_metodo_abono, "ticket_original_id": t_id
                                     }
                                 st.rerun()
@@ -589,8 +589,8 @@ def render_pestana_historial(client):
     # --- SUB-PESTAÑA CAJAS (MANTENEMOS TU CÓDIGO ORIGINAL INTACTO) ---
     with sub_h_cajas:
         c_fc1, c_fc2 = st.columns(2)
-        with c_fc1: f_inicio_c = st.date_input("Cajas desde:", value=pd.to_datetime('today') - pd.Timedelta(days=7), key="fc1")
-        with c_fc2: f_fin_c = st.date_input("Cajas hasta:", value=pd.to_datetime('today'), key="fc2")
+        with c_fc1: f_inicio_c = st.date_input("Cajas desde:", value=pd.Timestamp.now('Atlantic/Canary').date() - pd.Timedelta(days=7), key="fc1")
+        with c_fc2: f_fin_c = st.date_input("Cajas hasta:", value=pd.Timestamp.now('Atlantic/Canary').date(), key="fc2")
 
         try:
             res_cajas = client.table("control_caja").select("*").eq("estado", "Cerrada").gte("created_at", f"{f_inicio_c}T00:00:00").lte("created_at", f"{f_fin_c}T23:59:59").order("id", desc=True).execute()

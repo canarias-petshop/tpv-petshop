@@ -98,7 +98,7 @@ def render_pestana_crm(client):
         def calcular_edad(fecha_str):
             try:
                 nac = pd.to_datetime(fecha_str)
-                hoy = pd.to_datetime("today")
+                hoy = pd.Timestamp.now('Atlantic/Canary')
                 anios = hoy.year - nac.year - ((hoy.month, hoy.day) < (nac.month, nac.day))
                 if anios == 0:
                     meses = hoy.month - nac.month - ((hoy.day) < (nac.day))
@@ -115,7 +115,7 @@ def render_pestana_crm(client):
                 match = re.search(r'\d+', edad_str)
                 if not match: return fecha_actual
                 num = int(match.group())
-                hoy = pd.to_datetime("today")
+                hoy = pd.Timestamp.now('Atlantic/Canary')
                 if "mes" in edad_str:
                     return (hoy - pd.DateOffset(months=num)).strftime('%Y-%m-%d')
                 else:
@@ -153,7 +153,7 @@ def render_pestana_crm(client):
             st.markdown("<p style='color: gray; font-size: 13px;'>El sistema calcula automáticamente los huecos libres (09:00 a 21:00) para la fecha y duración seleccionadas.</p>", unsafe_allow_html=True)
             
             c_cal1, c_cal2, c_cal3 = st.columns([1, 1, 1])
-            with c_cal1: f_fecha = st.date_input("1. Fecha de cita:", value=date.today(), key=f"fcita_{prefix}_{m_id}")
+            with c_cal1: f_fecha = st.date_input("1. Fecha de cita:", value=pd.Timestamp.now('Atlantic/Canary').date(), key=f"fcita_{prefix}_{m_id}")
             with c_cal2: f_dur = st.number_input("2. Duración (min)", min_value=5, max_value=300, value=60, step=5, key=f"fdur_{prefix}_{m_id}")
             
             pref_actual = get_pref(m_data.get('observaciones', ''))
@@ -168,7 +168,7 @@ def render_pestana_crm(client):
             citas_dia = res_citas.data if res_citas.data else []
             
             from ficha_clinica import fetch_ficha_alerts_cached
-            _, r_canc = fetch_ficha_alerts_cached(client, st.session_state.get('db_version', 0), m_id, str(date.today()))
+            _, r_canc = fetch_ficha_alerts_cached(client, st.session_state.get('db_version', 0), m_id, str(pd.Timestamp.now('Atlantic/Canary').date()))
             strikes = len(r_canc) if r_canc else 0
             
             # Obtener todos los turnos del día
@@ -809,7 +809,7 @@ def render_pestana_crm(client):
                         if 'notas' not in df_e.columns: df_e['notas'] = ""
                         if 'WhatsApp' not in df_e.columns: df_e['WhatsApp'] = None
                         
-                        hoy_date = pd.to_datetime('today')
+                        hoy_date = pd.Timestamp.now('Atlantic/Canary')
                         alertas_encargos = []
                         for idx, row in df_e.iterrows():
                             # Generar enlace de WhatsApp dinámico para el encargo
@@ -897,7 +897,7 @@ def render_pestana_crm(client):
                 if res_deudas.data:
                     df_deudas = pd.DataFrame(res_deudas.data)
                     # Recuperación de fechas mixtas y vacías en deudas
-                    df_deudas['Fecha'] = pd.to_datetime(df_deudas['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp('today', tz='UTC'))
+                    df_deudas['Fecha'] = pd.to_datetime(df_deudas['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp.now(tz='UTC'))
                     
                     resumen_deudas = []
                     all_cli_d = []
