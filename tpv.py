@@ -478,29 +478,29 @@ def render_pestana_tpv(client):
             </div>
 
             <script>
-            function imprimirConStar(elementId) {
+            function imprimirConStar(elementId) {{
                 var ticketHTML = document.getElementById(elementId).innerHTML;
                 var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
                 var htmlCodificado = encodeURIComponent(fullHTML);
                 var backURL = encodeURIComponent(window.location.href);
                 var starURL = "starpassprnt://v1/print/nopreview?back=" + backURL + "&html=" + htmlCodificado;
             
-            // Usar un iframe oculto evita que Streamlit se reinicie en la tablet
-            var iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = starURL;
-            document.body.appendChild(iframe);
-            }
+                // Usar un iframe oculto evita que Streamlit se reinicie en la tablet
+                var iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = starURL;
+                document.body.appendChild(iframe);
+            }}
             
             // Auto-retorno a Nueva Venta pasados 30 segundos
-            setTimeout(function() {
+            setTimeout(function() {{
                 const btns = window.parent.document.querySelectorAll('button');
-                btns.forEach(btn => {
-                    if(btn.innerText.includes('Nueva Venta')) {
+                btns.forEach(btn => {{
+                    if(btn.innerText.includes('Nueva Venta')) {{
                         btn.click();
-                    }
-                });
-            }, 30000);
+                    }}
+                }});
+            }}, 30000);
             </script>
             
             </body>
