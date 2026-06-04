@@ -457,9 +457,43 @@ def render_pestana_facturacion(client):
                                     pass # Fallo silencioso si no hay permisos de disco
                                     mensaje_archivo = f"(⚠️ Error al guardar foto: {e})"
                                     
+                                # ====== GUARDAR COMO BORRADOR AUTOMÁTICAMENTE ======
+                                prov_id_final = None
+                                if "sel_prov_ia_tmp" in st.session_state and st.session_state["sel_prov_ia_tmp"]:
+                                    try: prov_id_final = df_prov[df_prov['nombre_empresa'] == st.session_state["sel_prov_ia_tmp"]].iloc[0]['id']
+                                    except: pass
+                                
+                                if not prov_id_final:
+                                    nombre_prov_nuevo = datos_ia.get("nombre_proveedor", "Proveedor Desconocido").strip()
+                                    res_new_prov = client.table("proveedores").insert({"nombre_empresa": nombre_prov_nuevo, "cif": ""}).execute()
+                                    if res_new_prov.data: prov_id_final = res_new_prov.data[0]['id']
+
+                                total_compra = 0.0
+                                for art in st.session_state.compra_temp:
+                                    base_neta = (art['Base Ud'] * art['Cantidad']) * (1 - art['Desc %'] / 100)
+                                    total_compra += base_neta * (1 + art['IGIC %'] / 100)
+                                
+                                dto_pp_val = parse_float_ia(datos_ia.get("descuento_pronto_pago_porcentaje", 0.0))
+                                total_compra = total_compra * (1 - dto_pp_val / 100)
+                                
+                                num_fac = datos_ia.get("numero_factura", "S/N")
+                                fecha_fac = datos_ia.get("fecha_factura", str(datetime.now().date()))
+                                
+                                client.table("compras").insert({
+                                    "proveedor_id": prov_id_final, "total": round(total_compra, 2), "descuento_pp": dto_pp_val,
+                                    "estado": "Borrador", "tipo": f"Factura: {num_fac}", "fecha_vencimiento": fecha_fac,
+                                    "productos": st.session_state.compra_temp,
+                                    "pagado": 0.0, "pendiente": round(total_compra, 2)
+                                }).execute()
+                                
+                                st.session_state.compra_temp = []
+                                for key in ["fac_prov_n", "fac_prov_f", "ia_dto_pp", "sel_prov_ia_tmp"]:
+                                    if key in st.session_state: del st.session_state[key]
+                                # ===================================================
+
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success(f"✅ ¡Factura leída! {mensaje_archivo}")
-                                time.sleep(1.5)
+                                st.success(f"✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla. {mensaje_archivo}")
+                                time.sleep(2.5)
                                 st.rerun()
                             except ImportError:
                                 st.error("🚨 Faltan librerías. Abre tu consola y ejecuta: pip install google-generativeai pillow")

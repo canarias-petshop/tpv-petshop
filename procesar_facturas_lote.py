@@ -139,10 +139,10 @@ def procesar_lote():
                     prod_id = item['id']
                     sku_final = item['sku']
                     
-                    # Actualizar Stock y Precio Base
-                    nuevo_stock = (item['stock_actual'] or 0) + cant
-                    pvp_final = pvp_ia if pvp_ia > 0 else float(item.get('precio_pvp', 0.0))
-                    client.table("productos").update({"stock_actual": nuevo_stock, "precio_base": p_base, "precio_pvp": pvp_final}).eq("id", prod_id).execute()
+                    # NO SUMAMOS STOCK AQUÍ (Se guarda como Borrador para validación manual)
+                    # nuevo_stock = (item['stock_actual'] or 0) + cant
+                    # pvp_final = pvp_ia if pvp_ia > 0 else float(item.get('precio_pvp', 0.0))
+                    # client.table("productos").update({"stock_actual": nuevo_stock, "precio_base": p_base, "precio_pvp": pvp_final}).eq("id", prod_id).execute()
                     
                     # VINCULAR A ESTE PROVEEDOR (Para Auto-Distribuidor / Smart Restock)
                     res_link = client.table("productos_proveedores").select("id").eq("producto_id", prod_id).eq("proveedor_id", prov_id).execute()
@@ -158,7 +158,7 @@ def procesar_lote():
                     res_new = client.table("productos").insert({
                         "nombre": desc, "sku": sku_final, "codigo_barras": ref_barras,
                         "precio_base": p_base, "igic_tipo": igic, "precio_pvp": pvp_ia,
-                        "categoria": "Producto", "stock_actual": cant, "stock_minimo": 2, "cantidad_reponer": 5
+                        "categoria": "Producto", "stock_actual": 0, "stock_minimo": 2, "cantidad_reponer": 5
                     }).execute()
                     prod_id = res_new.data[0]['id']
                     
@@ -177,7 +177,7 @@ def procesar_lote():
             fecha_fac = datos_ia.get("fecha_factura", str(datetime.now().date()))
             
             client.table("compras").insert({
-                "proveedor_id": prov_id, "total": round(total_compra, 2), "estado": "Recibido",
+                "proveedor_id": prov_id, "total": round(total_compra, 2), "estado": "Borrador",
                 "tipo": f"Factura: {num_fac}", "fecha_vencimiento": fecha_fac, "productos": productos_compra,
                 "pagado": 0.0, "pendiente": round(total_compra, 2)
             }).execute()
