@@ -846,52 +846,49 @@ def render_pestana_facturacion(client):
                 df_comp['Fecha'] = dt_comp.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
                 
                 df_vista = df_comp[['id', 'Fecha', 'tipo', 'total', 'Proveedor', 'estado']].copy()
-                df_vista.insert(0, "Anular", False)
+                df_vista.insert(0, "Borrar", False)
                 df_vista.insert(0, "Ver", False)
                 
                 ed_comp = st.data_editor(
                     df_vista, hide_index=True, use_container_width=True, key="ed_h_c", 
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver"), 
-                        "Anular": st.column_config.CheckboxColumn("🚫 Anular (VeriFactu)"),
+                        "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"),
                         "id": None, "tipo": "Documento / Concepto",
                         "Fecha": "Fecha Reg."
                     }
                 )
 
-                # 1. SISTEMA DE ANULACIÓN LEGAL DESDE LA TABLA
-                filas_anular_c = ed_comp[ed_comp["Anular"] == True]
-                if not filas_anular_c.empty:
-                    st.error(f"⚠️ Has marcado {len(filas_anular_c)} compra(s) para anular. El documento quedará a 0€ y el stock se restará, cumpliendo la Ley Antifraude de inalterabilidad.")
-                    if st.button("🚨 CONFIRMAR ANULACIÓN LEGAL DE COMPRA(S)", type="primary", use_container_width=True):
-                        for idx, row in filas_anular_c.iterrows():
+                # 1. SISTEMA DE BORRADO DIRECTO DESDE LA TABLA
+                filas_borrar_c = ed_comp[ed_comp["Borrar"] == True]
+                if not filas_borrar_c.empty:
+                    st.error(f"⚠️ Has marcado {len(filas_borrar_c)} compra(s) para eliminar. El stock de estos artículos se restará automáticamente de la tienda.")
+                    if st.button("🚨 CONFIRMAR ELIMINACIÓN DE COMPRA(S)", type="primary", use_container_width=True):
+                        for idx, row in filas_borrar_c.iterrows():
                             c_id = row['id']
                             c_data = df_comp[df_comp['id'] == c_id].iloc[0]
-                            
-                            # Restar stock solo si la factura NO era un borrador
-                            if c_data.get('estado') != 'Borrador':
-                                prods_raw = c_data.get('productos', [])
-                                if not isinstance(prods_raw, list):
-                                    prods_raw = []
-                                for p in prods_raw:
-                                    res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
-                                    if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p['id']).execute()
-                            
-                            # Anular registro sin borrar
-                            client.table("compras").update({"estado": "ANULADO", "total": 0.0, "pendiente": 0.0, "pagado": 0.0, "tipo": f"[ANULADO] {c_data['tipo']}"}).eq("id", c_id).execute()
-                        st.success("Compra(s) anulada(s) legalmente."); time.sleep(1.5); st.rerun()
+                            # Restar stock (corrección)
+                            prods_raw = c_data.get('productos', [])
+                            if not isinstance(prods_raw, list):
+                                prods_raw = []
+                            for p in prods_raw:
+                                res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p['id']).execute()
+                            # Eliminar registro
+                            client.table("compras").delete().eq("id", c_id).execute()
+                        st.success("Compra(s) eliminada(s) correctamente."); time.sleep(1); st.rerun()
 
                 st.markdown("---")
 
                 # 2. SISTEMA DE GUARDADO DE CABECERA (Estado)
                 if st.button(" 💾  Guardar Cambios en Estado/Referencia"):
-                    filas_validas = ed_comp[ed_comp["Anular"] == False]
+                    filas_validas = ed_comp[ed_comp["Borrar"] == False]
                     for _, row in filas_validas.iterrows():
                         client.table("compras").update({"estado": str(row['estado']), "tipo": str(row['tipo'])}).eq("id", row['id']).execute()
                     st.success("Cabeceras actualizadas."); time.sleep(0.5); st.rerun()
 
                 # 3. SISTEMA DE DESGLOSE
-                filas = ed_comp[(ed_comp["Ver"] == True) & (ed_comp["Anular"] == False)]
+                filas = ed_comp[(ed_comp["Ver"] == True) & (ed_comp["Borrar"] == False)]
                 if not filas.empty:
                     c_id = filas.iloc[0]['id']
                     c_data = df_comp[df_comp['id'] == c_id].iloc[0]
