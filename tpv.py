@@ -429,8 +429,11 @@ def render_pestana_tpv(client):
                 html_ticket += f"<br>Saldo actual disponible: {t.get('nuevo_saldo', 0)} puntos"
                 html_ticket += f"<br><span style='font-size:14px; color:#555;'>Ganas 1 pto por cada 10€ de compra. (1 pto = 0.50€ dto)</span></div>"
 
-            html_ticket += """
-                    
+            html_ticket += f"""
+                    <div style="text-align: center; margin-top: 25px;">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=TICKET-{t.get('id', 'S/N')}" alt="QR Ticket" />
+                        <div style="font-size: 16px; margin-top: 5px; color: #555;">TICKET #{t.get('id', 'S/N')}</div>
+                    </div>
                     <div style="font-size: 18px; color: #000; margin-top: 30px; text-align: center;">
                         <b>POLÍTICA DE DEVOLUCIÓN</b><br>
                         Plazo de 14 días con ticket y<br>
@@ -456,9 +459,13 @@ def render_pestana_tpv(client):
             for p in t['productos']:
                 html_ticket += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td></tr>"
                 
-            html_ticket += """
+            html_ticket += f"""
                     </table>
                     <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+                    <div style="text-align: center; margin-top: 25px;">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=TICKET-{t.get('id', 'S/N')}" alt="QR Ticket" />
+                        <div style="font-size: 16px; margin-top: 5px; color: #555;">TICKET #{t.get('id', 'S/N')}</div>
+                    </div>
                     <div style="font-size: 18px; color: #000; margin-top: 20px; text-align: center;">
                         <b>IMPRESCINDIBLE PARA CAMBIOS</b><br>
                         Plazo de 14 días con este ticket y<br>
@@ -828,7 +835,7 @@ def render_pestana_tpv(client):
                                     metodo_final_log += f" + Vale ({st.session_state.vale_aplicado['codigo_vale']})"
 
                             # INSERCIÓN CON COLUMNAS EXACTAS CONTABLES
-                            client.table("ventas_historial").insert({
+                            res_venta = client.table("ventas_historial").insert({
                                 "total": float(total_f), "pagado": float(pagado_hoy), "pendiente": float(pendiente),
                                 "metodo_pago": metodo_final_log, "cliente_deuda": str(cliente_fidel_nombre) if pendiente > 0 else "",
                                 "descuento_global": float(desc_g_val), "productos": carrito_db, 
@@ -842,6 +849,8 @@ def render_pestana_tpv(client):
                                 "hash_anterior": hash_anterior,
                                 "hash_actual": hash_actual
                             }).execute()
+                            
+                            ticket_num = res_venta.data[0]['id'] if res_venta.data else "S/N"
                             
                             if banco_sel_id and p_tarjeta > 0:
                                 client.table("cuentas_bancarias").update({"saldo_actual": float(banco_sel_saldo + p_tarjeta)}).eq("id", banco_sel_id).execute()
@@ -876,6 +885,7 @@ def render_pestana_tpv(client):
                                         pass
                             
                             st.session_state.ticket_actual = {
+                                "id": ticket_num,
                                 "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
                                 "productos": carrito_limpio, "total": total_f, "metodo": metodo_log,
                                 "cliente_fidel": cliente_fidel_nombre, "puntos_ganados": puntos_ganados,

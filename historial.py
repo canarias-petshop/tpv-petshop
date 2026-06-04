@@ -65,7 +65,9 @@ def render_pestana_historial(client):
             for p in d['productos']: html_abono += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right;'>{-p['Subtotal']:.2f}€</td></tr>"
             html_abono += f"""</table><hr style="border-top: 2px dashed #000; margin: 10px 0px;">
                 <div style="text-align: right; font-size: 28px;"><b>TOTAL ABONADO: {d['total']:.2f}€</b></div>
-                <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método:</b> {d['metodo']}</div></div></div></div>
+                <div style="font-size: 20px; text-align: left; margin-top: 10px;"><b>Método:</b> {d['metodo']}</div>
+                <div style="text-align: center; margin-top: 25px;"><img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=ABONO-{d['ticket_original_id']}" alt="QR" /></div>
+                </div></div></div>
             <script>function imprimirConStar() {{ var htmlCodificado = encodeURIComponent("<!DOCTYPE html><html><body style='margin:0; padding:0; background-color:white;'>" + document.getElementById('ticket-impresion').innerHTML + "</body></html>"); var iframe = document.createElement('iframe'); iframe.style.display = 'none'; iframe.src = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(window.location.href) + "&html=" + htmlCodificado; document.body.appendChild(iframe); }}</script></body></html>"""
             components.html(html_abono, height=400, scrolling=True)
             if st.button("⬅️ Volver al Historial", use_container_width=True): st.session_state.devolucion_actual = None; st.rerun()
@@ -97,6 +99,7 @@ def render_pestana_historial(client):
                 <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
                 <div style="font-size: 28px; text-align: center; margin: 10px 0;"><b>VALOR: {v['valor']:.2f}€</b></div>
                 <div style="font-size: 24px; text-align: center; border: 2px solid black; padding: 5px; margin: 10px 0;"><b>CÓDIGO: {v['codigo']}</b></div>
+                <div style="text-align: center; margin-top: 15px;"><img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={v['codigo']}" alt="QR Vale" /></div>
                 <div style="font-size: 18px; color: #000; margin-top: 20px; text-align: center;">Guarda este vale para tu próxima compra.<br>No tiene caducidad. No canjeable por dinero.</div>
             </div></div></div>
             <script>function imprimirConStar() {{ var htmlCodificado = encodeURIComponent("<!DOCTYPE html><html><body style='margin:0; padding:0; background-color:white;'>" + document.getElementById('ticket-impresion').innerHTML + "</body></html>"); var iframe = document.createElement('iframe'); iframe.style.display = 'none'; iframe.src = "starpassprnt://v1/print/nopreview?back=" + encodeURIComponent(window.location.href) + "&html=" + htmlCodificado; document.body.appendChild(iframe); }}</script></body></html>"""
@@ -558,6 +561,10 @@ def render_pestana_historial(client):
                             html_reprint += f"<br>Saldo actual disponible: {saldo_actual_re} puntos"
                             html_reprint += f"<br><span style='font-size:14px; color:#555;'>Ganas 1 pto por cada 10€ de compra. (1 pto = 0.50€ dto)</span></div>"
                         html_reprint += f"""
+                                <div style="text-align: center; margin-top: 25px;">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=TICKET-{t_id}" alt="QR Ticket" />
+                                    <div style="font-size: 16px; margin-top: 5px; color: #555;">TICKET #{t_id}</div>
+                                </div>
                                 <div style="font-size: 18px; color: #000; margin-top: 30px; text-align: center;"><b>POLÍTICA DE DEVOLUCIÓN</b><br>Plazo de 14 días con ticket y<br>embalaje original en perfecto estado.</div>
                             </div>
                         </div>
