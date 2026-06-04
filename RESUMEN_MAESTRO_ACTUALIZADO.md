@@ -237,70 +237,35 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Módulo de Tareas y Proyectos (Completado):** Integración de `tareas.py` con separación de roles (Los empleados ven sus rutinas diarias; el Administrador gestiona el Roadmap de proyectos internos a largo plazo).
 - **Orden Alfabético Absoluto (Completado):** Refactorización de las tablas del CRM (Clientes y Mascotas) para ordenar de la A a la Z ignorando el formato de mayúsculas y minúsculas.
 
-## 4. Próximos Pasos y Hoja de Ruta (Hacia el Mundo Real y Empresarial)
+## 4. Próximos Pasos y Nueva Hoja de Ruta (Prioridades Ajustadas)
 
-### 🚨 TAREAS PENDIENTES (Para la próxima sesión)
-*   **URGENCIA 1 - Facturas IA en Borrador (Validación Manual):** Actualizar `facturacion.py` y `procesar_facturas_lote.py` para admitir envíos multi-página (PDF/Múltiples fotos juntas). La IA debe volcar los resultados en un estado de "Borrador" que **NO sumará stock automáticamente** al inventario hasta que el equipo de tienda las valide visualmente con un botón en el archivo de documentos.
-*   **URGENCIA 2 - Cumplimiento Antifraude Fase 3 (VeriFactu):** Sustituir el botón de borrado físico en 'Archivo Contable', 'Compras' y 'Facturación' por un sistema legal de **"Anulación"**. Esto dejará los importes a 0€ y revertirá el stock asociado, pero conservará la línea de la factura para cumplir con Hacienda.
-*   **URGENCIA 3 - Marketing Activo:** Iniciar desarrollo del Club de Cumpleaños y radar de recuperación Win-Back.
-*   **URGENCIA 4 - Gestión Visual de Productos:** Incorporación de fechas de caducidad y lotes al Inventario.
-*   **URGENCIA 5 - Optimización Visual Táctil (Tablet):** Implementar *Media Queries* CSS en `app.py` para aumentar automáticamente el tamaño de textos, tablas y botones solo cuando se use en pantallas pequeñas (Tablets), manteniendo el diseño original compacto e intacto en el PC.
+Tras la estabilización de los módulos y el inicio de captación de clientes, la hoja de ruta se ha reorganizado para pulir los detalles finales, implementar mejoras comerciales clave y preparar el terreno para la comercialización del sistema.
 
-### FASE 1: Estabilidad y Seguridad Básica (COMPLETADO)
-* Se completó el blindaje RLS en la base de datos con `service_role` key.
-* Tolerancia a fallos validada mediante la arquitectura local recomendada (Despliegue de Docker en tienda) descrita en el apartado 5.
+### 🛠️ FASE 1: Urgencias y Corrección de Fallos (Perfeccionamiento del Programa)
+El objetivo inmediato es dejar el ERP blindado, legal y visualmente perfecto para el trabajo de mostrador y evitar errores humanos.
+*   **Facturas IA en Borrador (Validación Manual):** Actualizar `facturacion.py` para que los escaneos OCR se guarden como "Borrador" y **NO sumen stock automáticamente** hasta que el equipo los valide visualmente en la tabla.
+*   **Cumplimiento Antifraude (VeriFactu Fase 3):** Sustituir el borrado físico en el 'Archivo Contable' y 'Facturación' por un sistema legal de **"Anulación"** (importes a 0€ y stock revertido), dejando el rastro obligatorio para Hacienda.
+*   **Optimización Visual Táctil (Tablet):** Implementar *Media Queries* CSS en `app.py` para aumentar automáticamente el tamaño de textos, tablas y botones solo cuando se use en pantallas pequeñas, manteniendo el diseño compacto en el PC.
+*   **Gestión Visual de Inventario:** Incorporar Fechas de Caducidad y Lotes de forma visible en las tablas de stock y avisar de su vencimiento.
 
-### FASE 2: Cumplimiento Normativo y Fiscal (COMPLETADO)
-*   **Inalterabilidad de Tickets y Facturas (Ley Antifraude):**
-    *   *Objetivo Cumplido:* Se ha desactivado el borrado y la edición libre. Todo error se subsana mediante el sistema de "Devoluciones" (Abonos) que anula el ticket oficial dejando rastro y restaurando stock.
-*   **Cierres de Caja Inviolables (Cierre Z):**
-    *   *Objetivo Cumplido:* Al emitir el "Cierre Z", el sistema echa el candado 🔒 a las ventas de ese día, impidiendo incluso corregir los métodos de pago.
-*   **Integración VeriFactu (Obligatorio Hacienda):**
-    *   *Objetivo Cumplido (Fase Local):* El sistema ya encadena criptográficamente (Hash SHA-256) las facturas y tickets en vivo. Queda pendiente (cuando Hacienda abra la pasarela y la API oficial) la simple conexión de envío de este Hash.
-*   **Privacidad y Protección de Datos (RGPD):**
-    *   *Objetivo:* Cumplir la ley al enviar mensajes (WhatsApp) y guardar datos de clientes.
-    *   *Pasos a dar:* 
-        1. Añadir una casilla en la ficha del cliente para marcar si "Ha firmado el documento de protección de datos".
-        2. Añadir un botón para "Anonimizar Cliente" (si el cliente pide borrar sus datos, se cambia su nombre y teléfono por "Cliente Borrado", manteniendo sus tickets anónimos por obligación fiscal).
+### 💎 FASE 2: Mejoras Estratégicas y Fidelización (Captación de Clientes)
+Funciones que aporten valor comercial añadido para potenciar las ventas y retener a los nuevos clientes.
+*   **Registro Inteligente de Alimentación (Predictor de Pienso):** Anotar en el CRM qué saco de pienso consume cada mascota. Cruzando el tamaño del saco comprado con su peso o ración diaria, el sistema generará una alerta de WhatsApp automatizada días antes de que se agote, garantizando la recompra y un excelente servicio de atención.
+*   **Marketing Automatizado (Activo):** 
+    1. **Club de Cumpleaños:** Escáner de fechas de mascotas para enviar felicitaciones y promociones por WhatsApp.
+    2. **Radar Win-Back:** Sistema de detección de clientes con más de 6 meses sin visitarnos para enviar ofertas de rescate.
 
-### FASE 3: Profesionalización Laboral y Comercial (Largo Plazo)
-*   **Módulo de Marketing Automatizado:**
-    *   *Objetivo:* Aprovechar la base de datos de clientes para adelantarse y automatizar planes de marketing (Instagram, WhatsApp y Eventos).
-    *   *Estado Actual:* Pestaña creada con Planificador Anual y Gestor de Eventos operativo.
-    *   *Estrategia Anual (Norma Alta Frecuencia Sin Email):* 
-        - **Instagram (3x/semana):** Mezcla de Reels, Posts y Stories interactivas.
-        - **WhatsApp (1x/mes máximo):** Solo para campañas clave o aperturas de agenda (evitar saturación).
-        - **Ads / Tienda Física:** Acciones puntuales estratégicas. (El Email masivo queda descartado hasta tener una base de datos sólida).
-    *   *Gestión de Temporadas y Copywriting:* El esqueleto del plan anual se carga completo en la base de datos. Toda la estrategia, normas de publicación y el esqueleto de campañas futuras residen en la carpeta **`marketing_plans/`**.
-    *   *Alarma Predictiva:* Avisará entre 30 y 45 días antes de que se agote el contenido redactado. Cuando esto ocurra, el usuario solo debe decirle a la IA: *"Abre la carpeta marketing_plans, lee el plan anual y redáctame la siguiente temporada"*.
-    *   **⏳ PRÓXIMOS PASOS PRIORITARIOS (Motor de Automatización):**
-        1. **Marketing de Cumpleaños:** Escáner automático de fechas de nacimiento de mascotas para enviar felicitaciones y ganchos por WhatsApp.
-        2. **Recuperación Win-Back:** Radar de clientes con más de 6 meses sin venir para enviarles promociones de rescate.
-        3. **Campañas de Email Masivo:** Infraestructura para el envío de boletines cuando la base RGPD crezca.
-*   **Gestión de Eventos y Talleres Presenciales:**
-    *   *Estado (Completado):* Permite crear talleres, gestionar aforo máximo y llevar control de los clientes inscritos y reservas pagadas.
-*   **Calendarios Visuales de Pagos y Tesorería:**
-    *   *Objetivo:* Tener un panel visual (semanal y mensual) de todas las previsiones de pagos.
-    *   *Pasos a dar:* Integrar en Facturación un panel de vencimientos para proveedores, y en Contabilidad un registro automatizado de gastos fijos/recurrentes (luz, agua, préstamos, nóminas, impuestos) que genere previsiones visuales y alarmas personalizables.
-*   **Registro Horario a Prueba de Inspecciones:**
-    *   *Objetivo:* Que los fichajes de los empleados sean válidos legalmente ante una inspección de trabajo.
-    *   *Estado (Completado):* El fichaje ya obtiene la hora estricta del servidor en Canarias y aplica la firma criptográfica Hash SHA-256 inalterable y encadenada en cada Entrada y Salida.
-*   **Opciones de Arquitectura y Despliegue (En Evaluación):**
-    *   *Objetivo:* Definir la ubicación física del "Cerebro" del sistema y cómo empaquetarlo para el futuro.
-    *   *Opción 1 (Máxima Estabilidad): Servidor en la Tienda.* El ordenador de sobremesa ejecuta el Docker (Programa + Base de Datos). La gran ventaja es que si se corta el internet de la calle, la red WiFi local sigue funcionando y el TPV no se detiene nunca.
-    *   *Opción 2 (Máxima Comodidad): Servidor en Casa.* El Docker se instala en un equipo del programador. La tienda se conecta por VPN (Tailscale). La desventaja es que si hay un corte de internet en la tienda o en casa, el sistema se paraliza.
-    *   *Opción 3 (Ejecutables e Instaladores):* 
-        *   *Fase A:* Crear un programa `.exe` ejecutable que se instale en el ordenador de la tienda y se conecte a la base de datos en casa (o en la nube).
-        *   *Fase B (Comercialización):* Crear un instalador universal (.exe para Windows, .apk para Android) para que otros negocios puedan comprar e instalar el programa fácilmente sin saber nada de programación ni consolas.
-*   **El Reto del "Modo Sin Internet" (Sincronización Offline-First):**
-    *   *Objetivo:* Que el TPV sea inmune a los cortes de internet, incluso si el servidor/base de datos está lejos.
-    *   *Pasos a dar:* Implementar una "memoria caché" o base de datos temporal local (como SQLite). Si el internet se cae, el TPV sigue cobrando y guarda los tickets en esa memoria interna. En cuanto el sistema detecta que ha vuelto la conexión, envía automáticamente todos los tickets retenidos a la base de datos principal de forma invisible.
-*   **Comercialización y Escalabilidad (Vender el programa):**
-    *   *Objetivo:* Preparar el sistema para venderlo a otras tiendas o clínicas (Modelo SaaS).
-    *   *Pasos a dar:* Crear una estructura de "Multitienda" o un proceso de instalación para que cada cliente (otra clínica) tenga su base de datos totalmente separada y privada.
-*   **Registro Inteligente de Alimentación por Mascota:**
-    *   *Objetivo:* Anotar qué pienso específico consume cada mascota en su ficha. Soluciona el clásico "ponme el pienso del otro día", especialmente útil para clientes con varios animales que consumen dietas distintas.
-    *   *Pasos a dar (Fase Avanzada):* Crear un historial de alimentación en el CRM. En el futuro, cruzar el tamaño del saco comprado con la ración diaria recomendada (según el peso del animal) para generar y enviar una alerta de WhatsApp días antes de que se le agote, asegurando la recompra automática.
+### 🏗️ FASE 3: Paso a Producción e Infraestructura Local (Estabilidad Total)
+Punto intermedio para garantizar que los cortes de internet o la lentitud de la red no afecten a la tienda.
+*   **Despliegue Local Oficial (Docker en la tienda):** Migrar el entorno de producción al ordenador físico de la tienda. La tablet se conecta a través de la red WiFi local, eliminando toda la latencia de internet al recargar la interfaz táctil.
+*   **El Reto "Offline-First" (Sin Internet):** Implementar una base de datos temporal local (como SQLite). Si se cae la fibra, el TPV sigue cobrando e imprimiendo tickets al instante localmente, y los sube a Supabase de fondo en cuanto detecta que ha vuelto la conexión.
+
+### 🚀 FASE 4: Comercialización y Escalabilidad (Venta del Software / SaaS)
+Preparar el programa para convertirlo en un producto vendible a otras clínicas y peluquerías.
+*   **Empaquetado Universal (Instaladores):** Crear un archivo autoejecutable `.exe` (Windows) y una `.apk` (Android) para que los nuevos clientes puedan instalar el programa con un simple doble clic sin necesidad de conocimientos de programación.
+*   **Arquitectura Multitienda (SaaS):** Adaptar la estructura de la base de datos (Supabase) para albergar a múltiples empresas, garantizando un aislamiento estricto y total privacidad de los datos financieros de cada negocio.
+
+*(Nota: Las Fases de Estabilidad Básica y Cumplimiento Normativo Inicial han sido completadas satisfactoriamente en iteraciones anteriores).*
 
 ## 5. MANUAL DE DESPLIEGUE EN TIENDA (Paso a Paso)
 
