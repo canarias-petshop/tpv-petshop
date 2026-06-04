@@ -273,7 +273,8 @@ def render_pestana_facturacion(client):
                                 1. NUNCA INVENTES DATOS. Si la imagen está borrosa o un texto no se lee perfectamente, sáltalo o déjalo en cero.
                                 2. Escribe EXACTAMENTE el nombre del producto que aparece en el papel. No inventes marcas ni añadas productos que no estén explícitamente escritos ahí.
                                 3. Extrae exactamente las cantidades y precios unitarios. NO pongas descuentos si no vienen indicados en el papel claramente.
-                                4. Devuelve los datos ESTRICTAMENTE en este formato JSON, sin texto adicional ni markdown:
+                                4. El 'precio_base' debe ser estrictamente el precio unitario SIN impuestos. El 'igic_porcentaje' debe ser el % de IGIC aplicado a esa línea (ej: 3.0, 7.0).
+                                5. Devuelve los datos ESTRICTAMENTE en este formato JSON, sin texto adicional ni markdown:
                                 {
                                   "numero_factura": "12345",
                                   "fecha_factura": "YYYY-MM-DD",
@@ -447,8 +448,8 @@ def render_pestana_facturacion(client):
                                     if platform.system() == "Windows":
                                         RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Mis facturas digitales"
                                     else:
-                                        # Ruta relativa segura para entornos Docker/Linux (sin la barra '/' inicial)
-                                        RUTA_BASE_FACTURAS = "facturas_digitales_guardadas"
+                                        # Ruta vinculada en el volume del docker-compose.yml
+                                        RUTA_BASE_FACTURAS = "/facturas_digitales"
                                         
                                     carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
                                     os.makedirs(carpeta_facturas, exist_ok=True)
@@ -879,23 +880,48 @@ def render_pestana_facturacion(client):
                         if 'Base Ud' not in prods.columns: prods['Base Ud'] = 0.0
                         if 'Cantidad' not in prods.columns: prods['Cantidad'] = 1
                         if 'IGIC %' not in prods.columns: prods['IGIC %'] = 0.0
-                        prods['Total Línea'] = (prods['Base Ud']*prods['Cantidad'])*(1+prods['IGIC %']/100)
+                        if 'Desc %' not in prods.columns: prods['Desc %'] = 0.0
+                        
+                        # Cálculos correctos respetando descuentos
+                        prods['Base Neta'] = ((prods['Base Ud'] * prods['Cantidad']) * (1 - prods['Desc %']/100)).round(2)
+                        prods['IGIC €'] = (prods['Base Neta'] * (prods['IGIC %']/100)).round(2)
+                        prods['Total Línea'] = (prods['Base Neta'] + prods['IGIC €']).round(2)
                     else:
-                        prods = pd.DataFrame(columns=['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %', 'PVP (€)', 'Total Línea'])
+                        prods = pd.DataFrame(columns=['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %', 'PVP (€)', 'Base Neta', 'IGIC €', 'Total Línea'])
                     
                     st.markdown(f"#### 🛒 Editando Compra {c_data['tipo']}")
-                    ed_pc = st.data_editor(prods, hide_index=True, use_container_width=True, num_rows="dynamic", key=f"ed_c_{c_id}", column_config={"id": None})
+                    
+                    ed_pc = st.data_editor(
+                        prods, hide_index=True, use_container_width=True, num_rows="dynamic", key=f"ed_c_{c_id}", 
+                        column_config={
+                            "id": None, "Base Neta": st.column_config.NumberColumn("Base Neta (€)", disabled=True, format="%.2f"),
+                            "IGIC €": st.column_config.NumberColumn("IGIC (€)", disabled=True, format="%.2f"),
+                            "Total Línea": st.column_config.NumberColumn("Total Línea (€)", disabled=True, format="%.2f")
+                        }
+                    )
                     
                     val_pp = c_data.get('descuento_pp', 0.0)
                     val_pp = float(val_pp) if pd.notna(val_pp) and val_pp is not None and str(val_pp).strip() != "" else 0.0
                     dto_pp = st.number_input("Dto. Pronto Pago (%)", 0.0, 100.0, val_pp, key=f"pp_{c_id}", step=0.01, format="%.2f")
                     
                     if not ed_pc.empty:
+                        ed_pc['Base Neta'] = ((ed_pc['Base Ud'] * ed_pc['Cantidad']) * (1 - ed_pc['Desc %']/100)).round(2)
+                        ed_pc['IGIC €'] = (ed_pc['Base Neta'] * (ed_pc['IGIC %']/100)).round(2)
+                        ed_pc['Total Línea'] = (ed_pc['Base Neta'] + ed_pc['IGIC €']).round(2)
+                        
+                        t_base = ed_pc['Base Neta'].sum()
+                        t_igic = ed_pc['IGIC €'].sum()
                         new_total = ed_pc['Total Línea'].sum() * (1 - dto_pp/100)
+                        
+                        st.markdown(f"""
+                        <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f; text-align: right;">
+                        <p style="margin:0;">Base Neta: {t_base * (1-dto_pp/100):.2f}€ | IGIC: {t_igic * (1-dto_pp/100):.2f}€</p>
+                        <h2 style="margin:0; color: #d32f2f;">NUEVO TOTAL COMPRA: {new_total:.2f}€</h2>
+                        </div>
+                        """, unsafe_allow_html=True)
                     else:
                         new_total = float(c_data['total'])
-                        
-                    st.metric("NUEVO TOTAL COMPRA", f"{new_total:.2f} €")
+                        st.metric("NUEVO TOTAL COMPRA", f"{new_total:.2f} €")
                     
                     if str(c_data.get('estado', '')) == 'Borrador':
                         st.warning("⚠️ Esta factura está en estado de BORRADOR. El stock aún no se ha sumado al inventario.")
