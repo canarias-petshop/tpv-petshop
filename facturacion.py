@@ -248,7 +248,6 @@ def render_pestana_facturacion(client):
                 import os
                 import platform
                 import subprocess
-                from datetime import datetime
                 ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
                 carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
                 
