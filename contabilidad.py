@@ -409,39 +409,42 @@ def render_pestana_contabilidad(client):
                 st.info("No hay registros en esta categoría para las fechas seleccionadas.")
             else:
                 df_vista_arc = df_filtrado_arc[['id', 'Fecha', 'tipo', 'total', 'Proveedor', 'estado']].copy()
-                df_vista_arc.insert(0, "Borrar", False)
+                df_vista_arc.insert(0, "Anular", False)
                 
                 ed_comp_arc = st.data_editor(
                     df_vista_arc, hide_index=True, use_container_width=True, key="ed_h_c_arc", 
                     column_config={
-                        "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"),
+                        "Anular": st.column_config.CheckboxColumn("🚫 Anular (VeriFactu)"),
                         "id": None, "tipo": "Documento / Concepto",
                         "Fecha": "Fecha Reg."
                     }
                 )
 
-                filas_borrar_c_arc = ed_comp_arc[ed_comp_arc["Borrar"] == True]
-                if not filas_borrar_c_arc.empty:
-                    st.error(f"⚠️ Has marcado {len(filas_borrar_c_arc)} documento(s) para eliminar. Si era una factura de compra, el stock se restará del inventario.")
-                    if st.button("🚨 CONFIRMAR ELIMINACIÓN DE DOCUMENTO(S)", type="primary", use_container_width=True, key="btn_del_arc"):
-                        for idx, row in filas_borrar_c_arc.iterrows():
+                filas_anular_c_arc = ed_comp_arc[ed_comp_arc["Anular"] == True]
+                if not filas_anular_c_arc.empty:
+                    st.error(f"⚠️ Has marcado {len(filas_anular_c_arc)} documento(s) para anular. El documento quedará a 0€ y el stock se revertirá, pero el registro no se borrará cumpliendo la Ley Antifraude.")
+                    if st.button("🚨 CONFIRMAR ANULACIÓN LEGAL DE DOCUMENTO(S)", type="primary", use_container_width=True, key="btn_anul_arc"):
+                        for idx, row in filas_anular_c_arc.iterrows():
                             c_id = row['id']
                             c_data = df_comp_arc[df_comp_arc['id'] == c_id].iloc[0]
-                            prods_raw = c_data.get('productos', [])
-                            if isinstance(prods_raw, list):
-                                for p in prods_raw:
-                                    if p.get('id'):
-                                        try:
-                                            res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
-                                            if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p['id']).execute()
-                                        except: pass
-                            client.table("compras").delete().eq("id", c_id).execute()
-                        st.success("Documento(s) eliminado(s) correctamente."); time.sleep(1); st.rerun()
+                            
+                            if c_data.get('estado') != 'Borrador':
+                                prods_raw = c_data.get('productos', [])
+                                if isinstance(prods_raw, list):
+                                    for p in prods_raw:
+                                        if p.get('id'):
+                                            try:
+                                                res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                                if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p['id']).execute()
+                                            except: pass
+                                            
+                            client.table("compras").update({"estado": "ANULADO", "total": 0.0, "pendiente": 0.0, "pagado": 0.0, "tipo": f"[ANULADO] {c_data['tipo']}"}).eq("id", c_id).execute()
+                        st.success("Documento(s) anulado(s) correctamente."); time.sleep(1.5); st.rerun()
 
                 st.markdown("---")
 
                 if st.button(" 💾  Guardar Cambios en Estado/Referencia", key="btn_save_arc"):
-                    filas_validas_arc = ed_comp_arc[ed_comp_arc["Borrar"] == False]
+                    filas_validas_arc = ed_comp_arc[ed_comp_arc["Anular"] == False]
                     for _, row in filas_validas_arc.iterrows():
                         client.table("compras").update({"estado": str(row['estado']), "tipo": str(row['tipo'])}).eq("id", row['id']).execute()
                     st.success("Documentos actualizados."); time.sleep(0.5); st.rerun()
