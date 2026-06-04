@@ -257,6 +257,8 @@ def render_pestana_facturacion(client):
                     ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Facturas digitales"
                     
                 carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
+                if not es_wsl:
+                    carpeta_mes = carpeta_mes.replace("/", "\\")
                 
                 try: 
                     os.makedirs(carpeta_mes, exist_ok=True)
@@ -265,8 +267,14 @@ def render_pestana_facturacion(client):
                         subprocess.Popen(["explorer.exe", win_path])
                     elif platform.system() == "Windows" and hasattr(os, 'startfile'): 
                         os.startfile(carpeta_mes.replace("/", "\\"))
+                    elif hasattr(os, 'startfile'): 
+                        os.startfile(carpeta_mes)
                     elif platform.system() == "Darwin": subprocess.Popen(["open", carpeta_mes])
                     else: st.info(f"📁 Carpeta lista: {carpeta_mes}")
+                    else:
+                        import shutil
+                        if shutil.which("explorer.exe"): subprocess.Popen(["explorer.exe", carpeta_mes])
+                        else: st.info(f"📁 Carpeta lista: {carpeta_mes}")
                 except Exception: st.info(f"📁 Carpeta lista: {carpeta_mes}")
                 
         with st.container(border=True):
@@ -480,6 +488,7 @@ def render_pestana_facturacion(client):
                                         
                                     carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
                                     if not es_wsl and platform.system() == "Windows":
+                                    if not es_wsl:
                                         carpeta_facturas = carpeta_facturas.replace("/", "\\")
                                         
                                     os.makedirs(carpeta_facturas, exist_ok=True)
