@@ -299,7 +299,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
             c_aus1, c_aus2 = st.columns([1, 1.5], gap="large")
             
             with c_aus1:
-                tipo_ausencia = st.selectbox("Tipo de Excepción", ["🌴 Vacaciones (Días completos)", "🏢 Cierre de Empresa (Festivos/Obras)", "⏱️ Ausencia Parcial / Jornada Reducida"])
+                tipo_ausencia = st.selectbox("Tipo de Excepción", ["🌴 Vacaciones (Días completos)", "🏢 Cierre de Empresa (Festivos/Obras)", "⏱️ Ausencia Parcial / Jornada Reducida", "🔄 Cambio de Turno Rápido"])
                 
                 with st.form("form_ausencia", clear_on_submit=True):
                     if tipo_ausencia == "🌴 Vacaciones (Días completos)":
@@ -346,7 +346,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                         elif btn:
                             st.warning("Por favor, indica un motivo.")
                             
-                    else:
+                    elif tipo_ausencia == "⏱️ Ausencia Parcial / Jornada Reducida":
                         emp_aus = st.selectbox("Empleado", [e['nombre'] for e in empleados])
                         d_aus = st.date_input("Fecha")
                         c_vt1, c_vt2 = st.columns(2)
@@ -364,6 +364,35 @@ def render_pestana_personal(client: SyncPostgrestClient):
                             st.success("Ausencia registrada y agenda bloqueada."); time.sleep(1); st.rerun()
                         elif btn:
                             st.warning("Por favor, indica un motivo.")
+                            
+                    elif tipo_ausencia == "🔄 Cambio de Turno Rápido":
+                        st.info("Sustituye el turno de un empleado para uno o varios días sin tener que buscarlo en el Cuadrante Visual.")
+                        emp_aus = st.selectbox("Empleado", [e['nombre'] for e in empleados])
+                        
+                        c_ct1, c_ct2 = st.columns(2)
+                        with c_ct1: d_ini_ct = st.date_input("Desde el día", key="ct_ini")
+                        with c_ct2: d_fin_ct = st.date_input("Hasta el día (inclusive)", key="ct_fin")
+                        
+                        nuevo_turno = st.text_input("Nuevo Turno (Ej: 09:00 - 15:00, o Libre)")
+                        btn = st.form_submit_button("Actualizar Turno", type="primary", use_container_width=True)
+                        
+                        if btn and nuevo_turno:
+                            if d_fin_ct >= d_ini_ct:
+                                emp_id = next(e['id'] for e in empleados if e['nombre'] == emp_aus)
+                                delta = d_fin_ct - d_ini_ct
+                                
+                                client.table("personal_cuadrantes").delete().eq("empleado_id", emp_id).gte("fecha", str(d_ini_ct)).lte("fecha", str(d_fin_ct)).execute()
+                                
+                                inserts = [{"empleado_id": emp_id, "fecha": str(d_ini_ct + timedelta(days=i)), "turno": nuevo_turno} for i in range(delta.days + 1)]
+                                if inserts:
+                                    client.table("personal_cuadrantes").insert(inserts).execute()
+                                    
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success(f"Turno(s) de {emp_aus} actualizado(s) correctamente."); time.sleep(1.5); st.rerun()
+                            else:
+                                st.error("La fecha de fin no puede ser anterior a la de inicio.")
+                        elif btn:
+                            st.warning("Por favor, escribe el nuevo turno.")
                             
             with c_aus2:
                 st.markdown("##### 📅 Excepciones y Bloqueos Activos")
