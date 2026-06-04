@@ -297,10 +297,14 @@ if bloqueo:
                                     if h_ult.tzinfo is None: h_ult = h_ult.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
                                     else: h_ult = h_ult.astimezone(ZoneInfo("Atlantic/Canary"))
                                     m_diff = int((ahora_dt - h_ult).total_seconds() / 60)
-                                    if m_diff < 30:
-                                        st.error(f"⏳ Bloqueo temporal anti-errores. El usuario ya fichó hace {m_diff} minuto(s).")
-                                        st.stop()
-                                except: pass
+                                    bloquear_fichaje = m_diff < 30
+                                except Exception:
+                                    bloquear_fichaje = False
+                                    m_diff = 0
+                                    
+                            if bloquear_fichaje:
+                                st.error(f"⏳ Bloqueo temporal anti-errores. El usuario ya fichó hace {m_diff} minuto(s).")
+                                st.stop()
                                 
                         res_last = client.table("personal_fichajes").select("hash_actual").order("id", desc=True).limit(1).execute()
                         hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
@@ -339,10 +343,14 @@ if bloqueo:
                                     if h_ult.tzinfo is None: h_ult = h_ult.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
                                     else: h_ult = h_ult.astimezone(ZoneInfo("Atlantic/Canary"))
                                     m_diff = int((ahora_dt - h_ult).total_seconds() / 60)
-                                    if m_diff < 30:
-                                        st.error(f"⏳ Bloqueo temporal anti-errores. El usuario ya fichó hace {m_diff} minuto(s).")
-                                        st.stop()
-                                except: pass
+                                    bloquear_fichaje = m_diff < 30
+                                except Exception:
+                                    bloquear_fichaje = False
+                                    m_diff = 0
+                                    
+                            if bloquear_fichaje:
+                                st.error(f"⏳ Bloqueo temporal anti-errores. El usuario ya fichó hace {m_diff} minuto(s).")
+                                st.stop()
                                 
                         f_abierto = bloqueo['f_abierto']
                         h_ent = datetime.fromisoformat(f_abierto['hora_entrada'])
