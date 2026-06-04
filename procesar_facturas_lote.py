@@ -11,7 +11,7 @@ from postgrest import SyncPostgrestClient
 
 # --- CONFIGURACIÓN DE CARPETAS EXACTAS ---
 CARPETA_ENTRADA = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Fotos para autocompletar facturas"
-CARPETA_PROCESADAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Mis facturas digitales"
+CARPETA_PROCESADAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
 CARPETA_ERRORES = os.path.join(CARPETA_ENTRADA, "Errores")
 
 for carpeta in [CARPETA_ENTRADA, CARPETA_PROCESADAS, CARPETA_ERRORES]:
