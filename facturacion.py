@@ -472,6 +472,8 @@ def render_pestana_facturacion(client):
                                 try:
                                     RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
                                     carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
+                                    # Forzar formato Windows para evitar barras mixtas en el guardado
+                                    carpeta_facturas = carpeta_facturas.replace("/", "\\")
                                     os.makedirs(carpeta_facturas, exist_ok=True)
                                     n_prov_archivo = datos_ia.get("nombre_proveedor", "Acreedor").replace(" ", "_").replace("/", "-")
                                     n_fac_archivo = datos_ia.get("numero_factura", "SinNum").replace("/", "-")
