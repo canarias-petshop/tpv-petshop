@@ -253,12 +253,13 @@ def render_pestana_facturacion(client):
                 carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
                 try: 
                     os.makedirs(carpeta_mes, exist_ok=True)
-                    if platform.system() == "Windows" and hasattr(os, 'startfile'):
+                    if hasattr(os, 'startfile'):
                         os.startfile(carpeta_mes)
                     elif platform.system() == "Darwin":
                         subprocess.Popen(["open", carpeta_mes])
                     else:
-                        subprocess.Popen(["explorer.exe" if "microsoft" in platform.uname().release.lower() else "xdg-open", carpeta_mes])
+                        try: subprocess.Popen(["explorer.exe", carpeta_mes])
+                        except FileNotFoundError: subprocess.Popen(["xdg-open", carpeta_mes])
                 except Exception as e: st.error(f"La carpeta existe, pero debes abrirla manualmente: {e}")
                 
         with st.container(border=True):
