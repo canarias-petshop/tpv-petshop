@@ -401,23 +401,30 @@ def render_pestana_personal(client: SyncPostgrestClient):
                     res_bl = client.table("agenda_bloqueos").select("*").gte("fecha", hoy_str).order("fecha", desc=False).execute()
                     if res_bl.data:
                         df_bl = pd.DataFrame(res_bl.data)
-                        df_bl['Fecha'] = pd.to_datetime(df_bl['fecha']).dt.strftime('%d/%m/%Y')
-                        df_bl_vista = df_bl[['id', 'Fecha', 'hora_inicio', 'hora_fin', 'titulo', 'empleado_afectado']].copy()
-                        df_bl_vista.insert(0, "Borrar", False)
                         
-                        ed_bl = st.data_editor(
-                            df_bl_vista, hide_index=True, use_container_width=True, height=350,
-                            column_config={
-                                "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"),
-                                "id": None, "hora_inicio": "Desde", "hora_fin": "Hasta", "titulo": "Asunto / Motivo", "empleado_afectado": "Afecta a"
-                            }, key="ed_ausencias_bloqueos"
-                        )
-                        if st.button("🗑️ Eliminar Excepciones Seleccionadas", type="primary"):
-                            for _, r in ed_bl[ed_bl["Borrar"] == True].iterrows():
-                                client.table("agenda_bloqueos").delete().eq("id", r['id']).execute()
-                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                            st.success("Excepciones eliminadas. La agenda vuelve a estar libre en esos tramos."); time.sleep(1); st.rerun()
+                        # Filtramos para mostrar SÓLO las creadas desde este panel (Vacaciones, Cierres, Ausencias)
+                        df_bl = df_bl[df_bl['titulo'].str.contains('🌴|🏢|⏱️', regex=True, na=False)]
+                        
+                        if not df_bl.empty:
+                            df_bl['Fecha'] = pd.to_datetime(df_bl['fecha']).dt.strftime('%d/%m/%Y')
+                            df_bl_vista = df_bl[['id', 'Fecha', 'hora_inicio', 'hora_fin', 'titulo', 'empleado_afectado']].copy()
+                            df_bl_vista.insert(0, "Borrar", False)
+                            
+                            ed_bl = st.data_editor(
+                                df_bl_vista, hide_index=True, use_container_width=True, height=350,
+                                column_config={
+                                    "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"),
+                                    "id": None, "hora_inicio": "Desde", "hora_fin": "Hasta", "titulo": "Asunto / Motivo", "empleado_afectado": "Afecta a"
+                                }, key="ed_ausencias_bloqueos"
+                            )
+                            if st.button("🗑️ Eliminar Excepciones Seleccionadas", type="primary"):
+                                for _, r in ed_bl[ed_bl["Borrar"] == True].iterrows():
+                                    client.table("agenda_bloqueos").delete().eq("id", r['id']).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success("Excepciones eliminadas. La agenda vuelve a estar libre en esos tramos."); time.sleep(1); st.rerun()
+                        else:
+                            st.info("No hay ausencias, vacaciones ni bloqueos de personal futuros registrados.")
                     else:
-                        st.info("No hay ausencias, vacaciones ni bloqueos futuros registrados.")
+                        st.info("No hay ausencias, vacaciones ni bloqueos de personal futuros registrados.")
                 except Exception as e:
                     pass
