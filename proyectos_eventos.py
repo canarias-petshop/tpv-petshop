@@ -374,29 +374,43 @@ def render_pestana_proyectos_eventos(client):
                 
                 with st.form(f"add_bloqueo_fer_{f_id}", clear_on_submit=True):
                     import datetime as dt_module
-                    c_bl0, c_bl1, c_bl2 = st.columns(3)
-                    with c_bl0: fb_fec = st.date_input("Fecha", value=pd.to_datetime(f_actual.get('fecha_inicio')).date())
-                    with c_bl1: fb_ini = st.time_input("Hora Inicio", value=dt_module.time(9, 0))
-                    with c_bl2: fb_fin = st.time_input("Hora Fin", value=dt_module.time(21, 0))
+                    from datetime import timedelta
+                    
+                    c_fec1, c_fec2 = st.columns(2)
+                    with c_fec1: fb_fec_ini = st.date_input("Desde el día", value=pd.to_datetime(f_actual.get('fecha_inicio')).date())
+                    with c_fec2: fb_fec_fin = st.date_input("Hasta el día", value=pd.to_datetime(f_actual.get('fecha_inicio')).date())
+                    
+                    c_hor1, c_hor2 = st.columns(2)
+                    with c_hor1: fb_ini = st.time_input("Hora Inicio", value=dt_module.time(9, 0))
+                    with c_hor2: fb_fin = st.time_input("Hora Fin", value=dt_module.time(21, 0))
+                    
                     fb_emp = st.multiselect("Bloquear a (Peluqueros):", emp_list, default=["Todas"])
                     
                     if st.form_submit_button("➕ Añadir Turno/Bloqueo al Evento"):
                         if fb_emp:
-                            inserts_bloqueos = []
-                            empleados_a_bloquear = ["Todas"] if "Todas" in fb_emp else fb_emp
-                            for emp in empleados_a_bloquear:
-                                inserts_bloqueos.append({
-                                    "fecha": str(fb_fec),
-                                    "hora_inicio": fb_ini.strftime("%H:%M"),
-                                    "hora_fin": fb_fin.strftime("%H:%M"),
-                                    "titulo": f"🎪 {f_actual['titulo']}",
-                                    "empleado_afectado": emp,
-                                    "bloquea_agenda": True
-                                })
-                            if inserts_bloqueos:
-                                client.table("agenda_bloqueos").insert(inserts_bloqueos).execute()
-                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success("Bloqueo añadido."); time.sleep(1); st.rerun()
+                            if fb_fec_fin >= fb_fec_ini:
+                                delta = fb_fec_fin - fb_fec_ini
+                                inserts_bloqueos = []
+                                empleados_a_bloquear = ["Todas"] if "Todas" in fb_emp else fb_emp
+                                
+                                for i in range(delta.days + 1):
+                                    dia_actual = fb_fec_ini + timedelta(days=i)
+                                    for emp in empleados_a_bloquear:
+                                        inserts_bloqueos.append({
+                                            "fecha": str(dia_actual),
+                                            "hora_inicio": fb_ini.strftime("%H:%M"),
+                                            "hora_fin": fb_fin.strftime("%H:%M"),
+                                            "titulo": f"🎪 {f_actual['titulo']}",
+                                            "empleado_afectado": emp,
+                                            "bloquea_agenda": True
+                                        })
+                                        
+                                if inserts_bloqueos:
+                                    client.table("agenda_bloqueos").insert(inserts_bloqueos).execute()
+                                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                    st.success("Bloqueo añadido."); time.sleep(1); st.rerun()
+                            else:
+                                st.error("La fecha de fin no puede ser anterior a la de inicio.")
                         else:
                             st.warning("Selecciona al menos un empleado o 'Todas'.")
 
