@@ -246,8 +246,13 @@ def render_pestana_facturacion(client):
         with c_tit2:
             if st.button("📂 Abrir Carpeta de Facturas en Windows", use_container_width=True):
                 import os
-                try: os.startfile(r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales")
-                except: pass
+                from datetime import datetime
+                ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
+                carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
+                try: 
+                    os.makedirs(carpeta_mes, exist_ok=True)
+                    os.startfile(carpeta_mes)
+                except Exception as e: st.error(f"Error abriendo carpeta en Windows: {e}")
                 
         with st.container(border=True):
             col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
