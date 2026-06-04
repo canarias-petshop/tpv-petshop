@@ -8,16 +8,9 @@ from PIL import Image
 import shutil
 import google.generativeai as genai
 from postgrest import SyncPostgrestClient
-import platform
 
-es_wsl = (platform.system() == "Linux" and "microsoft" in platform.uname().release.lower())
-
-if es_wsl:
-    CARPETA_ENTRADA = "/mnt/c/Users/truji/OneDrive/Documentos/ANIMALARIUM/TPV ANIMALARIUM/CONTABILIDAD/Fotos para autocompletar facturas"
-    CARPETA_PROCESADAS = "/mnt/c/Users/truji/OneDrive/Documentos/ANIMALARIUM/TPV ANIMALARIUM/CONTABILIDAD/Facturas digitales"
-else:
-    CARPETA_ENTRADA = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Fotos para autocompletar facturas"
-    CARPETA_PROCESADAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Facturas digitales"
+CARPETA_ENTRADA = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Fotos para autocompletar facturas"
+CARPETA_PROCESADAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
 
 CARPETA_ERRORES = os.path.join(CARPETA_ENTRADA, "Errores")
 

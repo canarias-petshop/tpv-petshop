@@ -249,32 +249,19 @@ def render_pestana_facturacion(client):
                 import platform
                 import subprocess
                 
-                es_wsl = (platform.system() == "Linux" and "microsoft" in platform.uname().release.lower())
-                
-                if es_wsl:
-                    ruta_base = "/mnt/c/Users/truji/OneDrive/Documentos/ANIMALARIUM/TPV ANIMALARIUM/CONTABILIDAD/Facturas digitales"
-                else:
-                    ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Facturas digitales"
-                    
-                carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
-                if not es_wsl:
-                    carpeta_mes = carpeta_mes.replace("/", "\\")
+                ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
+                carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}").replace("/", "\\")
                 
                 try: 
                     os.makedirs(carpeta_mes, exist_ok=True)
-                    if es_wsl:
-                        win_path = f"C:\\Users\\truji\\OneDrive\\Documentos\\ANIMALARIUM\\TPV ANIMALARIUM\\CONTABILIDAD\\Facturas digitales\\{datetime.now().year}\\{datetime.now().month:02d}"
-                        subprocess.Popen(["explorer.exe", win_path])
-                    elif platform.system() == "Windows" and hasattr(os, 'startfile'): 
-                        os.startfile(carpeta_mes.replace("/", "\\"))
-                    elif hasattr(os, 'startfile'): 
+                    if hasattr(os, 'startfile'): 
                         os.startfile(carpeta_mes)
                     elif platform.system() == "Darwin": subprocess.Popen(["open", carpeta_mes])
                     else:
                         import shutil
                         if shutil.which("explorer.exe"): subprocess.Popen(["explorer.exe", carpeta_mes])
                         else: st.info(f"📁 Carpeta lista: {carpeta_mes}")
-                except Exception: st.info(f"📁 Carpeta lista: {carpeta_mes}")
+                except Exception as e: st.info(f"📁 Carpeta lista: {carpeta_mes} (Error: {e})")
                 
         with st.container(border=True):
             col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
@@ -479,16 +466,8 @@ def render_pestana_facturacion(client):
                                 # Archivo Fiscal Físico (Guardar foto en local)
                                 mensaje_archivo = ""
                                 try:
-                                    import platform
-                                    es_wsl = (platform.system() == "Linux" and "microsoft" in platform.uname().release.lower())
-                                    
-                                    if es_wsl: RUTA_BASE_FACTURAS = "/mnt/c/Users/truji/OneDrive/Documentos/ANIMALARIUM/TPV ANIMALARIUM/CONTABILIDAD/Facturas digitales"
-                                    else: RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Facturas digitales"
-                                        
-                                    carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
-                                    if not es_wsl:
-                                        carpeta_facturas = carpeta_facturas.replace("/", "\\")
-                                        
+                                    RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
+                                    carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}").replace("/", "\\")
                                     os.makedirs(carpeta_facturas, exist_ok=True)
                                     
                                     import re
@@ -503,7 +482,6 @@ def render_pestana_facturacion(client):
                                             
                                     mensaje_archivo = f"(📁 Guardadas en: {carpeta_facturas})"
                                 except Exception as e:
-                                    pass # Fallo silencioso si no hay permisos de disco
                                     mensaje_archivo = f"(⚠️ Error al guardar foto: {e})"
                                     
                                 # ====== GUARDAR COMO BORRADOR AUTOMÁTICAMENTE ======
@@ -519,11 +497,12 @@ def render_pestana_facturacion(client):
 
                                 total_compra = 0.0
                                 for art in st.session_state.compra_temp:
-                                    base_neta = (art['Base Ud'] * art['Cantidad']) * (1 - art['Desc %'] / 100)
-                                    total_compra += base_neta * (1 + art['IGIC %'] / 100)
+                                    base_neta = round((art['Base Ud'] * art['Cantidad']) * (1 - art['Desc %'] / 100), 2)
+                                    igic_eur = round(base_neta * (art['IGIC %'] / 100), 2)
+                                    total_compra += round(base_neta + igic_eur, 2)
                                 
                                 dto_pp_val = parse_float_ia(datos_ia.get("descuento_pronto_pago_porcentaje", 0.0))
-                                total_compra = total_compra * (1 - dto_pp_val / 100)
+                                total_compra = round(total_compra * (1 - dto_pp_val / 100), 2)
                                 
                                 num_fac = datos_ia.get("numero_factura", "S/N")
                                 fecha_fac = datos_ia.get("fecha_factura", str(datetime.now().date()))
