@@ -248,24 +248,26 @@ def render_pestana_facturacion(client):
                 import os
                 import platform
                 import subprocess
-                ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Facturas digitales"
+                
+                es_wsl = (platform.system() == "Linux" and "microsoft" in platform.uname().release.lower())
+                
+                if es_wsl:
+                    ruta_base = "/mnt/c/Users/truji/OneDrive/Documentos/ANIMALARIUM/TPV ANIMALARIUM/CONTABILIDAD/Facturas digitales"
+                else:
+                    ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Facturas digitales"
+                    
                 carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
                 
-                # Forzar limpieza de barras mixtas (Linux/Windows) en entornos de terminal híbridos
-                carpeta_win = carpeta_mes.replace("/", "\\")
                 try: 
                     os.makedirs(carpeta_mes, exist_ok=True)
-                    if hasattr(os, 'startfile'): os.startfile(carpeta_win)
-                    elif platform.system() == "Darwin":
-                        subprocess.Popen(["open", carpeta_mes])
-                    else:
-                        import shutil
-                        if shutil.which("explorer.exe"): subprocess.Popen(["explorer.exe", carpeta_win])
-                        elif shutil.which("xdg-open"): subprocess.Popen(["xdg-open", carpeta_mes])
-                        else:
-                            try: subprocess.Popen(["explorer.exe", carpeta_win])
-                            except: st.info(f"📁 Carpeta lista. Cópiala y ábrela en Windows: {carpeta_win}")
-                except Exception: st.info(f"📁 Carpeta lista. Cópiala y ábrela en Windows: {carpeta_win}")
+                    if es_wsl:
+                        win_path = f"C:\\Users\\truji\\OneDrive\\Documentos\\ANIMALARIUM\\TPV ANIMALARIUM\\CONTABILIDAD\\Facturas digitales\\{datetime.now().year}\\{datetime.now().month:02d}"
+                        subprocess.Popen(["explorer.exe", win_path])
+                    elif platform.system() == "Windows" and hasattr(os, 'startfile'): 
+                        os.startfile(carpeta_mes.replace("/", "\\"))
+                    elif platform.system() == "Darwin": subprocess.Popen(["open", carpeta_mes])
+                    else: st.info(f"📁 Carpeta lista: {carpeta_mes}")
+                except Exception: st.info(f"📁 Carpeta lista: {carpeta_mes}")
                 
         with st.container(border=True):
             col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
@@ -470,22 +472,27 @@ def render_pestana_facturacion(client):
                                 # Archivo Fiscal Físico (Guardar foto en local)
                                 mensaje_archivo = ""
                                 try:
-                                    RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Facturas digitales"
+                                    import platform
+                                    es_wsl = (platform.system() == "Linux" and "microsoft" in platform.uname().release.lower())
+                                    
+                                    if es_wsl: RUTA_BASE_FACTURAS = "/mnt/c/Users/truji/OneDrive/Documentos/ANIMALARIUM/TPV ANIMALARIUM/CONTABILIDAD/Facturas digitales"
+                                    else: RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Facturas digitales"
+                                        
                                     carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
-                                    # Forzar formato Windows para evitar barras mixtas en el guardado
-                                    carpeta_facturas = carpeta_facturas.replace("/", "\\")
+                                    if not es_wsl and platform.system() == "Windows":
+                                        carpeta_facturas = carpeta_facturas.replace("/", "\\")
+                                        
                                     os.makedirs(carpeta_facturas, exist_ok=True)
-                                    n_prov_archivo = datos_ia.get("nombre_proveedor", "Acreedor").replace(" ", "_").replace("/", "-")
-                                    n_fac_archivo = datos_ia.get("numero_factura", "SinNum").replace("/", "-")
+                                    
+                                    import re
+                                    n_prov_archivo = re.sub(r'[\\/*?:"<>|]', "", str(datos_ia.get("nombre_proveedor", "Acreedor"))).replace(" ", "_")
+                                    n_fac_archivo = re.sub(r'[\\/*?:"<>|]', "", str(datos_ia.get("numero_factura", "SinNum"))).replace(" ", "_")
                                     
                                     for idx, arch in enumerate(archivos_factura):
-                                        arch.seek(0)
                                         ext = "pdf" if arch.name.lower().endswith(".pdf") else "jpg"
                                         ruta_archivo = os.path.join(carpeta_facturas, f"{n_prov_archivo}_{n_fac_archivo}_{int(time.time())}_{idx}.{ext}")
-                                        if ext == "pdf":
-                                            with open(ruta_archivo, "wb") as f: f.write(arch.read())
-                                        else:
-                                            Image.open(arch).convert('RGB').save(ruta_archivo, "JPEG")
+                                        with open(ruta_archivo, "wb") as f:
+                                            f.write(arch.getvalue())
                                             
                                     mensaje_archivo = f"(📁 Guardadas en: {carpeta_facturas})"
                                 except Exception as e:
