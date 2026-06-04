@@ -223,8 +223,8 @@ def render_pestana_proyectos_eventos(client):
                 f_pres = st.number_input("Presupuesto Estimado (€)", min_value=0.0, format="%.2f", step=100.0)
                 
                 st.markdown("---")
-                st.markdown("##### 📅 Bloqueo automático en Agenda")
-                f_bloquear = st.checkbox("🚫 Bloquear horario en la agenda de peluquería para los días del evento", value=False)
+                st.markdown("##### 📅 Bloqueo Rápido en Agenda (Opcional)")
+                f_bloquear = st.checkbox("🚫 Bloquear horario (Podrás editar turnos y rotaciones luego dentro del evento)", value=False)
                 c3, c4 = st.columns(2)
                 import datetime as dt_module
                 from datetime import timedelta
@@ -346,39 +346,57 @@ def render_pestana_proyectos_eventos(client):
                     st.markdown(f"**🔗 Enlace asociado:** <a href='{url_plano}' target='_blank'>Abrir Documento / Plano en nueva pestaña</a>", unsafe_allow_html=True)
                         
                 st.markdown("---")
-                st.markdown("##### 📅 Sincronizar con Agenda de Peluquería")
-                st.info("Genera o actualiza los bloqueos en el calendario para todos los días que dura este evento.")
-                with st.form(f"bloqueos_fer_{f_id}"):
-                    c_bl1, c_bl2 = st.columns(2)
+                st.markdown("##### 📅 Sincronización Avanzada con Agenda")
+                st.info("Añade bloqueos específicos por día, hora y empleado para gestionar las rotaciones del evento sin alterar sus cuadrantes.")
+                
+                # Mostrar bloqueos actuales
+                res_bl_fer = client.table("agenda_bloqueos").select("*").eq("titulo", f"🎪 {f_actual['titulo']}").order("fecha", desc=False).execute()
+                if res_bl_fer.data:
+                    df_bl_fer = pd.DataFrame(res_bl_fer.data)
+                    df_bl_fer['Fecha'] = pd.to_datetime(df_bl_fer['fecha']).dt.strftime('%d/%m/%Y')
+                    df_bl_fer_v = df_bl_fer[['id', 'Fecha', 'hora_inicio', 'hora_fin', 'empleado_afectado']].copy()
+                    df_bl_fer_v.insert(0, "Borrar", False)
+                    
+                    ed_bl_fer = st.data_editor(
+                        df_bl_fer_v, hide_index=True, use_container_width=True,
+                        column_config={
+                            "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"),
+                            "id": None, "hora_inicio": "Inicio", "hora_fin": "Fin", "empleado_afectado": "Afecta a"
+                        }, key=f"ed_bl_fer_{f_id}"
+                    )
+                    if st.button("💾 Eliminar bloqueos marcados", key=f"btn_del_bl_{f_id}"):
+                        for _, r in ed_bl_fer[ed_bl_fer["Borrar"] == True].iterrows():
+                            client.table("agenda_bloqueos").delete().eq("id", r['id']).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.rerun()
+                else:
+                    st.write("No hay bloqueos activos para este evento.")
+                
+                with st.form(f"add_bloqueo_fer_{f_id}", clear_on_submit=True):
                     import datetime as dt_module
-                    from datetime import timedelta
+                    c_bl0, c_bl1, c_bl2 = st.columns(3)
+                    with c_bl0: fb_fec = st.date_input("Fecha", value=pd.to_datetime(f_actual.get('fecha_inicio')).date())
                     with c_bl1: fb_ini = st.time_input("Hora Inicio", value=dt_module.time(9, 0))
                     with c_bl2: fb_fin = st.time_input("Hora Fin", value=dt_module.time(21, 0))
-                    fb_emp = st.multiselect("Bloquear a:", emp_list, default=["Todas"])
+                    fb_emp = st.multiselect("Bloquear a (Peluqueros):", emp_list, default=["Todas"])
                     
-                    if st.form_submit_button("🚀 Generar / Actualizar Bloqueos"):
+                    if st.form_submit_button("➕ Añadir Turno/Bloqueo al Evento"):
                         if fb_emp:
-                            f_ini_date = pd.to_datetime(f_actual.get('fecha_inicio')).date()
-                            f_fin_date = pd.to_datetime(f_actual.get('fecha_fin')).date()
-                            delta = f_fin_date - f_ini_date
                             inserts_bloqueos = []
                             empleados_a_bloquear = ["Todas"] if "Todas" in fb_emp else fb_emp
-                            for i in range(delta.days + 1):
-                                dia_bloqueo = f_ini_date + timedelta(days=i)
-                                for emp in empleados_a_bloquear:
-                                    inserts_bloqueos.append({
-                                        "fecha": str(dia_bloqueo),
-                                        "hora_inicio": fb_ini.strftime("%H:%M"),
-                                        "hora_fin": fb_fin.strftime("%H:%M"),
-                                        "titulo": f"🎪 {f_actual['titulo']}",
-                                        "empleado_afectado": emp,
-                                        "bloquea_agenda": True
-                                    })
+                            for emp in empleados_a_bloquear:
+                                inserts_bloqueos.append({
+                                    "fecha": str(fb_fec),
+                                    "hora_inicio": fb_ini.strftime("%H:%M"),
+                                    "hora_fin": fb_fin.strftime("%H:%M"),
+                                    "titulo": f"🎪 {f_actual['titulo']}",
+                                    "empleado_afectado": emp,
+                                    "bloquea_agenda": True
+                                })
                             if inserts_bloqueos:
-                                client.table("agenda_bloqueos").delete().eq("titulo", f"🎪 {f_actual['titulo']}").execute()
                                 client.table("agenda_bloqueos").insert(inserts_bloqueos).execute()
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success("Bloqueos sincronizados en la agenda para todos los días del evento."); time.sleep(1.5); st.rerun()
+                                st.success("Bloqueo añadido."); time.sleep(1); st.rerun()
                         else:
                             st.warning("Selecciona al menos un empleado o 'Todas'.")
 

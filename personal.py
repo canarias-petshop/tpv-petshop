@@ -178,7 +178,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
         st.divider()
         st.subheader("🛠️ Panel de Administrador (Gestión de Personal)")
         
-        tab_admin1, tab_admin2, tab_admin3 = st.tabs(["Empleados", "Gestión de Cuadrante (Editable)", "Ver Fichajes"])
+        tab_admin1, tab_admin2, tab_admin3, tab_admin4 = st.tabs(["Empleados", "Gestión de Cuadrante (Editable)", "Ver Fichajes", "🌴 Ausencias y Excepciones"])
         
         with tab_admin1:
             st.markdown("Añadir nuevo empleado:")
@@ -291,3 +291,104 @@ def render_pestana_personal(client: SyncPostgrestClient):
                     st.info("No hay fichajes registrados.")
             except Exception as e:
                 pass
+
+        with tab_admin4:
+            st.markdown("#### 🌴 Gestión de Ausencias, Vacaciones y Cierres")
+            st.info("💡 Añade excepciones al cuadrante sin borrar la planificación base. Estas excepciones generarán un **Bloqueo en la Agenda** automáticamente para que no entren citas en esos tramos.")
+            
+            c_aus1, c_aus2 = st.columns([1, 1.5], gap="large")
+            
+            with c_aus1:
+                tipo_ausencia = st.selectbox("Tipo de Excepción", ["🌴 Vacaciones (Días completos)", "🏢 Cierre de Empresa (Festivos/Obras)", "⏱️ Ausencia Parcial / Jornada Reducida"])
+                
+                with st.form("form_ausencia", clear_on_submit=True):
+                    if tipo_ausencia == "🌴 Vacaciones (Días completos)":
+                        emp_aus = st.selectbox("Empleado", [e['nombre'] for e in empleados])
+                        c_vd1, c_vd2 = st.columns(2)
+                        with c_vd1: d_ini = st.date_input("Desde el día")
+                        with c_vd2: d_fin = st.date_input("Hasta el día (inclusive)")
+                        btn = st.form_submit_button("Registrar Vacaciones", type="primary", use_container_width=True)
+                        
+                        if btn:
+                            delta = d_fin - d_ini
+                            inserts = []
+                            for i in range(delta.days + 1):
+                                dia_bloqueo = d_ini + timedelta(days=i)
+                                inserts.append({
+                                    "fecha": str(dia_bloqueo), "hora_inicio": "00:00", "hora_fin": "23:59",
+                                    "titulo": "🌴 Vacaciones", "empleado_afectado": emp_aus, "bloquea_agenda": True
+                                })
+                            if inserts:
+                                client.table("agenda_bloqueos").insert(inserts).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success("Vacaciones registradas y agenda bloqueada."); time.sleep(1); st.rerun()
+                                
+                    elif tipo_ausencia == "🏢 Cierre de Empresa (Festivos/Obras)":
+                        motivo = st.text_input("Motivo (Ej: Festivo Local, Obras...)")
+                        c_vd1, c_vd2 = st.columns(2)
+                        with c_vd1: d_ini = st.date_input("Desde el día")
+                        with c_vd2: d_fin = st.date_input("Hasta el día (inclusive)")
+                        btn = st.form_submit_button("Registrar Cierre", type="primary", use_container_width=True)
+                        
+                        if btn and motivo:
+                            delta = d_fin - d_ini
+                            inserts = []
+                            for i in range(delta.days + 1):
+                                dia_bloqueo = d_ini + timedelta(days=i)
+                                inserts.append({
+                                    "fecha": str(dia_bloqueo), "hora_inicio": "00:00", "hora_fin": "23:59",
+                                    "titulo": f"🏢 {motivo}", "empleado_afectado": "Todas", "bloquea_agenda": True
+                                })
+                            if inserts:
+                                client.table("agenda_bloqueos").insert(inserts).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success("Cierre registrado y agenda bloqueada."); time.sleep(1); st.rerun()
+                        elif btn:
+                            st.warning("Por favor, indica un motivo.")
+                            
+                    else:
+                        emp_aus = st.selectbox("Empleado", [e['nombre'] for e in empleados])
+                        d_aus = st.date_input("Fecha")
+                        c_vt1, c_vt2 = st.columns(2)
+                        with c_vt1: t_ini = st.time_input("Inicio de la ausencia")
+                        with c_vt2: t_fin = st.time_input("Fin de la ausencia")
+                        motivo = st.text_input("Motivo (Ej: Médico, Jornada reducida)")
+                        btn = st.form_submit_button("Registrar Ausencia Parcial", type="primary", use_container_width=True)
+                        
+                        if btn and motivo:
+                            client.table("agenda_bloqueos").insert({
+                                "fecha": str(d_aus), "hora_inicio": t_ini.strftime("%H:%M"), "hora_fin": t_fin.strftime("%H:%M"),
+                                "titulo": f"⏱️ {motivo}", "empleado_afectado": emp_aus, "bloquea_agenda": True
+                            }).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            st.success("Ausencia registrada y agenda bloqueada."); time.sleep(1); st.rerun()
+                        elif btn:
+                            st.warning("Por favor, indica un motivo.")
+                            
+            with c_aus2:
+                st.markdown("##### 📅 Excepciones y Bloqueos Activos")
+                hoy_str = str(date.today())
+                try:
+                    res_bl = client.table("agenda_bloqueos").select("*").gte("fecha", hoy_str).order("fecha", desc=False).execute()
+                    if res_bl.data:
+                        df_bl = pd.DataFrame(res_bl.data)
+                        df_bl['Fecha'] = pd.to_datetime(df_bl['fecha']).dt.strftime('%d/%m/%Y')
+                        df_bl_vista = df_bl[['id', 'Fecha', 'hora_inicio', 'hora_fin', 'titulo', 'empleado_afectado']].copy()
+                        df_bl_vista.insert(0, "Borrar", False)
+                        
+                        ed_bl = st.data_editor(
+                            df_bl_vista, hide_index=True, use_container_width=True, height=350,
+                            column_config={
+                                "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"),
+                                "id": None, "hora_inicio": "Desde", "hora_fin": "Hasta", "titulo": "Asunto / Motivo", "empleado_afectado": "Afecta a"
+                            }, key="ed_ausencias_bloqueos"
+                        )
+                        if st.button("🗑️ Eliminar Excepciones Seleccionadas", type="primary"):
+                            for _, r in ed_bl[ed_bl["Borrar"] == True].iterrows():
+                                client.table("agenda_bloqueos").delete().eq("id", r['id']).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            st.success("Excepciones eliminadas. La agenda vuelve a estar libre en esos tramos."); time.sleep(1); st.rerun()
+                    else:
+                        st.info("No hay ausencias, vacaciones ni bloqueos futuros registrados.")
+                except Exception as e:
+                    pass
