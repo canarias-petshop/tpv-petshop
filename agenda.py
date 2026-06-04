@@ -83,6 +83,13 @@ def get_bloqueos_ag_cached(_client, v, f_ini, f_fin):
         return _client.table("agenda_bloqueos").select("*").gte("fecha", f_ini).lte("fecha", f_fin).execute().data
     except: return []
 
+@st.cache_data(show_spinner=False, ttl=15)
+def get_ferias_ag_cached(_client, v, f_ini, f_fin):
+    try:
+        # Esta consulta encuentra cualquier evento que se solape con el rango de fechas seleccionado
+        return _client.table("eventos_ferias").select("titulo, fecha_inicio, fecha_fin").lte("fecha_inicio", f_fin).gte("fecha_fin", f_ini).execute().data
+    except: return []
+
 def render_pestana_agenda(client):
     if 'llave_agenda_cita' not in st.session_state: st.session_state.llave_agenda_cita = 0
 
@@ -757,6 +764,7 @@ def render_pestana_agenda(client):
         dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
         turnos_semana = get_turnos_ag_cached(client, st.session_state.get('db_version', 0), str(start_of_week), str(end_of_period))
         bloqueos_semana = get_bloqueos_ag_cached(client, st.session_state.get('db_version', 0), str(start_of_week), str(end_of_period))
+        ferias_semana = get_ferias_ag_cached(client, st.session_state.get('db_version', 0), str(start_of_week), str(end_of_period))
         
         html_week = '''
         <style>
@@ -814,6 +822,18 @@ def render_pestana_agenda(client):
                         h_ini = b['hora_inicio'][:5]
                         h_fin = b['hora_fin'][:5]
                         html_week += f"<div class='cita-card' style='border-left-color: #9c27b0; background-color: #f3e5f5;'><b>{h_ini}-{h_fin}</b> ⛔<br>📌 {b['titulo']}<br>👥 Afecta: {b.get('empleado_afectado','Todas')}</div>"
+                
+                # Ferias y Eventos (NUEVO)
+                f_hoy = []
+                if ferias_semana:
+                    for f in ferias_semana:
+                        try:
+                            f_ini = pd.to_datetime(f['fecha_inicio']).date()
+                            f_fin = pd.to_datetime(f['fecha_fin']).date()
+                            if f_ini <= d_obj <= f_fin: f_hoy.append(f)
+                        except: pass
+                if f_hoy:
+                    for f in f_hoy: html_week += f"<div class='cita-card' style='border-left-color: #ffc107; background-color: #fff8e1;'>🎪 <b>{f['titulo']}</b></div>"
                 
                 # Citas
                 citas_hoy = []
@@ -880,6 +900,7 @@ def render_pestana_agenda(client):
         
         turnos_mes = get_turnos_ag_cached(client, st.session_state.get('db_version', 0), str(f_ini_mes), str(f_fin_mes))
         bloqueos_mes = get_bloqueos_ag_cached(client, st.session_state.get('db_version', 0), str(f_ini_mes), str(f_fin_mes))
+        ferias_mes = get_ferias_ag_cached(client, st.session_state.get('db_version', 0), str(f_ini_mes), str(f_fin_mes))
         res_citas_mes = client.table("citas").select("fecha_hora, servicio, mascotas(nombre, raza, clientes(nombre_dueno, telefono))").gte("fecha_hora", f"{f_ini_mes}T00:00:00").lte("fecha_hora", f"{f_fin_mes}T23:59:59").execute()
         
         citas_por_dia_mes = {}
@@ -953,6 +974,18 @@ def render_pestana_agenda(client):
                             c_bloque = f"⛔ {b['titulo']} ({b['hora_inicio'][:5]})"
                             html_cal += f"<div class='turnos-bloque' style='color:#880e4f; font-weight:bold; background-color:#fce4ec; padding:2px; border-radius:3px; margin-top:2px;'>{c_bloque}</div>"
                     
+                    # Ferias y Eventos (NUEVO)
+                    f_hoy_mes = []
+                    if ferias_mes:
+                        for f in ferias_mes:
+                            try:
+                                f_ini = pd.to_datetime(f['fecha_inicio']).date()
+                                f_fin = pd.to_datetime(f['fecha_fin']).date()
+                                if f_ini <= d_obj <= f_fin: f_hoy_mes.append(f)
+                            except: pass
+                    if f_hoy_mes:
+                        for f in f_hoy_mes: html_cal += f"<div class='turnos-bloque' style='color:#e65100; font-weight:bold; background-color:#fff3e0; padding:2px; border-radius:3px; margin-top:2px;'>🎪 {f['titulo']}</div>"
+
                     citas_hoy = citas_por_dia_mes.get(d_str, [])
                     if citas_hoy:
                         c_bloque = f"📝 {len(citas_hoy)} cita(s)"
