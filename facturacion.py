@@ -248,7 +248,7 @@ def render_pestana_facturacion(client):
                 import os
                 import platform
                 import subprocess
-                ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
+                ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Facturas digitales"
                 carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
                 
                 # Forzar limpieza de barras mixtas (Linux/Windows) en entornos de terminal híbridos
@@ -470,7 +470,7 @@ def render_pestana_facturacion(client):
                                 # Archivo Fiscal Físico (Guardar foto en local)
                                 mensaje_archivo = ""
                                 try:
-                                    RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
+                                    RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Facturas digitales"
                                     carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
                                     # Forzar formato Windows para evitar barras mixtas en el guardado
                                     carpeta_facturas = carpeta_facturas.replace("/", "\\")
