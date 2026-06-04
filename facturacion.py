@@ -444,13 +444,7 @@ def render_pestana_facturacion(client):
                                 # Archivo Fiscal Físico (Guardar foto en local)
                                 mensaje_archivo = ""
                                 try:
-                                    import platform
-                                    if platform.system() == "Windows":
-                                        RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Mis facturas digitales"
-                                    else:
-                                        # Ruta vinculada en el volume del docker-compose.yml (dentro de /app para evitar permisos denegados)
-                                        RUTA_BASE_FACTURAS = "/app/facturas_digitales"
-                                        
+                                    RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Mis facturas digitales"
                                     carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
                                     os.makedirs(carpeta_facturas, exist_ok=True)
                                     n_prov_archivo = datos_ia.get("nombre_proveedor", "Acreedor").replace(" ", "_").replace("/", "-")
