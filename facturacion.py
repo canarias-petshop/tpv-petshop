@@ -267,7 +267,13 @@ def render_pestana_facturacion(client):
                                 genai.configure(api_key=st.secrets["gemini_api_key"])
                                 
                                 prompt = """
-                                Eres un contable experto. Extrae los datos de esta imagen de factura y devuélvelos ESTRICTAMENTE en este formato JSON, sin texto adicional ni markdown:
+                                Eres un contable experto y un sistema de lectura OCR de máxima precisión.
+                                
+                                REGLAS ESTRICTAS ANTI-INVENCIÓN:
+                                1. NUNCA INVENTES DATOS. Si la imagen está borrosa o un texto no se lee perfectamente, sáltalo o déjalo en cero.
+                                2. Escribe EXACTAMENTE el nombre del producto que aparece en el papel. No inventes marcas ni añadas productos que no estén explícitamente escritos ahí.
+                                3. Extrae exactamente las cantidades y precios unitarios. NO pongas descuentos si no vienen indicados en el papel claramente.
+                                4. Devuelve los datos ESTRICTAMENTE en este formato JSON, sin texto adicional ni markdown:
                                 {
                                   "numero_factura": "12345",
                                   "fecha_factura": "YYYY-MM-DD",
@@ -275,7 +281,7 @@ def render_pestana_facturacion(client):
                                   "descuento_pronto_pago_porcentaje": 0.0,
                                   "articulos": [
                                     {
-                                      "descripcion": "Nombre del articulo",
+                                      "descripcion": "Nombre EXACTO del articulo tal cual aparece",
                                       "codigo_referencia_o_barras": "12345678",
                                       "cantidad": 1,
                                       "precio_base": 12.50,
@@ -437,7 +443,7 @@ def render_pestana_facturacion(client):
                                 # Archivo Fiscal Físico (Guardar foto en local)
                                 mensaje_archivo = ""
                                 try:
-                                    RUTA_BASE_FACTURAS = "/facturas_digitales"
+                                    RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Mis facturas digitales"
                                     carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
                                     os.makedirs(carpeta_facturas, exist_ok=True)
                                     n_prov_archivo = datos_ia.get("nombre_proveedor", "Acreedor").replace(" ", "_").replace("/", "-")
