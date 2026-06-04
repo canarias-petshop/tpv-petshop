@@ -251,18 +251,22 @@ def render_pestana_facturacion(client):
                 from datetime import datetime
                 ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
                 carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
+                
+                # Forzar limpieza de barras mixtas (Linux/Windows) en entornos de terminal híbridos
+                carpeta_win = carpeta_mes.replace("/", "\\")
                 try: 
                     os.makedirs(carpeta_mes, exist_ok=True)
-                    if hasattr(os, 'startfile'):
-                        os.startfile(carpeta_mes)
+                    if hasattr(os, 'startfile'): os.startfile(carpeta_win)
                     elif platform.system() == "Darwin":
                         subprocess.Popen(["open", carpeta_mes])
                     else:
                         import shutil
-                        if shutil.which("explorer.exe"): subprocess.Popen(["explorer.exe", carpeta_mes])
+                        if shutil.which("explorer.exe"): subprocess.Popen(["explorer.exe", carpeta_win])
                         elif shutil.which("xdg-open"): subprocess.Popen(["xdg-open", carpeta_mes])
-                        else: st.info(f"📁 Carpeta lista. Cópiala y ábrela en Windows: {carpeta_mes}")
-                except Exception: st.info(f"📁 Carpeta lista. Cópiala y ábrela en Windows: {carpeta_mes}")
+                        else:
+                            try: subprocess.Popen(["explorer.exe", carpeta_win])
+                            except: st.info(f"📁 Carpeta lista. Cópiala y ábrela en Windows: {carpeta_win}")
+                except Exception: st.info(f"📁 Carpeta lista. Cópiala y ábrela en Windows: {carpeta_win}")
                 
         with st.container(border=True):
             col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
