@@ -6,6 +6,12 @@ import time
 def render_pestana_proyectos_eventos(client):
     st.markdown("<h3 style='margin-top: -15px;'>🗓️ Proyectos, Reuniones y Eventos</h3>", unsafe_allow_html=True)
     
+    # Extraer lista de empleados para usarla globalmente en bloqueos y ferias
+    try:
+        res_emp = client.table("personal_empleados").select("nombre").eq("activo", True).execute()
+        emp_list = ["Todas"] + [e['nombre'] for e in res_emp.data] if res_emp.data else ["Todas"]
+    except: emp_list = ["Todas"]
+    
     tab_macro, tab_ferias, tab_talleres, tab_reuniones = st.tabs([
         "🚀 Proyectos de Expansión", 
         "🎪 Ferias y Eventos Externos",
@@ -144,11 +150,6 @@ def render_pestana_proyectos_eventos(client):
                 with c_h1: b_ini = st.time_input("Hora Inicio *")
                 with c_h2: b_fin = st.time_input("Hora Fin *")
                 
-                try:
-                    res_emp = client.table("personal_empleados").select("nombre").eq("activo", True).execute()
-                    emp_list = ["Todas"] + [e['nombre'] for e in res_emp.data] if res_emp.data else ["Todas"]
-                except: emp_list = ["Todas"]
-                
                 b_emp = st.selectbox("Afecta a:", emp_list)
                 b_bloq = st.checkbox("🚫 Bloquear agenda de peluquería en este tramo", value=True)
                 
@@ -221,6 +222,16 @@ def render_pestana_proyectos_eventos(client):
                 f_planos = st.text_input("Enlace a Planos (Canva, Google Drive, OneDrive...)", placeholder="https://...")
                 f_pres = st.number_input("Presupuesto Estimado (€)", min_value=0.0, format="%.2f", step=100.0)
                 
+                st.markdown("---")
+                st.markdown("##### 📅 Bloqueo automático en Agenda")
+                f_bloquear = st.checkbox("🚫 Bloquear horario en la agenda de peluquería para los días del evento", value=False)
+                c3, c4 = st.columns(2)
+                import datetime as dt_module
+                from datetime import timedelta
+                with c3: f_hora_ini = st.time_input("Hora Inicio Bloqueo", value=dt_module.time(9, 0))
+                with c4: f_hora_fin = st.time_input("Hora Fin Bloqueo", value=dt_module.time(21, 0))
+                f_emp_bloq = st.multiselect("Afecta a (Peluqueros):", emp_list, default=["Todas"])
+                
                 if st.form_submit_button("Crear Feria", type="primary", use_container_width=True):
                     if f_tit:
                         client.table("eventos_ferias").insert({
@@ -228,8 +239,27 @@ def render_pestana_proyectos_eventos(client):
                             "lugar": f_lug, "presupuesto": float(f_pres), "coste_real": 0.0,
                             "logistica_stands": f_stands, "enlaces_planos": f_planos, "estado": "Planificación"
                         }).execute()
+                        
+                        if f_bloquear and f_emp_bloq:
+                            delta = f_fin - f_ini
+                            inserts_bloqueos = []
+                            empleados_a_bloquear = ["Todas"] if "Todas" in f_emp_bloq else f_emp_bloq
+                            for i in range(delta.days + 1):
+                                dia_bloqueo = f_ini + timedelta(days=i)
+                                for emp in empleados_a_bloquear:
+                                    inserts_bloqueos.append({
+                                        "fecha": str(dia_bloqueo),
+                                        "hora_inicio": f_hora_ini.strftime("%H:%M"),
+                                        "hora_fin": f_hora_fin.strftime("%H:%M"),
+                                        "titulo": f"🎪 {f_tit}",
+                                        "empleado_afectado": emp,
+                                        "bloquea_agenda": True
+                                    })
+                            if inserts_bloqueos:
+                                client.table("agenda_bloqueos").insert(inserts_bloqueos).execute()
+                                
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                        st.success("Feria creada."); time.sleep(1); st.rerun()
+                        st.success("Feria creada y agendada."); time.sleep(1); st.rerun()
                     else: st.warning("El título es obligatorio.")
         else:
             idx = opciones_f.index(f_sel_str) - 1
@@ -315,10 +345,48 @@ def render_pestana_proyectos_eventos(client):
                     if not url_plano.startswith('http'): url_plano = 'https://' + url_plano
                     st.markdown(f"**🔗 Enlace asociado:** <a href='{url_plano}' target='_blank'>Abrir Documento / Plano en nueva pestaña</a>", unsafe_allow_html=True)
                         
+                st.markdown("---")
+                st.markdown("##### 📅 Sincronizar con Agenda de Peluquería")
+                st.info("Genera o actualiza los bloqueos en el calendario para todos los días que dura este evento.")
+                with st.form(f"bloqueos_fer_{f_id}"):
+                    c_bl1, c_bl2 = st.columns(2)
+                    import datetime as dt_module
+                    from datetime import timedelta
+                    with c_bl1: fb_ini = st.time_input("Hora Inicio", value=dt_module.time(9, 0))
+                    with c_bl2: fb_fin = st.time_input("Hora Fin", value=dt_module.time(21, 0))
+                    fb_emp = st.multiselect("Bloquear a:", emp_list, default=["Todas"])
+                    
+                    if st.form_submit_button("🚀 Generar / Actualizar Bloqueos"):
+                        if fb_emp:
+                            f_ini_date = pd.to_datetime(f_actual.get('fecha_inicio')).date()
+                            f_fin_date = pd.to_datetime(f_actual.get('fecha_fin')).date()
+                            delta = f_fin_date - f_ini_date
+                            inserts_bloqueos = []
+                            empleados_a_bloquear = ["Todas"] if "Todas" in fb_emp else fb_emp
+                            for i in range(delta.days + 1):
+                                dia_bloqueo = f_ini_date + timedelta(days=i)
+                                for emp in empleados_a_bloquear:
+                                    inserts_bloqueos.append({
+                                        "fecha": str(dia_bloqueo),
+                                        "hora_inicio": fb_ini.strftime("%H:%M"),
+                                        "hora_fin": fb_fin.strftime("%H:%M"),
+                                        "titulo": f"🎪 {f_actual['titulo']}",
+                                        "empleado_afectado": emp,
+                                        "bloquea_agenda": True
+                                    })
+                            if inserts_bloqueos:
+                                client.table("agenda_bloqueos").delete().eq("titulo", f"🎪 {f_actual['titulo']}").execute()
+                                client.table("agenda_bloqueos").insert(inserts_bloqueos).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success("Bloqueos sincronizados en la agenda para todos los días del evento."); time.sleep(1.5); st.rerun()
+                        else:
+                            st.warning("Selecciona al menos un empleado o 'Todas'.")
+
                 st.markdown("<br>", unsafe_allow_html=True)
                 if st.button("🗑️ Eliminar Feria Completa", type="secondary"):
                     client.table("eventos_ferias_tareas").delete().eq("feria_id", f_id).execute()
                     client.table("eventos_ferias").delete().eq("id", f_id).execute()
+                    client.table("agenda_bloqueos").delete().eq("titulo", f"🎪 {f_actual['titulo']}").execute()
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.warning("Feria eliminada."); time.sleep(1); st.rerun()
 
