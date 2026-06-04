@@ -270,7 +270,6 @@ def render_pestana_facturacion(client):
                     elif hasattr(os, 'startfile'): 
                         os.startfile(carpeta_mes)
                     elif platform.system() == "Darwin": subprocess.Popen(["open", carpeta_mes])
-                    else: st.info(f"📁 Carpeta lista: {carpeta_mes}")
                     else:
                         import shutil
                         if shutil.which("explorer.exe"): subprocess.Popen(["explorer.exe", carpeta_mes])
@@ -487,7 +486,6 @@ def render_pestana_facturacion(client):
                                     else: RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Facturas digitales"
                                         
                                     carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
-                                    if not es_wsl and platform.system() == "Windows":
                                     if not es_wsl:
                                         carpeta_facturas = carpeta_facturas.replace("/", "\\")
                                         
