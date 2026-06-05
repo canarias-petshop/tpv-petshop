@@ -183,16 +183,11 @@ def procesar_lote():
             }).execute()
 
             # 5. Mover a Mis Facturas Digitales organizado por Año / Mes
-            año_act = str(datetime.now().year)
-            mes_act = f"{datetime.now().month:02d}"
-            carpeta_final = os.path.join(CARPETA_PROCESADAS, año_act, mes_act)
-            if not os.path.exists(carpeta_final): os.makedirs(carpeta_final)
+            # (Función desactivada: El usuario gestiona sus propias carpetas de facturas digitalizadas).
+            ruta_final_leida = os.path.join(CARPETA_PROCESADAS, f"PROCESADA_{archivo}")
+            shutil.move(ruta_archivo, ruta_final_leida)
             
-            nombre_nuevo = f"{nombre_prov.replace(' ', '_').replace('/', '-')}_{num_fac.replace('/', '-')}_{int(time.time())}.jpg"
-            ruta_final = os.path.join(carpeta_final, nombre_nuevo)
-            shutil.move(ruta_archivo, ruta_final)
-            
-            print(f"   ✅ Guardada y foto enviada a: {carpeta_final}\n")
+            print("   ✅ Procesada y datos guardados en Supabase.\n")
             
         except Exception as e:
             print(f"   ❌ Error al procesar {archivo}: {e}")

@@ -240,28 +240,7 @@ def render_pestana_facturacion(client):
         if 'llave_busqueda_c' not in st.session_state: st.session_state.llave_busqueda_c = 0
         if 'pedido_vinculado' not in st.session_state: st.session_state.pedido_vinculado = None
             
-        c_tit1, c_tit2 = st.columns([2, 1], vertical_alignment="bottom")
-        with c_tit1:
-            st.markdown("#### 🤖 Escáner de Facturas con IA")
-        with c_tit2:
-            if st.button("📂 Abrir Carpeta de Facturas", use_container_width=True):
-                import os
-                import platform
-                import subprocess
-                
-                ruta_base = os.path.join(os.getcwd(), "Facturas_Digitales")
-                carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
-                
-                try: 
-                    os.makedirs(carpeta_mes, exist_ok=True)
-                    if hasattr(os, 'startfile'): 
-                        os.startfile(carpeta_mes.replace("/", "\\"))
-                    elif platform.system() == "Darwin": subprocess.Popen(["open", carpeta_mes])
-                    else:
-                        import shutil
-                        if shutil.which("explorer.exe"): subprocess.Popen(["explorer.exe", carpeta_mes.replace("/", "\\")])
-                        else: st.info(f"📁 Carpeta lista: {carpeta_mes}")
-                except Exception: st.info(f"📁 Carpeta lista: {carpeta_mes}")
+        st.markdown("#### 🤖 Escáner de Facturas con IA")
                 
         with st.container(border=True):
             col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
@@ -463,26 +442,7 @@ def render_pestana_facturacion(client):
                                             "Caducidad": cad if cad else None
                                         })
                                         
-                                # Archivo Fiscal Físico (Guardar foto en local)
-                                mensaje_archivo = ""
-                                try:
-                                    RUTA_BASE_FACTURAS = os.path.join(os.getcwd(), "Facturas_Digitales")
-                                    carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
-                                    os.makedirs(carpeta_facturas, exist_ok=True)
-                                    
-                                    import re
-                                    n_prov_archivo = re.sub(r'[\\/*?:"<>|]', "", str(datos_ia.get("nombre_proveedor", "Acreedor"))).replace(" ", "_")
-                                    n_fac_archivo = re.sub(r'[\\/*?:"<>|]', "", str(datos_ia.get("numero_factura", "SinNum"))).replace(" ", "_")
-                                    
-                                    for idx, arch in enumerate(archivos_factura):
-                                        ext = "pdf" if arch.name.lower().endswith(".pdf") else "jpg"
-                                        ruta_archivo = os.path.join(carpeta_facturas, f"{n_prov_archivo}_{n_fac_archivo}_{int(time.time())}_{idx}.{ext}").replace("/", "\\")
-                                        with open(ruta_archivo, "wb") as f:
-                                            f.write(arch.getvalue())
-                                            
-                                    mensaje_archivo = f"(📁 Guardadas en: {carpeta_facturas})"
-                                except Exception as e:
-                                    mensaje_archivo = f"(⚠️ Error al guardar foto: {e})"
+                                # (Se ha eliminado la copia física de las fotos. El usuario organiza sus documentos manualmente).
                                     
                                 # ====== GUARDAR COMO BORRADOR AUTOMÁTICAMENTE ======
                                 prov_id_final = None
@@ -520,7 +480,7 @@ def render_pestana_facturacion(client):
                                 # ===================================================
 
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success(f"✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla. {mensaje_archivo}")
+                                st.success("✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla.")
                                 time.sleep(2.5)
                                 st.rerun()
                             except ImportError:
