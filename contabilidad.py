@@ -698,8 +698,8 @@ def render_pestana_contabilidad(client):
                 else:
                     t_low = tipo_str.lower()
                     if "gastos fijos |" in t_low:
-                        concepto_puro = tipo_str.split(" | ")[1].rsplit(" - ", 1)[0].strip()
-                        cat_bd = str(map_gf_cat.get(concepto_puro, "") if 'mapa_gf_cat' in locals() else "")
+                        concepto_puro = tipo_str.split(" | ")[1].rsplit(" - ", 1)[0].strip() # [cite: L543]
+                        cat_bd = str(mapa_gf_cat.get(concepto_puro, "") if 'mapa_gf_cat' in locals() else "")
                         if "Tienda" in cat_bd or "Suministros" in cat_bd: cat_contable = "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)"
                         elif "Personal" in cat_bd or "Autónomo" in cat_bd or "Profesionales" in cat_bd: cat_contable = "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)"
                         elif "Financiación" in cat_bd or "Seguros" in cat_bd: cat_contable = "Financiación y Seguros (Préstamos, Tarjetas, Pólizas, Comisiones...)"
