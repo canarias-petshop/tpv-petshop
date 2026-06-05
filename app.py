@@ -404,7 +404,7 @@ else:
         "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", 
         "🐶 Servicios Animalarium", "⏱️ Personal", "✅ Tareas", "📖 Ayuda"
     ]
-
+    
 tabs = st.tabs(nombres_pestanas)
 
 if st.session_state.rol == "Admin":
