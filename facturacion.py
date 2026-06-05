@@ -246,26 +246,7 @@ def render_pestana_facturacion(client):
         
         st.markdown("---")
         
-        c_tit1, c_tit2 = st.columns([2, 1], vertical_alignment="bottom")
-        with c_tit1:
-            st.markdown("#### 🤖 Escáner Inteligente con IA")
-        with c_tit2:
-            if st.button("📂 Abrir Carpeta de Facturas", use_container_width=True):
-                import os
-                import platform
-                import subprocess
-                
-                en_la_nube = "mount/src" in os.getcwd().replace("\\", "/")
-                if en_la_nube:
-                    st.error("🌐 **Estás en la Web:** Una página de internet no puede abrir las carpetas de tu ordenador por seguridad. Abre tu OneDrive manualmente.")
-                else:
-                    ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
-                    carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
-                    try:
-                        os.makedirs(carpeta_mes, exist_ok=True)
-                        if hasattr(os, 'startfile'): os.startfile(carpeta_mes)
-                        else: st.info(f"📁 Carpeta en tu PC: {carpeta_mes}")
-                    except Exception as e: st.error(f"Error al abrir carpeta: {e}")
+        st.markdown("#### 🤖 Escáner Inteligente con IA")
                 
         with st.container(border=True):
             col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
@@ -467,31 +448,6 @@ def render_pestana_facturacion(client):
                                             "Caducidad": cad if cad else None
                                         })
                                         
-                                # Archivo Fiscal Físico (Guardar foto en local)
-                                mensaje_archivo = ""
-                                try:
-                                    en_la_nube = "mount/src" in os.getcwd().replace("\\", "/")
-                                    if en_la_nube:
-                                        mensaje_archivo = " ⚠️ ESTÁS EN LA WEB: Mueve el PDF/Foto que acabas de subir a tu OneDrive manualmente."
-                                    else:
-                                        RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
-                                        carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
-                                        os.makedirs(carpeta_facturas, exist_ok=True)
-                                        
-                                        import re
-                                        n_prov_archivo = re.sub(r'[\\/*?:"<>|]', "", str(datos_ia.get("nombre_proveedor", "Acreedor"))).replace(" ", "_")
-                                        n_fac_archivo = re.sub(r'[\\/*?:"<>|]', "", str(datos_ia.get("numero_factura", "SinNum"))).replace(" ", "_")
-                                        
-                                        for idx, arch in enumerate(archivos_factura):
-                                            ext = "pdf" if arch.name.lower().endswith(".pdf") else "jpg"
-                                            ruta_archivo = os.path.join(carpeta_facturas, f"{n_prov_archivo}_{n_fac_archivo}_{int(time.time())}_{idx}.{ext}")
-                                            with open(ruta_archivo, "wb") as f:
-                                                f.write(arch.getvalue())
-                                                
-                                        mensaje_archivo = f"(📁 Guardada en tu PC: {carpeta_facturas})"
-                                except Exception as e:
-                                    mensaje_archivo = f"(⚠️ Error al guardar foto: {e})"
-                                    
                                 # ====== GUARDAR COMO BORRADOR AUTOMÁTICAMENTE ======
                                 prov_id_final = None
                                 if "sel_prov_ia_tmp" in st.session_state and st.session_state["sel_prov_ia_tmp"]:
@@ -533,7 +489,7 @@ def render_pestana_facturacion(client):
                                         nuevo_pen = float(fac_dup['pendiente']) + total_guardar_ia
                                         
                                         client.table("compras").update({"productos": prods_ant, "total": round(nuevo_tot, 2), "pendiente": round(nuevo_pen, 2)}).eq("id", fac_dup['id']).execute()
-                                        msg_exito = f"🔄 ¡Página fusionada! La factura '{num_fac}' ya existía como borrador y se le han añadido estos artículos. {mensaje_archivo}"
+                                        msg_exito = f"🔄 ¡Página fusionada! La factura '{num_fac}' ya existía como borrador y se le han añadido estos artículos."
                                     else:
                                         st.error(f"🚨 **¡ATENCIÓN!** El {prefijo_doc} '{num_fac}' ya existe y está archivado. Para evitar duplicar stock y gastos, no se han guardado estos datos.")
                                         st.session_state.compra_temp = []
@@ -542,7 +498,7 @@ def render_pestana_facturacion(client):
                                     client.table("compras").insert({
                                         "proveedor_id": prov_id_final, "total": round(total_guardar_ia, 2), "descuento_pp": dto_pp_val, "estado": "Borrador", "tipo": tipo_doc_completo, "fecha_vencimiento": fecha_fac, "productos": st.session_state.compra_temp, "pagado": 0.0, "pendiente": round(total_guardar_ia, 2)
                                     }).execute()
-                                    msg_exito = f"✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla. {mensaje_archivo}"
+                                    msg_exito = f"✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla."
                                 
                                 st.session_state.compra_temp = []
                                 for key in ["fac_prov_n", "fac_prov_f", "ia_dto_pp", "sel_prov_ia_tmp"]:
