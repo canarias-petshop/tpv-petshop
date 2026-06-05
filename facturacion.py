@@ -517,13 +517,32 @@ def render_pestana_facturacion(client):
                                 
                                 total_guardar_ia = -abs(total_compra) if es_abono else abs(total_compra)
                                 prefijo_doc = "Abono" if es_abono else "Factura"
+                                tipo_doc_completo = f"{prefijo_doc}: {num_fac}"
                                 
-                                client.table("compras").insert({
-                                    "proveedor_id": prov_id_final, "total": round(total_guardar_ia, 2), "descuento_pp": dto_pp_val,
-                                    "estado": "Borrador", "tipo": f"{prefijo_doc}: {num_fac}", "fecha_vencimiento": fecha_fac,
-                                    "productos": st.session_state.compra_temp,
-                                    "pagado": 0.0, "pendiente": round(total_guardar_ia, 2)
-                                }).execute()
+                                # --- ESCUDO ANTI-DUPLICADOS Y FUSIÓN AUTOMÁTICA ---
+                                res_dup = client.table("compras").select("id, estado, productos, total, pendiente").eq("proveedor_id", prov_id_final).eq("tipo", tipo_doc_completo).execute()
+                                
+                                if res_dup.data and num_fac != "S/N":
+                                    fac_dup = res_dup.data[0]
+                                    if fac_dup['estado'] == 'Borrador':
+                                        prods_ant = fac_dup.get('productos', [])
+                                        if not isinstance(prods_ant, list): prods_ant = []
+                                        prods_ant.extend(st.session_state.compra_temp)
+                                        
+                                        nuevo_tot = float(fac_dup['total']) + total_guardar_ia
+                                        nuevo_pen = float(fac_dup['pendiente']) + total_guardar_ia
+                                        
+                                        client.table("compras").update({"productos": prods_ant, "total": round(nuevo_tot, 2), "pendiente": round(nuevo_pen, 2)}).eq("id", fac_dup['id']).execute()
+                                        msg_exito = f"🔄 ¡Página fusionada! La factura '{num_fac}' ya existía como borrador y se le han añadido estos artículos. {mensaje_archivo}"
+                                    else:
+                                        st.error(f"🚨 **¡ATENCIÓN!** El {prefijo_doc} '{num_fac}' ya existe y está archivado. Para evitar duplicar stock y gastos, no se han guardado estos datos.")
+                                        st.session_state.compra_temp = []
+                                        st.stop()
+                                else:
+                                    client.table("compras").insert({
+                                        "proveedor_id": prov_id_final, "total": round(total_guardar_ia, 2), "descuento_pp": dto_pp_val, "estado": "Borrador", "tipo": tipo_doc_completo, "fecha_vencimiento": fecha_fac, "productos": st.session_state.compra_temp, "pagado": 0.0, "pendiente": round(total_guardar_ia, 2)
+                                    }).execute()
+                                    msg_exito = f"✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla. {mensaje_archivo}"
                                 
                                 st.session_state.compra_temp = []
                                 for key in ["fac_prov_n", "fac_prov_f", "ia_dto_pp", "sel_prov_ia_tmp"]:
@@ -531,8 +550,8 @@ def render_pestana_facturacion(client):
                                 # ===================================================
 
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success(f"✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla. {mensaje_archivo}")
-                                time.sleep(2.5)
+                                st.success(msg_exito)
+                                time.sleep(3.5)
                                 st.rerun()
                             except ImportError:
                                 st.error("🚨 Faltan librerías. Abre tu consola y ejecuta: pip install google-generativeai pillow")

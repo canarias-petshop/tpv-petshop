@@ -176,18 +176,32 @@ def procesar_lote():
             num_fac = datos_ia.get("numero_factura", "S/N")
             fecha_fac = datos_ia.get("fecha_factura", str(datetime.now().date()))
             
-            client.table("compras").insert({
-                "proveedor_id": prov_id, "total": round(total_compra, 2), "estado": "Borrador",
-                "tipo": f"Factura: {num_fac}", "fecha_vencimiento": fecha_fac, "productos": productos_compra,
-                "pagado": 0.0, "pendiente": round(total_compra, 2)
-            }).execute()
+            res_existente = client.table("compras").select("id, estado, productos, total, pendiente").eq("proveedor_id", prov_id).eq("tipo", f"Factura: {num_fac}").execute()
+            
+            if res_existente.data and num_fac != "S/N":
+                fac_existente = res_existente.data[0]
+                if fac_existente['estado'] == 'Borrador':
+                    prods_antiguos = fac_existente.get('productos', [])
+                    if not isinstance(prods_antiguos, list): prods_antiguos = []
+                    prods_antiguos.extend(productos_compra)
+                    nuevo_total = float(fac_existente['total']) + total_compra
+                    nuevo_pendiente = float(fac_existente['pendiente']) + total_compra
+                    client.table("compras").update({"productos": prods_antiguos, "total": round(nuevo_total, 2), "pendiente": round(nuevo_pendiente, 2)}).eq("id", fac_existente['id']).execute()
+                    print(f"   🔄 Factura '{num_fac}' existente. Página adicional fusionada en Borrador.")
+                else:
+                    print(f"   🚨 Factura '{num_fac}' ya está validada y archivada. Saltando para evitar duplicados.")
+            else:
+                client.table("compras").insert({
+                    "proveedor_id": prov_id, "total": round(total_compra, 2), "estado": "Borrador",
+                    "tipo": f"Factura: {num_fac}", "fecha_vencimiento": fecha_fac, "productos": productos_compra,
+                    "pagado": 0.0, "pendiente": round(total_compra, 2)
+                }).execute()
+                print("   ✅ Procesada y guardada como nuevo Borrador.")
 
             # 5. Mover a Mis Facturas Digitales organizado por Año / Mes
             # (Función desactivada: El usuario gestiona sus propias carpetas de facturas digitalizadas).
             ruta_final_leida = os.path.join(CARPETA_PROCESADAS, f"PROCESADA_{archivo}")
             shutil.move(ruta_archivo, ruta_final_leida)
-            
-            print("   ✅ Procesada y datos guardados en Supabase.\n")
             
         except Exception as e:
             print(f"   ❌ Error al procesar {archivo}: {e}")
