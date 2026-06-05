@@ -151,7 +151,7 @@ def render_pestana_contabilidad(client):
             res_compras_gf = client.table("compras").select("tipo").ilike("tipo", "Gastos Fijos | %").execute()
             pagos_registrados = [c['tipo'] for c in res_compras_gf.data] if res_compras_gf.data else []
             
-            hoy_dt = pd.Timestamp.now('Atlantic/Canary').normalize()
+            hoy_dt = pd.Timestamp.now('Atlantic/Canary').normalize().tz_localize(None)
             futuro_dt = hoy_dt + pd.Timedelta(days=60)
             pasado_dt = hoy_dt - pd.Timedelta(days=30) # Miramos también un mes atrás para ver los atrasados
             proyeccion = []
@@ -275,7 +275,7 @@ def render_pestana_contabilidad(client):
             )
             df_deudas['pendiente'] = df_deudas['pendiente'].apply(lambda x: max(0.0, x))
             
-            hoy_date = pd.Timestamp.now('Atlantic/Canary').normalize()
+            hoy_date = pd.Timestamp.now('Atlantic/Canary').normalize().tz_localize(None)
             
             def calc_estado_venc(fecha):
                 if pd.isna(fecha): return "⚪ Sin fecha"
