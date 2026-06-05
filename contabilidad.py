@@ -674,11 +674,12 @@ def render_pestana_contabilidad(client):
         compras_list = []
         if res_c_inf.data:
             for c in res_c_inf.data:
-                cat_contable = "Factura de Proveedor (Mercancía)"
+                cat_contable = "Otros Gastos"
                 concepto = c['tipo']
                 
                 tipo_str = str(c.get('tipo', ''))
-                if "Gastos de compra" in tipo_str: cat_contable = "Gastos de Compra (Limpieza, Consumibles)"
+                if "Factura:" in tipo_str: cat_contable = "Factura de Proveedor (Mercancía)"
+                elif "Gastos de compra" in tipo_str: cat_contable = "Gastos de Compra (Limpieza, Consumibles)"
                 elif "Gastos fijos" in tipo_str: cat_contable = "Gastos Fijos y Variables"
                 elif "Personal" in tipo_str: cat_contable = "Personal y Autónomos"
                 elif "Servicios exteriores" in tipo_str: cat_contable = "Servicios Exteriores y Reparaciones"
@@ -737,10 +738,16 @@ def render_pestana_contabilidad(client):
         df_facturas_rec = pd.DataFrame()
         df_abonos_rec = pd.DataFrame()
         df_tickets_gastos = pd.DataFrame()
+        df_fijos_pagados = pd.DataFrame()
         if not df_todas_compras.empty:
             df_facturas_rec = df_todas_compras[df_todas_compras['Es_Factura'] == True].drop(columns=['Es_Factura', 'Es_Abono'])
             df_abonos_rec = df_todas_compras[df_todas_compras['Es_Abono'] == True].drop(columns=['Es_Factura', 'Es_Abono'])
-            df_tickets_gastos = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False)].drop(columns=['Es_Factura', 'Es_Abono'])
+            
+            mask_tickets = df_todas_compras['Categoría Contable'].isin(["Gastos de Compra (Limpieza, Consumibles)", "Servicios Exteriores y Reparaciones", "Otros Gastos"])
+            df_tickets_gastos = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False) & mask_tickets].drop(columns=['Es_Factura', 'Es_Abono'])
+            
+            mask_fijos_pagados = df_todas_compras['Categoría Contable'].isin(["Gastos Fijos y Variables", "Personal y Autónomos", "Impuestos y Tasas"])
+            df_fijos_pagados = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False) & mask_fijos_pagados].drop(columns=['Es_Factura', 'Es_Abono'])
 
         # --- EXTRACCIÓN DE GASTOS FIJOS ---
         res_gf_inf = client.table("gastos_recurrentes").select("concepto, categoria, importe_estimado, dia_cargo, frecuencia").eq("activo", True).execute()
@@ -864,11 +871,14 @@ def render_pestana_contabilidad(client):
 
         with c_down4:
             st.error("🏢 GASTOS FIJOS")
-            if not df_gf_inf.empty:
+            if not df_gf_inf.empty or not df_fijos_pagados.empty:
                 dict_gf = {}
-                for cat, group in df_gf_inf.groupby("Categoría Contable"):
-                    short_cat = cat.split(" (")[0][:31] # Límite de caracteres para pestañas Excel
-                    dict_gf[short_cat] = group
+                if not df_gf_inf.empty:
+                    for cat, group in df_gf_inf.groupby("Categoría Contable"):
+                        short_cat = cat.split(" (")[0][:31] # Límite de caracteres para pestañas Excel
+                        dict_gf[short_cat] = group
+                if not df_fijos_pagados.empty:
+                    dict_gf["Historial Pagos Realizados"] = df_fijos_pagados
                     
                 excel_gf = generar_excel_formateado(dict_gf)
                 st.download_button("📥 Descargar G. Fijos", excel_gf, f"Gastos_Fijos_Actuales.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
