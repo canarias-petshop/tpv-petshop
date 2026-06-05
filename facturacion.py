@@ -1098,6 +1098,7 @@ def render_pestana_facturacion(client):
                             etiqueta = f"🏦 {b['nombre_banco']} ({b['saldo_actual']:.2f} €)"
                             opciones_pago.append(etiqueta)
                             mapa_bancos[etiqueta] = b['id']
+                    opciones_pago.append("🤷‍♂️ No registrar origen (Ajuste antiguo)")
 
                     sel_origen = st.selectbox("💳 Selecciona el origen de los fondos para el pago:", [""] + opciones_pago)
                     
@@ -1124,6 +1125,8 @@ def render_pestana_facturacion(client):
                                 pago_exitoso = True
                             else:
                                 st.error("⚠️ No puedes pagar con la caja porque no hay ningún turno abierto. Abre la caja primero en la pestaña 5.")
+                                elif "No registrar origen" in sel_origen:
+                                    pago_exitoso = True
                         else:
                             banco_id = mapa_bancos[sel_origen]
                             banco_data = [b for b in res_b.data if b['id'] == banco_id][0]
