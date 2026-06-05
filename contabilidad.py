@@ -674,6 +674,9 @@ def render_pestana_contabilidad(client):
         df_lineas_serv = pd.DataFrame(todas_lineas_serv)
 
         # --- PROCESAR COMPRAS Y GASTOS (Separando Facturas de Tickets) ---
+        res_gf_cat = client.table("gastos_recurrentes").select("concepto, categoria").execute()
+        mapa_gf_cat = {g['concepto']: g['categoria'] for g in res_gf_cat.data} if res_gf_cat.data else {}
+        
         compras_list = []
         if res_c_inf.data:
             for c in res_c_inf.data:
@@ -681,26 +684,30 @@ def render_pestana_contabilidad(client):
                 concepto = tipo_str
                 cat_contable = "Otros Gastos Fijos"
                 
-                if "Factura:" in tipo_str: cat_contable = "Factura de Proveedor (Mercancía)"
-                elif "Gastos fijos" in tipo_str: cat_contable = "Gastos Fijos y Variables"
-                elif "Personal" in tipo_str: cat_contable = "Personal y Autónomos"
-                elif "Servicios exteriores" in tipo_str: cat_contable = "Servicios Exteriores y Reparaciones"
-                elif "Impuestos y Tasas" in tipo_str: cat_contable = "Impuestos y Tasas"
-                elif "Abono:" in tipo_str: cat_contable = "Abono de Proveedor"
-                elif "Gastos de compra" in tipo_str: cat_contable = "Gastos de Compra (Limpieza, Consumibles)"
-                else:
-                    # Clasificación inteligente de registros antiguos sin prefijo
-                    t_low = tipo_str.lower()
-                    if "nómina" in t_low or "nomina" in t_low or "seguridad social" in t_low: cat_contable = "Personal y Autónomos"
-                    elif "datáfono" in t_low or "datafono" in t_low or "préstamo" in t_low or "prestamo" in t_low or "cuota" in t_low: cat_contable = "Gastos Fijos y Variables"
-                
                 es_factura = False
                 es_abono = False
                 
                 if "Factura:" in tipo_str:
                     es_factura = True
+                    cat_contable = "Factura de Proveedor (Mercancía)"
                 elif "Abono:" in tipo_str:
                     es_abono = True
+                    cat_contable = "Abono de Proveedor"
+                elif "Gastos de compra" in tipo_str:
+                    cat_contable = "Gastos de Compra (Limpieza, Consumibles)"
+                else:
+                    t_low = tipo_str.lower()
+                    if "Gastos Fijos |" in tipo_str or "Gastos fijos |" in tipo_str:
+                        concepto_puro = tipo_str.split(" | ")[1].rsplit(" - ", 1)[0].strip()
+                        cat_contable = mapa_gf_cat.get(concepto_puro, "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)")
+                    elif "Personal" in tipo_str: cat_contable = "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)"
+                    elif "Impuestos y Tasas" in tipo_str: cat_contable = "Impuestos y Tasas (IGIC, IRPF, Tributos...)"
+                    elif "Servicios exteriores" in tipo_str: cat_contable = "Servicios Exteriores y Reparaciones"
+                    else:
+                        if "nómina" in t_low or "nomina" in t_low or "seguridad social" in t_low: cat_contable = "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)"
+                        elif "datáfono" in t_low or "datafono" in t_low or "préstamo" in t_low or "prestamo" in t_low or "cuota" in t_low or "seguro" in t_low: cat_contable = "Financiación y Seguros (Préstamos, Tarjetas, Pólizas, Comisiones...)"
+                        elif "publicidad" in t_low or "marketing" in t_low: cat_contable = "Publicidad y Marketing (Redes sociales, Promociones, Web...)"
+                        elif "alquiler" in t_low or "luz" in t_low or "agua" in t_low: cat_contable = "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)"
                 
                 if " | " in tipo_str:
                     concepto = tipo_str.split(" | ")[1]
@@ -754,7 +761,16 @@ def render_pestana_contabilidad(client):
             mask_tickets = df_todas_compras['Categoría Contable'] == "Gastos de Compra (Limpieza, Consumibles)"
             df_tickets_gastos = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False) & mask_tickets].drop(columns=['Es_Factura', 'Es_Abono'])
             
-            mask_fijos_pagados = df_todas_compras['Categoría Contable'].isin(["Gastos Fijos y Variables", "Personal y Autónomos", "Impuestos y Tasas", "Servicios Exteriores y Reparaciones", "Otros Gastos Fijos"])
+            categorias_fijos = [
+                "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)",
+                "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)",
+                "Financiación y Seguros (Préstamos, Tarjetas, Pólizas, Comisiones...)",
+                "Publicidad y Marketing (Redes sociales, Promociones, Web...)",
+                "Impuestos y Tasas (IGIC, IRPF, Tributos...)",
+                "Servicios Exteriores y Reparaciones",
+                "Otros Gastos Fijos"
+            ]
+            mask_fijos_pagados = df_todas_compras['Categoría Contable'].isin(categorias_fijos)
             df_fijos_pagados = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False) & mask_fijos_pagados & (df_todas_compras['Estado'] == 'Pagado')].drop(columns=['Es_Factura', 'Es_Abono'])
 
         # --- EXTRACCIÓN DE GASTOS FIJOS ---
