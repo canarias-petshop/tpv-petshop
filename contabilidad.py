@@ -3,7 +3,6 @@ import pandas as pd
 from datetime import date
 import io
 import time
-import pandas as pd
 
 def render_pestana_contabilidad(client):
     if 'llave_cont_pago_venc' not in st.session_state: st.session_state.llave_cont_pago_venc = 0

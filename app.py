@@ -9,7 +9,6 @@ import hashlib
 import re
 from zoneinfo import ZoneInfo
 import streamlit.components.v1 as components
-import io
 from caja import render_pestana_caja
 from inventario import render_pestana_inventario
 from crm import render_pestana_crm

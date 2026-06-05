@@ -102,7 +102,9 @@ El sistema cuenta con **15 módulos principales operativos** ordenados estratég
 📑 **Facturación Legal y Stock**
 - *Sub-1 Emisión:* Emisión de facturas a clientes calculando dinámicamente el desglose interno de Base Imponible y Cuota de IGIC, aunque el empleado solo introduzca el PVP Público.
 - **Generación de Hash SHA-256 por factura y bloqueo total de borrado (Cumplimiento VeriFactu).**
-- *Sub-2 Compras:* Registro de facturas de proveedores mediante escáner OCR por IA (Gemini). Incluye **Túnel Docker a OneDrive** para almacenar el archivo fiscal de la foto ordenado automáticamente por Año y Mes sin intervención humana.
+- *Sub-2 Compras y Abonos:* Integración de **Facturas Rectificativas (Abonos)**. Restan stock y calculan ingresos en negativo automáticamente.
+- **Escáner OCR por IA (Gemini) en Borrador:** Registro automático y validación visual. Incluye **Escudo Anti-Duplicados con Fusión Automática**, capaz de detectar si una factura tiene varias páginas y unificarlas en el mismo borrador. 
+- **Guardado Directo en OneDrive (Offline/Local):** La app detecta si se ejecuta desde Visual Studio Code y guarda el archivo fiscal físicamente en el OneDrive del dueño, ordenado por Año y Mes.
 - Al archivar una compra, el sistema actualiza automáticamente el stock, el precio de coste y el PVP en el inventario.
 - *Sub-3 Archivo:* Archivo histórico de documentos con **Filtros Dinámicos Flexibles** (ignoran mayúsculas y plurales para encontrar siempre el gasto) y columna de **Fecha de Registro** exacta.
 - *Sub-4 Pagos Pendientes:* Panel exclusivo para **deudas de mercancía a proveedores**, con **Calendario Visual de Vencimientos** y gráfico semanal. Capacidad de realizar **Pagos Parciales** indicando la cantidad exacta entregada hoy, descontándola de Bancos o Caja Fuerte.
@@ -110,9 +112,9 @@ El sistema cuenta con **15 módulos principales operativos** ordenados estratég
 📊 **Contabilidad e Informes para Asesoría**
 - **Estructura Lineal y Libro Mayor:** Reorganización del flujo (`Puntuales > Fijos > Calendarios > Pagos Pendientes > Archivo Contable > Descargas`). El 'Archivo Contable' sirve como Libro Mayor inalterable de todos los movimientos de la empresa.
 - **Calendarios Especializados:** División visual estricta entre **Gastos Operativos** (alquiler, nóminas) y **Calendario de Impuestos** (IRPF, IGIC). Las alertas de vencimientos críticos se han compactado en desplegables (expanders) para no saturar la vista.
-- **Centro de Pagos de Gastos:** Panel de pagos pendientes aislado exclusivamente para facturas de servicios y reparaciones, sin mezclar con el stock de proveedores de la tienda.
+- **Centro de Pagos de Gastos:** Panel de pagos pendientes aislado para facturas de servicios, con opción de bypass **"No registrar origen"** para cuadrar facturas antiguas sin afectar a la tesorería real.
 - **Generador nativo de archivos Excel Inteligentes (.xlsx):** Separación total de la contabilidad en 4 bloques descargables:
-  1. Ventas globales. 2. **Facturas para IGIC (Pestaña Emitidas y Recibidas separadas)**. 3. Tickets y Gastos menores. 4. Informe de Gastos Fijos actuales.
+  1. Ventas globales (con pestaña propia de facturas emitidas). 2. Facturas de Compra y Abonos. 3. Tickets y Gastos de Tienda. 4. **Informe de Gastos Fijos**, desglosado automáticamente en múltiples pestañas por categoría contable (Impuestos, Nóminas, etc.) listando solo lo efectivamente pagado para presentar a Hacienda.
 
 🎯 **Módulo Extra: Marketing y Ofertas (Admin)**
 - **Panel de Objetivos y ROI:** Definición de KPIs numéricos (ej: aumentar ventas, captar clientes) con barras de progreso interactivas para medir el éxito real de las acciones publicitarias.
@@ -191,7 +193,7 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Gestión de Bancos y Transferencias** (Pestaña 11).
 - **Pago de Deudas** integrando las opciones de usar saldo de bancos o saldo en caja (Pestaña 8, Sub-Pestaña 4).
 - **Conexión transparente de hardware de impresión** evitando bloqueos o apertura de múltiples pestañas en el navegador de la tablet.
-- **Optimización UI/UX para Tablet (ÚLTIMO PUNTO SEGURO):** Se inyectó CSS personalizado en `app.py` para reducir márgenes (`padding-top: 0.5rem`), agrandar botones (`min-height: 48px`) y mejorar la legibilidad en pantallas táctiles. **Este es el punto oficial de restauración en el Timeline (Control de Versiones) en caso de fallos estructurales.**
+- **Optimización UI/UX para Tablet (Pointer: Coarse):** Implementación de Media Queries avanzadas que detectan si el usuario usa una pantalla táctil. En PC mantiene un formato compacto y profesional, mientras que en TPV/Tablet se expanden automáticamente los botones y formularios a modo gigante.
 - **Refactorización Modular (Hito D Completado):** Se han extraído exitosamente los 12 módulos funcionales a archivos independientes (`inventario.py`, `tpv.py`, `crm.py`, `historial.py`, `caja.py`, `estadisticas.py`, `proveedores.py`, `facturacion.py`, `contabilidad.py`, `agenda.py`, `bancos.py` y `personal.py`). Todos están importados y funcionando correctamente dentro de un `app.py` completamente limpio y simplificado, que ahora actúa únicamente como enrutador principal.
 - **Data Trimming y Rendimiento (Completado):** Se reemplazaron todas las peticiones masivas a Supabase (`select("*")`) por selecciones estrictas de columnas en los 12 módulos. Esto ha reducido drásticamente el tamaño del JSON de descarga, acelerando la navegación entre pestañas en la tablet.
 - **Estandarización Horaria Global (Canarias) (Completado):** Implementada la conversión forzada inteligente desde el UTC de la base de datos a la zona horaria 'Atlantic/Canary' en todo el sistema (apertura/cierre de cajas, emisión de tickets, facturas, contabilidad, CRM y backups), garantizando fechas exactas incluso en los cambios bianuales de hora.
@@ -235,18 +237,14 @@ Los hitos de refactorización y conexión inteligente entre módulos se dan por 
 - **Sincronización Multidispositivo en Encargos (Completado):** Se aplicó el sistema de caché híbrida (`ttl=15` y `db_version`) a la tabla de encargos, resolviendo la desincronización visual entre los ordenadores del mostrador y la tablet de la tienda, y bloqueando la introducción de filas manuales que generaban datos fantasma.
 - **Reseteo Limpio de Formularios (UI) (Completado):** Se aplicaron "llaves dinámicas" (`st.session_state.llave_...`) a todos los formularios del programa (Agenda, Proveedores, TPV, Facturación, etc.). Esto garantiza que, al pulsar "Guardar" y hacer el refresco de pantalla (`st.rerun()`), los campos se vacíen completamente, erradicando los datos fantasma y los registros duplicados accidentales.
 - **Módulo de Tareas y Proyectos (Completado):** Integración de `tareas.py` con separación de roles (Los empleados ven sus rutinas diarias; el Administrador gestiona el Roadmap de proyectos internos a largo plazo).
+- **Sincronización Avanzada Agenda-Proyectos (Completado):** Las vacaciones, bajas, cierres de tienda o ferias corporativas registran automáticamente un bloqueo en la agenda que impide agendar citas, soportando rotaciones y rangos de fechas.
 - **Orden Alfabético Absoluto (Completado):** Refactorización de las tablas del CRM (Clientes y Mascotas) para ordenar de la A a la Z ignorando el formato de mayúsculas y minúsculas.
 
 ## 4. Próximos Pasos y Nueva Hoja de Ruta (Prioridades Ajustadas)
 
-Tras la estabilización de los módulos y el inicio de captación de clientes, la hoja de ruta se ha reorganizado para pulir los detalles finales, implementar mejoras comerciales clave y preparar el terreno para la comercialización del sistema.
-
-### 🛠️ FASE 1: Urgencias y Corrección de Fallos (Perfeccionamiento del Programa)
-El objetivo inmediato es dejar el ERP blindado, legal y visualmente perfecto para el trabajo de mostrador y evitar errores humanos.
-*   **Facturas IA en Borrador (Validación Manual):** Actualizar `facturacion.py` para que los escaneos OCR se guarden como "Borrador" y **NO sumen stock automáticamente** hasta que el equipo los valide visualmente en la tabla.
-*   **Cumplimiento Antifraude (VeriFactu Fase 3):** Sustituir el borrado físico en el 'Archivo Contable' y 'Facturación' por un sistema legal de **"Anulación"** (importes a 0€ y stock revertido), dejando el rastro obligatorio para Hacienda.
-*   **Optimización Visual Táctil (Tablet):** Implementar *Media Queries* CSS en `app.py` para aumentar automáticamente el tamaño de textos, tablas y botones solo cuando se use en pantallas pequeñas, manteniendo el diseño compacto en el PC.
-*   **Gestión Visual de Inventario:** Incorporar Fechas de Caducidad y Lotes de forma visible en las tablas de stock y avisar de su vencimiento.
+### 🛠️ FASE 1: Urgencias y Corrección de Fallos (100% ESTABILIZADO)
+El ERP ha alcanzado la madurez operativa requerida para el trabajo de mostrador, cubriendo normativas, IA de facturación híbrida, UI adaptativa y cierres contables para asesoría.
+*   **Pendiente Único (Inventario):** Incorporar Gestión de Fechas de Caducidad y Lotes de forma visible en las tablas de stock con alarmas de vencimiento para forzar ventas cruzadas.
 
 ### 💎 FASE 2: Mejoras Estratégicas y Fidelización (Captación de Clientes)
 Funciones que aporten valor comercial añadido para potenciar las ventas y retener a los nuevos clientes.
