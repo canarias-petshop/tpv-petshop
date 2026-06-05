@@ -745,8 +745,8 @@ def render_pestana_facturacion(client):
     # SUB-TAB 3: ARCHIVO Y GESTIÓN (EDICIÓN Y BORRADO DIRECTO)
     # ==========================================
     with sub_archivo:
-        st.markdown("####  🔍  Archivo de Facturas de Compra (Mercancía)")
-        tipo_doc = st.radio("Documento:", ["Facturas Emitidas (Ventas)", "Facturas Recibidas (Proveedores)"], horizontal=True)
+        st.markdown("####  🔍  Archivo de Documentos")
+        tipo_doc = st.radio("Documento:", ["Facturas Emitidas (Ventas)", "Facturas Recibidas (Proveedores)", "Abonos Recibidos (Proveedores)"], horizontal=True)
         c_f1, c_f2 = st.columns(2)
         f_ini = c_f1.date_input("Desde:", pd.to_datetime('today') - pd.Timedelta(days=30), key="a_i")
         f_fin = c_f2.date_input("Hasta:", pd.to_datetime('today'), key="a_f")
@@ -820,13 +820,13 @@ def render_pestana_facturacion(client):
                     
                     st.button("🚫 Edición de líneas y totales bloqueada (Ley Antifraude / VeriFactu)", disabled=True, use_container_width=True)
 
-        # --- ARCHIVO DE COMPRAS ---
+        # --- ARCHIVO DE COMPRAS Y ABONOS ---
         else: 
-            # Filtramos para mostrar solo facturas y abonos de proveedores
-            res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").ilike("tipo", "Factura:%").order("id", desc=True).execute()
-            res_comp_abonos = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").ilike("tipo", "Abono:%").order("id", desc=True).execute()
+            # Filtramos según si son facturas o abonos
+            filtro = "Abono:%" if "Abonos" in tipo_doc else "Factura:%"
+            res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").ilike("tipo", filtro).order("id", desc=True).execute()
             
-            datos_provs = (res_comp.data or []) + (res_comp_abonos.data or [])
+            datos_provs = res_comp.data or []
             if datos_provs:
                 df_comp = pd.DataFrame(datos_provs)
                 df_comp['Proveedor'] = df_comp['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')

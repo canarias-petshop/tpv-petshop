@@ -387,6 +387,7 @@ def render_pestana_contabilidad(client):
                 [
                     "Todos los registros", 
                     "📦 Facturas de Proveedores (Mercancía)", 
+                        "🔄 Abonos de Proveedores",
                     "🧹 Gastos de Tienda (Limpieza, consumibles...)", 
                     "🏢 Gastos Fijos (Alquiler, Luz...)", 
                     "👥 Personal y Nóminas", 
