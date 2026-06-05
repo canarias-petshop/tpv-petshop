@@ -677,17 +677,22 @@ def render_pestana_contabilidad(client):
         compras_list = []
         if res_c_inf.data:
             for c in res_c_inf.data:
-                cat_contable = "Otros Gastos"
-                concepto = c['tipo']
-                
                 tipo_str = str(c.get('tipo', ''))
+                concepto = tipo_str
+                cat_contable = "Otros Gastos Fijos"
+                
                 if "Factura:" in tipo_str: cat_contable = "Factura de Proveedor (Mercancía)"
-                elif "Gastos de compra" in tipo_str: cat_contable = "Gastos de Compra (Limpieza, Consumibles)"
                 elif "Gastos fijos" in tipo_str: cat_contable = "Gastos Fijos y Variables"
                 elif "Personal" in tipo_str: cat_contable = "Personal y Autónomos"
                 elif "Servicios exteriores" in tipo_str: cat_contable = "Servicios Exteriores y Reparaciones"
                 elif "Impuestos y Tasas" in tipo_str: cat_contable = "Impuestos y Tasas"
                 elif "Abono:" in tipo_str: cat_contable = "Abono de Proveedor"
+                elif "Gastos de compra" in tipo_str: cat_contable = "Gastos de Compra (Limpieza, Consumibles)"
+                else:
+                    # Clasificación inteligente de registros antiguos sin prefijo
+                    t_low = tipo_str.lower()
+                    if "nómina" in t_low or "nomina" in t_low or "seguridad social" in t_low: cat_contable = "Personal y Autónomos"
+                    elif "datáfono" in t_low or "datafono" in t_low or "préstamo" in t_low or "prestamo" in t_low or "cuota" in t_low: cat_contable = "Gastos Fijos y Variables"
                 
                 es_factura = False
                 es_abono = False
@@ -746,10 +751,10 @@ def render_pestana_contabilidad(client):
             df_facturas_rec = df_todas_compras[df_todas_compras['Es_Factura'] == True].drop(columns=['Es_Factura', 'Es_Abono'])
             df_abonos_rec = df_todas_compras[df_todas_compras['Es_Abono'] == True].drop(columns=['Es_Factura', 'Es_Abono'])
             
-            mask_tickets = df_todas_compras['Categoría Contable'].isin(["Gastos de Compra (Limpieza, Consumibles)", "Servicios Exteriores y Reparaciones", "Otros Gastos"])
+            mask_tickets = df_todas_compras['Categoría Contable'] == "Gastos de Compra (Limpieza, Consumibles)"
             df_tickets_gastos = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False) & mask_tickets].drop(columns=['Es_Factura', 'Es_Abono'])
             
-            mask_fijos_pagados = df_todas_compras['Categoría Contable'].isin(["Gastos Fijos y Variables", "Personal y Autónomos", "Impuestos y Tasas"])
+            mask_fijos_pagados = df_todas_compras['Categoría Contable'].isin(["Gastos Fijos y Variables", "Personal y Autónomos", "Impuestos y Tasas", "Servicios Exteriores y Reparaciones", "Otros Gastos Fijos"])
             df_fijos_pagados = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False) & mask_fijos_pagados].drop(columns=['Es_Factura', 'Es_Abono'])
 
         # --- EXTRACCIÓN DE GASTOS FIJOS ---
