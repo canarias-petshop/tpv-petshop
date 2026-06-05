@@ -755,7 +755,7 @@ def render_pestana_contabilidad(client):
             df_tickets_gastos = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False) & mask_tickets].drop(columns=['Es_Factura', 'Es_Abono'])
             
             mask_fijos_pagados = df_todas_compras['Categoría Contable'].isin(["Gastos Fijos y Variables", "Personal y Autónomos", "Impuestos y Tasas", "Servicios Exteriores y Reparaciones", "Otros Gastos Fijos"])
-            df_fijos_pagados = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False) & mask_fijos_pagados].drop(columns=['Es_Factura', 'Es_Abono'])
+            df_fijos_pagados = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False) & mask_fijos_pagados & (df_todas_compras['Estado'] == 'Pagado')].drop(columns=['Es_Factura', 'Es_Abono'])
 
         # --- EXTRACCIÓN DE GASTOS FIJOS ---
         res_gf_inf = client.table("gastos_recurrentes").select("concepto, categoria, importe_estimado, dia_cargo, frecuencia").eq("activo", True).execute()
@@ -879,19 +879,12 @@ def render_pestana_contabilidad(client):
 
         with c_down4:
             st.error("🏢 GASTOS FIJOS")
-            if not df_gf_inf.empty or not df_fijos_pagados.empty:
+            if not df_fijos_pagados.empty:
                 dict_gf = {}
-                if not df_gf_inf.empty:
-                    for cat, group in df_gf_inf.groupby("Categoría Contable"):
-                        short_cat = cat.split(" (")[0][:31] # Límite de caracteres para pestañas Excel
-                        dict_gf[short_cat] = group
-                
-                if not df_fijos_pagados.empty:
-                    for cat, group in df_fijos_pagados.groupby("Categoría Contable"):
-                        short_cat = cat.split(" (")[0][:31] # Límite de caracteres para pestañas Excel
-                        if short_cat not in dict_gf: dict_gf[short_cat] = group
-                        else: dict_gf[short_cat] = pd.concat([dict_gf[short_cat], group])
+                for cat, group in df_fijos_pagados.groupby("Categoría Contable"):
+                    short_cat = cat.split(" (")[0][:31] # Límite de caracteres para pestañas Excel
+                    dict_gf[short_cat] = group
                     
                 excel_gf = generar_excel_formateado(dict_gf)
-                st.download_button("📥 Descargar G. Fijos", excel_gf, f"Gastos_Fijos_Actuales.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            else: st.write("Sin gastos fijos.")
+                st.download_button("📥 Descargar G. Fijos", excel_gf, f"Gastos_Fijos_Pagados_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            else: st.write("Sin pagos registrados.")
