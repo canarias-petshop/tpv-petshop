@@ -23,7 +23,9 @@ def render_pestana_contabilidad(client):
                 st.markdown("#### Registrar Gasto")
                 categoria_gasto = st.selectbox("Categoría Contable", [
                     "Gastos de compra (Limpieza, consumibles...)",
-                    "Servicios exteriores (Reparaciones, técnicos, profesionales...)"
+                    "Servicios exteriores (Reparaciones, técnicos, profesionales...)",
+                    "Impuestos y Tasas",  # Añadir esta opción para los pagos del asesor
+                    "Personal y Profesionales (Nóminas, SS...)" # Para pagos de SS del autónomo, etc.
                 ])
                 concepto = st.text_input("Concepto / Proveedor detallado")
                 importe = st.number_input("Importe Total (€)", min_value=0.0, value=None, step=0.01, format="%.2f")
@@ -31,9 +33,10 @@ def render_pestana_contabilidad(client):
                 estado_g = st.selectbox("Estado", ["Pagado", "Pendiente"])
                 
                 if st.form_submit_button("Guardar Gasto"):
+                    tipo_final = f"{categoria_gasto} | {concepto}"
                     if importe is not None and importe > 0 and concepto:
                         client.table("compras").insert({
-                            "tipo": f"{categoria_gasto} | {concepto}", "total": float(importe), 
+                            "tipo": tipo_final, "total": float(importe), 
                             "estado": estado_g, "fecha_vencimiento": str(f_vence)
                         }).execute()
                         st.success("Gasto registrado exitosamente."); st.rerun()
@@ -165,7 +168,7 @@ def render_pestana_contabilidad(client):
                             
                         dia_c = min(gf['dia_cargo'], pd.Period(year=target_year, month=target_month, freq='M').days_in_month)
                         fecha_cargo = pd.to_datetime(f"{target_year}-{target_month:02d}-{dia_c:02d}")
-                        
+
                         if pasado_dt <= fecha_cargo <= futuro_dt:
                             tipo_id = f"Gastos Fijos | {gf['concepto']} - {target_month:02d}/{target_year}"
                             estado_pago = "Pagado ✅" if tipo_id in pagos_registrados else "Pendiente ❌"
@@ -186,7 +189,7 @@ def render_pestana_contabilidad(client):
                 st.markdown("##### 📊 Concentración de Pagos (Próximos 60 días)")
                 df_chart_cal = df_proy.copy()
                 df_chart_cal['Día'] = df_chart_cal['Fecha Vencimiento'].dt.strftime('%d/%m')
-                chart_data_cal = df_chart_cal.groupby('Día')['Importe'].sum().reset_index().set_index('Día')
+                chart_data_cal = df_chart_cal[df_chart_cal['Estado'] == 'Pendiente ❌'].groupby('Día')['Importe'].sum().reset_index().set_index('Día')
                 st.bar_chart(chart_data_cal, color="#d32f2f", height=200)
 
                 # --- SISTEMA DE ALERTAS UNIFICADO ---
@@ -241,7 +244,7 @@ def render_pestana_contabilidad(client):
                                 id_sel = partes[0]
                                 importe_sel = float(partes[1].replace("€)", ""))
                                 client.table("compras").insert({
-                                    "tipo": id_sel, "total": importe_sel, 
+                                    "tipo": id_sel, "total": importe_sel,
                                     "estado": "Pagado", "fecha_vencimiento": str(pd.Timestamp.now('Atlantic/Canary').date())
                                 }).execute()
                                 st.session_state.llave_cont_pago_venc += 1
@@ -877,8 +880,12 @@ def render_pestana_contabilidad(client):
                     for cat, group in df_gf_inf.groupby("Categoría Contable"):
                         short_cat = cat.split(" (")[0][:31] # Límite de caracteres para pestañas Excel
                         dict_gf[short_cat] = group
+                
                 if not df_fijos_pagados.empty:
-                    dict_gf["Historial Pagos Realizados"] = df_fijos_pagados
+                    for cat, group in df_fijos_pagados.groupby("Categoría Contable"):
+                        short_cat = cat.split(" (")[0][:31] # Límite de caracteres para pestañas Excel
+                        if short_cat not in dict_gf: dict_gf[short_cat] = group
+                        else: dict_gf[short_cat] = pd.concat([dict_gf[short_cat], group])
                     
                 excel_gf = generar_excel_formateado(dict_gf)
                 st.download_button("📥 Descargar G. Fijos", excel_gf, f"Gastos_Fijos_Actuales.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
