@@ -9,8 +9,8 @@ import shutil
 import google.generativeai as genai
 from postgrest import SyncPostgrestClient
 
-CARPETA_ENTRADA = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\Fotos para autocompletar facturas"
-CARPETA_PROCESADAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
+CARPETA_ENTRADA = os.path.join(os.getcwd(), "Fotos_Facturas_Entrada")
+CARPETA_PROCESADAS = os.path.join(os.getcwd(), "Facturas_Digitales")
 
 CARPETA_ERRORES = os.path.join(CARPETA_ENTRADA, "Errores")
 

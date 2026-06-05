@@ -249,19 +249,19 @@ def render_pestana_facturacion(client):
                 import platform
                 import subprocess
                 
-                ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
-                carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}").replace("/", "\\")
+                ruta_base = os.path.join(os.getcwd(), "Facturas_Digitales")
+                carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
                 
                 try: 
                     os.makedirs(carpeta_mes, exist_ok=True)
                     if hasattr(os, 'startfile'): 
-                        os.startfile(carpeta_mes)
+                        os.startfile(carpeta_mes.replace("/", "\\"))
                     elif platform.system() == "Darwin": subprocess.Popen(["open", carpeta_mes])
                     else:
                         import shutil
-                        if shutil.which("explorer.exe"): subprocess.Popen(["explorer.exe", carpeta_mes])
+                        if shutil.which("explorer.exe"): subprocess.Popen(["explorer.exe", carpeta_mes.replace("/", "\\")])
                         else: st.info(f"📁 Carpeta lista: {carpeta_mes}")
-                except Exception as e: st.info(f"📁 Carpeta lista: {carpeta_mes} (Error: {e})")
+                except Exception: st.info(f"📁 Carpeta lista: {carpeta_mes}")
                 
         with st.container(border=True):
             col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
@@ -466,8 +466,8 @@ def render_pestana_facturacion(client):
                                 # Archivo Fiscal Físico (Guardar foto en local)
                                 mensaje_archivo = ""
                                 try:
-                                    RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
-                                    carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}").replace("/", "\\")
+                                    RUTA_BASE_FACTURAS = os.path.join(os.getcwd(), "Facturas_Digitales")
+                                    carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
                                     os.makedirs(carpeta_facturas, exist_ok=True)
                                     
                                     import re
@@ -476,7 +476,7 @@ def render_pestana_facturacion(client):
                                     
                                     for idx, arch in enumerate(archivos_factura):
                                         ext = "pdf" if arch.name.lower().endswith(".pdf") else "jpg"
-                                        ruta_archivo = os.path.join(carpeta_facturas, f"{n_prov_archivo}_{n_fac_archivo}_{int(time.time())}_{idx}.{ext}")
+                                        ruta_archivo = os.path.join(carpeta_facturas, f"{n_prov_archivo}_{n_fac_archivo}_{int(time.time())}_{idx}.{ext}").replace("/", "\\")
                                         with open(ruta_archivo, "wb") as f:
                                             f.write(arch.getvalue())
                                             
