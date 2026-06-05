@@ -1125,8 +1125,8 @@ def render_pestana_facturacion(client):
                                 pago_exitoso = True
                             else:
                                 st.error("⚠️ No puedes pagar con la caja porque no hay ningún turno abierto. Abre la caja primero en la pestaña 5.")
-                                elif "No registrar origen" in sel_origen:
-                                    pago_exitoso = True
+                        elif "No registrar origen" in sel_origen:
+                            pago_exitoso = True
                         else:
                             banco_id = mapa_bancos[sel_origen]
                             banco_data = [b for b in res_b.data if b['id'] == banco_id][0]
