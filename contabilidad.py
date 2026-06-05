@@ -697,17 +697,30 @@ def render_pestana_contabilidad(client):
                     cat_contable = "Gastos de Compra (Limpieza, Consumibles)"
                 else:
                     t_low = tipo_str.lower()
-                    if "Gastos Fijos |" in tipo_str or "Gastos fijos |" in tipo_str:
+                    if "gastos fijos |" in t_low:
                         concepto_puro = tipo_str.split(" | ")[1].rsplit(" - ", 1)[0].strip()
-                        cat_contable = mapa_gf_cat.get(concepto_puro, "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)")
-                    elif "Personal" in tipo_str: cat_contable = "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)"
-                    elif "Impuestos y Tasas" in tipo_str: cat_contable = "Impuestos y Tasas (IGIC, IRPF, Tributos...)"
-                    elif "Servicios exteriores" in tipo_str: cat_contable = "Servicios Exteriores y Reparaciones"
+                        cat_bd = str(map_gf_cat.get(concepto_puro, "") if 'mapa_gf_cat' in locals() else "")
+                        if "Tienda" in cat_bd or "Suministros" in cat_bd: cat_contable = "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)"
+                        elif "Personal" in cat_bd or "Autónomo" in cat_bd or "Profesionales" in cat_bd: cat_contable = "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)"
+                        elif "Financiación" in cat_bd or "Seguros" in cat_bd: cat_contable = "Financiación y Seguros (Préstamos, Tarjetas, Pólizas, Comisiones...)"
+                        elif "Publicidad" in cat_bd or "Marketing" in cat_bd: cat_contable = "Publicidad y Marketing (Redes sociales, Promociones, Web...)"
+                        elif "Impuestos" in cat_bd or "Tasas" in cat_bd: cat_contable = "Impuestos y Tasas (IGIC, IRPF, Tributos...)"
+                        elif "Servicios exteriores" in cat_bd: cat_contable = "Servicios Exteriores y Reparaciones"
+                        else:
+                            c_low = concepto_puro.lower()
+                            if "préstamo" in c_low or "prestamo" in c_low or "cuota" in c_low or "seguro" in c_low or "datáfono" in c_low or "datafono" in c_low: cat_contable = "Financiación y Seguros (Préstamos, Tarjetas, Pólizas, Comisiones...)"
+                            elif "nómina" in c_low or "nomina" in c_low or "seguridad" in c_low or "asesor" in c_low: cat_contable = "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)"
+                            elif "igic" in c_low or "irpf" in c_low or "tributo" in c_low or "impuesto" in c_low: cat_contable = "Impuestos y Tasas (IGIC, IRPF, Tributos...)"
+                            elif "publicidad" in c_low or "marketing" in c_low: cat_contable = "Publicidad y Marketing (Redes sociales, Promociones, Web...)"
+                            else: cat_contable = "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)"
+                    elif "personal" in t_low: cat_contable = "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)"
+                    elif "impuestos" in t_low: cat_contable = "Impuestos y Tasas (IGIC, IRPF, Tributos...)"
+                    elif "servicios exteriores" in t_low: cat_contable = "Servicios Exteriores y Reparaciones"
                     else:
-                        if "nómina" in t_low or "nomina" in t_low or "seguridad social" in t_low: cat_contable = "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)"
-                        elif "datáfono" in t_low or "datafono" in t_low or "préstamo" in t_low or "prestamo" in t_low or "cuota" in t_low or "seguro" in t_low: cat_contable = "Financiación y Seguros (Préstamos, Tarjetas, Pólizas, Comisiones...)"
+                        if "nómina" in t_low or "nomina" in t_low or "seguridad social" in t_low or "asesor" in t_low: cat_contable = "Personal y Profesionales (Nóminas, SS, Autónomo, Asesoría/Gestoría...)"
+                        elif "datáfono" in t_low or "datafono" in t_low or "préstamo" in t_low or "prestamo" in t_low or "cuota" in t_low or "seguro" in t_low or "comisión" in t_low: cat_contable = "Financiación y Seguros (Préstamos, Tarjetas, Pólizas, Comisiones...)"
                         elif "publicidad" in t_low or "marketing" in t_low: cat_contable = "Publicidad y Marketing (Redes sociales, Promociones, Web...)"
-                        elif "alquiler" in t_low or "luz" in t_low or "agua" in t_low: cat_contable = "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)"
+                        elif "alquiler" in t_low or "luz" in t_low or "agua" in t_low or "garaje" in t_low: cat_contable = "Gastos de Tienda y Suministros (Alquiler, Luz, Agua, Teléfono, Alarma, Software, Garaje...)"
                 
                 if " | " in tipo_str:
                     concepto = tipo_str.split(" | ")[1]
