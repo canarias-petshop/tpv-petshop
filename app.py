@@ -36,38 +36,14 @@ st.markdown("""
         /* 1. Ajuste del contenedor para aprovechar el ancho sin aplastar */
         .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; max-width: 98% !important; }
         
-        /* 2. Textos y etiquetas más legibles en tablet */
-        p, .stMarkdown, div[data-testid="stMarkdownContainer"] { font-size: 1.05rem !important; }
-        label { font-size: 1.1rem !important; font-weight: 500 !important; margin-bottom: 2px !important; }
-        
-        /* 3. Cuadros de texto y números más grandes para escribir fácil */
-        div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, select { font-size: 1.1rem !important; padding: 8px !important; }
-        div[data-testid="stTimeInput"] input, div[data-testid="stDateInput"] input { font-size: 1.1rem !important; }
-        .stSelectbox, .stTextInput, .stNumberInput { margin-bottom: 0px !important; }
-        
-        /* 4. Botones: tamaño adecuado para uso táctil sin ser excesivos */
-        .stButton > button {
-            min-height: 48px !important;
-            font-size: 1.1rem !important;
-            font-weight: bold !important;
-            padding: 0.25rem 0.5rem !important;
-        }
-
-        /* 5. Pestañas principales ajustadas */
-        button[data-baseweb="tab"] {
-            font-size: 1.1rem !important;
-            padding-top: 10px !important;
-            padding-bottom: 10px !important;
-        }
-        
-        /* 6. Espaciado entre columnas (quitamos el estrechamiento) */
+        /* 2. Espaciado entre columnas (quitamos el estrechamiento) */
         [data-testid="column"] { padding: 0 8px !important; }
 
-        /* 7. Reducir el gap o hueco vertical entre elementos de Streamlit */
+        /* 3. Reducir el gap o hueco vertical entre elementos de Streamlit en PC */
         div[data-testid="stVerticalBlock"] > div { gap: 0.5rem !important; }
         div.element-container { margin-bottom: 0.2rem !important; }
         
-        /* Ocultar elementos de Streamlit */
+        /* 4. Ocultar elementos de menú de Streamlit */
         [data-testid="stHeader"], [data-testid="stFooter"], footer, 
         [data-testid="stAppDeployButton"], .stDeployButton, 
         [data-testid="stToolbar"], #st-viewer-badge, [data-testid="viewerBadge"],
@@ -77,6 +53,34 @@ st.markdown("""
         /* Estilo para alertas de vencimiento */
         .vencido { color: #d32f2f; font-weight: bold; background-color: #ffebee; padding: 2px 5px; border-radius: 3px; }
         .proximo { color: #f9a825; font-weight: bold; }
+        
+        /* ========================================================
+           📱 OPTIMIZACIÓN VISUAL TÁCTIL (SOLO PARA TABLETS/MÓVILES)
+           ======================================================== */
+        @media screen and (max-width: 1024px) {
+            /* Textos y etiquetas más grandes */
+            p, .stMarkdown, div[data-testid="stMarkdownContainer"], span { font-size: 1.15rem !important; }
+            label { font-size: 1.25rem !important; font-weight: bold !important; margin-bottom: 5px !important; color: #005275 !important; }
+            
+            /* Inputs de texto, números y selectores enormes para dedos */
+            div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, select, 
+            div[data-testid="stTimeInput"] input, div[data-testid="stDateInput"] input { 
+                font-size: 1.3rem !important; padding: 12px 10px !important; height: auto !important;
+            }
+            
+            /* Botones gigantes para no fallar el toque en la caja */
+            .stButton > button {
+                min-height: 65px !important; font-size: 1.3rem !important;
+                font-weight: bold !important; padding: 10px !important; border-radius: 8px !important;
+            }
+
+            /* Pestañas de navegación mucho más altas y separadas */
+            button[data-baseweb="tab"] { font-size: 1.25rem !important; padding-top: 15px !important; padding-bottom: 15px !important; margin-right: 5px !important; }
+
+            /* Agrandar Checkboxes (Cuadrados de marcar) */
+            div[data-testid="stCheckbox"] label span { font-size: 1.25rem !important; }
+            div[data-testid="stCheckbox"] label div[role="checkbox"] { width: 26px !important; height: 26px !important; }
+        }
     </style>
     """, unsafe_allow_html=True)
 
