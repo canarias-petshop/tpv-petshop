@@ -257,8 +257,8 @@ def render_pestana_contabilidad(client):
         
         res_deudas_g = client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
         
-        # Filtrar descartando facturas de proveedor de forma segura
-        datos_filtrados_g = [d for d in (res_deudas_g.data or []) if "Factura:" not in str(d.get('tipo', ''))]
+        # Filtrar descartando facturas y abonos de proveedor de forma segura
+        datos_filtrados_g = [d for d in (res_deudas_g.data or []) if "Factura:" not in str(d.get('tipo', '')) and "Abono:" not in str(d.get('tipo', ''))]
         
         if datos_filtrados_g:
             df_deudas = pd.DataFrame(datos_filtrados_g)

@@ -16,7 +16,7 @@ def render_pestana_facturacion(client):
 
     sub_emitir, sub_registrar, sub_archivo, sub_pagos = st.tabs([
         " 🧾  Emitir Factura (Venta)", 
-        " 📥  Registrar Compra (Proveedor)", 
+        " 📥  Compras y Abonos", 
         " 📂  Archivo de Documentos",
         " 💸  Pagos Pendientes"
     ])
@@ -240,7 +240,32 @@ def render_pestana_facturacion(client):
         if 'llave_busqueda_c' not in st.session_state: st.session_state.llave_busqueda_c = 0
         if 'pedido_vinculado' not in st.session_state: st.session_state.pedido_vinculado = None
             
-        st.markdown("#### 🤖 Escáner de Facturas con IA")
+        st.markdown("#### 📥 Registrar Operación con Proveedor")
+        tipo_operacion = st.radio("Tipo de Documento:", ["🛒 Factura de Compra", "🔄 Abono (Devolución a Prov.)"], horizontal=True, label_visibility="collapsed")
+        es_abono = "Abono" in tipo_operacion
+        
+        st.markdown("---")
+        
+        c_tit1, c_tit2 = st.columns([2, 1], vertical_alignment="bottom")
+        with c_tit1:
+            st.markdown("#### 🤖 Escáner Inteligente con IA")
+        with c_tit2:
+            if st.button("📂 Abrir Carpeta de Facturas", use_container_width=True):
+                import os
+                import platform
+                import subprocess
+                
+                en_la_nube = "mount/src" in os.getcwd().replace("\\", "/")
+                if en_la_nube:
+                    st.error("🌐 **Estás en la Web:** Una página de internet no puede abrir las carpetas de tu ordenador por seguridad. Abre tu OneDrive manualmente.")
+                else:
+                    ruta_base = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
+                    carpeta_mes = os.path.join(ruta_base, str(datetime.now().year), f"{datetime.now().month:02d}")
+                    try:
+                        os.makedirs(carpeta_mes, exist_ok=True)
+                        if hasattr(os, 'startfile'): os.startfile(carpeta_mes)
+                        else: st.info(f"📁 Carpeta en tu PC: {carpeta_mes}")
+                    except Exception as e: st.error(f"Error al abrir carpeta: {e}")
                 
         with st.container(border=True):
             col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
@@ -442,7 +467,30 @@ def render_pestana_facturacion(client):
                                             "Caducidad": cad if cad else None
                                         })
                                         
-                                # (Se ha eliminado la copia física de las fotos. El usuario organiza sus documentos manualmente).
+                                # Archivo Fiscal Físico (Guardar foto en local)
+                                mensaje_archivo = ""
+                                try:
+                                    en_la_nube = "mount/src" in os.getcwd().replace("\\", "/")
+                                    if en_la_nube:
+                                        mensaje_archivo = " ⚠️ ESTÁS EN LA WEB: Mueve el PDF/Foto que acabas de subir a tu OneDrive manualmente."
+                                    else:
+                                        RUTA_BASE_FACTURAS = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\facturas digitales"
+                                        carpeta_facturas = os.path.join(RUTA_BASE_FACTURAS, str(datetime.now().year), f"{datetime.now().month:02d}")
+                                        os.makedirs(carpeta_facturas, exist_ok=True)
+                                        
+                                        import re
+                                        n_prov_archivo = re.sub(r'[\\/*?:"<>|]', "", str(datos_ia.get("nombre_proveedor", "Acreedor"))).replace(" ", "_")
+                                        n_fac_archivo = re.sub(r'[\\/*?:"<>|]', "", str(datos_ia.get("numero_factura", "SinNum"))).replace(" ", "_")
+                                        
+                                        for idx, arch in enumerate(archivos_factura):
+                                            ext = "pdf" if arch.name.lower().endswith(".pdf") else "jpg"
+                                            ruta_archivo = os.path.join(carpeta_facturas, f"{n_prov_archivo}_{n_fac_archivo}_{int(time.time())}_{idx}.{ext}")
+                                            with open(ruta_archivo, "wb") as f:
+                                                f.write(arch.getvalue())
+                                                
+                                        mensaje_archivo = f"(📁 Guardada en tu PC: {carpeta_facturas})"
+                                except Exception as e:
+                                    mensaje_archivo = f"(⚠️ Error al guardar foto: {e})"
                                     
                                 # ====== GUARDAR COMO BORRADOR AUTOMÁTICAMENTE ======
                                 prov_id_final = None
@@ -467,11 +515,14 @@ def render_pestana_facturacion(client):
                                 num_fac = datos_ia.get("numero_factura", "S/N")
                                 fecha_fac = datos_ia.get("fecha_factura", str(datetime.now().date()))
                                 
+                                total_guardar_ia = -abs(total_compra) if es_abono else abs(total_compra)
+                                prefijo_doc = "Abono" if es_abono else "Factura"
+                                
                                 client.table("compras").insert({
-                                    "proveedor_id": prov_id_final, "total": round(total_compra, 2), "descuento_pp": dto_pp_val,
-                                    "estado": "Borrador", "tipo": f"Factura: {num_fac}", "fecha_vencimiento": fecha_fac,
+                                    "proveedor_id": prov_id_final, "total": round(total_guardar_ia, 2), "descuento_pp": dto_pp_val,
+                                    "estado": "Borrador", "tipo": f"{prefijo_doc}: {num_fac}", "fecha_vencimiento": fecha_fac,
                                     "productos": st.session_state.compra_temp,
-                                    "pagado": 0.0, "pendiente": round(total_compra, 2)
+                                    "pagado": 0.0, "pendiente": round(total_guardar_ia, 2)
                                 }).execute()
                                 
                                 st.session_state.compra_temp = []
@@ -480,7 +531,7 @@ def render_pestana_facturacion(client):
                                 # ===================================================
 
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success("✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla.")
+                                st.success(f"✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla. {mensaje_archivo}")
                                 time.sleep(2.5)
                                 st.rerun()
                             except ImportError:
@@ -493,7 +544,7 @@ def render_pestana_facturacion(client):
         st.markdown("---")
 
         c_c1, c_c2, c_c3 = st.columns(3)
-        with c_c1: n_fac = st.text_input("Nº Factura Proveedor", key="fac_prov_n")
+        with c_c1: n_fac = st.text_input("Nº Documento (Fac/Abono)", key="fac_prov_n")
         with c_c2: f_fac = st.date_input("Fecha Factura", key="fac_prov_f")
         with c_c3: f_ven = st.date_input("Vencimiento", key="fac_prov_v")
         
@@ -643,10 +694,13 @@ def render_pestana_facturacion(client):
             desc_pp_val = float(desc_pp or 0.0)
             total_con_pp = suma_articulos_c * (1 - desc_pp_val / 100)
             
+            total_mostrar = -abs(total_con_pp) if es_abono else abs(total_con_pp)
+            texto_tipo = "TOTAL ABONO" if es_abono else "TOTAL COMPRA"
+            
             st.markdown(f"""
             <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f; text-align: right;">
             <p style="margin:0;">Base: {t_base_c * (1-desc_pp_val/100):.2f}€ | IGIC: {t_igic_c * (1-desc_pp_val/100):.2f}€</p>
-            <h2 style="margin:0; color: #d32f2f;">TOTAL COMPRA: {total_con_pp:.2f}€</h2>
+            <h2 style="margin:0; color: #d32f2f;">{texto_tipo}: {total_mostrar:.2f}€</h2>
             </div>
             """, unsafe_allow_html=True)
                 
@@ -667,11 +721,14 @@ def render_pestana_facturacion(client):
                     p_id = df_prov[df_prov['nombre_empresa'] == sel_p].iloc[0]['id']
                     nuevo_estado = "Borrador" if btn_borrador else "Recibido"
                     
+                    total_guardar = -abs(total_con_pp) if es_abono else abs(total_con_pp)
+                    prefijo_doc = "Abono" if es_abono else "Factura"
+                    
                     client.table("compras").insert({
-                        "proveedor_id": p_id, "total": float(total_con_pp), "descuento_pp": float(desc_pp or 0.0),
-                        "estado": nuevo_estado, "tipo": f"Factura: {n_fac}", "fecha_vencimiento": str(f_ven),
+                        "proveedor_id": p_id, "total": float(total_guardar), "descuento_pp": float(desc_pp or 0.0),
+                        "estado": nuevo_estado, "tipo": f"{prefijo_doc}: {n_fac}", "fecha_vencimiento": str(f_ven),
                         "productos": st.session_state.compra_temp,
-                        "pagado": 0.0, "pendiente": float(total_con_pp)
+                        "pagado": 0.0, "pendiente": float(total_guardar)
                     }).execute()
                     
                     if btn_archivar:
@@ -679,20 +736,21 @@ def render_pestana_facturacion(client):
                             if str(i.get('id', '0')) != '0' and str(i.get('id')) != 'None':
                                 res_s = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
                                 if res_s.data: 
-                                    # Actualizamos stock, el PRECIO DE COSTE general y el PVP PÚBLICO
+                                    cant_mod = -i['Cantidad'] if es_abono else i['Cantidad']
                                     datos_update = {
-                                        "stock_actual": (res_s.data[0]['stock_actual'] or 0) + i['Cantidad'],
-                                        "precio_base": float(i['Base Ud']),
-                                        "precio_pvp": float(i.get('PVP (€)', 0.0))
+                                        "stock_actual": (res_s.data[0]['stock_actual'] or 0) + cant_mod
                                     }
-                                    if i.get('Caducidad') and str(i['Caducidad']).strip() not in ["None", ""]:
-                                        datos_update["fecha_caducidad"] = str(i['Caducidad'])
-                                    if i.get('Lote') and str(i['Lote']).strip() not in ["None", ""]:
-                                        datos_update["lote"] = str(i['Lote'])
+                                    if not es_abono:
+                                        datos_update["precio_base"] = float(i['Base Ud'])
+                                        datos_update["precio_pvp"] = float(i.get('PVP (€)', 0.0))
+                                        if i.get('Caducidad') and str(i['Caducidad']).strip() not in ["None", ""]:
+                                            datos_update["fecha_caducidad"] = str(i['Caducidad'])
+                                        if i.get('Lote') and str(i['Lote']).strip() not in ["None", ""]:
+                                            datos_update["lote"] = str(i['Lote'])
                                         
                                     client.table("productos").update(datos_update).eq("id", i['id']).execute()
-                                    # Actualizamos el precio de coste del proveedor específico
-                                    client.table("productos_proveedores").update({"precio_coste": float(i['Base Ud'])}).eq("producto_id", i['id']).eq("proveedor_id", p_id).execute()
+                                    if not es_abono:
+                                        client.table("productos_proveedores").update({"precio_coste": float(i['Base Ud'])}).eq("producto_id", i['id']).eq("proveedor_id", p_id).execute()
                         
                         if st.session_state.pedido_vinculado:
                             client.table("pedidos_proveedores").update({"estado": "Recibido"}).eq("id", st.session_state.pedido_vinculado).execute()
@@ -789,10 +847,13 @@ def render_pestana_facturacion(client):
 
         # --- ARCHIVO DE COMPRAS ---
         else: 
-            # Filtramos para mostrar solo facturas de proveedores, no gastos generales
+            # Filtramos para mostrar solo facturas y abonos de proveedores
             res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").ilike("tipo", "Factura:%").order("id", desc=True).execute()
-            if res_comp.data:
-                df_comp = pd.DataFrame(res_comp.data)
+            res_comp_abonos = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").ilike("tipo", "Abono:%").order("id", desc=True).execute()
+            
+            datos_provs = (res_comp.data or []) + (res_comp_abonos.data or [])
+            if datos_provs:
+                df_comp = pd.DataFrame(datos_provs)
                 df_comp['Proveedor'] = df_comp['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
                 dt_comp = pd.to_datetime(df_comp['created_at'])
                 if dt_comp.dt.tz is None:
@@ -891,50 +952,66 @@ def render_pestana_facturacion(client):
                         st.markdown(f"""
                         <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f; text-align: right;">
                         <p style="margin:0;">Base Neta: {t_base * (1-dto_pp/100):.2f}€ | IGIC: {t_igic * (1-dto_pp/100):.2f}€</p>
-                        <h2 style="margin:0; color: #d32f2f;">NUEVO TOTAL COMPRA: {new_total:.2f}€</h2>
+                        <h2 style="margin:0; color: #d32f2f;">NUEVO TOTAL: {new_total:.2f}€</h2>
                         </div>
                         """, unsafe_allow_html=True)
                     else:
                         new_total = float(c_data['total'])
                         st.metric("NUEVO TOTAL COMPRA", f"{new_total:.2f} €")
                     
+                    es_abono_archivo = "Abono" in str(c_data.get('tipo', ''))
+                    
                     if str(c_data.get('estado', '')) == 'Borrador':
-                        st.warning("⚠️ Esta factura está en estado de BORRADOR. El stock aún no se ha sumado al inventario.")
-                        if st.button("🚀 VALIDAR FACTURA Y SUMAR STOCK", type="primary", use_container_width=True):
+                        st.warning("⚠️ Este documento está en estado de BORRADOR. El stock aún no se ha actualizado.")
+                        if st.button("🚀 VALIDAR DOCUMENTO Y ACTUALIZAR STOCK", type="primary", use_container_width=True):
                             for p in ed_pc.to_dict('records'):
                                 if str(p.get('id', '0')) != '0' and str(p.get('id')) != 'None':
                                     res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
                                     if res_p.data:
+                                        cant_mod = -p.get('Cantidad', 1) if es_abono_archivo else p.get('Cantidad', 1)
                                         client.table("productos").update({
-                                            "stock_actual": (res_p.data[0]['stock_actual'] or 0) + p.get('Cantidad', 1),
-                                            "precio_base": float(p.get('Base Ud', 0)),
-                                            "precio_pvp": float(p.get('PVP (€)', 0.0))
+                                            "stock_actual": (res_p.data[0]['stock_actual'] or 0) + cant_mod
                                         }).eq("id", p['id']).execute()
-                                        if c_data.get('proveedor_id'):
+                                        
+                                        if not es_abono_archivo:
+                                            client.table("productos").update({"precio_base": float(p.get('Base Ud', 0)), "precio_pvp": float(p.get('PVP (€)', 0.0))}).eq("id", p['id']).execute()
+                                        
+                                        if not es_abono_archivo and c_data.get('proveedor_id'):
                                             res_link = client.table("productos_proveedores").select("id").eq("producto_id", p['id']).eq("proveedor_id", c_data['proveedor_id']).execute()
                                             if not res_link.data:
                                                 client.table("productos_proveedores").insert({"producto_id": p['id'], "proveedor_id": c_data['proveedor_id'], "precio_coste": float(p.get('Base Ud', 0))}).execute()
                                             else:
                                                 client.table("productos_proveedores").update({"precio_coste": float(p.get('Base Ud', 0))}).eq("producto_id", p['id']).eq("proveedor_id", c_data['proveedor_id']).execute()
                             
+                            nuevo_total_guardar = -abs(new_total) if es_abono_archivo else abs(new_total)
                             pagado_actual = float(c_data.get('pagado') or 0.0)
-                            nuevo_pendiente = max(0.0, float(new_total) - pagado_actual)
-                            nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else "Recibido"
+                            if es_abono_archivo:
+                                nuevo_pendiente = nuevo_total_guardar - pagado_actual
+                                nuevo_estado = "Pagado" if abs(nuevo_pendiente) <= 0.01 else "Recibido"
+                            else:
+                                nuevo_pendiente = max(0.0, float(new_total) - pagado_actual)
+                                nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else "Recibido"
                             
                             client.table("compras").update({
                                 "productos": json.loads(ed_pc.to_json(orient='records')), 
-                                "total": float(new_total), "pendiente": nuevo_pendiente, 
+                                "total": float(nuevo_total_guardar), "pendiente": nuevo_pendiente, 
                                 "estado": nuevo_estado, "descuento_pp": float(dto_pp)
                             }).eq("id", c_id).execute()
                             
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                            st.success("¡Factura validada y stock sumado correctamente!"); time.sleep(1.5); st.rerun()
+                            st.success("¡Documento validado y stock actualizado correctamente!"); time.sleep(1.5); st.rerun()
 
                     if st.button("💾 SINCRONIZAR CAMBIOS DE ESTA COMPRA"):
+                        nuevo_total_guardar = -abs(new_total) if es_abono_archivo else abs(new_total)
                         pagado_actual = float(c_data.get('pagado') or 0.0)
-                        nuevo_pendiente = max(0.0, float(new_total) - pagado_actual)
-                        nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else str(c_data.get('estado', 'Pendiente'))
-                        client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(new_total), "pendiente": nuevo_pendiente, "estado": nuevo_estado, "descuento_pp": float(dto_pp)}).eq("id", c_id).execute()
+                        if es_abono_archivo:
+                            nuevo_pendiente = nuevo_total_guardar - pagado_actual
+                            nuevo_estado = "Pagado" if abs(nuevo_pendiente) <= 0.01 else str(c_data.get('estado', 'Pendiente'))
+                        else:
+                            nuevo_pendiente = max(0.0, float(new_total) - pagado_actual)
+                            nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else str(c_data.get('estado', 'Pendiente'))
+                            
+                        client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(nuevo_total_guardar), "pendiente": nuevo_pendiente, "estado": nuevo_estado, "descuento_pp": float(dto_pp)}).eq("id", c_id).execute()
                         st.success("Compra actualizada."); st.rerun()
 
     # ==========================================
