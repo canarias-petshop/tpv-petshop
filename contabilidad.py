@@ -683,10 +683,15 @@ def render_pestana_contabilidad(client):
                 elif "Personal" in tipo_str: cat_contable = "Personal y Autónomos"
                 elif "Servicios exteriores" in tipo_str: cat_contable = "Servicios Exteriores y Reparaciones"
                 elif "Impuestos y Tasas" in tipo_str: cat_contable = "Impuestos y Tasas"
+                elif "Abono:" in tipo_str: cat_contable = "Abono de Proveedor"
                 
                 es_factura = False
-                if "factura" in tipo_str.lower() or cat_contable == "Factura de Proveedor (Mercancía)":
+                es_abono = False
+                
+                if "Factura:" in tipo_str:
                     es_factura = True
+                elif "Abono:" in tipo_str:
+                    es_abono = True
                 
                 if " | " in tipo_str:
                     concepto = tipo_str.split(" | ")[1]
@@ -694,7 +699,7 @@ def render_pestana_contabilidad(client):
                 base_c = float(c['total'])
                 igic_c = 0.0
                 
-                if c.get('productos') and cat_contable == "Factura de Proveedor (Mercancía)":
+                if c.get('productos') and (es_factura or es_abono):
                     try:
                         df_p = pd.DataFrame(c['productos'])
                         if not df_p.empty and 'Base Ud' in df_p.columns and 'Cantidad' in df_p.columns:
@@ -706,9 +711,12 @@ def render_pestana_contabilidad(client):
                             
                             base_b = base_neta_calc.sum()
                             igic_b = igic_eur_calc.sum()
-                            ratio = float(c['total']) / (base_b + igic_b) if (base_b + igic_b) > 0 else 1
+                            ratio = abs(float(c['total'])) / (base_b + igic_b) if (base_b + igic_b) > 0 else 1
                             base_c = round(base_b * ratio, 2)
                             igic_c = round(igic_b * ratio, 2)
+                            if es_abono:
+                                base_c = -abs(base_c)
+                                igic_c = -abs(igic_c)
                     except: pass
                 
                 prov_nombre = c['proveedores']['nombre_empresa'] if isinstance(c.get('proveedores'), dict) else "Acreedor / Gasto General"
@@ -722,15 +730,17 @@ def render_pestana_contabilidad(client):
                     "Categoría Contable": cat_contable, "Concepto / Referencia": concepto, "Proveedor / Beneficiario": prov_nombre,
                     "CIF Proveedor": prov_cif,
                     "Base Imponible (€)": base_c, "Cuota IGIC (€)": igic_c, "Importe Total (€)": float(c['total']),
-                    "Estado": c['estado'], "Es_Factura": es_factura
+                    "Estado": c['estado'], "Es_Factura": es_factura, "Es_Abono": es_abono
                 })
 
         df_todas_compras = pd.DataFrame(compras_list)
         df_facturas_rec = pd.DataFrame()
+        df_abonos_rec = pd.DataFrame()
         df_tickets_gastos = pd.DataFrame()
         if not df_todas_compras.empty:
-            df_facturas_rec = df_todas_compras[df_todas_compras['Es_Factura'] == True].drop(columns=['Es_Factura'])
-            df_tickets_gastos = df_todas_compras[df_todas_compras['Es_Factura'] == False].drop(columns=['Es_Factura'])
+            df_facturas_rec = df_todas_compras[df_todas_compras['Es_Factura'] == True].drop(columns=['Es_Factura', 'Es_Abono'])
+            df_abonos_rec = df_todas_compras[df_todas_compras['Es_Abono'] == True].drop(columns=['Es_Factura', 'Es_Abono'])
+            df_tickets_gastos = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False)].drop(columns=['Es_Factura', 'Es_Abono'])
 
         # --- EXTRACCIÓN DE GASTOS FIJOS ---
         res_gf_inf = client.table("gastos_recurrentes").select("concepto, categoria, importe_estimado, dia_cargo, frecuencia").eq("activo", True).execute()
@@ -814,10 +824,14 @@ def render_pestana_contabilidad(client):
                     'Importe Total (€)': 'sum'
                 }).reset_index().rename(columns={'Método Simplificado': 'Método de Pago'})
                 
+                df_solo_facturas_v = df_ventas_unificadas[df_ventas_unificadas['Tipo Documento'] == 'Factura Emitida'].copy()
+                
                 dict_exportacion = {
                     "Resumen por Método de Pago": resumen_pagos,
                     "Ventas Confirmadas": df_ventas_unificadas
                 }
+                if not df_solo_facturas_v.empty:
+                    dict_exportacion["Facturas Emitidas"] = df_solo_facturas_v
                 if not df_devoluciones.empty:
                     dict_exportacion["Devoluciones (Anuladas)"] = df_devoluciones
                 if not df_lineas_serv.empty:
@@ -831,19 +845,15 @@ def render_pestana_contabilidad(client):
             else: st.write("Sin ventas.")
 
         with c_down2:
-            st.success("📑 FACTURAS (IGIC)")
-            df_asesor_f = pd.DataFrame()
-            if not df_ventas_unificadas.empty:
-                df_solo_facturas = df_ventas_unificadas[df_ventas_unificadas['Tipo Documento'] == 'Factura Emitida'].copy()
-                if not df_solo_facturas.empty: df_asesor_f = df_solo_facturas[['Nº Documento', 'Fecha', 'Cliente', 'CIF Cliente', 'Ventas Productos (0% IGIC) (€)', 'Base Servicios (€)', 'Cuota IGIC Servicios (€)', 'Importe Total (€)', 'Método de Pago']]
+            st.success("📑 FACTURAS Y ABONOS")
             
-            if not df_asesor_f.empty or not df_facturas_rec.empty:
+            if not df_facturas_rec.empty or not df_abonos_rec.empty:
                 dict_facturas = {}
-                if not df_asesor_f.empty: dict_facturas["Emitidas"] = df_asesor_f
-                if not df_facturas_rec.empty: dict_facturas["Recibidas"] = df_facturas_rec
+                if not df_facturas_rec.empty: dict_facturas["Facturas de Compra"] = df_facturas_rec
+                if not df_abonos_rec.empty: dict_facturas["Abonos"] = df_abonos_rec
                 excel_f = generar_excel_formateado(dict_facturas)
-                st.download_button("📥 Descargar Facturas", excel_f, f"Facturas_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            else: st.write("Sin facturas.")
+                st.download_button("📥 Descargar Documentos", excel_f, f"Facturas_Abonos_{f_desde_inf}_al_{f_hasta_inf}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            else: st.write("Sin facturas ni abonos.")
 
         with c_down3:
             st.warning("🎫 TICKETS / GASTOS")
@@ -855,6 +865,11 @@ def render_pestana_contabilidad(client):
         with c_down4:
             st.error("🏢 GASTOS FIJOS")
             if not df_gf_inf.empty:
-                excel_gf = generar_excel_formateado(df_gf_inf, "Gastos Fijos")
+                dict_gf = {}
+                for cat, group in df_gf_inf.groupby("Categoría Contable"):
+                    short_cat = cat.split(" (")[0][:31] # Límite de caracteres para pestañas Excel
+                    dict_gf[short_cat] = group
+                    
+                excel_gf = generar_excel_formateado(dict_gf)
                 st.download_button("📥 Descargar G. Fijos", excel_gf, f"Gastos_Fijos_Actuales.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             else: st.write("Sin gastos fijos.")
