@@ -322,14 +322,55 @@ def render_pestana_tareas(client):
                         if res_act.data:
                             df_act = pd.DataFrame(res_act.data)
                             df_act['Asignado'] = df_act.apply(lambda x: mapa_emp_inv.get(x['empleado_id'], x['rol_asignado']), axis=1)
-                            df_v_act = df_act[['id', 'tarea', 'tipo', 'tramo_horario', 'Asignado', 'periodicidad']].copy()
+                            
+                            tramos_base = ["Cualquiera", "Mañana (Apertura)", "Mediodía", "Tarde", "Cierre"]
+                            df_act['Tramo'] = df_act['tramo_horario'].apply(lambda x: x if x in tramos_base else "Hora Exacta")
+                            df_act['Hora'] = df_act['tramo_horario'].apply(lambda x: "" if x in tramos_base else (x if x else ""))
+                            
+                            df_v_act = df_act[['id', 'tarea', 'tipo', 'Tramo', 'Hora', 'Asignado', 'periodicidad']].copy()
                             df_v_act.insert(0, "Borrar", False)
                             
                             st.markdown("##### ⚙️ Plannings Activos")
-                            ed_act = st.data_editor(df_v_act, hide_index=True, use_container_width=True, column_config={"Borrar": st.column_config.CheckboxColumn("🗑️", width="small"), "id": None, "tarea": "Tarea", "tipo": "Tipo", "tramo_horario": "Tramo", "periodicidad": "Frec."})
+                            categorias_t = ["Operativa de Tienda", "Inventario y Almacén", "Peluquería y Clínica", "Mantenimiento y Limpieza", "Logística y Repartos", "Marketing y Redes", "Compras: Proveedores (Catálogo)", "Compras: Consumibles y Material", "Administración y Finanzas", "Gestión de Equipo", "General/Otro"]
+                            
+                            ed_act = st.data_editor(
+                                df_v_act, hide_index=True, use_container_width=True, 
+                                column_config={
+                                    "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"), 
+                                    "id": None, 
+                                    "tarea": "Tarea", 
+                                    "tipo": st.column_config.SelectboxColumn("Tipo", options=categorias_t), 
+                                    "Tramo": st.column_config.SelectboxColumn("Tramo", options=["Cualquiera", "Mañana (Apertura)", "Mediodía", "Tarde", "Cierre", "Hora Exacta"]),
+                                    "Hora": st.column_config.TextColumn("Hora", help="Rellenar si el tramo es 'Hora Exacta'"),
+                                    "Asignado": st.column_config.SelectboxColumn("Asignado a", options=opciones_asignacion),
+                                    "periodicidad": st.column_config.SelectboxColumn("Frec.", options=["Diaria", "Semanal", "Mensual", "Puntual"])
+                                }
+                            )
                             if st.button("💾 Guardar Cambios"):
                                 for _, rb in ed_act[ed_act["Borrar"] == True].iterrows():
                                     client.table("tareas_plannings").update({"activo": False}).eq("id", rb['id']).execute()
+                                
+                                for _, rv in ed_act[ed_act["Borrar"] == False].iterrows():
+                                    tram_val = str(rv['Hora']).strip() if str(rv['Hora']).strip() and rv['Tramo'] == "Hora Exacta" else rv['Tramo']
+                                    if tram_val == "Hora Exacta" and not str(rv['Hora']).strip(): tram_val = "Cualquiera"
+                                    
+                                    asi = str(rv['Asignado'])
+                                    if asi.startswith("👤 "):
+                                        e_id = mapa_emp.get(asi.replace("👤 ", ""))
+                                        r_asi = None
+                                    else:
+                                        e_id = None
+                                        r_asi = asi
+
+                                    client.table("tareas_plannings").update({
+                                        "tarea": rv['tarea'],
+                                        "tipo": rv['tipo'],
+                                        "tramo_horario": tram_val,
+                                        "periodicidad": rv['periodicidad'],
+                                        "empleado_id": e_id,
+                                        "rol_asignado": r_asi
+                                    }).eq("id", rv['id']).execute()
+                                    
                                 st.success("Actualizado"); time.sleep(0.5); st.rerun()
                     except: pass
             with sub_admin[2]:
