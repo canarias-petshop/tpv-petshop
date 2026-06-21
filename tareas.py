@@ -64,6 +64,8 @@ def render_pestana_tareas(client):
             .te-comp { border-left-color: #4caf50; opacity: 0.8; }
             .te-asig { font-size: 0.85em; color: #666; display: block; margin-top: 2px;}
             .te-who { font-size: 0.85em; color: #2e7d32; display: block; margin-top: 2px; font-weight: bold;}
+            .te-tipo { font-size: 0.75em; display: inline-block; padding: 1px 4px; border-radius: 3px; background: #e0e0e0; margin-top: 3px; margin-right: 3px; color: #333;}
+            .te-tramo { font-size: 0.75em; display: inline-block; padding: 1px 4px; border-radius: 3px; background: #e3f2fd; margin-top: 3px; color: #1565c0;}
         </style>
         <table class="cal-emp-table"><tr>
         '''
@@ -97,13 +99,19 @@ def render_pestana_tareas(client):
                     r_info = hechas_ids_dia[p['id']]
                     who = r_info.get('personal_empleados', {}).get('nombre', 'Alguien') if isinstance(r_info.get('personal_empleados'), dict) else 'Alguien'
                     nota_html = f"<br><span style='color:#555; font-size: 0.9em;'>📝 {r_info.get('notas')}</span>" if r_info.get('notas') else ""
-                    html_cal_emp += f"<div class='tarea-emp-card te-comp'><b>✅ {p['tarea']}</b><span class='te-who'>Por: {who}</span>{nota_html}</div>"
+                    tipo_html = f"<span class='te-tipo'>{p.get('tipo', 'General')}</span>" if p.get('tipo') and p.get('tipo') != 'General' else ""
+                    tramo_html = f"<span class='te-tramo'>{p.get('tramo_horario', 'Cualquiera')}</span>" if p.get('tramo_horario') and p.get('tramo_horario') != 'Cualquiera' else ""
+                    
+                    html_cal_emp += f"<div class='tarea-emp-card te-comp'><b>✅ {p['tarea']}</b><span class='te-who'>Por: {who}</span><div style='margin-top:2px;'>{tipo_html}{tramo_html}</div>{nota_html}</div>"
                 elif aplica:
                     nom_asig = mapa_emp_inv.get(p.get('empleado_id'), p.get('rol_asignado', 'General'))
+                    tipo_html = f"<span class='te-tipo'>{p.get('tipo', 'General')}</span>" if p.get('tipo') and p.get('tipo') != 'General' else ""
+                    tramo_html = f"<span class='te-tramo'>{p.get('tramo_horario', 'Cualquiera')}</span>" if p.get('tramo_horario') and p.get('tramo_horario') != 'Cualquiera' else ""
+                    
                     if d_str < hoy_str_emp:
                         html_cal_emp += f"<div class='tarea-emp-card te-pend' style='border-left-color: #e53935; opacity: 0.8;'><b>❌ {p['tarea']}</b><span class='te-asig' style='color:#e53935;'>Olvidada</span></div>"
                     else:
-                        html_cal_emp += f"<div class='tarea-emp-card te-pend'><b>⏳ {p['tarea']}</b><span class='te-asig'>Para: {nom_asig}</span></div>"
+                        html_cal_emp += f"<div class='tarea-emp-card te-pend'><b>⏳ {p['tarea']}</b><div style='margin-top:2px;'>{tipo_html}{tramo_html}</div><span class='te-asig'>Para: {nom_asig}</span></div>"
                         
             html_cal_emp += "</td>"
         html_cal_emp += "</tr></table>"
@@ -146,7 +154,7 @@ def render_pestana_tareas(client):
                     if is_for_me:
                         nom_asig = mapa_emp_inv.get(p.get('empleado_id'), p.get('rol_asignado', 'General'))
                         pendientes_mias.append({
-                            "id": p['id'], "Tarea": p['tarea'], "Asignado a": nom_asig, "Frecuencia": p['periodicidad']
+                            "id": p['id'], "Tarea": p['tarea'], "Tipo": p.get('tipo', 'General'), "Tramo": p.get('tramo_horario', 'Cualquiera'), "Asignado a": nom_asig, "Frecuencia": p['periodicidad']
                         })
             
             if pendientes_mias:
@@ -278,8 +286,13 @@ def render_pestana_tareas(client):
                     with st.form("form_nuevo_plan", clear_on_submit=True):
                         st.markdown("##### ➕ Asignar Nuevo Planning/Tarea")
                         p_tar = st.text_input("Descripción de la tarea *", key=f"p_tar_{st.session_state.llave_tarea_plan}")
-                        p_asig = st.selectbox("Asignar a", opciones_asignacion, key=f"p_asi_{st.session_state.llave_tarea_plan}")
-                        p_per = st.selectbox("Frecuencia", ["Diaria", "Semanal", "Mensual", "Puntual"], key=f"p_per_{st.session_state.llave_tarea_plan}")
+                        c_form1, c_form2 = st.columns(2)
+                        with c_form1:
+                            p_tipo = st.selectbox("Tipo de Tarea", ["General", "Pedidos", "Artículos y stock", "Peluquería", "Contabilidad", "Marketing", "Otro"], key=f"p_tip_{st.session_state.llave_tarea_plan}")
+                            p_asig = st.selectbox("Asignar a", opciones_asignacion, key=f"p_asi_{st.session_state.llave_tarea_plan}")
+                        with c_form2:
+                            p_tramo = st.selectbox("Tramo Horario", ["Cualquiera", "Mañana (Apertura)", "Mediodía", "Tarde", "Cierre"], key=f"p_tra_{st.session_state.llave_tarea_plan}")
+                            p_per = st.selectbox("Frecuencia", ["Diaria", "Semanal", "Mensual", "Puntual"], key=f"p_per_{st.session_state.llave_tarea_plan}")
                         p_fec = None
                         if p_per == "Puntual": p_fec = st.date_input("Fecha límite", value=date.today())
                             
@@ -293,7 +306,8 @@ def render_pestana_tareas(client):
                                     
                                 client.table("tareas_plannings").insert({
                                     "tarea": p_tar, "empleado_id": emp_id, "rol_asignado": rol,
-                                    "periodicidad": p_per, "fecha_puntual": str(p_fec) if p_fec else None, "activo": True
+                                    "periodicidad": p_per, "fecha_puntual": str(p_fec) if p_fec else None, "activo": True,
+                                    "tipo": p_tipo, "tramo_horario": p_tramo
                                 }).execute()
                                 st.session_state.llave_tarea_plan += 1
                                 st.success("Añadido."); time.sleep(0.5); st.rerun()
@@ -304,11 +318,11 @@ def render_pestana_tareas(client):
                         if res_act.data:
                             df_act = pd.DataFrame(res_act.data)
                             df_act['Asignado'] = df_act.apply(lambda x: mapa_emp_inv.get(x['empleado_id'], x['rol_asignado']), axis=1)
-                            df_v_act = df_act[['id', 'tarea', 'Asignado', 'periodicidad']].copy()
+                            df_v_act = df_act[['id', 'tarea', 'tipo', 'tramo_horario', 'Asignado', 'periodicidad']].copy()
                             df_v_act.insert(0, "Borrar", False)
                             
                             st.markdown("##### ⚙️ Plannings Activos")
-                            ed_act = st.data_editor(df_v_act, hide_index=True, use_container_width=True, column_config={"Borrar": st.column_config.CheckboxColumn("🗑️", width="small"), "id": None, "tarea": "Tarea", "periodicidad": "Frec."})
+                            ed_act = st.data_editor(df_v_act, hide_index=True, use_container_width=True, column_config={"Borrar": st.column_config.CheckboxColumn("🗑️", width="small"), "id": None, "tarea": "Tarea", "tipo": "Tipo", "tramo_horario": "Tramo", "periodicidad": "Frec."})
                             if st.button("💾 Guardar Cambios"):
                                 for _, rb in ed_act[ed_act["Borrar"] == True].iterrows():
                                     client.table("tareas_plannings").update({"activo": False}).eq("id", rb['id']).execute()
