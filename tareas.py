@@ -288,16 +288,20 @@ def render_pestana_tareas(client):
                         p_tar = st.text_input("Descripción de la tarea *", key=f"p_tar_{st.session_state.llave_tarea_plan}")
                         c_form1, c_form2 = st.columns(2)
                         with c_form1:
-                            p_tipo = st.selectbox("Tipo de Tarea", ["General", "Pedidos", "Artículos y stock", "Peluquería", "Contabilidad", "Marketing", "Otro"], key=f"p_tip_{st.session_state.llave_tarea_plan}")
+                            categorias_tareas = ["Operativa de Tienda", "Inventario y Almacén", "Peluquería y Clínica", "Mantenimiento y Limpieza", "Logística y Repartos", "Marketing y Redes", "Compras: Proveedores (Catálogo)", "Compras: Consumibles y Material", "Administración y Finanzas", "Gestión de Equipo", "General/Otro"]
+                            p_tipo = st.selectbox("Tipo de Tarea", categorias_tareas, key=f"p_tip_{st.session_state.llave_tarea_plan}")
                             p_asig = st.selectbox("Asignar a", opciones_asignacion, key=f"p_asi_{st.session_state.llave_tarea_plan}")
                         with c_form2:
                             p_tramo = st.selectbox("Tramo Horario", ["Cualquiera", "Mañana (Apertura)", "Mediodía", "Tarde", "Cierre"], key=f"p_tra_{st.session_state.llave_tarea_plan}")
                             p_per = st.selectbox("Frecuencia", ["Diaria", "Semanal", "Mensual", "Puntual"], key=f"p_per_{st.session_state.llave_tarea_plan}")
+                        
+                        p_hora_txt = st.text_input("O fijar hora exacta (Ej: 10:30)", placeholder="Dejar en blanco para usar el Tramo de arriba", key=f"p_hor_txt_{st.session_state.llave_tarea_plan}")
                         p_fec = None
                         if p_per == "Puntual": p_fec = st.date_input("Fecha límite", value=date.today())
                             
                         if st.form_submit_button("Guardar Planning", type="primary", use_container_width=True):
                             if p_tar:
+                                tramo_final = p_hora_txt.strip() if p_hora_txt.strip() else p_tramo
                                 emp_id, rol = None, "Cualquiera / Todos"
                                 if p_asig.startswith("👤 "):
                                     emp_id = mapa_emp.get(p_asig.replace("👤 ", ""))
@@ -307,7 +311,7 @@ def render_pestana_tareas(client):
                                 client.table("tareas_plannings").insert({
                                     "tarea": p_tar, "empleado_id": emp_id, "rol_asignado": rol,
                                     "periodicidad": p_per, "fecha_puntual": str(p_fec) if p_fec else None, "activo": True,
-                                    "tipo": p_tipo, "tramo_horario": p_tramo
+                                    "tipo": p_tipo, "tramo_horario": tramo_final
                                 }).execute()
                                 st.session_state.llave_tarea_plan += 1
                                 st.success("Añadido."); time.sleep(0.5); st.rerun()
