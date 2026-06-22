@@ -48,10 +48,7 @@ def fetch_clientes_deuda_crm(_client):
             if len(r_cli_d.data) < 1000: break
             offset += 1000
         else: break
-    class DummyRes: pass
-    res = DummyRes()
-    res.data = _all_cli_d
-    return res
+    return _all_cli_d
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_bancos_crm(_client):
@@ -1052,8 +1049,8 @@ def render_pestana_crm(client):
                     df_deudas['Fecha'] = pd.to_datetime(df_deudas['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp.now(tz='UTC'))
                     
                     resumen_deudas = []
-                    res_cli_d = fetch_clientes_deuda_crm(client)
-                    mapa_telefonos = {c['nombre_dueno']: c['telefono'] for c in res_cli_d.data} if res_cli_d.data else {}
+                    res_cli_d_data = fetch_clientes_deuda_crm(client)
+                    mapa_telefonos = {c['nombre_dueno']: c['telefono'] for c in res_cli_d_data} if res_cli_d_data else {}
                     
                     for cliente, group in df_deudas.groupby("cliente_deuda"):
                         if not cliente or str(cliente).strip() == "" or str(cliente) == "nan": continue
