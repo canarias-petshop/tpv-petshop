@@ -3,6 +3,49 @@ import pandas as pd
 import time
 from datetime import date, timedelta
 
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_empleados_activos(_client):
+    res = _client.table("personal_empleados").select("id, nombre").eq("activo", True).execute()
+    return res.data if res.data else []
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_tareas_plannings_activos(_client):
+    res = _client.table("tareas_plannings").select("*").eq("activo", True).order("id", desc=True).execute()
+    return res.data if res.data else []
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_tareas_registro_rango(_client, start, end):
+    res = _client.table("tareas_registro").select("tarea_id, fecha_completada, notas, personal_empleados(nombre)").gte("fecha_completada", start).lte("fecha_completada", end).execute()
+    return res.data if res.data else []
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_tareas_registro_hoy(_client, hoy_str):
+    res = _client.table("tareas_registro").select("tarea_id").eq("fecha_completada", hoy_str).execute()
+    return res.data if res.data else []
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_tareas_duenos_rango(_client, start, end):
+    res = _client.table("tareas_duenos").select("*").gte("fecha_programada", start).lte("fecha_programada", end).execute()
+    return res.data if res.data else []
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_tareas_duenos_all(_client):
+    res = _client.table("tareas_duenos").select("*").order("fecha_programada", desc=False).execute()
+    return res.data if res.data else []
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_tareas_historial(_client):
+    res = _client.table("tareas_registro").select("fecha_completada, notas, personal_empleados(nombre), tareas_plannings(tarea, periodicidad)").order("fecha_completada", desc=True).limit(100).execute()
+    return res.data if res.data else []
+
+def limpiar_cache_tareas():
+    fetch_tareas_plannings_activos.clear()
+    fetch_tareas_registro_rango.clear()
+    fetch_tareas_registro_hoy.clear()
+    fetch_tareas_duenos_rango.clear()
+    fetch_tareas_duenos_all.clear()
+    fetch_tareas_historial.clear()
+
 def render_pestana_tareas(client):
     if 'llave_tarea_plan' not in st.session_state: st.session_state.llave_tarea_plan = 0
     if 'llave_tarea_due' not in st.session_state: st.session_state.llave_tarea_due = 0
@@ -13,8 +56,7 @@ def render_pestana_tareas(client):
     
     # Extraer empleados activos de la base de datos
     try:
-        res_emp = client.table("personal_empleados").select("id, nombre").eq("activo", True).execute()
-        empleados = res_emp.data if res_emp.data else []
+        empleados = fetch_empleados_activos(client)
         mapa_emp = {e['nombre']: e['id'] for e in empleados}
         mapa_emp_inv = {e['id']: e['nombre'] for e in empleados}
     except:
@@ -42,11 +84,8 @@ def render_pestana_tareas(client):
         end_week_emp = start_week_emp + timedelta(days=6)
         
         try:
-            res_plan_cal = client.table("tareas_plannings").select("*").eq("activo", True).execute()
-            plan_activos = res_plan_cal.data if res_plan_cal.data else []
-            
-            res_reg_cal = client.table("tareas_registro").select("tarea_id, fecha_completada, notas, personal_empleados(nombre)").gte("fecha_completada", str(start_week_emp)).lte("fecha_completada", str(end_week_emp)).execute()
-            registros_sem = res_reg_cal.data if res_reg_cal.data else []
+            plan_activos = fetch_tareas_plannings_activos(client)
+            registros_sem = fetch_tareas_registro_rango(client, str(start_week_emp), str(end_week_emp))
         except:
             plan_activos = []
             registros_sem = []
@@ -129,10 +168,9 @@ def render_pestana_tareas(client):
         hoy_obj = date.today()
         
         try:
-            res_plan = client.table("tareas_plannings").select("*").eq("activo", True).execute()
-            plan_activos_hoy = res_plan.data if res_plan.data else []
-            res_reg = client.table("tareas_registro").select("tarea_id").eq("fecha_completada", hoy_str).execute()
-            tareas_hechas_hoy = [r['tarea_id'] for r in res_reg.data] if res_reg.data else []
+            plan_activos_hoy = fetch_tareas_plannings_activos(client)
+            res_reg = fetch_tareas_registro_hoy(client, hoy_str)
+            tareas_hechas_hoy = [r['tarea_id'] for r in res_reg]
             
             pendientes_mias = []
             for p in plan_activos_hoy:
@@ -178,6 +216,7 @@ def render_pestana_tareas(client):
                             
                         client.table("tareas_registro").insert(inserts).execute()
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        limpiar_cache_tareas()
                         st.success("¡Buen trabajo! Tareas registradas."); time.sleep(1); st.rerun()
             else:
                 st.success(f"🎉 ¡Genial, {mi_nombre}! No tienes tareas pendientes asignadas para hoy.")
@@ -198,8 +237,7 @@ def render_pestana_tareas(client):
                 end_week_due = start_week_due + timedelta(days=6)
                 
                 try:
-                    res_cal_due = client.table("tareas_duenos").select("*").gte("fecha_programada", str(start_week_due)).lte("fecha_programada", str(end_week_due)).execute()
-                    tareas_sem = res_cal_due.data if res_cal_due.data else []
+                    tareas_sem = fetch_tareas_duenos_rango(client, str(start_week_due), str(end_week_due))
                 except:
                     tareas_sem = []
                     
@@ -257,14 +295,15 @@ def render_pestana_tareas(client):
                             if g_titulo:
                                 client.table("tareas_duenos").insert({"titulo": g_titulo, "fecha_programada": str(g_fecha), "periodicidad": g_frecuencia, "notas": g_notas, "estado": "Pendiente ⏳"}).execute()
                                 st.session_state.llave_tarea_due += 1
+                                limpiar_cache_tareas()
                                 st.success("Agendado."); time.sleep(0.5); st.rerun()
                             else: st.warning("El asunto es obligatorio.")
                         
                 with c_due2:
                     try:
-                        res_due = client.table("tareas_duenos").select("*").order("fecha_programada", desc=False).execute()
-                        if res_due.data:
-                            df_due = pd.DataFrame(res_due.data)
+                        res_due = fetch_tareas_duenos_all(client)
+                        if res_due:
+                            df_due = pd.DataFrame(res_due)
                             df_due['Fecha'] = pd.to_datetime(df_due['fecha_programada']).dt.strftime('%d/%m/%Y')
                             df_v_due = df_due[['id', 'Fecha', 'titulo', 'periodicidad', 'estado', 'notas']].copy()
                             df_v_due.insert(0, "Borrar", False)
@@ -276,6 +315,7 @@ def render_pestana_tareas(client):
                             if st.button("💾 Guardar Cambios", type="primary"):
                                 for _, rb in ed_due[ed_due["Borrar"] == True].iterrows(): client.table("tareas_duenos").delete().eq("id", rb['id']).execute()
                                 for _, rv in ed_due[ed_due["Borrar"] == False].iterrows(): client.table("tareas_duenos").update({"titulo": str(rv['titulo']), "estado": str(rv['estado']), "notas": str(rv['notas'])}).eq("id", rv['id']).execute()
+                                limpiar_cache_tareas()
                                 st.success("Guardado"); time.sleep(0.5); st.rerun()
                         else: st.info("No hay gestiones pendientes.")
                     except: pass
@@ -314,13 +354,14 @@ def render_pestana_tareas(client):
                                     "tipo": p_tipo, "tramo_horario": tramo_final
                                 }).execute()
                                 st.session_state.llave_tarea_plan += 1
+                                limpiar_cache_tareas()
                                 st.success("Añadido."); time.sleep(0.5); st.rerun()
                             else: st.warning("Escribe la tarea.")
                 with c_p2:
                     try:
-                        res_act = client.table("tareas_plannings").select("*").eq("activo", True).order("id", desc=True).execute()
-                        if res_act.data:
-                            df_act = pd.DataFrame(res_act.data)
+                        res_act = fetch_tareas_plannings_activos(client)
+                        if res_act:
+                            df_act = pd.DataFrame(res_act)
                             df_act['Asignado'] = df_act.apply(lambda x: mapa_emp_inv.get(x['empleado_id'], x['rol_asignado']), axis=1)
                             
                             tramos_base = ["Cualquiera", "Mañana (Apertura)", "Mediodía", "Tarde", "Cierre"]
@@ -371,14 +412,15 @@ def render_pestana_tareas(client):
                                         "rol_asignado": r_asi
                                     }).eq("id", rv['id']).execute()
                                     
+                                limpiar_cache_tareas()
                                 st.success("Actualizado"); time.sleep(0.5); st.rerun()
                     except: pass
             with sub_admin[2]:
                 try:
-                    res_hist = client.table("tareas_registro").select("fecha_completada, notas, personal_empleados(nombre), tareas_plannings(tarea, periodicidad)").order("fecha_completada", desc=True).limit(100).execute()
-                    if res_hist.data:
+                    res_hist = fetch_tareas_historial(client)
+                    if res_hist:
                         hist_data = []
-                        for h in res_hist.data:
+                        for h in res_hist:
                             emp = h.get('personal_empleados', {}).get('nombre', 'Desconocido') if h.get('personal_empleados') else 'Desconocido'
                             tar = h.get('tareas_plannings', {}).get('tarea', 'Tarea borrada') if h.get('tareas_plannings') else 'Tarea borrada'
                             per = h.get('tareas_plannings', {}).get('periodicidad', '-') if h.get('tareas_plannings') else '-'
