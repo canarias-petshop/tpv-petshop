@@ -25,7 +25,7 @@ def fetch_encargos_crm(_client):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("encargos_clientes").select("id, created_at, nombre_cliente, telefono, detalle_pedido, notas, estado").order("created_at", desc=True).range(_off, _off + 999).execute()
+        _r = _client.table("encargos_clientes").select("id, created_at, nombre_cliente, telefono, detalle_pedido, notas, estado, origen").order("created_at", desc=True).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
