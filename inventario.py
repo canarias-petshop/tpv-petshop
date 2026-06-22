@@ -183,6 +183,9 @@ def render_pestana_inventario(client):
                                 for col_eliminar in ['categoria_filt', 'Proveedor', 'productos_proveedores']:
                                     if col_eliminar in datos: del datos[col_eliminar]
                                     
+                                # Limpiar NaNs de Pandas para evitar errores de JSON/Postgrest
+                                datos = {k: (None if pd.isna(v) else v) for k, v in datos.items()}
+                                    
                                 # Convertir None a null en bbdd si borran la fecha
                                 if pd.isna(datos.get('fecha_caducidad')) or str(datos.get('fecha_caducidad')).strip() in ["", "None", "NaT"]:
                                     datos['fecha_caducidad'] = None
