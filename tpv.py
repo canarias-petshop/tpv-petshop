@@ -6,9 +6,79 @@ from datetime import datetime
 import streamlit.components.v1 as components
 import hashlib
 
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_caja_abierta_tpv(_client):
+    return _client.table("control_caja").select("id").eq("estado", "Abierta").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_inv_tpv(_client):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("productos").select("id, nombre, precio_pvp, stock_actual, sku, igic_tipo").range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_citas_hoy_tpv(_client, hoy_ini, hoy_fin):
+    return _client.table("citas").select("id, servicio, mascotas(id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, puntos))").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_empleados_tpv(_client):
+    return _client.table("personal_empleados").select("nombre").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_clientes_puntos_tpv(_client):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("clientes").select("id, nombre_dueno, puntos, telefono, direccion, email").range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_deuda_cli_tpv(_client, cli_check_nombre):
+    return _client.table("ventas_historial").select("id").eq("cliente_deuda", cli_check_nombre).eq("estado", "Deuda").limit(1).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_vale_tienda_tpv(_client, codigo_vale):
+    return _client.table("vales_tienda").select("*").eq("codigo_vale", codigo_vale).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_cuentas_bancarias_tpv(_client):
+    return _client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_last_hash_tpv(_client):
+    return _client.table("ventas_historial").select("hash_actual").order("id", desc=True).limit(1).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_producto_stock_tpv(_client, prod_id):
+    return _client.table("productos").select("stock_actual").eq("id", prod_id).execute()
+
+def limpiar_cache_tpv():
+    fetch_caja_abierta_tpv.clear()
+    fetch_inv_tpv.clear()
+    fetch_citas_hoy_tpv.clear()
+    fetch_empleados_tpv.clear()
+    fetch_clientes_puntos_tpv.clear()
+    fetch_deuda_cli_tpv.clear()
+    fetch_vale_tienda_tpv.clear()
+    fetch_cuentas_bancarias_tpv.clear()
+    fetch_last_hash_tpv.clear()
+    fetch_producto_stock_tpv.clear()
+
 def render_pestana_tpv(client):
     # --- COMPROBACIÓN DE SEGURIDAD: CAJA ABIERTA ---
-    res_caja_abierta = client.table("control_caja").select("id").eq("estado", "Abierta").execute()
+    res_caja_abierta = fetch_caja_abierta_tpv(client)
     
     if not res_caja_abierta.data:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
@@ -35,20 +105,7 @@ def render_pestana_tpv(client):
     col_busqueda, col_carrito = st.columns([1, 1.4], gap="small")
     
     with col_busqueda:
-        @st.cache_data(show_spinner=False, ttl=15)
-        def get_inv_tpv(v):
-            _all = []
-            _off = 0
-            while True:
-                _r = client.table("productos").select("id, nombre, precio_pvp, stock_actual, sku, igic_tipo").range(_off, _off + 999).execute()
-                if _r.data:
-                    _all.extend(_r.data)
-                    if len(_r.data) < 1000: break
-                    _off += 1000
-                else: break
-            return _all
-            
-        all_inv = get_inv_tpv(st.session_state.get('db_version', 0))
+        all_inv = fetch_inv_tpv(client)
         df_inv = pd.DataFrame(all_inv) if all_inv else pd.DataFrame()
         
         st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>🔍 Buscar producto o servicio</p>", unsafe_allow_html=True)
@@ -113,10 +170,10 @@ def render_pestana_tpv(client):
             hoy_date = datetime.now().date()
             hoy_ini = f"{hoy_date}T00:00:00"
             hoy_fin = f"{hoy_date}T23:59:59"
-            res_citas_hoy = client.table("citas").select("id, servicio, mascotas(id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, puntos))").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
+            res_citas_hoy = fetch_citas_hoy_tpv(client, hoy_ini, hoy_fin)
             
             try:
-                res_emp_tpv = client.table("personal_empleados").select("nombre").execute()
+                res_emp_tpv = fetch_empleados_tpv(client)
                 empleados_tpv = [e['nombre'] for e in res_emp_tpv.data] if res_emp_tpv.data else []
             except:
                 empleados_tpv = []
@@ -562,15 +619,7 @@ def render_pestana_tpv(client):
                 sub_antes = edited_df["Subtotal"].sum()
                 
                 # --- FIDELIZACIÓN ---
-                all_cli_puntos = []
-                offset = 0
-                while True:
-                    res_cli = client.table("clientes").select("id, nombre_dueno, puntos, telefono, direccion, email").range(offset, offset + 999).execute()
-                    if res_cli.data:
-                        all_cli_puntos.extend(res_cli.data)
-                        if len(res_cli.data) < 1000: break
-                        offset += 1000
-                    else: break
+                all_cli_puntos = fetch_clientes_puntos_tpv(client)
                 
                 class DummyRes: pass
                 res_cli_puntos = DummyRes()
@@ -624,7 +673,7 @@ def render_pestana_tpv(client):
                     cli_info = mapa_clientes_tpv.get(cliente_fidelidad, {})
                     cli_check_nombre = cli_info.get('nombre_dueno', '')
                     
-                    res_deuda_cli = client.table("ventas_historial").select("id").eq("cliente_deuda", cli_check_nombre).eq("estado", "Deuda").limit(1).execute()
+                    res_deuda_cli = fetch_deuda_cli_tpv(client, cli_check_nombre)
                     tiene_deuda = True if res_deuda_cli.data else False
                     
                     puntos_disp = int(cli_info.get('puntos') or 0)
@@ -656,7 +705,7 @@ def render_pestana_tpv(client):
                         if codigo_vale_input:
                             vale_valido = False
                             try:
-                                res_vale = client.table("vales_tienda").select("*").eq("codigo_vale", codigo_vale_input.strip().upper()).execute()
+                                res_vale = fetch_vale_tienda_tpv(client, codigo_vale_input.strip().upper())
                                 if res_vale.data:
                                     vale_db = res_vale.data[0]
                                     if vale_db['saldo_actual'] > 0:
@@ -688,7 +737,7 @@ def render_pestana_tpv(client):
 
                 st.markdown("<hr style='margin: 2px 0px; border: none; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
-                res_b_radio = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+                res_b_radio = fetch_cuentas_bancarias_tpv(client)
                 lista_bancos = res_b_radio.data if res_b_radio.data else []
                 nombres_tarjetas = [f"Tarjeta ({b['nombre_banco']})" for b in lista_bancos] if lista_bancos else ["Tarjeta"]
                 
@@ -815,7 +864,7 @@ def render_pestana_tpv(client):
                                 client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cliente_info.get('id')).execute()
                                 
                             # GENERACIÓN DE HASH (LEY ANTIFRAUDE / VERIFACTU)
-                            res_last = client.table("ventas_historial").select("hash_actual").order("id", desc=True).limit(1).execute()
+                            res_last = fetch_last_hash_tpv(client)
                             hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
                             data_to_hash = f"TICKET|{datetime.now().isoformat()}|{total_f:.2f}|{hash_anterior}"
                             hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
@@ -877,7 +926,7 @@ def render_pestana_tpv(client):
                                     if str(i['id']).startswith('cita_'):
                                         continue
                                     try:
-                                        res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                                        res = fetch_producto_stock_tpv(client, i['id'])
                                         if res.data:
                                             n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
                                             client.table("productos").update({"stock_actual": n_stock}).eq("id", i['id']).execute()
@@ -899,6 +948,7 @@ def render_pestana_tpv(client):
                             st.session_state.vale_aplicado = None
                             st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
                             st.session_state.llave_busqueda_tpv += 1
+                            limpiar_cache_tpv()
                             st.rerun()
                             
                         except Exception as e:

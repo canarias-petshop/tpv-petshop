@@ -4,6 +4,107 @@ import time
 from datetime import date
 import urllib.parse
 
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_empleados_crm(_client):
+    return _client.table("personal_empleados").select("id, nombre").eq("activo", True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_servicios_crm(_client):
+    return _client.table("productos").select("nombre, precio_pvp, precio_base").eq("categoria", "Servicio").order("nombre").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_citas_dia_crm(_client, fecha_inicio_q, fecha_fin_q):
+    return _client.table("citas").select("fecha_hora, duracion_minutos, servicio").gte("fecha_hora", fecha_inicio_q).lte("fecha_hora", fecha_fin_q).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_turnos_dia_crm(_client, f_fecha_str):
+    return _client.table("personal_cuadrantes").select("empleado_id, turno, personal_empleados(nombre)").eq("fecha", f_fecha_str).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_encargos_crm(_client):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("encargos_clientes").select("id, created_at, nombre_cliente, telefono, detalle_pedido, notas, estado").order("created_at", desc=True).range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_deudas_crm(_client):
+    return _client.table("ventas_historial").select("id, created_at, cliente_deuda, pendiente, total, pagado").eq("estado", "Deuda").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_clientes_deuda_crm(_client):
+    _all_cli_d = []
+    offset = 0
+    while True:
+        r_cli_d = _client.table("clientes").select("nombre_dueno, telefono").range(offset, offset + 999).execute()
+        if r_cli_d.data:
+            _all_cli_d.extend(r_cli_d.data)
+            if len(r_cli_d.data) < 1000: break
+            offset += 1000
+        else: break
+    class DummyRes: pass
+    res = DummyRes()
+    res.data = _all_cli_d
+    return res
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_bancos_crm(_client):
+    return _client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_caja_abierta_crm(_client):
+    return _client.table("control_caja").select("id").eq("estado", "Abierta").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_cliente_puntos_crm(_client, cli_saldar):
+    return _client.table("clientes").select("id, puntos").eq("nombre_dueno", cli_saldar).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_cli_crm(_client):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_masc_crm(_client):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").order("id", desc=True).range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
+
+def limpiar_cache_crm():
+    fetch_empleados_crm.clear()
+    fetch_servicios_crm.clear()
+    fetch_citas_dia_crm.clear()
+    fetch_turnos_dia_crm.clear()
+    fetch_encargos_crm.clear()
+    fetch_deudas_crm.clear()
+    fetch_clientes_deuda_crm.clear()
+    fetch_bancos_crm.clear()
+    fetch_caja_abierta_crm.clear()
+    fetch_cliente_puntos_crm.clear()
+    get_cli_crm.clear()
+    get_masc_crm.clear()
+
 def render_pestana_crm(client):
     if 'llave_crm_cli' not in st.session_state: st.session_state.llave_crm_cli = 0
     if 'llave_crm_masc' not in st.session_state: st.session_state.llave_crm_masc = 0
@@ -13,13 +114,13 @@ def render_pestana_crm(client):
     st.markdown("<h3 style='margin-bottom: 5px;'>👥 Gestión de Clientes y Mascotas</h3>", unsafe_allow_html=True)
     
     try:
-        emp_res = client.table("personal_empleados").select("id, nombre").eq("activo", True).execute()
+        emp_res = fetch_empleados_crm(client)
         empleados_lista = [e['nombre'] for e in emp_res.data] if emp_res.data else []
     except:
         empleados_lista = []
             
     try:
-        serv_res = client.table("productos").select("nombre, precio_pvp, precio_base").eq("categoria", "Servicio").order("nombre").execute()
+        serv_res = fetch_servicios_crm(client)
         if serv_res.data:
             servicios_lista = [s['nombre'] for s in serv_res.data] + ["Otro"]
             precios_servicios = {s['nombre']: float(s.get('precio_pvp') or s.get('precio_base') or 0.0) for s in serv_res.data}
@@ -89,6 +190,7 @@ def render_pestana_crm(client):
 
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.session_state.llave_crm_cli += 1
+                    limpiar_cache_crm()
                     st.success("Cliente guardado correctamente"); time.sleep(0.5); st.rerun()
                 else:
                     st.warning("El nombre del dueño es obligatorio.")
@@ -164,7 +266,7 @@ def render_pestana_crm(client):
             
             fecha_inicio_q = f"{f_fecha}T00:00:00"
             fecha_fin_q = f"{f_fecha}T23:59:59"
-            res_citas = client.table("citas").select("fecha_hora, duracion_minutos, servicio").gte("fecha_hora", fecha_inicio_q).lte("fecha_hora", fecha_fin_q).execute()
+            res_citas = fetch_citas_dia_crm(client, fecha_inicio_q, fecha_fin_q)
             citas_dia = res_citas.data if res_citas.data else []
             
             from ficha_clinica import fetch_ficha_alerts_cached
@@ -172,7 +274,7 @@ def render_pestana_crm(client):
             strikes = len(r_canc) if r_canc else 0
             
             # Obtener todos los turnos del día
-            res_turnos = client.table("personal_cuadrantes").select("empleado_id, turno, personal_empleados(nombre)").eq("fecha", str(f_fecha)).execute()
+            res_turnos = fetch_turnos_dia_crm(client, str(f_fecha))
             turnos_dict = {}
             if res_turnos.data:
                 for t in res_turnos.data:
@@ -301,25 +403,13 @@ def render_pestana_crm(client):
                             "servicio": servicio_final, "duracion_minutos": int(f_dur)
                         }).execute()
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        limpiar_cache_crm()
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
         sub_cli, sub_masc, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "💸 Pagos Pendientes"])
         
         with sub_cli:
-            @st.cache_data(show_spinner=False, ttl=15)
-            def get_cli_crm(v):
-                _all = []
-                _off = 0
-                while True:
-                    _r = client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).range(_off, _off + 999).execute()
-                    if _r.data:
-                        _all.extend(_r.data)
-                        if len(_r.data) < 1000: break
-                        _off += 1000
-                    else: break
-                return _all
-                
-            all_cli = get_cli_crm(st.session_state.get('db_version', 0))
+            all_cli = get_cli_crm(client)
             class DummyRes: pass
             res_clientes = DummyRes()
             res_clientes.data = all_cli
@@ -424,6 +514,7 @@ def render_pestana_crm(client):
                                 
                             client.table("clientes").update(datos_update).eq("id", row['id']).execute()
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                    limpiar_cache_crm()
                     st.success("Directorio de clientes actualizado."); time.sleep(0.5); st.rerun()
                     
                 st.markdown("---")
@@ -471,6 +562,7 @@ def render_pestana_crm(client):
                                 "rgpd_consent": False
                             }).eq("id", c_id).execute()
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            limpiar_cache_crm()
                             st.success("Cliente anonimizado con éxito según la ley de protección de datos."); time.sleep(1.5); st.rerun()
                     
                     mascotas_lista = c_data.get('mascotas', [])
@@ -545,6 +637,7 @@ def render_pestana_crm(client):
                                             "observaciones": final_obs_edit
                                         }).execute()
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            limpiar_cache_crm()
                             st.success("Datos de la familia actualizados."); time.sleep(0.5); st.rerun()
                             
                         filas_ver_mc = ed_mc[ed_mc["Ver Ficha"] == True]
@@ -584,25 +677,13 @@ def render_pestana_crm(client):
                         }).execute()
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.session_state.llave_crm_masc += 1
+                        limpiar_cache_crm()
                         st.success("Mascota añadida a la familia"); time.sleep(0.5); st.rerun()
                     else:
                         st.warning("Falta el nombre de la mascota.")
                         
         with sub_masc:
-            @st.cache_data(show_spinner=False, ttl=15)
-            def get_masc_crm(v):
-                _all = []
-                _off = 0
-                while True:
-                    _r = client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").order("id", desc=True).range(_off, _off + 999).execute()
-                    if _r.data:
-                        _all.extend(_r.data)
-                        if len(_r.data) < 1000: break
-                        _off += 1000
-                    else: break
-                return _all
-                
-            all_masc = get_masc_crm(st.session_state.get('db_version', 0))
+            all_masc = get_masc_crm(client)
             class DummyRes: pass
             res_mascotas = DummyRes()
             res_mascotas.data = all_masc
@@ -714,6 +795,7 @@ def render_pestana_crm(client):
                                     client.table("encargos_clientes").update({"nombre_cliente": nuevo_nombre}).eq("nombre_cliente", nombre_orig).execute()
 
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                    limpiar_cache_crm()
                     st.success("Fichas de mascotas y dueños actualizados y unificados correctamente."); time.sleep(1); st.rerun()
                     
                 st.markdown("---")
@@ -766,31 +848,17 @@ def render_pestana_crm(client):
                                 }).execute()
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 st.session_state.llave_crm_enc += 1
+                                limpiar_cache_crm()
                                 st.success("Encargo guardado."); time.sleep(0.5); st.rerun()
                             except Exception as e:
                                 st.error("Error al guardar en la base de datos.")
-                        else:
-                            st.warning("Debes indicar un cliente y el producto a pedir.")
             
             with col_en2:
                 st.markdown("#### 📌 Encargos Pendientes")
-                mostrar_historial = st.toggle("📦 Mostrar historial (Entregados / Cancelados)", value=False)
+                mostrar_historial = st.toggle("👁️ Mostrar historial (Entregados / Cancelados)", value=False)
                 
-                @st.cache_data(show_spinner=False, ttl=15)
-                def get_encargos_crm(v):
-                    _all = []
-                    _off = 0
-                    while True:
-                        _r = client.table("encargos_clientes").select("id, created_at, nombre_cliente, telefono, detalle_pedido, notas, estado").order("created_at", desc=True).range(_off, _off + 999).execute()
-                        if _r.data:
-                            _all.extend(_r.data)
-                            if len(_r.data) < 1000: break
-                            _off += 1000
-                        else: break
-                    return _all
-                    
                 try:
-                    all_enc = get_encargos_crm(st.session_state.get('db_version', 0))
+                    all_enc = fetch_encargos_crm(client)
                     if all_enc:
                         df_e = pd.DataFrame(all_enc)
                         if not mostrar_historial:
@@ -881,6 +949,7 @@ def render_pestana_crm(client):
                                                 
                                 if cambios_realizados > 0:
                                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                    limpiar_cache_crm()
                                     st.success(f"Se han actualizado {cambios_realizados} encargo(s).")
                                     time.sleep(0.8)
                                     st.rerun()
@@ -893,25 +962,14 @@ def render_pestana_crm(client):
             st.markdown("#### 💸 Clientes con Pagos Pendientes (Deudas de Tienda)")
             st.info("Aquí se agrupan automáticamente los clientes que dejaron a deber alguna compra en el TPV.")
             try:
-                res_deudas = client.table("ventas_historial").select("id, created_at, cliente_deuda, pendiente, total, pagado").eq("estado", "Deuda").execute()
+                res_deudas = fetch_deudas_crm(client)
                 if res_deudas.data:
                     df_deudas = pd.DataFrame(res_deudas.data)
                     # Recuperación de fechas mixtas y vacías en deudas
                     df_deudas['Fecha'] = pd.to_datetime(df_deudas['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp.now(tz='UTC'))
                     
                     resumen_deudas = []
-                    all_cli_d = []
-                    offset = 0
-                    while True:
-                        r_cli_d = client.table("clientes").select("nombre_dueno, telefono").range(offset, offset + 999).execute()
-                        if r_cli_d.data:
-                            all_cli_d.extend(r_cli_d.data)
-                            if len(r_cli_d.data) < 1000: break
-                            offset += 1000
-                        else: break
-                    class DummyRes: pass
-                    res_cli_d = DummyRes()
-                    res_cli_d.data = all_cli_d
+                    res_cli_d = fetch_clientes_deuda_crm(client)
                     mapa_telefonos = {c['nombre_dueno']: c['telefono'] for c in res_cli_d.data} if res_cli_d.data else {}
                     
                     for cliente, group in df_deudas.groupby("cliente_deuda"):
@@ -973,7 +1031,7 @@ def render_pestana_crm(client):
                                     row_tk = deudas_cliente[deudas_cliente['id'] == tk_id].iloc[0]
                                     total_debe = float(row_tk['pendiente'])
                             
-                                res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+                                res_b = fetch_bancos_crm(client)
                                 opciones_pago = ["💵 Caja Fuerte (Efectivo)"]
                                 mapa_bancos = {}
                                 if res_b.data:
@@ -1001,7 +1059,7 @@ def render_pestana_crm(client):
                                         pago_exitoso = False
                                         
                                         if "Caja Fuerte" in metodo_saldar:
-                                            res_caja = client.table("control_caja").select("id").eq("estado", "Abierta").execute()
+                                            res_caja = fetch_caja_abierta_crm(client)
                                             if not res_caja.data:
                                                 st.error("⚠️ La caja está cerrada. Abre un turno en 'Control Caja' para poder registrar el pago en efectivo.")
                                             else:
@@ -1058,13 +1116,14 @@ def render_pestana_crm(client):
                                                     client.table("ventas_historial").update({"estado": "Deuda", "pendiente": round(nuevo_pendiente, 2), "pagado": round(nuevo_pagado, 2)}).eq("id", tk_id).execute()
                                                 
                                             if puntos_ganados_total > 0:
-                                                res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cli_saldar).execute()
+                                                res_cli = fetch_cliente_puntos_crm(client, cli_saldar)
                                                 if res_cli.data:
                                                     c_id = res_cli.data[0]['id']
                                                     c_pts = res_cli.data[0].get('puntos', 0)
                                                     client.table("clientes").update({"puntos": c_pts + puntos_ganados_total}).eq("id", c_id).execute()
                                                     
                                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                            limpiar_cache_crm()
                                             msg_succ = f"¡Abono de {cantidad_abonar:.2f}€ registrado! Puntos ganados: {puntos_ganados_total}."
                                             st.success(msg_succ); time.sleep(2); st.rerun()
                     else:

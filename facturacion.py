@@ -6,6 +6,106 @@ import json
 import hashlib
 from zoneinfo import ZoneInfo
 
+@st.cache_data(show_spinner=False, ttl=300)
+def get_inv_fac(_client, v):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("productos").select("id, sku, nombre, precio_base, igic_tipo, precio_pvp, stock_actual").range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_cli_fac(_client, v):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("clientes").select("id, nombre_dueno, cif").range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_prov_fac(_client):
+    return _client.table("proveedores").select("id, nombre_empresa, cif").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_last_hash_fac(_client):
+    return _client.table("facturas").select("hash_actual").order("id", desc=True).limit(1).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_prod_stock_fac(_client, id_prod):
+    return _client.table("productos").select("stock_actual").eq("id", id_prod).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_prod_sku_like_fac(_client, prefijo):
+    return _client.table("productos").select("sku").like("sku", f"{prefijo}-%").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_compras_dup_fac(_client, prov_id, tipo_doc):
+    return _client.table("compras").select("id, estado, productos, total, pendiente").eq("proveedor_id", prov_id).eq("tipo", tipo_doc).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_pedidos_pendientes_fac(_client):
+    return _client.table("pedidos_proveedores").select("id, estado, proveedores(nombre_empresa)").in_("estado", ["Borrador", "Enviado"]).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_pedido_prod_fac(_client, ped_id):
+    return _client.table("pedidos_proveedores").select("productos").eq("id", ped_id).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_prod_by_nombre_fac(_client, nombre):
+    return _client.table("productos").select("id, sku, nombre, precio_base, igic_tipo, precio_pvp").eq("nombre", nombre).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_facturas_arch_fac(_client, f_ini, f_fin):
+    return _client.table("facturas").select("*, clientes(nombre_dueno)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_compras_arch_fac(_client, f_ini, f_fin, filtro):
+    return _client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").ilike("tipo", filtro).order("id", desc=True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_prod_prov_link_fac(_client, prod_id, prov_id):
+    return _client.table("productos_proveedores").select("id").eq("producto_id", prod_id).eq("proveedor_id", prov_id).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_deudas_fac(_client):
+    return _client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_cuentas_fac(_client):
+    return _client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_caja_abierta_fac(_client):
+    return _client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+
+def limpiar_cache_facturacion():
+    get_inv_fac.clear()
+    get_cli_fac.clear()
+    get_prov_fac.clear()
+    get_last_hash_fac.clear()
+    get_prod_stock_fac.clear()
+    get_prod_sku_like_fac.clear()
+    get_compras_dup_fac.clear()
+    get_pedidos_pendientes_fac.clear()
+    get_pedido_prod_fac.clear()
+    get_prod_by_nombre_fac.clear()
+    get_facturas_arch_fac.clear()
+    get_compras_arch_fac.clear()
+    get_prod_prov_link_fac.clear()
+    get_deudas_fac.clear()
+    get_cuentas_fac.clear()
+    get_caja_abierta_fac.clear()
+
 def render_pestana_facturacion(client):
     if 'llave_fac_cli' not in st.session_state: st.session_state.llave_fac_cli = 0
     if 'llave_fac_art_v' not in st.session_state: st.session_state.llave_fac_art_v = 0
@@ -21,39 +121,13 @@ def render_pestana_facturacion(client):
         " 💸  Pagos Pendientes"
     ])
     
-    @st.cache_data(show_spinner=False, ttl=15)
-    def get_inv_fac(v):
-        _all = []
-        _off = 0
-        while True:
-            _r = client.table("productos").select("id, sku, nombre, precio_base, igic_tipo, precio_pvp, stock_actual").range(_off, _off + 999).execute()
-            if _r.data:
-                _all.extend(_r.data)
-                if len(_r.data) < 1000: break
-                _off += 1000
-            else: break
-        return _all
-        
-    all_inv = get_inv_fac(st.session_state.get('db_version', 0))
+    all_inv = get_inv_fac(client, st.session_state.get('db_version', 0))
     df_inv = pd.DataFrame(all_inv) if all_inv else pd.DataFrame()
     
-    @st.cache_data(show_spinner=False, ttl=15)
-    def get_cli_fac(v):
-        _all = []
-        _off = 0
-        while True:
-            _r = client.table("clientes").select("id, nombre_dueno, cif").range(_off, _off + 999).execute()
-            if _r.data:
-                _all.extend(_r.data)
-                if len(_r.data) < 1000: break
-                _off += 1000
-            else: break
-        return _all
-        
-    all_cli = get_cli_fac(st.session_state.get('db_version', 0))
+    all_cli = get_cli_fac(client, st.session_state.get('db_version', 0))
     df_cli = pd.DataFrame(all_cli) if all_cli else pd.DataFrame()
     
-    res_prov = client.table("proveedores").select("id, nombre_empresa, cif").execute()
+    res_prov = get_prov_fac(client)
     df_prov = pd.DataFrame(res_prov.data) if res_prov.data else pd.DataFrame()
 
     # ==========================================
@@ -78,6 +152,7 @@ def render_pestana_facturacion(client):
                         client.table("clientes").insert({"nombre_dueno": n_n, "cif": n_c}).execute()
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.session_state.llave_fac_cli += 1
+                        limpiar_cache_facturacion()
                         st.rerun()
         
         st.markdown("####  📦  Añadir Artículos a la Venta")
@@ -132,7 +207,7 @@ def render_pestana_facturacion(client):
                             })
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.session_state.llave_fac_art_v += 1
-                            st.success("Artículo añadido a la factura."); time.sleep(0.5); st.rerun()
+                            st.success("Artículo añadido a la factura."); time.sleep(0.5); limpiar_cache_facturacion(); st.rerun()
                     else:
                         st.error("El nombre y el precio de venta son obligatorios.")
         
@@ -207,7 +282,7 @@ def render_pestana_facturacion(client):
                     c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
                     
                     # GENERACIÓN DE HASH (LEY ANTIFRAUDE / VERIFACTU)
-                    res_last_f = client.table("facturas").select("hash_actual").order("id", desc=True).limit(1).execute()
+                    res_last_f = get_last_hash_fac(client)
                     hash_ant_f = res_last_f.data[0].get("hash_actual", "") if res_last_f.data else ""
                     data_to_hash_f = f"FACTURA|{datetime.now(ZoneInfo('Atlantic/Canary')).isoformat()}|{total_v_final:.2f}|{hash_ant_f}"
                     hash_act_f = hashlib.sha256(data_to_hash_f.encode('utf-8')).hexdigest().upper()
@@ -222,13 +297,13 @@ def render_pestana_facturacion(client):
                             if str(i['id']).startswith('cita_'):
                                 continue
                             try:
-                                res = client.table("productos").select("stock_actual").eq("id", i['id']).execute()
+                                res = get_prod_stock_fac(client, i['id'])
                                 if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
                             except Exception:
                                 pass
                     
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                    st.session_state.factura_v_temp = []; st.success("Factura guardada correctamente."); time.sleep(1); st.rerun()
+                    st.session_state.factura_v_temp = []; st.success("Factura guardada correctamente."); time.sleep(1); limpiar_cache_facturacion(); st.rerun()
                 else:
                     st.error("Debes seleccionar un cliente para emitir la factura.")
 
@@ -414,7 +489,7 @@ def render_pestana_facturacion(client):
                                         letras = ''.join([c for c in desc if c.isalpha()]).upper()
                                         prefijo = letras[:2] if len(letras) >= 2 else (letras + "X" if letras else "XX")
                                         
-                                        res_sku = client.table("productos").select("sku").like("sku", f"{prefijo}-%").execute()
+                                        res_sku = get_prod_sku_like_fac(client, prefijo)
                                         max_num = 0
                                         if res_sku.data:
                                             for s in res_sku.data:
@@ -476,7 +551,7 @@ def render_pestana_facturacion(client):
                                 tipo_doc_completo = f"{prefijo_doc}: {num_fac}"
                                 
                                 # --- ESCUDO ANTI-DUPLICADOS Y FUSIÓN AUTOMÁTICA ---
-                                res_dup = client.table("compras").select("id, estado, productos, total, pendiente").eq("proveedor_id", prov_id_final).eq("tipo", tipo_doc_completo).execute()
+                                res_dup = get_compras_dup_fac(client, prov_id_final, tipo_doc_completo)
                                 
                                 if res_dup.data and num_fac != "S/N":
                                     fac_dup = res_dup.data[0]
@@ -508,6 +583,7 @@ def render_pestana_facturacion(client):
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 st.success(msg_exito)
                                 time.sleep(3.5)
+                                limpiar_cache_facturacion()
                                 st.rerun()
                             except ImportError:
                                 st.error("🚨 Faltan librerías. Abre tu consola y ejecuta: pip install google-generativeai pillow")
