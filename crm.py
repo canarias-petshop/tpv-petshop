@@ -958,30 +958,39 @@ def render_pestana_crm(client):
                                         
                                         with st.form("form_pasar_reparto"):
                                             c_r1, c_r2 = st.columns(2)
-                                        with c_r1: dir_reparto = st.text_input("Dirección de Entrega *", placeholder="Calle, Número, Piso...")
-                                        with c_r2: 
-                                            completar_pedido = st.checkbox("Marcar encargo web como 'Entregado' al crear reparto", value=True)
-                                        
-                                        if st.form_submit_button("🚚 Crear Servicio a Domicilio", type="primary"):
-                                            if dir_reparto:
-                                                try:
-                                                    client.table("pedidos_domicilio").insert({
-                                                        "nombre_cliente": str(enc_data['nombre_cliente']),
-                                                        "telefono": str(enc_data['telefono']),
-                                                        "direccion": dir_reparto,
-                                                        "detalle_pedido": str(enc_data['detalle_pedido']),
-                                                        "estado": "Pendiente"
-                                                    }).execute()
-                                                    if completar_pedido:
-                                                        client.table("encargos_clientes").update({"estado": "Entregado"}).eq("id", enc_id).execute()
-                                                    st.success("¡Servicio de reparto creado!")
-                                                    time.sleep(1)
-                                                    limpiar_cache_crm()
-                                                    st.rerun()
-                                                except Exception as e:
-                                                    st.error(f"Error técnico: {e}")
-                                            else:
-                                                st.warning("⚠️ Debes introducir la dirección de entrega.")
+                                            
+                                            tel_web = str(enc_data['telefono']).strip()
+                                            dir_sugerida = ""
+                                            try:
+                                                r_cli = client.table("clientes").select("direccion").eq("telefono", tel_web).execute()
+                                                if r_cli.data and r_cli.data[0].get('direccion'):
+                                                    dir_sugerida = r_cli.data[0]['direccion']
+                                            except: pass
+                                            
+                                            with c_r1: dir_reparto = st.text_input("Dirección de Entrega *", value=dir_sugerida, placeholder="Calle, Número, Piso...")
+                                            with c_r2: 
+                                                completar_pedido = st.checkbox("Marcar encargo web como 'Entregado' al crear reparto", value=True)
+                                            
+                                            if st.form_submit_button("🚚 Crear Servicio a Domicilio", type="primary"):
+                                                if dir_reparto:
+                                                    try:
+                                                        client.table("pedidos_domicilio").insert({
+                                                            "nombre_cliente": str(enc_data['nombre_cliente']),
+                                                            "telefono": str(enc_data['telefono']),
+                                                            "direccion": dir_reparto,
+                                                            "detalle_pedido": str(enc_data['detalle_pedido']),
+                                                            "estado": "Pendiente"
+                                                        }).execute()
+                                                        if completar_pedido:
+                                                            client.table("encargos_clientes").update({"estado": "Entregado"}).eq("id", enc_id).execute()
+                                                        st.success("¡Servicio de reparto creado!")
+                                                        time.sleep(1)
+                                                        limpiar_cache_crm()
+                                                        st.rerun()
+                                                    except Exception as e:
+                                                        st.error(f"Error técnico: {e}")
+                                                else:
+                                                    st.warning("⚠️ Debes introducir la dirección de entrega.")
                                     else:
                                         st.error(f"Error al cargar encargo: No se encontró el ID {enc_id} en los datos.")
 
