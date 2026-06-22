@@ -192,7 +192,10 @@ def render_pestana_inventario(client):
                                 else:
                                     datos['fecha_caducidad'] = str(datos['fecha_caducidad'])
                                     
-                                client.table("productos").update(datos).eq("id", row['id']).execute()
+                                try:
+                                    client.table("productos").update(datos).eq("id", row['id']).execute()
+                                except Exception as e:
+                                    st.error(f"Error técnico al guardar el producto '{row['nombre']}': {e}")
                                 
                                 # Actualizar la relación principal del proveedor
                                 client.table("productos_proveedores").delete().eq("producto_id", row['id']).execute()
@@ -268,10 +271,13 @@ def render_pestana_inventario(client):
                                 nuevo_igic = float(row['igic_tipo'])
                                 nueva_base = nuevo_pvp / (1 + (nuevo_igic / 100))
                                 
-                                client.table("productos").update({
-                                    "sku": str(row['sku']), "nombre": str(row['nombre']),
-                                    "precio_pvp": nuevo_pvp, "igic_tipo": nuevo_igic, "precio_base": nueva_base
-                                }).eq("id", row['id']).execute()
+                                try:
+                                    client.table("productos").update({
+                                        "sku": str(row['sku']), "nombre": str(row['nombre']),
+                                        "precio_pvp": nuevo_pvp, "igic_tipo": nuevo_igic, "precio_base": nueva_base
+                                    }).eq("id", row['id']).execute()
+                                except Exception as e:
+                                    st.error(f"Error técnico al guardar el servicio '{row['nombre']}': {e}")
 
                         st.success("Catálogo de servicios actualizado")
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
