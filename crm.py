@@ -941,6 +941,42 @@ def render_pestana_crm(client):
                                 }
                             )
 
+                            st.markdown("#### 🚚 Enviar a Domicilio")
+                            st.info("Selecciona un pedido web para convertirlo en Servicio a Domicilio y pasarlo a la hoja de reparto.")
+                            if not df_web.empty:
+                                pd_options = ["---"] + df_web.apply(lambda x: f"{x['nombre_cliente']} - {x['detalle_pedido']} (ID: {x['id']})", axis=1).tolist()
+                                enc_sel = st.selectbox("Seleccionar Pedido Web:", pd_options)
+                                if enc_sel != "---":
+                                    enc_id = enc_sel.split("(ID: ")[1].replace(")", "")
+                                    enc_data = df_web[df_web['id'] == enc_id].iloc[0]
+                                    
+                                    with st.form("form_pasar_reparto"):
+                                        c_r1, c_r2 = st.columns(2)
+                                        with c_r1: dir_reparto = st.text_input("Dirección de Entrega *", placeholder="Calle, Número, Piso...")
+                                        with c_r2: 
+                                            completar_pedido = st.checkbox("Marcar encargo web como 'Entregado' al crear reparto", value=True)
+                                        
+                                        if st.form_submit_button("🚚 Crear Servicio a Domicilio", type="primary"):
+                                            if dir_reparto:
+                                                try:
+                                                    client.table("pedidos_domicilio").insert({
+                                                        "nombre_cliente": str(enc_data['nombre_cliente']),
+                                                        "telefono": str(enc_data['telefono']),
+                                                        "direccion": dir_reparto,
+                                                        "detalle_pedido": str(enc_data['detalle_pedido']),
+                                                        "estado": "Pendiente"
+                                                    }).execute()
+                                                    if completar_pedido:
+                                                        client.table("encargos_clientes").update({"estado": "Entregado"}).eq("id", enc_id).execute()
+                                                    st.success("¡Servicio de reparto creado!")
+                                                    time.sleep(1)
+                                                    limpiar_cache_crm()
+                                                    st.rerun()
+                                                except Exception as e:
+                                                    st.error(f"Error técnico: {e}")
+                                            else:
+                                                st.warning("⚠️ Debes introducir la dirección de entrega.")
+
                         if st.button("💾 Guardar Cambios en Encargos"):
                             ed_e = pd.concat([ed_e_tnd, ed_e_web])
                             errores = False

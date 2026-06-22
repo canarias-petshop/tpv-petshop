@@ -12,7 +12,7 @@ def get_inv_full(_client):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("productos").select("*, productos_proveedores(proveedores(nombre_empresa))").order("nombre").range(_off, _off + 999).execute()
+        _r = _client.table("productos").select("id, created_at, nombre, sku, cod_barras, categoria, familia, marca, precio_base, igic_compra, precio_pvp, stock_actual, stock_minimo, cantidad_reponer, fecha_caducidad, proveedores_asociados").order("nombre").range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
@@ -78,10 +78,10 @@ def render_pestana_inventario(client):
                         p_base_calc = p_base_val
 
                     res_ins = client.table("productos").insert({
-                        "sku": sku, "codigo_barras": cod_barras, "nombre": nombre, "categoria": cat_item,
-                        "precio_base": p_base_calc, "igic_tipo": igic_tipo, "stock_actual": stck_val, 
-                        "precio_pvp": pvp_val, "stock_minimo": s_min if cat_item == "Producto" else 0,
-                        "cantidad_reponer": c_rep if cat_item == "Producto" else 0
+                        "nombre": nombre, "sku": sku, "cod_barras": cod_barras, "categoria": cat_item,
+                        "familia": "Generico", "marca": "Generico", "precio_base": p_base_calc, "igic_compra": igic_tipo, 
+                        "precio_pvp": pvp_val, "stock_actual": stck_val, "stock_minimo": s_min if cat_item == "Producto" else 0,
+                        "cantidad_reponer": c_rep if cat_item == "Producto" else 0, "proveedores_asociados": provs_sel
                     }).execute()
                     if cat_item == "Producto" and res_ins.data and provs_sel:
                         rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base_calc} for p in provs_sel]
@@ -114,12 +114,12 @@ def render_pestana_inventario(client):
                 if 'stock_minimo' not in df_solo_productos.columns: df_solo_productos['stock_minimo'] = 2
                 if 'cantidad_reponer' not in df_solo_productos.columns: df_solo_productos['cantidad_reponer'] = 5
                 if 'fecha_caducidad' not in df_solo_productos.columns: df_solo_productos['fecha_caducidad'] = None
-                if 'familia' not in df_solo_productos.columns: df_solo_productos['familia'] = ""
+                if 'familia' not in df_solo_productos.columns: df_solo_productos['familia'] = "Generico"
+                if 'marca' not in df_solo_productos.columns: df_solo_productos['marca'] = "Generico"
 
                 sub_prod, sub_serv, sub_interno = st.tabs(["📦 Inventario", "✂️ Servicios", "🏢 Uso Interno"])
                 
                 with sub_prod:
-                    # --- TABLA DE PRODUCTOS MEJORADA ---
                     st.markdown("#### 📦 Inventario de Productos")
 
                     c_busq1, c_busq2 = st.columns([2, 1])
@@ -141,24 +141,24 @@ def render_pestana_inventario(client):
                     elif ord_inv == "Mayor Precio": df_solo_productos = df_solo_productos.sort_values(by="precio_pvp", ascending=False)
 
                     df_visual_p = df_solo_productos.drop(columns=["productos_proveedores"]) if "productos_proveedores" in df_solo_productos.columns else df_solo_productos
-                    # Ahora permitimos borrar filas con num_rows="dynamic"
                     edit_p = st.data_editor(
                         df_visual_p,
                         column_config={
-                            "id": None, "categoria": None, "categoria_filt": None, "productos_proveedores": None,
-                            "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
-                            "familia": st.column_config.SelectboxColumn("Categoría Web", options=["", "Piensos", "Dietas y Carnes", "Snacks", "Accesorios", "Higiene"]),
+                            "id": None, "categoria": None, "categoria_filt": None,
+                            "sku": "SKU", "cod_barras": "Barras", "nombre": "Descripción",
+                            "familia": st.column_config.TextColumn("Categoría Web", help="Categoría para la Tienda Online"),
+                            "marca": st.column_config.TextColumn("Marca", help="Marca del producto"),
                             "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
-                            "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f", step=0.01),
-                            "igic_tipo": "IGIC %", "precio_pvp": st.column_config.NumberColumn("PVP (€)", format="%.2f", step=0.01), "stock_actual": "Stock",
+                            "precio_base": st.column_config.NumberColumn("Costo Base", format="%.2f €"),
+                            "igic_compra": "IGIC %", "precio_pvp": st.column_config.NumberColumn("PVP (€)", format="%.2f", step=0.01), "stock_actual": "Stock",
                             "fecha_caducidad": st.column_config.DateColumn("Caducidad", format="DD/MM/YYYY"),
                             "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
                             "cantidad_reponer": st.column_config.NumberColumn("Reponer Ud", step=1)
                         },
-                        column_order=["sku", "codigo_barras", "nombre", "familia", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "fecha_caducidad", "stock_minimo", "cantidad_reponer"],
+                        column_order=["sku", "cod_barras", "nombre", "familia", "marca", "Proveedor", "precio_base", "igic_compra", "precio_pvp", "stock_actual", "fecha_caducidad", "stock_minimo", "cantidad_reponer"],
                         hide_index=True, 
                         use_container_width=True, 
-                        num_rows="dynamic", # <--- ESTO PERMITE BORRAR FILAS
+                        num_rows="dynamic",
                         key="edit_p_sep"
                     )
 
