@@ -351,7 +351,7 @@ def render_pestana_estadisticas(client):
 
             res_emp = fetch_personal_empleados_activos(client)
             empleados_lista = [str(e['nombre']).strip() for e in res_emp.data] if res_emp.data else []
-            rendimiento_empleados = {emp: 0.0 for emp in empleados_lista}
+            rendimiento_empleados = {emp: {"Ingresos": 0.0, "Citas": 0} for emp in empleados_lista}
 
             # Extraemos las citas del mes (que no estén canceladas)
             res_citas_roi = fetch_citas_roi(client, fecha_ini, fecha_fin)
@@ -370,6 +370,8 @@ def render_pestana_estadisticas(client):
                     
                     if not emp_cita: continue # Si no tiene empleado asignado, la saltamos
 
+                    rendimiento_empleados[emp_cita]["Citas"] += 1
+
                     try:
                         dt_c_raw = pd.to_datetime(c['fecha_hora'])
                         dt_c = dt_c_raw.date()
@@ -387,25 +389,38 @@ def render_pestana_estadisticas(client):
                                         dt_t = pd.to_datetime(f_str, format="%d/%m/%Y").date()
                                         if dt_t == dt_c:
                                             # ¡Match! Extraemos el dinero de esta sesión y se lo sumamos al empleado de la cita
-                                            imp = t.get('Importe (€)')
-                                            if imp is not None and str(imp).strip():
-                                                rendimiento_empleados[emp_cita] += float(imp)
-                                                break # Ya encontramos el importe de este día, paramos de buscar en el historial
+                                            imp_base = float(t.get('Precio con desc. (€)') or t.get('Precio Base (€)') or t.get('Importe (€)') or 0.0)
+                                            imp_extras = 0.0
+                                            if isinstance(t.get('Extras'), list):
+                                                imp_extras = sum(float(ext.get('Precio', 0.0)) for ext in t['Extras'] if isinstance(ext, dict))
+                                            
+                                            imp_total = imp_base + imp_extras
+                                            if imp_total > 0:
+                                                rendimiento_empleados[emp_cita]["Ingresos"] += imp_total
+                                            break # Ya encontramos el importe de este día, paramos de buscar en el historial
                                 except: pass
                     except: pass
             
             if rendimiento_empleados:
-                df_roi = pd.DataFrame(list(rendimiento_empleados.items()), columns=['Empleado', 'Ingresos Generados (€)']).sort_values(by='Ingresos Generados (€)', ascending=False)
-                c_roi1, c_roi2 = st.columns([1, 1.5])
-                with c_roi1: 
-                    max_roi = df_roi['Ingresos Generados (€)'].max() if not df_roi.empty else 100
-                    st.dataframe(
-                        df_roi, 
-                        column_config={"Ingresos Generados (€)": st.column_config.ProgressColumn("Ingresos (€)", format="%.2f €", min_value=0, max_value=max_roi)},
-                        hide_index=True, use_container_width=True
-                    )
-                with c_roi2: 
-                    st.bar_chart(df_roi.set_index('Empleado'), color="#9c27b0", height=200)
+                lista_roi = [{"Empleado": emp, "Ingresos Generados (€)": data["Ingresos"], "Citas Realizadas": data["Citas"]} for emp, data in rendimiento_empleados.items() if data["Citas"] > 0 or data["Ingresos"] > 0]
+                
+                if lista_roi:
+                    df_roi = pd.DataFrame(lista_roi).sort_values(by='Ingresos Generados (€)', ascending=False)
+                    c_roi1, c_roi2 = st.columns([1, 1.5])
+                    with c_roi1: 
+                        max_roi = df_roi['Ingresos Generados (€)'].max() if not df_roi.empty else 100
+                        st.dataframe(
+                            df_roi, 
+                            column_config={
+                                "Ingresos Generados (€)": st.column_config.ProgressColumn("Ingresos (€)", format="%.2f €", min_value=0, max_value=max_roi),
+                                "Citas Realizadas": st.column_config.NumberColumn("Citas", format="%d")
+                            },
+                            hide_index=True, use_container_width=True
+                        )
+                    with c_roi2: 
+                        st.bar_chart(df_roi.set_index('Empleado')['Ingresos Generados (€)'], color="#9c27b0", height=200)
+                else:
+                    st.info("No hay datos de rendimiento registrados para este periodo.")
             else:
                 st.info("No hay importes registrados en los historiales de las mascotas para este periodo.")
 
@@ -450,20 +465,15 @@ def render_pestana_estadisticas(client):
                 df_est = pd.DataFrame(datos_est)
                 
                 if not df_est.empty:
-                    st.markdown("<p style='font-size: 14px; color: gray;'>Selecciona el rango de fechas que deseas analizar para la agenda:</p>", unsafe_allow_html=True)
-                    min_date = df_est["Fecha"].min()
-                    max_date = df_est["Fecha"].max()
-                    default_start = max(min_date, date.today() - timedelta(days=30))
-                    rango_fechas = st.date_input("Filtro de fechas de agenda", value=(default_start, max_date), min_value=min_date, max_value=max_date, label_visibility="collapsed")
+                    st.markdown(f"<p style='font-size: 14px; color: gray;'>Mostrando datos de agenda desde el <b>{fecha_ini_dt.strftime('%d/%m/%Y')}</b> hasta el <b>{fecha_fin_dt.strftime('%d/%m/%Y')}</b> (Periodo global seleccionado arriba).</p>", unsafe_allow_html=True)
                     
-                    if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
-                        df_filtrado = df_est[(df_est["Fecha"] >= rango_fechas[0]) & (df_est["Fecha"] <= rango_fechas[1])]
-                        
-                        if not df_filtrado.empty:
-                            total_citas = len(df_filtrado)
-                            canceladas = len(df_filtrado[df_filtrado["Estado"] == "Cancelada"])
-                            tasa_cancelacion = (canceladas / total_citas) * 100 if total_citas > 0 else 0
-                            horas_totales = df_filtrado[df_filtrado["Estado"] != "Cancelada"]["Duración (min)"].sum() / 60
+                    df_filtrado = df_est[(df_est["Fecha"] >= fecha_ini_dt) & (df_est["Fecha"] <= fecha_fin_dt)]
+                    
+                    if not df_filtrado.empty:
+                        total_citas = len(df_filtrado)
+                        canceladas = len(df_filtrado[df_filtrado["Estado"] == "Cancelada"])
+                        tasa_cancelacion = (canceladas / total_citas) * 100 if total_citas > 0 else 0
+                        horas_totales = df_filtrado[df_filtrado["Estado"] != "Cancelada"]["Duración (min)"].sum() / 60
                             
                             st.markdown("##### 📌 Resumen de Rendimiento")
                             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
