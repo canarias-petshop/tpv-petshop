@@ -239,12 +239,20 @@ def render_pestana_tpv(client):
                             if st.button(btn_label, use_container_width=True, key=f"btn_cita_hist_{c['id']}_{st.session_state.llave_busqueda_tpv}"):
                                 for idx_t, t in enumerate(hist_hoy):
                                     srv_hist = str(t.get('Trabajo / Servicio')).strip()
+                                    
+                                    # Sumar extras para restarlos de la base y evitar duplicidad en el ticket
+                                    total_extras = 0.0
+                                    if isinstance(t.get('Extras'), list):
+                                        for ext in t['Extras']:
+                                            total_extras += float(ext.get('Precio', 0.0))
+                                            
                                     p_base_hist = float(t.get('Precio Base (€)') or 0.0)
-                                    p_desc_hist = float(t.get('Precio con desc. (€)') or p_base_hist)
+                                    p_desc_raw = float(t.get('Precio con desc. (€)') or p_base_hist)
+                                    p_desc_hist_base_only = max(0.0, p_desc_raw - total_extras)
                                     
                                     desc_pct_hist = 0.0
-                                    if p_base_hist > 0 and p_desc_hist < p_base_hist:
-                                        desc_pct_hist = round((1 - (p_desc_hist / p_base_hist)) * 100, 2)
+                                    if p_base_hist > 0 and p_desc_hist_base_only < p_base_hist:
+                                        desc_pct_hist = round((1 - (p_desc_hist_base_only / p_base_hist)) * 100, 2)
                                         
                                     igic_hist = 7.0
                                     id_servicio_hist = f"cita_hist_{c['id']}_{idx_t}"
@@ -261,7 +269,7 @@ def render_pestana_tpv(client):
                                     
                                     st.session_state.carrito.append({
                                         "id": id_servicio_hist, "Producto": nombre_linea_hist, "Cantidad": 1, 
-                                        "Precio": p_base_hist, "Subtotal": p_desc_hist, 
+                                        "Precio": p_base_hist, "Subtotal": p_desc_hist_base_only, 
                                         "IGIC": igic_hist, "Manual": False, "Desc. %": desc_pct_hist, "Motivo_Desc": motivo_desc_hist
                                     })
                                     
