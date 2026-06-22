@@ -475,35 +475,35 @@ def render_pestana_estadisticas(client):
                         tasa_cancelacion = (canceladas / total_citas) * 100 if total_citas > 0 else 0
                         horas_totales = df_filtrado[df_filtrado["Estado"] != "Cancelada"]["Duración (min)"].sum() / 60
                             
-                            st.markdown("##### 📌 Resumen de Rendimiento")
-                            kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-                            kpi1.metric("Citas Agendadas", total_citas)
-                            kpi2.metric("Cancelaciones", canceladas)
-                            kpi3.metric("Tasa de Cancelación", f"{tasa_cancelacion:.1f}%")
-                            kpi4.metric("Horas de Trabajo (Aprox.)", f"{horas_totales:.1f} h")
-                            st.markdown("<hr style='margin: 15px 0px; border-top: 1px solid #ddd;'>", unsafe_allow_html=True)
+                        st.markdown("##### 📌 Resumen de Rendimiento")
+                        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+                        kpi1.metric("Citas Agendadas", total_citas)
+                        kpi2.metric("Cancelaciones", canceladas)
+                        kpi3.metric("Tasa de Cancelación", f"{tasa_cancelacion:.1f}%")
+                        kpi4.metric("Horas de Trabajo (Aprox.)", f"{horas_totales:.1f} h")
+                        st.markdown("<hr style='margin: 15px 0px; border-top: 1px solid #ddd;'>", unsafe_allow_html=True)
+                        
+                        col_graf1, col_graf2 = st.columns(2, gap="large")
+                        with col_graf1:
+                            st.markdown("**📈 Volumen de Citas por Día**")
+                            citas_dia = df_filtrado.groupby("Fecha").size().reset_index(name="Citas").set_index("Fecha")
+                            st.line_chart(citas_dia)
                             
-                            col_graf1, col_graf2 = st.columns(2, gap="large")
-                            with col_graf1:
-                                st.markdown("**📈 Volumen de Citas por Día**")
-                                citas_dia = df_filtrado.groupby("Fecha").size().reset_index(name="Citas").set_index("Fecha")
-                                st.line_chart(citas_dia)
-                                
-                                st.markdown("**💈 Carga por Peluquero/a (Sin canceladas)**")
-                                df_validas = df_filtrado[df_filtrado["Estado"] != "Cancelada"]
-                                citas_emp = df_validas.groupby("Peluquero/a").size().reset_index(name="Citas").set_index("Peluquero/a")
-                                st.bar_chart(citas_emp)
-                                
-                            with col_graf2:
-                                st.markdown("**✂️ Top 5 Servicios Más Demandados**")
-                                top_serv = df_validas.groupby("Servicio").size().sort_values(ascending=False).head(5).reset_index(name="Citas").set_index("Servicio")
-                                st.bar_chart(top_serv)
-                                
-                                st.markdown("**🚦 Distribución de Estados**")
-                                estados_dist = df_filtrado.groupby("Estado").size().reset_index(name="Cantidad").set_index("Estado")
-                                st.bar_chart(estados_dist)
-                        else:
-                            st.info("No hay datos en el rango de fechas seleccionado.")
+                            st.markdown("**💈 Carga por Peluquero/a (Sin canceladas)**")
+                            df_validas = df_filtrado[df_filtrado["Estado"] != "Cancelada"]
+                            citas_emp = df_validas.groupby("Peluquero/a").size().reset_index(name="Citas").set_index("Peluquero/a")
+                            st.bar_chart(citas_emp)
+                            
+                        with col_graf2:
+                            st.markdown("**✂️ Top 5 Servicios Más Demandados**")
+                            top_serv = df_validas.groupby("Servicio").size().sort_values(ascending=False).head(5).reset_index(name="Citas").set_index("Servicio")
+                            st.bar_chart(top_serv)
+                            
+                            st.markdown("**🚦 Distribución de Estados**")
+                            estados_dist = df_filtrado.groupby("Estado").size().reset_index(name="Cantidad").set_index("Estado")
+                            st.bar_chart(estados_dist)
+                    else:
+                        st.info("No hay datos en el rango de fechas seleccionado.")
                 else:
                     st.info("Datos insuficientes para generar gráficas.")
             else:
