@@ -114,6 +114,7 @@ def render_pestana_inventario(client):
                 if 'stock_minimo' not in df_solo_productos.columns: df_solo_productos['stock_minimo'] = 2
                 if 'cantidad_reponer' not in df_solo_productos.columns: df_solo_productos['cantidad_reponer'] = 5
                 if 'fecha_caducidad' not in df_solo_productos.columns: df_solo_productos['fecha_caducidad'] = None
+                if 'familia' not in df_solo_productos.columns: df_solo_productos['familia'] = ""
 
                 sub_prod, sub_serv, sub_interno = st.tabs(["📦 Inventario", "✂️ Servicios", "🏢 Uso Interno"])
                 
@@ -146,6 +147,7 @@ def render_pestana_inventario(client):
                         column_config={
                             "id": None, "categoria": None, "categoria_filt": None, "productos_proveedores": None,
                             "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
+                            "familia": st.column_config.SelectboxColumn("Categoría Web", options=["", "Piensos", "Dietas y Carnes", "Snacks", "Accesorios", "Higiene"]),
                             "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
                             "precio_base": st.column_config.NumberColumn("Coste (€)", format="%.2f", step=0.01),
                             "igic_tipo": "IGIC %", "precio_pvp": st.column_config.NumberColumn("PVP (€)", format="%.2f", step=0.01), "stock_actual": "Stock",
@@ -153,7 +155,7 @@ def render_pestana_inventario(client):
                             "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
                             "cantidad_reponer": st.column_config.NumberColumn("Reponer Ud", step=1)
                         },
-                        column_order=["sku", "codigo_barras", "nombre", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "fecha_caducidad", "stock_minimo", "cantidad_reponer"],
+                        column_order=["sku", "codigo_barras", "nombre", "familia", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "fecha_caducidad", "stock_minimo", "cantidad_reponer"],
                         hide_index=True, 
                         use_container_width=True, 
                         num_rows="dynamic", # <--- ESTO PERMITE BORRAR FILAS

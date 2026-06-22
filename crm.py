@@ -844,7 +844,7 @@ def render_pestana_crm(client):
                                 client.table("encargos_clientes").insert({
                                     "nombre_cliente": final_cli, "telefono": final_tel, 
                                     "detalle_pedido": f"{e_cant}x {e_prod}",
-                                    "notas": e_obs, "estado": "Pendiente"
+                                    "notas": e_obs, "estado": "Pendiente", "origen": "Tienda"
                                 }).execute()
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 st.session_state.llave_crm_enc += 1
@@ -876,6 +876,7 @@ def render_pestana_crm(client):
 
                         if 'notas' not in df_e.columns: df_e['notas'] = ""
                         if 'WhatsApp' not in df_e.columns: df_e['WhatsApp'] = None
+                        if 'origen' not in df_e.columns: df_e['origen'] = 'Tienda'
                         
                         hoy_date = pd.Timestamp.now('Atlantic/Canary')
                         alertas_encargos = []
@@ -911,19 +912,37 @@ def render_pestana_crm(client):
                                     else:
                                         st.error(msg)
                         
-                        df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'notas', 'estado', 'WhatsApp']].copy()
+                        df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'notas', 'estado', 'WhatsApp', 'origen']].copy()
                         df_e_vista['notas'] = df_e_vista['notas'].fillna("")
                         
-                        ed_e = st.data_editor(
-                            df_e_vista, hide_index=True, use_container_width=True, height=300, key=f"ed_tabla_encargos_{st.session_state.get('db_version', 0)}",
-                            column_config={
-                                "id": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
-                                "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
-                                "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado", "Cancelado"]),
-                                "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
-                            }
-                        )
+                        tab_tnd, tab_web = st.tabs(["🏪 Encargos de Tienda", "🌐 Pedidos Web"])
+                        
+                        with tab_tnd:
+                            df_tnd = df_e_vista[df_e_vista['origen'] != 'Web'].copy()
+                            ed_e_tnd = st.data_editor(
+                                df_tnd, hide_index=True, use_container_width=True, height=300, key=f"ed_tabla_encargos_tnd_{st.session_state.get('db_version', 0)}",
+                                column_config={
+                                    "id": None, "origen": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
+                                    "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
+                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado", "Cancelado"]),
+                                    "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
+                                }
+                            )
+                            
+                        with tab_web:
+                            df_web = df_e_vista[df_e_vista['origen'] == 'Web'].copy()
+                            ed_e_web = st.data_editor(
+                                df_web, hide_index=True, use_container_width=True, height=300, key=f"ed_tabla_encargos_web_{st.session_state.get('db_version', 0)}",
+                                column_config={
+                                    "id": None, "origen": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
+                                    "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
+                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado", "Cancelado"]),
+                                    "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
+                                }
+                            )
+
                         if st.button("💾 Guardar Cambios en Encargos"):
+                            ed_e = pd.concat([ed_e_tnd, ed_e_web])
                             errores = False
                             for _, r in ed_e.iterrows():
                                 if pd.notna(r['id']):
