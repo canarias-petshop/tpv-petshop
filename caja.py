@@ -3,9 +3,31 @@ import pandas as pd
 import time
 import streamlit.components.v1 as components
 
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_caja_abierta(_client):
+    return _client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_ultima_caja_cerrada(_client):
+    return _client.table("control_caja").select("id, created_at, fondo_inicial, total_contado, descuadre, resumen_pagos").eq("estado", "Cerrada").order("id", desc=True).limit(1).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_movimientos_caja(_client, id_caja):
+    return _client.table("movimientos_caja").select("id, created_at, tipo, cantidad, motivo").eq("id_caja", id_caja).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_ventas_historial_desde(_client, fecha_ap_str):
+    return _client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado, metodo_pago").gte("created_at", fecha_ap_str).execute()
+
+def limpiar_cache_caja():
+    fetch_caja_abierta.clear()
+    fetch_ultima_caja_cerrada.clear()
+    fetch_movimientos_caja.clear()
+    fetch_ventas_historial_desde.clear()
+
 def render_pestana_caja(client):
     try:
-        res_caja = client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+        res_caja = fetch_caja_abierta(client)
         caja_actual = res_caja.data[0] if res_caja.data else None
     except:
         caja_actual = None
@@ -15,7 +37,7 @@ def render_pestana_caja(client):
         ultimo_fondo_sugerido = 0.0
         
         try:
-            res_ult_caja = client.table("control_caja").select("id, created_at, fondo_inicial, total_contado, descuadre, resumen_pagos").eq("estado", "Cerrada").order("id", desc=True).limit(1).execute()
+            res_ult_caja = fetch_ultima_caja_cerrada(client)
             if res_ult_caja.data:
                 ult_caja = res_ult_caja.data[0]
                 ultimo_fondo_sugerido = float(ult_caja.get('total_contado') or 0.0)
@@ -102,6 +124,7 @@ def render_pestana_caja(client):
 
                 fondo_val = fondo_ini or 0.0
                 client.table("control_caja").insert({"fondo_inicial": float(fondo_val), "estado": "Abierta"}).execute()
+                limpiar_cache_caja()
                 st.success("¡Caja abierta!"); time.sleep(1); st.rerun()
     else:
         id_caja = caja_actual['id']
@@ -138,10 +161,10 @@ def render_pestana_caja(client):
                     if motivo_mov and cant_mov is not None:
                         tipo_limpio = "Retirada" if "Retirada" in tipo_mov else "Ingreso"
                         client.table("movimientos_caja").insert({"id_caja": id_caja, "tipo": tipo_limpio, "cantidad": float(cant_mov), "motivo": motivo_mov}).execute()
-                        
+                        limpiar_cache_caja()
                         st.rerun()
             
-            res_movs = client.table("movimientos_caja").select("id, created_at, tipo, cantidad, motivo").eq("id_caja", id_caja).execute()
+            res_movs = fetch_movimientos_caja(client, id_caja)
             if res_movs.data:
                 df_m = pd.DataFrame(res_movs.data)[['tipo', 'cantidad', 'motivo']]
                 df_m['tipo'] = df_m['tipo'].apply(lambda x: '🔻' if x == 'Retirada' else '🔺')
@@ -192,7 +215,7 @@ def render_pestana_caja(client):
                     ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0.0
                     retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
                     
-                    res_ventas = client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado, metodo_pago").gte("created_at", fecha_ap_str).execute()
+                    res_ventas = fetch_ventas_historial_desde(client, fecha_ap_str)
                     t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
                     tarjetas_por_banco = {}
                     
@@ -230,6 +253,6 @@ def render_pestana_caja(client):
                     client.table("control_caja").update({
                         "estado": "Cerrada", "total_contado": float(ef_val), "descuadre": float(descuadre), "resumen_pagos": resumen_json
                     }).eq("id", id_caja).execute()
-                    
+                    limpiar_cache_caja()
                     st.success(f"Caja Cerrada. Descuadre: {descuadre:.2f}€")
                     time.sleep(1.5); st.rerun()

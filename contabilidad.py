@@ -4,6 +4,78 @@ from datetime import date
 import io
 import time
 
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_compras_pendientes(_client):
+    return _client.table("compras").select("*, proveedores(nombre_empresa)").eq("estado", "Pendiente").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_gastos_recurrentes_activos(_client):
+    return _client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_compras_gastos_fijos(_client):
+    return _client.table("compras").select("tipo").ilike("tipo", "Gastos Fijos | %").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_compras_no_pagadas(_client):
+    return _client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_cuentas_bancarias(_client):
+    return _client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_caja_abierta(_client):
+    return _client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_compras_archivo(_client, f_ini_arc, f_fin_arc):
+    return _client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini_arc}T00:00:00").lte("created_at", f"{f_fin_arc}T23:59:59").order("id", desc=True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_producto_stock(_client, p_id):
+    return _client.table("productos").select("stock_actual").eq("id", p_id).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_productos_categorias(_client):
+    return _client.table("productos").select("id, nombre, categoria").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_ventas_informe(_client, fecha_inicio_q, fecha_fin_q):
+    return _client.table("ventas_historial").select("id, created_at, total, metodo_pago, estado, cliente_deuda, productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_facturas_informe(_client, fecha_inicio_q, fecha_fin_q):
+    return _client.table("facturas").select("numero_factura, created_at, total_neto, total_igic, total_final, forma_pago, clientes(nombre_dueno, cif), productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_compras_informe(_client, fecha_inicio_q, fecha_fin_q):
+    return _client.table("compras").select("id, created_at, tipo, total, estado, productos, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_gastos_recurrentes_cat(_client):
+    return _client.table("gastos_recurrentes").select("concepto, categoria").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_gastos_recurrentes_inf(_client):
+    return _client.table("gastos_recurrentes").select("concepto, categoria, importe_estimado, dia_cargo, frecuencia").eq("activo", True).execute()
+
+def limpiar_cache_contabilidad():
+    fetch_compras_pendientes.clear()
+    fetch_gastos_recurrentes_activos.clear()
+    fetch_compras_gastos_fijos.clear()
+    fetch_compras_no_pagadas.clear()
+    fetch_cuentas_bancarias.clear()
+    fetch_caja_abierta.clear()
+    fetch_compras_archivo.clear()
+    fetch_producto_stock.clear()
+    fetch_productos_categorias.clear()
+    fetch_ventas_informe.clear()
+    fetch_facturas_informe.clear()
+    fetch_compras_informe.clear()
+    fetch_gastos_recurrentes_cat.clear()
+    fetch_gastos_recurrentes_inf.clear()
+
 def render_pestana_contabilidad(client):
     if 'llave_cont_pago_venc' not in st.session_state: st.session_state.llave_cont_pago_venc = 0
     if 'llave_cont_pago' not in st.session_state: st.session_state.llave_cont_pago = 0
@@ -38,6 +110,7 @@ def render_pestana_contabilidad(client):
                             "tipo": tipo_final, "total": float(importe), 
                             "estado": estado_g, "fecha_vencimiento": str(f_vence)
                         }).execute()
+                        limpiar_cache_contabilidad()
                         st.success("Gasto registrado exitosamente."); st.rerun()
                     else:
                         st.error("El importe debe ser mayor que 0 y debes escribir un concepto.")
@@ -45,7 +118,7 @@ def render_pestana_contabilidad(client):
         with col_g2:
             st.markdown("#### Alertas de Vencimientos (Gastos Puntuales)")
             st.info("Si registras un gasto puntual como 'Pendiente', su alerta aparecerá aquí.")
-            res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").eq("estado", "Pendiente").execute()
+            res_comp = fetch_compras_pendientes(client)
             
             # Filtrar de forma segura en Python
             datos_alertas = [c for c in (res_comp.data or []) if "Factura:" not in str(c.get('tipo', ''))]
@@ -86,6 +159,7 @@ def render_pestana_contabilidad(client):
                                 "concepto": f_conc, "categoria": f_cat, "importe_estimado": float(f_imp),
                                 "dia_cargo": int(f_dia), "frecuencia": f_frec, "activo": True
                             }).execute()
+                            limpiar_cache_contabilidad()
                             st.success("Gasto fijo registrado."); time.sleep(1); st.rerun()
                         except Exception as e:
                             st.error("⚠️ Ejecuta el código SQL en Supabase primero.")
@@ -93,7 +167,7 @@ def render_pestana_contabilidad(client):
         with c_fij2:
             st.markdown("##### 📋 Tus Gastos Fijos Activos")
             try:
-                res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
+                res_gf = fetch_gastos_recurrentes_activos(client)
                 if res_gf.data:
                     df_gf = pd.DataFrame(res_gf.data)
                     df_gf_vista = df_gf[['id', 'concepto', 'categoria', 'importe_estimado', 'dia_cargo', 'frecuencia']].copy()
@@ -131,6 +205,7 @@ def render_pestana_contabilidad(client):
                                 "frecuencia": str(r['frecuencia'])
                             }).eq("id", r['id']).execute()
                             
+                        limpiar_cache_contabilidad()
                         st.success("Cambios en gastos fijos actualizados correctamente.")
                         time.sleep(0.5)
                         st.rerun()
@@ -146,8 +221,8 @@ def render_pestana_contabilidad(client):
         dias_alerta = st.slider("🔔 Mostrar alarmas para vencimientos dentro de los próximos (días):", min_value=1, max_value=30, value=15)
             
         try:
-            res_gf = client.table("gastos_recurrentes").select("*").eq("activo", True).execute()
-            res_compras_gf = client.table("compras").select("tipo").ilike("tipo", "Gastos Fijos | %").execute()
+            res_gf = fetch_gastos_recurrentes_activos(client)
+            res_compras_gf = fetch_compras_gastos_fijos(client)
             pagos_registrados = [c['tipo'] for c in res_compras_gf.data] if res_compras_gf.data else []
             
             hoy_dt = pd.Timestamp.now('Atlantic/Canary').normalize().tz_localize(None)
@@ -246,6 +321,7 @@ def render_pestana_contabilidad(client):
                                     "tipo": id_sel, "total": importe_sel,
                                     "estado": "Pagado", "fecha_vencimiento": str(pd.Timestamp.now('Atlantic/Canary').date())
                                 }).execute()
+                                limpiar_cache_contabilidad()
                                 st.session_state.llave_cont_pago_venc += 1
                                 st.success("¡Vencimiento saldado! Se ha guardado automáticamente en el Archivo Contable."); time.sleep(1.5); st.rerun()
 
@@ -257,7 +333,7 @@ def render_pestana_contabilidad(client):
         st.markdown("#### 💰 Control de Pagos Pendientes (Gastos Puntuales)")
         st.info("💡 **IMPORTANTE:** Aquí SOLO aparecen los **Gastos Puntuales** (reparaciones, compras extra) que registraste manualmente con el estado **'Pendiente'**. Los vencimientos de tus Gastos Fijos e Impuestos se gestionan desde la pestaña '📅 Calendarios'.")
         
-        res_deudas_g = client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
+        res_deudas_g = fetch_compras_no_pagadas(client)
         
         # Filtrar descartando facturas y abonos de proveedor de forma segura
         datos_filtrados_g = [d for d in (res_deudas_g.data or []) if "Factura:" not in str(d.get('tipo', '')) and "Abono:" not in str(d.get('tipo', ''))]
@@ -319,7 +395,7 @@ def render_pestana_contabilidad(client):
                     st.markdown("---")
                     st.markdown(f"**Has indicado pagos para {len(filas_pagar)} gasto(s) por un total de <span style='color: #005275; font-size: 1.2em;'>{total_a_pagar:.2f} €</span>**", unsafe_allow_html=True)
                     
-                    res_b = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+                    res_b = fetch_cuentas_bancarias(client)
                     opciones_pago = ["💵 Caja Fuerte (Efectivo de la tienda)"]
                     mapa_bancos = {}
                     if res_b.data:
@@ -341,7 +417,7 @@ def render_pestana_contabilidad(client):
                         
                         pago_exitoso = False
                         if "Caja Fuerte" in sel_origen:
-                            res_caja = client.table("control_caja").select("*").eq("estado", "Abierta").execute()
+                            res_caja = fetch_caja_abierta(client)
                             if res_caja.data:
                                 client.table("movimientos_caja").insert({"id_caja": res_caja.data[0]['id'], "tipo": "Retirada", "cantidad": float(total_a_pagar), "motivo": f"Pago gastos: {nombres_pagados}"}).execute()
                                 pago_exitoso = True
@@ -364,6 +440,7 @@ def render_pestana_contabilidad(client):
                                 nuevo_pendiente = float(actual_row['pendiente']) - pago_hoy
                                 nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else "Pago Parcial"
                                 client.table("compras").update({"estado": nuevo_estado, "pagado": nuevo_pagado, "pendiente": nuevo_pendiente}).eq("id", c_id).execute()
+                            limpiar_cache_contabilidad()
                             st.session_state.llave_cont_pago += 1
                             st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!"); time.sleep(1.5); st.rerun()
         else:
@@ -377,7 +454,7 @@ def render_pestana_contabilidad(client):
         f_ini_arc = c_f1_arc.date_input("Desde:", pd.Timestamp.now('Atlantic/Canary').date() - pd.Timedelta(days=30), key="arc_i")
         f_fin_arc = c_f2_arc.date_input("Hasta:", pd.Timestamp.now('Atlantic/Canary').date(), key="arc_f")
 
-        res_comp_arc = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini_arc}T00:00:00").lte("created_at", f"{f_fin_arc}T23:59:59").order("id", desc=True).execute()
+        res_comp_arc = fetch_compras_archivo(client, str(f_ini_arc), str(f_fin_arc))
         if res_comp_arc.data:
             df_comp_arc = pd.DataFrame(res_comp_arc.data)
             df_comp_arc['Proveedor'] = df_comp_arc['proveedores'].apply(lambda x: x['nombre_empresa'] if x else '---')
@@ -438,10 +515,11 @@ def render_pestana_contabilidad(client):
                                 for p in prods_raw:
                                     if p.get('id'):
                                         try:
-                                            res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                            res_p = fetch_producto_stock(client, p['id'])
                                             if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p['id']).execute()
                                         except: pass
                             client.table("compras").delete().eq("id", c_id).execute()
+                        limpiar_cache_contabilidad()
                         st.success("Documento(s) eliminado(s) correctamente."); time.sleep(1); st.rerun()
 
                 st.markdown("---")
@@ -450,6 +528,7 @@ def render_pestana_contabilidad(client):
                     filas_validas_arc = ed_comp_arc[ed_comp_arc["Borrar"] == False]
                     for _, row in filas_validas_arc.iterrows():
                         client.table("compras").update({"estado": str(row['estado']), "tipo": str(row['tipo'])}).eq("id", row['id']).execute()
+                    limpiar_cache_contabilidad()
                     st.success("Documentos actualizados."); time.sleep(0.5); st.rerun()
         else:
             st.info("No hay gastos ni compras registradas en este periodo.")
@@ -468,7 +547,7 @@ def render_pestana_contabilidad(client):
         fecha_fin_q = f"{f_hasta_inf}T23:59:59"
 
         # Mapa de categorías de productos para separar la lógica de IGIC
-        res_prod = client.table("productos").select("id, nombre, categoria").execute()
+        res_prod = fetch_productos_categorias(client)
         mapa_categorias = {}
         nombres_servicios_db = []
         if res_prod.data:
@@ -552,11 +631,11 @@ def render_pestana_contabilidad(client):
             return round(b_prod * factor_desc, 2), round(b_serv * factor_desc, 2), round(i_serv * factor_desc, 2), l_prod, l_serv
 
         # Recuperar datos de Tickets
-        res_v_inf = client.table("ventas_historial").select("id, created_at, total, metodo_pago, estado, cliente_deuda, productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+        res_v_inf = fetch_ventas_informe(client, fecha_inicio_q, fecha_fin_q)
         # Recuperar datos de Facturas Emitidas
-        res_f_inf = client.table("facturas").select("numero_factura, created_at, total_neto, total_igic, total_final, forma_pago, clientes(nombre_dueno, cif), productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+        res_f_inf = fetch_facturas_informe(client, fecha_inicio_q, fecha_fin_q)
         # Recuperar datos de Compras/Gastos
-        res_c_inf = client.table("compras").select("id, created_at, tipo, total, estado, productos, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+        res_c_inf = fetch_compras_informe(client, fecha_inicio_q, fecha_fin_q)
 
         # Construir el SUPER INFORME UNIFICADO DE VENTAS
         ventas_unificadas = []
@@ -673,7 +752,7 @@ def render_pestana_contabilidad(client):
         df_lineas_serv = pd.DataFrame(todas_lineas_serv)
 
         # --- PROCESAR COMPRAS Y GASTOS (Separando Facturas de Tickets) ---
-        res_gf_cat = client.table("gastos_recurrentes").select("concepto, categoria").execute()
+        res_gf_cat = fetch_gastos_recurrentes_cat(client)
         mapa_gf_cat = {g['concepto']: g['categoria'] for g in res_gf_cat.data} if res_gf_cat.data else {}
         
         compras_list = []
@@ -786,7 +865,7 @@ def render_pestana_contabilidad(client):
             df_fijos_pagados = df_todas_compras[(df_todas_compras['Es_Factura'] == False) & (df_todas_compras['Es_Abono'] == False) & mask_fijos_pagados & (df_todas_compras['Estado'] == 'Pagado')].drop(columns=['Es_Factura', 'Es_Abono'])
 
         # --- EXTRACCIÓN DE GASTOS FIJOS ---
-        res_gf_inf = client.table("gastos_recurrentes").select("concepto, categoria, importe_estimado, dia_cargo, frecuencia").eq("activo", True).execute()
+        res_gf_inf = fetch_gastos_recurrentes_inf(client)
         df_gf_inf = pd.DataFrame(res_gf_inf.data) if res_gf_inf.data else pd.DataFrame(columns=["concepto", "categoria", "importe_estimado", "dia_cargo", "frecuencia"])
         if not df_gf_inf.empty:
             df_gf_inf = df_gf_inf.rename(columns={"concepto": "Concepto", "categoria": "Categoría Contable", "importe_estimado": "Importe Mensual (€)", "dia_cargo": "Día del Mes", "frecuencia": "Frecuencia"})

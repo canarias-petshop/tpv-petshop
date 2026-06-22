@@ -3,13 +3,55 @@ import pandas as pd
 from datetime import date, datetime, timedelta
 import re
 
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_personal_empleados_nombres(_client):
+    return _client.table("personal_empleados").select("nombre").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_ventas_historial_prev(_client, fecha_ini_prev, fecha_fin_prev):
+    return _client.table("ventas_historial").select("total, estado").gte("created_at", fecha_ini_prev).lt("created_at", fecha_fin_prev).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_ventas_historial(_client, fecha_ini, fecha_fin):
+    return _client.table("ventas_historial").select("created_at, total, estado, productos, metodo_pago").gte("created_at", fecha_ini).lt("created_at", fecha_fin).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_compras(_client, fecha_ini, fecha_fin):
+    return _client.table("compras").select("created_at, total, tipo").gte("created_at", fecha_ini).lt("created_at", fecha_fin).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_gastos_recurrentes(_client):
+    return _client.table("gastos_recurrentes").select("importe_estimado, frecuencia").eq("activo", True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_personal_empleados_activos(_client):
+    return _client.table("personal_empleados").select("nombre").eq("activo", True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_citas_roi(_client, fecha_ini, fecha_fin):
+    return _client.table("citas").select("fecha_hora, servicio, mascotas(id, historial_trabajos)").gte("fecha_hora", fecha_ini).lt("fecha_hora", fecha_fin).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_citas_est(_client):
+    return _client.table("citas").select("fecha_hora, servicio, duracion_minutos").execute()
+
+def limpiar_cache_estadisticas():
+    fetch_personal_empleados_nombres.clear()
+    fetch_ventas_historial_prev.clear()
+    fetch_ventas_historial.clear()
+    fetch_compras.clear()
+    fetch_gastos_recurrentes.clear()
+    fetch_personal_empleados_activos.clear()
+    fetch_citas_roi.clear()
+    fetch_citas_est.clear()
+
 def render_pestana_estadisticas(client):
     st.markdown("<h3 style='margin-bottom: 5px;'>📈 Estadísticas y Salud Financiera</h3>", unsafe_allow_html=True)
     st.write("Análisis realista del balance: Ingresos por ventas vs Facturas, Proveedores y Gastos Fijos.")
     
     # Cargar lista de empleados reales para evitar errores de lectura
     try:
-        res_emp_est = client.table("personal_empleados").select("nombre").execute()
+        res_emp_est = fetch_personal_empleados_nombres(client)
         empleados_reales = [e['nombre'] for e in res_emp_est.data] if res_emp_est.data else []
     except:
         empleados_reales = []
@@ -101,14 +143,14 @@ def render_pestana_estadisticas(client):
 
     try:
         # CÁLCULO PERIODO ANTERIOR (Comparativa)
-        res_ventas_prev = client.table("ventas_historial").select("total, estado").gte("created_at", fecha_ini_prev).lt("created_at", fecha_fin_prev).execute()
+        res_ventas_prev = fetch_ventas_historial_prev(client, fecha_ini_prev, fecha_fin_prev)
         total_ventas_prev = 0.0
         if res_ventas_prev.data:
             df_vp = pd.DataFrame(res_ventas_prev.data)
             total_ventas_prev = df_vp[df_vp['estado'] != 'DEVUELTO']['total'].sum() if not df_vp.empty else 0.0
 
         # 1. INGRESOS (Ventas del mes)
-        res_ventas = client.table("ventas_historial").select("created_at, total, estado, productos, metodo_pago").gte("created_at", fecha_ini).lt("created_at", fecha_fin).execute()
+        res_ventas = fetch_ventas_historial(client, fecha_ini, fecha_fin)
         total_ventas = 0.0
         num_operaciones = 0
         ticket_medio = 0.0
@@ -126,14 +168,14 @@ def render_pestana_estadisticas(client):
                 df_v['Fecha'] = dt_v.dt.tz_convert('Atlantic/Canary').dt.date
                 
         # 2. GASTOS VARIABLES Y PROVEEDORES (Compras y Facturas del mes)
-        res_compras = client.table("compras").select("created_at, total, tipo").gte("created_at", fecha_ini).lt("created_at", fecha_fin).execute()
+        res_compras = fetch_compras(client, fecha_ini, fecha_fin)
         total_compras = 0.0
         if res_compras.data:
             df_c = pd.DataFrame(res_compras.data)
             total_compras = df_c['total'].sum()
             
         # 3. GASTOS FIJOS (Estimación Proporcional al periodo)
-        res_fijos = client.table("gastos_recurrentes").select("importe_estimado, frecuencia").eq("activo", True).execute()
+        res_fijos = fetch_gastos_recurrentes(client)
         total_fijos_mes = 0.0
         if res_fijos.data:
             for gf in res_fijos.data:
@@ -307,12 +349,12 @@ def render_pestana_estadisticas(client):
             fecha_ini_dt = pd.to_datetime(fecha_ini).date()
             fecha_fin_dt = pd.to_datetime(fecha_fin).date()
 
-            res_emp = client.table("personal_empleados").select("nombre").eq("activo", True).execute()
+            res_emp = fetch_personal_empleados_activos(client)
             empleados_lista = [str(e['nombre']).strip() for e in res_emp.data] if res_emp.data else []
             rendimiento_empleados = {emp: 0.0 for emp in empleados_lista}
 
             # Extraemos las citas del mes (que no estén canceladas)
-            res_citas_roi = client.table("citas").select("fecha_hora, servicio, mascotas(id, historial_trabajos)").gte("fecha_hora", fecha_ini).lt("fecha_hora", fecha_fin).execute()
+            res_citas_roi = fetch_citas_roi(client, fecha_ini, fecha_fin)
 
             if res_citas_roi.data:
                 import re
@@ -371,7 +413,7 @@ def render_pestana_estadisticas(client):
             st.markdown("#### 📊 Análisis y Rendimiento de la Agenda")
             
             from datetime import timedelta
-            res_citas_est = client.table("citas").select("fecha_hora, servicio, duracion_minutos").execute()
+            res_citas_est = fetch_citas_est(client)
             
             if res_citas_est.data:
                 datos_est = []

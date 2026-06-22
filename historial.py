@@ -7,6 +7,58 @@ import streamlit.components.v1 as components
 import random
 import string
 
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_caja_abierta_created_at_h(_client):
+    return _client.table("control_caja").select("created_at").eq("estado", "Abierta").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_ventas_historial_por_id_h(_client, b_ticket):
+    return _client.table("ventas_historial").select("*").eq("id", b_ticket).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_ventas_historial_por_fechas_h(_client, f_inicio, f_fin):
+    return _client.table("ventas_historial").select("*").gte("created_at", f"{f_inicio}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_cuentas_bancarias_nombres_h(_client):
+    return _client.table("cuentas_bancarias").select("nombre_banco").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_cliente_puntos_h(_client, cliente_str):
+    return _client.table("clientes").select("id, puntos").eq("nombre_dueno", cliente_str).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_cuentas_bancarias_abono_h(_client):
+    return _client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_producto_stock_h(_client, producto_id):
+    return _client.table("productos").select("stock_actual").eq("id", producto_id).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_caja_abierta_id_h(_client):
+    return _client.table("control_caja").select("id").eq("estado", "Abierta").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_cajas_cerradas_por_fecha_h(_client, f_inicio, f_fin):
+    return _client.table("control_caja").select("*").eq("estado", "Cerrada").gte("created_at", f"{f_inicio}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_movimientos_caja_por_turno_h(_client, turno_sel):
+    return _client.table("movimientos_caja").select("*").eq("id_caja", turno_sel).execute()
+
+def limpiar_cache_historial():
+    fetch_caja_abierta_created_at_h.clear()
+    fetch_ventas_historial_por_id_h.clear()
+    fetch_ventas_historial_por_fechas_h.clear()
+    fetch_cuentas_bancarias_nombres_h.clear()
+    fetch_cliente_puntos_h.clear()
+    fetch_cuentas_bancarias_abono_h.clear()
+    fetch_producto_stock_h.clear()
+    fetch_caja_abierta_id_h.clear()
+    fetch_cajas_cerradas_por_fecha_h.clear()
+    fetch_movimientos_caja_por_turno_h.clear()
+
 def render_pestana_historial(client):
     if 'devolucion_actual' not in st.session_state:
         st.session_state.devolucion_actual = None
@@ -108,7 +160,7 @@ def render_pestana_historial(client):
             st.stop()
 
         # --- CONTROL DE BLOQUEO Z (LEY ANTIFRAUDE) ---
-        res_caja_ab = client.table("control_caja").select("created_at").eq("estado", "Abierta").execute()
+        res_caja_ab = fetch_caja_abierta_created_at_h(client)
         if res_caja_ab.data:
             inicio_caja_actual = pd.to_datetime(res_caja_ab.data[0]['created_at'], utc=True)
         else:
@@ -128,9 +180,9 @@ def render_pestana_historial(client):
         with c_f3: f_fin_v = st.date_input("Hasta:", value=hoy, disabled=bool(b_ticket))
 
         if b_ticket and b_ticket.strip().isdigit():
-            res_v = client.table("ventas_historial").select("*").eq("id", int(b_ticket.strip())).execute()
+            res_v = fetch_ventas_historial_por_id_h(client, int(b_ticket.strip()))
         else:
-            res_v = client.table("ventas_historial").select("*").gte("created_at", f"{f_inicio_v}T00:00:00").lte("created_at", f"{f_fin_v}T23:59:59").order("id", desc=True).execute()
+            res_v = fetch_ventas_historial_por_fechas_h(client, f_inicio_v, f_fin_v)
         
         if res_v.data:
             df_v = pd.DataFrame(res_v.data)
@@ -176,7 +228,7 @@ def render_pestana_historial(client):
             
             # Extraer bancos para el historial
             try:
-                res_b_radio = client.table("cuentas_bancarias").select("nombre_banco").execute()
+                res_b_radio = fetch_cuentas_bancarias_nombres_h(client)
                 if res_b_radio.data:
                     bancos_nombres = [f"Tarjeta ({b['nombre_banco']})" for b in res_b_radio.data]
                     opciones_pago_hist = ["Efectivo"] + bancos_nombres + ["Bizum", "Mixto"]
@@ -233,7 +285,7 @@ def render_pestana_historial(client):
                             tot_tk = float(df_v[df_v['id'] == tk_id].iloc[0]['total'])
                             pts_ganar = int(tot_tk // 10)
                             if pts_ganar > 0:
-                                res_c = client.table("clientes").select("id, puntos").eq("nombre_dueno", cliente_str).execute()
+                                res_c = fetch_cliente_puntos_h(client, cliente_str)
                                 if res_c.data:
                                     c_id = res_c.data[0]['id']
                                     c_pts = res_c.data[0].get('puntos', 0)
@@ -245,6 +297,7 @@ def render_pestana_historial(client):
                             "estado": estado_nuevo,
                             "cliente_deuda": cliente_str if cliente_str != 'nan' else ""
                         }).eq("id", tk_id).execute()
+                    limpiar_cache_historial()
                     st.success("Tickets actualizados."); time.sleep(0.8); st.rerun()
 
             st.markdown("---")
@@ -318,7 +371,7 @@ def render_pestana_historial(client):
                                 
                             # --- CONFIGURACIÓN DEL REEMBOLSO ---
                             try:
-                                res_b_abono = client.table("cuentas_bancarias").select("id, nombre_banco, saldo_actual").execute()
+                                res_b_abono = fetch_cuentas_bancarias_abono_h(client)
                                 bancos_abono = res_b_abono.data if res_b_abono.data else []
                             except:
                                 bancos_abono = []
@@ -355,7 +408,7 @@ def render_pestana_historial(client):
                                         if str(p['id']).startswith('cita_'):
                                             continue
                                         try:
-                                            res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                            res_p = fetch_producto_stock_h(client, p['id'])
                                             if res_p.data:
                                                 client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
                                         except Exception:
@@ -364,7 +417,7 @@ def render_pestana_historial(client):
                                 # Revertir puntos si era cliente VIP
                                 cliente_vip = str(t_info.get('cliente_vip_nombre', ''))
                                 if cliente_vip and cliente_vip != "nan" and cliente_vip != "None":
-                                    res_cli = client.table("clientes").select("id, puntos").eq("nombre_dueno", cliente_vip).execute()
+                                    res_cli = fetch_cliente_puntos_h(client, cliente_vip)
                                     if res_cli.data:
                                         cli_id = res_cli.data[0]['id']
                                         p_ganados = int(t_info.get('puntos_ganados', 0))
@@ -376,7 +429,7 @@ def render_pestana_historial(client):
                                 
                                 if btn_abono:
                                     if "Efectivo" in sel_metodo_abono:
-                                        res_caja_ab = client.table("control_caja").select("id").eq("estado", "Abierta").execute()
+                                        res_caja_ab = fetch_caja_abierta_id_h(client)
                                         if res_caja_ab.data:
                                             client.table("movimientos_caja").insert({
                                                 "id_caja": res_caja_ab.data[0]['id'],
@@ -409,6 +462,7 @@ def render_pestana_historial(client):
                                         "fecha": pd.Timestamp.now('Atlantic/Canary').strftime("%d/%m/%Y %H:%M"), "productos": prods,
                                         "total": total_final_calculado, "metodo": sel_metodo_abono, "ticket_original_id": t_id
                                     }
+                                limpiar_cache_historial()
                                 st.rerun()
                                 
                     with c3:
@@ -472,7 +526,7 @@ def render_pestana_historial(client):
                         cliente_vip_reprint = str(t_info.get('cliente_vip_nombre', ''))
                         if cliente_vip_reprint and cliente_vip_reprint != 'nan' and cliente_vip_reprint != 'None':
                             saldo_actual_re = 0
-                            res_cli_re = client.table("clientes").select("puntos").eq("nombre_dueno", cliente_vip_reprint).execute()
+                            res_cli_re = fetch_cliente_puntos_h(client, cliente_vip_reprint)
                             if res_cli_re.data: saldo_actual_re = res_cli_re.data[0].get('puntos', 0)
                             cuerpo_email += f"🌟 CLIENTE VIP: {cliente_vip_reprint}\n"
                             cuerpo_email += f"Puntos ganados en este ticket: +{t_info.get('puntos_ganados', 0)}\n"
@@ -600,7 +654,7 @@ def render_pestana_historial(client):
         with c_fc2: f_fin_c = st.date_input("Cajas hasta:", value=pd.Timestamp.now('Atlantic/Canary').date(), key="fc2")
 
         try:
-            res_cajas = client.table("control_caja").select("*").eq("estado", "Cerrada").gte("created_at", f"{f_inicio_c}T00:00:00").lte("created_at", f"{f_fin_c}T23:59:59").order("id", desc=True).execute()
+            res_cajas = fetch_cajas_cerradas_por_fecha_h(client, f_inicio_c, f_fin_c)
 
             if res_cajas.data:
                 df_c = pd.DataFrame(res_cajas.data)
@@ -701,7 +755,7 @@ def render_pestana_historial(client):
                     """
                     components.html(html_cierre, height=50)
 
-                    res_movs = client.table("movimientos_caja").select("*").eq("id_caja", turno_sel).execute()
+                    res_movs = fetch_movimientos_caja_por_turno_h(client, turno_sel)
                     if res_movs.data:
                         st.markdown("<p style='font-size:12px; color:gray;'>Detalle de Entradas/Salidas de este turno:</p>", unsafe_allow_html=True)
                         df_m = pd.DataFrame(res_movs.data)
