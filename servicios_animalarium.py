@@ -4,6 +4,33 @@ import time
 import urllib.parse
 from datetime import date
 
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_clientes_servicios(_client):
+    return _client.table("clientes").select("id, nombre_dueno, telefono, direccion, mascotas(nombre)").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_servicios_paseo(_client):
+    return _client.table("servicios_paseo").select("*").order("created_at", desc=True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_servicios_adiestramiento(_client):
+    return _client.table("servicios_adiestramiento").select("*").order("created_at", desc=True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_servicios_recogida(_client):
+    return _client.table("servicios_recogida").select("*").order("created_at", desc=True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_pedidos_domicilio(_client):
+    return _client.table("pedidos_domicilio").select("id, created_at, nombre_cliente, telefono, direccion, detalle_pedido, estado").order("created_at", desc=True).execute()
+
+def limpiar_cache_servicios():
+    fetch_clientes_servicios.clear()
+    fetch_servicios_paseo.clear()
+    fetch_servicios_adiestramiento.clear()
+    fetch_servicios_recogida.clear()
+    fetch_pedidos_domicilio.clear()
+
 def render_pestana_servicios(client):
     if 'llave_srv_paseo' not in st.session_state: st.session_state.llave_srv_paseo = 0
     if 'llave_srv_adiest' not in st.session_state: st.session_state.llave_srv_adiest = 0
@@ -15,7 +42,7 @@ def render_pestana_servicios(client):
 
     # Cargar clientes y mascotas para sugerencias
     try:
-        res_clientes = client.table("clientes").select("id, nombre_dueno, telefono, direccion, mascotas(nombre)").execute()
+        res_clientes = fetch_clientes_servicios(client)
         lista_cli = res_clientes.data if res_clientes.data else []
     except: lista_cli = []
 
@@ -68,13 +95,13 @@ def render_pestana_servicios(client):
                                 "tipo_paseo": p_tipo, "fecha": p_fecha, "observaciones": p_obs, "estado": "Pendiente"
                             }).execute()
                             st.session_state.llave_srv_paseo += 1
-                            st.success("Paseo registrado."); time.sleep(0.5); st.rerun()
+                            st.success("Paseo registrado."); time.sleep(0.5); limpiar_cache_servicios(); st.rerun()
                         except: st.error("⚠️ Crea la tabla 'servicios_paseo' en Supabase.")
                     else: st.warning("Debes indicar el cliente y la mascota.")
         with col_p2:
             st.markdown("#### 📌 Paseos Programados")
             try:
-                res_p = client.table("servicios_paseo").select("*").order("created_at", desc=True).execute()
+                res_p = fetch_servicios_paseo(client)
                 if res_p.data:
                     df_p = pd.DataFrame(res_p.data)
                     df_p_vista = df_p[['id', 'cliente', 'mascota', 'telefono', 'tipo_paseo', 'fecha', 'observaciones', 'estado']].copy()
@@ -101,6 +128,7 @@ def render_pestana_servicios(client):
                         for _, r in ed_p[ed_p["Borrar"] == False].iterrows():
                             if pd.notna(r['id']):
                                 client.table("servicios_paseo").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
+                        limpiar_cache_servicios()
                         st.rerun()
                 else: st.info("No hay paseos programados.")
             except: st.info("Ejecuta el código SQL para habilitar la tabla de Paseos.")
@@ -151,13 +179,13 @@ def render_pestana_servicios(client):
                                 "motivo": a_motivo, "fecha_sesion": a_fecha_str, "observaciones": a_obs, "estado": "Pendiente"
                             }).execute()
                             st.session_state.llave_srv_adiest += 1
-                            st.success("Petición de adiestramiento registrada."); time.sleep(0.5); st.rerun()
+                            st.success("Petición de adiestramiento registrada."); time.sleep(0.5); limpiar_cache_servicios(); st.rerun()
                         except: st.error("⚠️ Crea la tabla 'servicios_adiestramiento' en Supabase.")
                     else: st.warning("Cliente, Mascota y Motivo son obligatorios.")
         with col_a2:
             st.markdown("#### 📌 Sesiones Programadas")
             try:
-                res_a = client.table("servicios_adiestramiento").select("*").order("created_at", desc=True).execute()
+                res_a = fetch_servicios_adiestramiento(client)
                 if res_a.data:
                     df_a = pd.DataFrame(res_a.data)
                     df_a_vista = df_a[['id', 'cliente', 'mascota', 'telefono', 'motivo', 'fecha_sesion', 'observaciones', 'estado']].copy()
@@ -183,6 +211,7 @@ def render_pestana_servicios(client):
                         for _, r in ed_a[ed_a["Borrar"] == False].iterrows():
                             if pd.notna(r['id']):
                                 client.table("servicios_adiestramiento").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
+                        limpiar_cache_servicios()
                         st.rerun()
                 else: st.info("No hay sesiones de adiestramiento programadas.")
             except: st.info("Ejecuta el código SQL para habilitar la tabla de Adiestramiento.")
@@ -229,13 +258,13 @@ def render_pestana_servicios(client):
                                     "fecha_recogida": r_fecha, "observaciones": r_obs, "estado": "Pendiente"
                                 }).execute()
                                 st.session_state.llave_srv_reco += 1
-                                st.success("Recogida registrada."); time.sleep(0.5); st.rerun()
+                                st.success("Recogida registrada."); time.sleep(0.5); limpiar_cache_servicios(); st.rerun()
                             except: st.error("⚠️ Crea la tabla 'servicios_recogida' en Supabase.")
                         else: st.warning("Cliente, Mascota y Día/Hora son obligatorios.")
             with col_r2:
                 st.markdown("#### 📌 Recogidas Programadas")
                 try:
-                    res_r = client.table("servicios_recogida").select("*").order("created_at", desc=True).execute()
+                    res_r = fetch_servicios_recogida(client)
                     if res_r.data:
                         df_r = pd.DataFrame(res_r.data)
                         if 'WhatsApp' not in df_r.columns: df_r['WhatsApp'] = None
@@ -271,6 +300,7 @@ def render_pestana_servicios(client):
                             for _, r in ed_r[ed_r["Borrar"] == False].iterrows():
                                 if pd.notna(r['id']):
                                     client.table("servicios_recogida").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
+                            limpiar_cache_servicios()
                             st.rerun()
                     else: st.info("No hay recogidas programadas.")
                 except: st.info("Ejecuta el código SQL para habilitar la tabla de Recogidas.")
@@ -311,7 +341,7 @@ def render_pestana_servicios(client):
                                     "detalle_pedido": d_prod, "estado": "Pendiente"
                                 }).execute()
                                 st.session_state.llave_srv_dom += 1
-                                st.success("Pedido a domicilio guardado."); time.sleep(0.5); st.rerun()
+                                st.success("Pedido a domicilio guardado."); time.sleep(0.5); limpiar_cache_servicios(); st.rerun()
                             except Exception as e:
                                 st.error("⚠️ Error: Asegúrate de haber ejecutado el SQL para crear la tabla 'pedidos_domicilio' en Supabase.")
                         else:
@@ -320,7 +350,7 @@ def render_pestana_servicios(client):
             with col_d2:
                 st.markdown("#### 📌 Pedidos en Curso")
                 try:
-                    res_d = client.table("pedidos_domicilio").select("id, created_at, nombre_cliente, telefono, direccion, detalle_pedido, estado").order("created_at", desc=True).execute()
+                    res_d = fetch_pedidos_domicilio(client)
                     if res_d.data:
                         df_d = pd.DataFrame(res_d.data)
                         dt_d = pd.to_datetime(df_d['created_at'], utc=True, format='mixed', errors='coerce').fillna(pd.Timestamp('today', tz='UTC'))
@@ -361,6 +391,7 @@ def render_pestana_servicios(client):
                                 if pd.notna(r['id']):
                                     client.table("pedidos_domicilio").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            limpiar_cache_servicios()
                             st.rerun()
                     else: st.info("No hay pedidos a domicilio activos.")
                 except Exception as e: st.warning("⚠️ Debes crear la tabla 'pedidos_domicilio' en Supabase para que funcione este panel.")

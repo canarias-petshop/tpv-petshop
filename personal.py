@@ -6,6 +6,43 @@ from postgrest import SyncPostgrestClient
 from zoneinfo import ZoneInfo
 import hashlib
 
+@st.cache_data(show_spinner=False, ttl=300)
+def get_empleados_activos(_client: SyncPostgrestClient):
+    return _client.table("personal_empleados").select("*").eq("activo", True).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_ultimo_fichaje(_client: SyncPostgrestClient, empleado_id, fecha: str):
+    return _client.table("personal_fichajes").select("*").eq("empleado_id", empleado_id).eq("fecha", fecha).order("id", desc=True).limit(1).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_fichajes_sin_salida(_client: SyncPostgrestClient, empleado_id, fecha: str):
+    return _client.table("personal_fichajes").select("*").eq("empleado_id", empleado_id).eq("fecha", fecha).is_("hora_salida", "null").execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_ultimo_hash(_client: SyncPostgrestClient):
+    return _client.table("personal_fichajes").select("hash_actual").order("id", desc=True).limit(1).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_cuadrantes_rango(_client: SyncPostgrestClient, fecha_inicio: str, fecha_fin: str):
+    return _client.table("personal_cuadrantes").select("*").gte("fecha", fecha_inicio).lte("fecha", fecha_fin).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_fichajes_totales(_client: SyncPostgrestClient):
+    return _client.table("personal_fichajes").select("*").order("fecha", desc=True).limit(50).execute()
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_agenda_bloqueos_futuros(_client: SyncPostgrestClient, fecha_inicio: str):
+    return _client.table("agenda_bloqueos").select("*").gte("fecha", fecha_inicio).order("fecha", desc=False).execute()
+
+def limpiar_cache_personal():
+    get_empleados_activos.clear()
+    get_ultimo_fichaje.clear()
+    get_fichajes_sin_salida.clear()
+    get_ultimo_hash.clear()
+    get_cuadrantes_rango.clear()
+    get_fichajes_totales.clear()
+    get_agenda_bloqueos_futuros.clear()
+
 def render_pestana_personal(client: SyncPostgrestClient):
     st.header("⏱️ Control de Personal y Horarios")
 
@@ -29,7 +66,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
 
     # 1. Cargar empleados activos
     try:
-        empleados_res = client.table("personal_empleados").select("*").eq("activo", True).execute()
+        empleados_res = get_empleados_activos(client)
         empleados = empleados_res.data
     except Exception as e:
         st.error(f"Error al cargar empleados: {e}")
@@ -59,7 +96,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                         ahora = ahora_dt.isoformat()
                         
                         # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
-                        res_ultimo = client.table("personal_fichajes").select("*").eq("empleado_id", emp_sel['id']).eq("fecha", hoy).order("id", desc=True).limit(1).execute()
+                        res_ultimo = get_ultimo_fichaje(client, emp_sel['id'], hoy)
                         if res_ultimo.data:
                             ultimo = res_ultimo.data[0]
                             str_hora = ultimo.get('hora_salida') or ultimo.get('hora_entrada')
@@ -82,7 +119,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                                 st.stop()
                         
                         # Buscar si ya tiene una entrada sin salida hoy
-                        fichajes_res = client.table("personal_fichajes").select("*").eq("empleado_id", emp_sel['id']).eq("fecha", hoy).is_("hora_salida", "null").execute()
+                        fichajes_res = get_fichajes_sin_salida(client, emp_sel['id'], hoy)
                         fichajes = fichajes_res.data
                         
                         if fichajes:
@@ -105,11 +142,12 @@ def render_pestana_personal(client: SyncPostgrestClient):
                             }).eq("id", fichaje_id).execute()
                             st.success(f"Salida registrada para {nombre_sel} a las {ahora_dt.strftime('%H:%M')}")
                             time.sleep(1)
+                            limpiar_cache_personal()
                             st.rerun()
                         else:
                             # Fichar entrada
                             # Obtener el último hash para continuar la cadena
-                            res_last = client.table("personal_fichajes").select("hash_actual").order("id", desc=True).limit(1).execute()
+                            res_last = get_ultimo_hash(client)
                             hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
                             
                             data_to_hash = f"FICHAJE|IN|{emp_sel['id']}|{ahora}|{hash_anterior}"
@@ -124,6 +162,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                             }).execute()
                             st.success(f"Entrada registrada para {nombre_sel} a las {ahora_dt.strftime('%H:%M')}")
                             time.sleep(1)
+                            limpiar_cache_personal()
                             st.rerun()
                     else:
                         st.error("PIN incorrecto.")
@@ -140,7 +179,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
             start_aligned = f_ini_ver - timedelta(days=f_ini_ver.weekday())
             end_aligned = f_fin_ver + timedelta(days=6 - f_fin_ver.weekday())
 
-            cuadrantes_res = client.table("personal_cuadrantes").select("*").gte("fecha", start_aligned.isoformat()).lte("fecha", end_aligned.isoformat()).execute()
+            cuadrantes_res = get_cuadrantes_rango(client, start_aligned.isoformat(), end_aligned.isoformat())
             df_cuadrante = pd.DataFrame(cuadrantes_res.data)
             
             dias_es = {0: "Lun", 1: "Mar", 2: "Mié", 3: "Jue", 4: "Vie", 5: "Sáb", 6: "Dom"}
@@ -190,6 +229,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                     if nuevo_nom and len(nuevo_pin) == 4:
                         client.table("personal_empleados").insert({"nombre": nuevo_nom, "pin_fichaje": nuevo_pin}).execute()
                         st.success("Empleado creado")
+                        limpiar_cache_personal()
                         st.rerun()
                     else:
                         st.error("El nombre y un PIN de 4 dígitos son obligatorios.")
@@ -211,7 +251,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                 dias_es = {0: "Lun", 1: "Mar", 2: "Mié", 3: "Jue", 4: "Vie", 5: "Sáb", 6: "Dom"}
                 
                 # Cargar datos existentes
-                res_q = client.table("personal_cuadrantes").select("*").gte("fecha", start_aligned_ed.isoformat()).lte("fecha", end_aligned_ed.isoformat()).execute()
+                res_q = get_cuadrantes_rango(client, start_aligned_ed.isoformat(), end_aligned_ed.isoformat())
                 q_map = {(d['empleado_id'], d['fecha']): d['turno'] for d in (res_q.data if res_q.data else [])}
                 
                 curr_w = start_aligned_ed
@@ -255,13 +295,13 @@ def render_pestana_personal(client: SyncPostgrestClient):
                                 if val and str(val).strip() != "":
                                     inserts.append({"empleado_id": row['id_emp'], "fecha": d.isoformat(), "turno": str(val).strip()})
                     if inserts: client.table("personal_cuadrantes").insert(inserts).execute()
-                    st.success("¡Cuadrante guardado exitosamente!"); time.sleep(1); st.rerun()
+                    st.success("¡Cuadrante guardado exitosamente!"); time.sleep(1); limpiar_cache_personal(); st.rerun()
         
         with tab_admin3:
             st.markdown("Historial de fichajes:")
             st.warning("🔒 **REGISTRO INALTERABLE**: Según la normativa laboral vigente, los fichajes están sellados con criptografía SHA-256 (Hash) y vinculados a la hora del servidor. No se pueden modificar ni eliminar.")
             try:
-                fichajes_totales = client.table("personal_fichajes").select("*").order("fecha", desc=True).limit(50).execute()
+                fichajes_totales = get_fichajes_totales(client)
                 if fichajes_totales.data:
                     df_fich = pd.DataFrame(fichajes_totales.data)
                     df_emp = pd.DataFrame(empleados)[['id', 'nombre']]
@@ -321,7 +361,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                             if inserts:
                                 client.table("agenda_bloqueos").insert(inserts).execute()
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success("Vacaciones registradas y agenda bloqueada."); time.sleep(1); st.rerun()
+                                st.success("Vacaciones registradas y agenda bloqueada."); time.sleep(1); limpiar_cache_personal(); st.rerun()
                                 
                     elif tipo_ausencia == "🏢 Cierre de Empresa (Festivos/Obras)":
                         motivo = st.text_input("Motivo (Ej: Festivo Local, Obras...)")
@@ -342,7 +382,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                             if inserts:
                                 client.table("agenda_bloqueos").insert(inserts).execute()
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success("Cierre registrado y agenda bloqueada."); time.sleep(1); st.rerun()
+                                st.success("Cierre registrado y agenda bloqueada."); time.sleep(1); limpiar_cache_personal(); st.rerun()
                         elif btn:
                             st.warning("Por favor, indica un motivo.")
                             
@@ -361,7 +401,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                                 "titulo": f"⏱️ {motivo}", "empleado_afectado": emp_aus, "bloquea_agenda": True
                             }).execute()
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                            st.success("Ausencia registrada y agenda bloqueada."); time.sleep(1); st.rerun()
+                            st.success("Ausencia registrada y agenda bloqueada."); time.sleep(1); limpiar_cache_personal(); st.rerun()
                         elif btn:
                             st.warning("Por favor, indica un motivo.")
                             
@@ -388,7 +428,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                                     client.table("personal_cuadrantes").insert(inserts).execute()
                                     
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success(f"Turno(s) de {emp_aus} actualizado(s) correctamente."); time.sleep(1.5); st.rerun()
+                                st.success(f"Turno(s) de {emp_aus} actualizado(s) correctamente."); time.sleep(1.5); limpiar_cache_personal(); st.rerun()
                             else:
                                 st.error("La fecha de fin no puede ser anterior a la de inicio.")
                         elif btn:
@@ -398,7 +438,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                 st.markdown("##### 📅 Excepciones y Bloqueos Activos")
                 hoy_str = str(date.today())
                 try:
-                    res_bl = client.table("agenda_bloqueos").select("*").gte("fecha", hoy_str).order("fecha", desc=False).execute()
+                    res_bl = get_agenda_bloqueos_futuros(client, hoy_str)
                     if res_bl.data:
                         df_bl = pd.DataFrame(res_bl.data)
                         
@@ -421,7 +461,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                                 for _, r in ed_bl[ed_bl["Borrar"] == True].iterrows():
                                     client.table("agenda_bloqueos").delete().eq("id", r['id']).execute()
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success("Excepciones eliminadas. La agenda vuelve a estar libre en esos tramos."); time.sleep(1); st.rerun()
+                                st.success("Excepciones eliminadas. La agenda vuelve a estar libre en esos tramos."); time.sleep(1); limpiar_cache_personal(); st.rerun()
                         else:
                             st.info("No hay ausencias, vacaciones ni bloqueos de personal futuros registrados.")
                     else:

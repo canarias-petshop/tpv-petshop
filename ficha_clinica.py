@@ -25,13 +25,32 @@ def calcular_duracion_media(historial):
     media = sum(duraciones) / len(duraciones)
     return f"{int(media)} min"
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=300)
 def fetch_ficha_alerts_cached(_client, v, mid, hoy):
     try:
         r1 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).lt("fecha_hora", hoy).like("servicio", "%[ESTADO: Confirmada]%").execute().data
         r2 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%,servicio.ilike.%[ESTADO: Anulada]%,servicio.ilike.%[ESTADO: Cambio (mismo día)]%").execute().data
         return r1, r2
     except: return [], []
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_igic_tipo_cached(_client, nombre):
+    try:
+        return _client.table("productos").select("igic_tipo").eq("nombre", nombre).execute().data
+    except:
+        return []
+
+@st.cache_data(show_spinner=False, ttl=300)
+def fetch_citas_mascota_cached(_client, mascotas_id):
+    try:
+        return _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mascotas_id).execute().data
+    except:
+        return []
+
+def limpiar_cache_ficha_clinica():
+    fetch_ficha_alerts_cached.clear()
+    fetch_igic_tipo_cached.clear()
+    fetch_citas_mascota_cached.clear()
 
 def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_lista, empleados_lista, precios_servicios):
     """Renderiza la ficha clínica, el historial y el sistema inteligente de reservas."""
@@ -194,7 +213,9 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
                                 client.table("mascotas").update({"historial_trabajos": hist_to_save.to_dict(orient='records')}).eq("id", m_id).execute()
                                 
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success("Extra eliminado."); time.sleep(0.5); st.rerun()
+                                st.success("Extra eliminado."); time.sleep(0.5)
+                                limpiar_cache_ficha_clinica()
+                                st.rerun()
             
             st.markdown("---")
             c_e1, c_e2, c_e3 = st.columns([2, 1, 1])
@@ -221,8 +242,8 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
                 
                 igic_ext = 7.0
                 try:
-                    res_igic = client.table("productos").select("igic_tipo").eq("nombre", serv_extra).execute()
-                    if res_igic.data: igic_ext = float(res_igic.data[0].get('igic_tipo', 7.0))
+                    data_igic = fetch_igic_tipo_cached(client, serv_extra)
+                    if data_igic: igic_ext = float(data_igic[0].get('igic_tipo', 7.0))
                 except: pass
                 
                 nuevo_extra = {"Servicio": serv_extra, "Minutos": minutos_ext, "Precio": precio_ext, "IGIC": igic_ext}
@@ -250,7 +271,9 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
                 client.table("mascotas").update({"historial_trabajos": hist_to_save.to_dict(orient='records')}).eq("id", m_id).execute()
                 
                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                st.success(f"Extra añadido."); time.sleep(1); st.rerun()
+                st.success(f"Extra añadido."); time.sleep(1)
+                limpiar_cache_ficha_clinica()
+                st.rerun()
         else:
             st.info("⚠️ No hay sesiones guardadas en esta ficha. Para añadir un extra (nudos, mascarilla...), primero añade una fila en la tabla de arriba, pon la fecha, el servicio, dale a **'Guardar Historial'**, y luego vuelve aquí.")
 
@@ -265,9 +288,9 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
         # Obtener citas de la mascota para comprobar si hay "Oferta / Dto." en la agenda
         fechas_oferta = set()
         try:
-            res_cp = client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", m_id).execute()
-            if res_cp.data:
-                for c_pet in res_cp.data:
+            data_cp = fetch_citas_mascota_cached(client, m_id)
+            if data_cp:
+                for c_pet in data_cp:
                     if "[ESTADO: Oferta / Descuento]" in c_pet.get('servicio', ''):
                         try:
                             dt_str = c_pet['fecha_hora'][:10]
@@ -388,7 +411,9 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
         }).eq("id", m_id).execute()
         
         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-        st.success("Historial y notas actualizados correctamente."); time.sleep(0.1); st.rerun()
+        st.success("Historial y notas actualizados correctamente."); time.sleep(0.1)
+        limpiar_cache_ficha_clinica()
+        st.rerun()
         
     st.markdown("---")
     st.markdown("#### 🚫 Historial de Cancelaciones y Plantones")

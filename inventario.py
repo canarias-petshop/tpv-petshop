@@ -2,13 +2,35 @@ import streamlit as st
 import pandas as pd
 import time
 
+@st.cache_data(show_spinner=False, ttl=300)
+def get_proveedores(_client):
+    res = _client.table("proveedores").select("id, nombre_empresa").execute()
+    return res.data if res.data else []
+
+@st.cache_data(show_spinner=False, ttl=300)
+def get_inv_full(_client):
+    _all = []
+    _off = 0
+    while True:
+        _r = _client.table("productos").select("*, productos_proveedores(proveedores(nombre_empresa))").order("nombre").range(_off, _off + 999).execute()
+        if _r.data:
+            _all.extend(_r.data)
+            if len(_r.data) < 1000: break
+            _off += 1000
+        else: break
+    return _all
+
+def limpiar_cache_inventario():
+    get_proveedores.clear()
+    get_inv_full.clear()
+
 def render_pestana_inventario(client):
     st.markdown("<h3 style='margin-top: -15px;'>📦 Gestión de Inventario y Servicios</h3>", unsafe_allow_html=True)
     
     col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
-    res_proveedores = client.table("proveedores").select("id, nombre_empresa").execute()
-    dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores.data} if res_proveedores.data else {}
+    res_proveedores_data = get_proveedores(client)
+    dict_proveedores = {p['nombre_empresa']: p['id'] for p in res_proveedores_data} if res_proveedores_data else {}
 
     with col_f:
         st.markdown("#### 📝 Alta de nuevo ítem")
@@ -65,23 +87,10 @@ def render_pestana_inventario(client):
                         rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base_calc} for p in provs_sel]
                         client.table("productos_proveedores").insert(rels).execute()
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                    st.success("Guardado correctamente"); time.sleep(0.5); st.rerun()
+                    st.success("Guardado correctamente"); time.sleep(0.5); limpiar_cache_inventario(); st.rerun()
 
     with col_t:
-            @st.cache_data(show_spinner=False, ttl=15)
-            def get_inv_full(v):
-                _all = []
-                _off = 0
-                while True:
-                    _r = client.table("productos").select("*, productos_proveedores(proveedores(nombre_empresa))").order("nombre").range(_off, _off + 999).execute()
-                    if _r.data:
-                        _all.extend(_r.data)
-                        if len(_r.data) < 1000: break
-                        _off += 1000
-                    else: break
-                return _all
-            
-            all_prods = get_inv_full(st.session_state.get('db_version', 0))
+            all_prods = get_inv_full(client)
             if all_prods:
                 df_inv = pd.DataFrame(all_prods)
                 
@@ -189,6 +198,7 @@ def render_pestana_inventario(client):
 
                         st.success("Inventario sincronizado correctamente")
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        limpiar_cache_inventario()
                         st.rerun() # Recargamos para ver los cambios [cite: 9]
 
                 with sub_serv:
@@ -260,6 +270,7 @@ def render_pestana_inventario(client):
 
                         st.success("Catálogo de servicios actualizado")
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        limpiar_cache_inventario()
                         st.rerun()
                         
                 with sub_interno:
@@ -291,7 +302,7 @@ def render_pestana_inventario(client):
                                     }).execute()
                                     
                                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                    st.success(f"Se han retirado {cant_ui} unidad(es) de {item_ui['nombre']} para uso interno."); time.sleep(1.5); st.rerun()
+                                    st.success(f"Se han retirado {cant_ui} unidad(es) de {item_ui['nombre']} para uso interno."); time.sleep(1.5); limpiar_cache_inventario(); st.rerun()
                                 else:
                                     st.error("No hay suficiente stock para realizar este traspaso.")
                             else:
