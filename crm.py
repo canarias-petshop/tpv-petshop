@@ -926,7 +926,8 @@ def render_pestana_crm(client):
                                     "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
                                     "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado", "Cancelado"]),
                                     "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
-                                }
+                                },
+                                num_rows="dynamic"
                             )
                             
                         with tab_web:
@@ -938,7 +939,8 @@ def render_pestana_crm(client):
                                     "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
                                     "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado", "Cancelado"]),
                                     "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
-                                }
+                                },
+                                num_rows="dynamic"
                             )
 
                             st.markdown("#### 🚚 Enviar a Domicilio")
@@ -997,6 +999,17 @@ def render_pestana_crm(client):
                                             
                             if not errores:
                                 cambios_realizados = 0
+                                
+                                # 1. Borrar encargos eliminados en la tabla
+                                ids_actuales = ed_e['id'].dropna().tolist()
+                                ids_originales = df_e_vista['id'].tolist()
+                                ids_a_borrar = [i for i in ids_originales if i not in ids_actuales]
+                                
+                                for id_del in ids_a_borrar:
+                                    client.table("encargos_clientes").delete().eq("id", id_del).execute()
+                                    cambios_realizados += 1
+                                    
+                                # 2. Actualizar encargos existentes
                                 for _, r in ed_e.iterrows():
                                     if pd.notna(r['id']):
                                         orig_match = df_e_vista[df_e_vista['id'] == r['id']]
