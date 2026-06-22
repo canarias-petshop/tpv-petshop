@@ -15,6 +15,11 @@
   - Se añadió un botón "🚚 Crear Servicio a Domicilio" para convertir encargos web directamente en la hoja de reparto.
 - **Reparto desde Caja (TPV)**: Automatizada la creación de Servicios a Domicilio desde el Cobro, rellenando automáticamente la dirección guardada del cliente al seleccionarlo.
 - **Optimización de Rendimiento (Caching)**: Aplicado el sistema de `Smart Caching` de Streamlit en todas las pantallas. La base de datos no se satura al cambiar de pestaña y la aplicación responde de manera casi instantánea.
+- **Estadísticas y Rendimiento Exacto**: 
+  - Cálculo 100% exacto del ROI Laboral de los empleados leyendo los campos actualizados de precios y sumando automáticamente cualquier "Extra" aplicado en la sesión clínica.
+  - Se unificó el motor de filtros de fechas: un solo control maestro rige toda la pestaña (finanzas, gráficas, ROI y agenda) de forma unificada.
+  - Cuadre milimétrico con 2 decimales y formato de moneda en todo el informe.
+
 
 ### 2. Tienda Online (E-Commerce)
 - **Desarrollo Inicial Rápido**: Se ha construido la estructura base usando **Next.js 15** (tecnología puntera y ultrarrápida).

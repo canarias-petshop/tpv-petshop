@@ -41,6 +41,7 @@ Aquí gestionarás las fichas de las familias y sus perros/gatos.
 - **Historial Clínico Inteligente:** Dentro de la familia, marca "👁️ Ver Ficha".
   - Si el cliente ha venido hace 2 meses o menos, el sistema le aplicará automáticamente un descuento del 10% por mantenimiento y lo anotará en las observaciones.
   - La duración de la cita se calcula automáticamente al guardar la hora de Inicio y Fin.
+  - **Añadir Extras:** Es fundamental que, si usas champús especiales, tratamientos para nudos, etc., los añadas usando la sección de "Añadir Extra". El precio base y los extras que rellenes aquí son los que el sistema leerá para **calcular tu rendimiento laboral mensual exacto**.
 
 ### 📦 Gestión de Encargos y Pedidos Web
 La pestaña de CRM tiene una subsección fundamental para los encargos, dividida en dos:

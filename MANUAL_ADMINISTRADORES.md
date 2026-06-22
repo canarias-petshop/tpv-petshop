@@ -21,8 +21,8 @@ El panel de estadísticas ha sido reestructurado en dos grandes bloques para fac
 
 **📊 2. Estadísticas Comerciales y Operativas:**
 - **Top 10 Depurado:** Listado de los productos y servicios más vendidos en el mes.
-- **Rendimiento y ROI Laboral Exacto:** El sistema cruza las facturaciones con el peluquero asignado.
-
+- **Rendimiento y ROI Laboral Exacto:** El sistema cruza las facturaciones reales con el peluquero asignado. Extrae el precio base, descuentos y le suma cualquier "Extra" añadido en el historial clínico para darte una cifra exacta al céntimo del rendimiento generado por trabajador, así como el volumen de citas atendidas.
+- **Filtro Global Maestro:** Tienes un único selector de fechas en la parte superior. Al cambiar el periodo (ej. "Mensual" o "Personalizado"), todo el panel (salud financiera, rendimiento laboral y el análisis de la agenda) se sincroniza al unísono, evitando que tengas que ajustar las fechas sección por sección.
 ---
 
 ## 3. 🚚 Proveedores, Pedidos y Facturación
