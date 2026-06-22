@@ -947,11 +947,15 @@ def render_pestana_crm(client):
                                 pd_options = ["---"] + df_web.apply(lambda x: f"{x['nombre_cliente']} - {x['detalle_pedido']} (ID: {x['id']})", axis=1).tolist()
                                 enc_sel = st.selectbox("Seleccionar Pedido Web:", pd_options)
                                 if enc_sel != "---":
-                                    enc_id = enc_sel.split("(ID: ")[1].replace(")", "")
-                                    enc_data = df_web[df_web['id'] == enc_id].iloc[0]
+                                    enc_id = int(enc_sel.split("(ID: ")[1].replace(")", ""))
                                     
-                                    with st.form("form_pasar_reparto"):
-                                        c_r1, c_r2 = st.columns(2)
+                                    # Asegurar que no crashea si no lo encuentra por tipos raros
+                                    filtro_id = df_web[df_web['id'] == enc_id]
+                                    if not filtro_id.empty:
+                                        enc_data = filtro_id.iloc[0]
+                                        
+                                        with st.form("form_pasar_reparto"):
+                                            c_r1, c_r2 = st.columns(2)
                                         with c_r1: dir_reparto = st.text_input("Dirección de Entrega *", placeholder="Calle, Número, Piso...")
                                         with c_r2: 
                                             completar_pedido = st.checkbox("Marcar encargo web como 'Entregado' al crear reparto", value=True)
@@ -976,6 +980,8 @@ def render_pestana_crm(client):
                                                     st.error(f"Error técnico: {e}")
                                             else:
                                                 st.warning("⚠️ Debes introducir la dirección de entrega.")
+                                    else:
+                                        st.error(f"Error al cargar encargo: No se encontró el ID {enc_id} en los datos.")
 
                         if st.button("💾 Guardar Cambios en Encargos"):
                             ed_e = pd.concat([ed_e_tnd, ed_e_web])
