@@ -490,7 +490,7 @@ def render_pestana_crm(client):
                         "Domicilio": st.column_config.CheckboxColumn("🚚 Domicilio"),
                         "Tipo Cliente": st.column_config.TextColumn("Perfil", disabled=True)
                     },
-                    use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_clientes", height=250
+                    use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_clientes_{st.session_state.get('db_version', 0)}", height=250
                 )
                 if st.button("💾 Guardar Cambios en Clientes", type="primary"):
                     ed_cli_clean = ed_cli.drop(columns=["Ver", "Tipo Cliente"])
@@ -589,7 +589,7 @@ def render_pestana_crm(client):
                         df_mc_show.insert(0, "Ver Ficha", False)
                         st.markdown("💡 *Edita los datos directamente. Para eliminar, selecciona la fila y pulsa 'Supr'. Marca **'👁️ Ver Ficha'** para abrir el historial y agendar.*")
                         ed_mc = st.data_editor(
-                            df_mc_show, use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_mc_{c_id}",
+                            df_mc_show, use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_mc_{c_id}_{st.session_state.get('db_version', 0)}",
                             column_config={
                                 "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
                                 "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista),
@@ -729,7 +729,7 @@ def render_pestana_crm(client):
                 ed_m = st.data_editor(
                     df_m_vista,
                     column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "cliente_id": None, "Dueño": st.column_config.TextColumn("Dueño (Editar)", disabled=False), "Teléfono": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn("Edad (Editable)", disabled=False, help="Escribe '5 años' o '6 meses' si no conoces la fecha exacta."), "nombre": "Mascota", "sexo": st.column_config.SelectboxColumn("Sexo", options=["", "Macho", "Hembra"]), "peso": "Peso", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
-                    use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_mascotas", height=400
+                    use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_mascotas_{st.session_state.get('db_version', 0)}", height=400
                 )
                 if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
                     ed_m_clean = ed_m.drop(columns=["Ver"])
