@@ -362,7 +362,7 @@ def render_pestana_tareas(client):
                         res_act = fetch_tareas_plannings_activos(client)
                         if res_act:
                             df_act = pd.DataFrame(res_act)
-                            df_act['Asignado'] = df_act.apply(lambda x: mapa_emp_inv.get(x['empleado_id'], x['rol_asignado']), axis=1)
+                            df_act['Asignado'] = df_act.apply(lambda x: f"👤 {mapa_emp_inv[x['empleado_id']]}" if pd.notna(x['empleado_id']) and x['empleado_id'] in mapa_emp_inv else x['rol_asignado'], axis=1)
                             
                             tramos_base = ["Cualquiera", "Mañana (Apertura)", "Mediodía", "Tarde", "Cierre"]
                             df_act['Tramo'] = df_act['tramo_horario'].apply(lambda x: x if x in tramos_base else "Hora Exacta")
