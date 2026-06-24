@@ -432,7 +432,16 @@ def render_pestana_proyectos_eventos(client):
                 with st.form("form_nuevo_evento", clear_on_submit=True):
                     e_titulo = st.text_input("Título del Taller *", placeholder="Ej: Taller de cepillado básico")
                     e_fecha = st.date_input("Fecha planificada", value=date.today())
-                    e_hora = st.text_input("Hora y Turno", placeholder="Ej: Sábado 10:00 - 12:00")
+                    c_h1, c_h2 = st.columns(2)
+                    with c_h1: e_h_ini = st.time_input("Hora Inicio", value=None)
+                    with c_h2: e_h_fin = st.time_input("Hora Fin", value=None)
+                    
+                    if e_h_ini and e_h_fin:
+                        e_hora = f"{e_h_ini.strftime('%H:%M')} - {e_h_fin.strftime('%H:%M')}"
+                    elif e_h_ini:
+                        e_hora = e_h_ini.strftime('%H:%M')
+                    else:
+                        e_hora = ""
                     c_e1, c_e2 = st.columns(2)
                     with c_e1: e_plazas = st.number_input("Plazas totales", min_value=1, value=8)
                     with c_e2: e_precio = st.number_input("Precio Reserva (€)", min_value=0.0, format="%.2f", value=15.0, step=0.01)

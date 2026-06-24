@@ -357,13 +357,13 @@ def render_pestana_tareas(client):
                             p_tramo = st.selectbox("Tramo Horario", ["Cualquiera", "Mañana (Apertura)", "Mediodía", "Tarde", "Cierre"], key=f"p_tra_{st.session_state.llave_tarea_plan}")
                             p_per = st.selectbox("Frecuencia", ["Diaria", "Semanal", "Mensual", "Puntual"], key=f"p_per_{st.session_state.llave_tarea_plan}")
                         
-                        p_hora_txt = st.text_input("O fijar hora exacta (Ej: 10:30)", placeholder="Dejar en blanco para usar el Tramo de arriba", key=f"p_hor_txt_{st.session_state.llave_tarea_plan}")
+                        p_hora_txt = st.time_input("O fijar hora exacta", value=None, key=f"p_hor_txt_{st.session_state.llave_tarea_plan}")
                         p_fec = None
                         if p_per == "Puntual": p_fec = st.date_input("Fecha límite", value=date.today())
                             
                         if st.form_submit_button("Guardar Planning", type="primary", use_container_width=True):
                             if p_tar:
-                                tramo_final = p_hora_txt.strip() if p_hora_txt.strip() else p_tramo
+                                tramo_final = p_hora_txt.strftime('%H:%M') if p_hora_txt else p_tramo
                                 emp_id, rol = None, "Cualquiera / Todos"
                                 if p_asig.startswith("👤 "):
                                     emp_id = mapa_emp.get(p_asig.replace("👤 ", ""))
@@ -388,7 +388,12 @@ def render_pestana_tareas(client):
                             
                             tramos_base = ["Cualquiera", "Mañana (Apertura)", "Mediodía", "Tarde", "Cierre"]
                             df_act['Tramo'] = df_act['tramo_horario'].apply(lambda x: x if x in tramos_base else "Hora Exacta")
-                            df_act['Hora'] = df_act['tramo_horario'].apply(lambda x: "" if x in tramos_base else (x if x else ""))
+                            
+                            def parse_time(x):
+                                try: return pd.to_datetime(x).time()
+                                except: return None
+                                
+                            df_act['Hora'] = df_act['tramo_horario'].apply(lambda x: parse_time(x) if x not in tramos_base and x else None)
                             
                             df_v_act = df_act[['id', 'tarea', 'tipo', 'Tramo', 'Hora', 'Asignado', 'periodicidad']].copy()
                             df_v_act.insert(0, "Borrar", False)
@@ -404,7 +409,7 @@ def render_pestana_tareas(client):
                                     "tarea": "Tarea", 
                                     "tipo": st.column_config.SelectboxColumn("Tipo", options=categorias_t), 
                                     "Tramo": st.column_config.SelectboxColumn("Tramo", options=["Cualquiera", "Mañana (Apertura)", "Mediodía", "Tarde", "Cierre", "Hora Exacta"]),
-                                    "Hora": st.column_config.TextColumn("Hora", help="Rellenar si el tramo es 'Hora Exacta'"),
+                                    "Hora": st.column_config.TimeColumn("Hora", format="HH:mm", help="Rellenar si el tramo es 'Hora Exacta'"),
                                     "Asignado": st.column_config.SelectboxColumn("Asignado a", options=opciones_asignacion),
                                     "periodicidad": st.column_config.SelectboxColumn("Frec.", options=["Diaria", "Semanal", "Mensual", "Puntual"])
                                 }
@@ -414,8 +419,8 @@ def render_pestana_tareas(client):
                                     client.table("tareas_plannings").update({"activo": False}).eq("id", rb['id']).execute()
                                 
                                 for _, rv in ed_act[ed_act["Borrar"] == False].iterrows():
-                                    tram_val = str(rv['Hora']).strip() if str(rv['Hora']).strip() and rv['Tramo'] == "Hora Exacta" else rv['Tramo']
-                                    if tram_val == "Hora Exacta" and not str(rv['Hora']).strip(): tram_val = "Cualquiera"
+                                    tram_val = rv['Hora'].strftime('%H:%M') if pd.notna(rv['Hora']) and rv['Tramo'] == "Hora Exacta" else rv['Tramo']
+                                    if tram_val == "Hora Exacta" and pd.isna(rv['Hora']): tram_val = "Cualquiera"
                                     
                                     asi = str(rv['Asignado'])
                                     if asi.startswith("👤 "):

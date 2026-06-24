@@ -500,8 +500,8 @@ def render_pestana_agenda(client):
                         "mascota_id": mascota_info.get('id'),
                         "Borrar": False,
                         "id": c['id'],
-                        "Día": dt_obj.strftime('%d/%m/%Y'),
-                        "Hora": dt_obj.strftime('%H:%M'),
+                        "Día": dt_obj.date(),
+                        "Hora": dt_obj.time(),
                         "Estado": estado_con_emoji,
                         "Duración (min)": dur,
                         "Peluquero/a": assigned_e,
@@ -535,8 +535,8 @@ def render_pestana_agenda(client):
                             "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
                             "id": None,
                             "mascota_id": None,
-                            "Día": st.column_config.TextColumn("Día (DD/MM/AAAA)", width="small"),
-                            "Hora": st.column_config.TextColumn("Hora", width="small"),
+                            "Día": st.column_config.DateColumn("Día", format="DD/MM/YYYY", width="small"),
+                            "Hora": st.column_config.TimeColumn("Hora", format="HH:mm", width="small"),
                             "Estado": st.column_config.SelectboxColumn("🎨 Estado", options=[f"{EMOJIS_ESTADO.get(e, '')} {e}" for e in ESTADOS_CITA], required=True),
                             "Peluquero/a": st.column_config.SelectboxColumn("👩‍🦰 Peluquero/a", options=["Sin Asignar"] + empleados_lista, required=True),
                             "Servicio": st.column_config.SelectboxColumn("✂️ Servicio", options=opciones_seguras_ag, required=True),
@@ -562,7 +562,10 @@ def render_pestana_agenda(client):
                                     client.table("citas").delete().eq("id", row['id']).execute()
                                 else:
                                     try:
-                                        dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}", format='%d/%m/%Y %H:%M').strftime('%Y-%m-%d %H:%M:%S')
+                                        try:
+                                            dt_str = pd.Timestamp.combine(row['Día'], row['Hora']).strftime('%Y-%m-%d %H:%M:%S')
+                                        except:
+                                            dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}").strftime('%Y-%m-%d %H:%M:%S')
                                     except:
                                         dt_str = pd.to_datetime(f"{row['Día']} {row['Hora']}").strftime('%Y-%m-%d %H:%M:%S')
                                         

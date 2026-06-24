@@ -81,7 +81,10 @@ def render_pestana_servicios(client):
                 
                 st.markdown("---")
                 p_tipo = st.selectbox("2. Tipo de Paseo:", ["Paseo por la ciudad", "Paseo al monte"])
-                p_fecha = st.text_input("3. Fecha y Hora", placeholder="Ej: Mañana a las 10:00, Lunes tarde...")
+                p_c1, p_c2 = st.columns(2)
+                with p_c1: p_dia = st.date_input("3. Día de Paseo", key=f"pd_{st.session_state.llave_srv_paseo}")
+                with p_c2: p_hora = st.time_input("Hora", value=None, key=f"ph_{st.session_state.llave_srv_paseo}")
+                p_fecha = f"{p_dia.strftime('%d/%m/%Y')} a las {p_hora.strftime('%H:%M')}" if p_hora else p_dia.strftime('%d/%m/%Y')
                 p_obs = st.text_area("4. Observaciones", placeholder="Carácter, rutas preferidas, duración...")
                 
                 if st.form_submit_button("Guardar Paseo", type="primary", use_container_width=True):
@@ -243,7 +246,10 @@ def render_pestana_servicios(client):
                     r_dir_man = st.text_input("Dirección de Recogida", value=def_dir_r)
                     
                     st.markdown("---")
-                    r_fecha = st.text_input("2. Día y Hora de Recogida *", placeholder="Ej: Martes a las 11:30")
+                    r_c1, r_c2 = st.columns(2)
+                    with r_c1: r_dia = st.date_input("2. Día de Recogida *", key=f"rd_{st.session_state.llave_srv_reco}")
+                    with r_c2: r_hora = st.time_input("Hora *", value=None, key=f"rh_{st.session_state.llave_srv_reco}")
+                    r_fecha = f"{r_dia.strftime('%d/%m/%Y')} a las {r_hora.strftime('%H:%M')}" if r_hora else ""
                     r_obs = st.text_area("3. Observaciones / Instrucciones especiales")
                     
                     if st.form_submit_button("Guardar Recogida", type="primary", use_container_width=True):

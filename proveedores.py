@@ -72,7 +72,8 @@ def render_pestana_proveedores(client):
                 with c_np6: n_pais = st.text_input("País", value="España - Islas Canarias", key=f"np_pais_{st.session_state.llave_n_prov}")
                 
                 n_frec = st.text_input("Días de Reparto", placeholder="Ej: Todos los días, Los martes, Bajo demanda...", value="Bajo demanda", key=f"np_frec_{st.session_state.llave_n_prov}")
-                n_hora = st.text_input("Hora límite de pedido", placeholder="Ej: 14:00, 20:00, Sin límite...", value="Sin límite", key=f"np_hora_{st.session_state.llave_n_prov}")
+                n_hora_input = st.time_input("Hora límite de pedido", value=None, key=f"np_hora_{st.session_state.llave_n_prov}")
+                n_hora = n_hora_input.strftime('%H:%M') if n_hora_input else "Sin límite"
                 n_min = st.number_input("Pedido Mínimo (€) para portes gratis", min_value=0.0, format="%.2f", step=0.01, key=f"np_min_{st.session_state.llave_n_prov}")
                 
                 if st.form_submit_button("Guardar Proveedor", use_container_width=True, type="primary"):
