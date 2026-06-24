@@ -123,6 +123,7 @@ def render_pestana_tareas(client):
             regs_dia = [r for r in registros_sem if r.get('fecha_completada') == d_str]
             hechas_ids_dia = {r['tarea_id']: r for r in regs_dia}
             
+            tareas_dia_cats = {}
             for p in plan_activos:
                 created_date = str(p.get('created_at', '2000-01-01'))[:10]
                 aplica = False
@@ -134,23 +135,29 @@ def render_pestana_tareas(client):
                 
                 is_done = p['id'] in hechas_ids_dia
                 
-                if is_done:
-                    r_info = hechas_ids_dia[p['id']]
-                    who = r_info.get('personal_empleados', {}).get('nombre', 'Alguien') if isinstance(r_info.get('personal_empleados'), dict) else 'Alguien'
-                    nota_html = f"<br><span style='color:#555; font-size: 0.9em;'>📝 {r_info.get('notas')}</span>" if r_info.get('notas') else ""
-                    tipo_html = f"<span class='te-tipo'>{p.get('tipo', 'General')}</span>" if p.get('tipo') and p.get('tipo') != 'General' else ""
+                if is_done or aplica:
+                    tipo_cat = p.get('tipo', 'General/Otro')
+                    if not tipo_cat: tipo_cat = 'General/Otro'
+                    if tipo_cat not in tareas_dia_cats: tareas_dia_cats[tipo_cat] = []
+                    
                     tramo_html = f"<span class='te-tramo'>{p.get('tramo_horario', 'Cualquiera')}</span>" if p.get('tramo_horario') and p.get('tramo_horario') != 'Cualquiera' else ""
                     
-                    html_cal_emp += f"<div class='tarea-emp-card te-comp'><b>✅ {p['tarea']}</b><span class='te-who'>Por: {who}</span><div style='margin-top:2px;'>{tipo_html}{tramo_html}</div>{nota_html}</div>"
-                elif aplica:
-                    nom_asig = mapa_emp_inv.get(p.get('empleado_id'), p.get('rol_asignado', 'General'))
-                    tipo_html = f"<span class='te-tipo'>{p.get('tipo', 'General')}</span>" if p.get('tipo') and p.get('tipo') != 'General' else ""
-                    tramo_html = f"<span class='te-tramo'>{p.get('tramo_horario', 'Cualquiera')}</span>" if p.get('tramo_horario') and p.get('tramo_horario') != 'Cualquiera' else ""
-                    
-                    if d_str < hoy_str_emp:
-                        html_cal_emp += f"<div class='tarea-emp-card te-pend' style='border-left-color: #e53935; opacity: 0.8;'><b>❌ {p['tarea']}</b><span class='te-asig' style='color:#e53935;'>Olvidada</span></div>"
-                    else:
-                        html_cal_emp += f"<div class='tarea-emp-card te-pend'><b>⏳ {p['tarea']}</b><div style='margin-top:2px;'>{tipo_html}{tramo_html}</div><span class='te-asig'>Para: {nom_asig}</span></div>"
+                    if is_done:
+                        r_info = hechas_ids_dia[p['id']]
+                        who = r_info.get('personal_empleados', {}).get('nombre', 'Alguien') if isinstance(r_info.get('personal_empleados'), dict) else 'Alguien'
+                        nota_html = f"<br><span style='color:#555; font-size: 0.9em;'>📝 {r_info.get('notas')}</span>" if r_info.get('notas') else ""
+                        tareas_dia_cats[tipo_cat].append(f"<div class='tarea-emp-card te-comp'><b>✅ {p['tarea']}</b><span class='te-who'>Por: {who}</span><div style='margin-top:2px;'>{tramo_html}</div>{nota_html}</div>")
+                    elif aplica:
+                        nom_asig = mapa_emp_inv.get(p.get('empleado_id'), p.get('rol_asignado', 'General'))
+                        if d_str < hoy_str_emp:
+                            tareas_dia_cats[tipo_cat].append(f"<div class='tarea-emp-card te-pend' style='border-left-color: #e53935; opacity: 0.8;'><b>❌ {p['tarea']}</b><span class='te-asig' style='color:#e53935;'>Olvidada</span></div>")
+                        else:
+                            tareas_dia_cats[tipo_cat].append(f"<div class='tarea-emp-card te-pend'><b>⏳ {p['tarea']}</b><div style='margin-top:2px;'>{tramo_html}</div><span class='te-asig'>Para: {nom_asig}</span></div>")
+                            
+            for cat in sorted(tareas_dia_cats.keys()):
+                html_cal_emp += f"<div style='font-size: 0.85em; font-weight: bold; color: #005275; margin-top: 10px; margin-bottom: 4px; border-bottom: 1px solid #ccc;'>🏷️ {cat}</div>"
+                for card_html in tareas_dia_cats[cat]:
+                    html_cal_emp += card_html
                         
             html_cal_emp += "</td>"
         html_cal_emp += "</tr></table>"
