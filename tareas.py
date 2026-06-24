@@ -328,6 +328,21 @@ def render_pestana_tareas(client):
                     except: pass
                     
             with sub_admin[1]:
+                try:
+                    res_act_load = fetch_tareas_plannings_activos(client)
+                    if res_act_load:
+                        df_load = pd.DataFrame(res_act_load)
+                        df_load['Asig'] = df_load.apply(lambda x: f"👤 {mapa_emp_inv[x['empleado_id']]}" if pd.notna(x['empleado_id']) and x['empleado_id'] in mapa_emp_inv else x['rol_asignado'], axis=1)
+                        conteo = df_load['Asig'].value_counts()
+                        
+                        st.markdown("##### 📊 Balance de Carga de Trabajo (Planes Activos)")
+                        st.markdown("<span style='font-size:13px; color:gray;'>Recuento del número de tareas recurrentes asignadas a cada empleado o rol.</span>", unsafe_allow_html=True)
+                        html_tags = "".join([f"<span style='display:inline-block; background-color:#e3f2fd; color:#1565c0; padding:6px 12px; border-radius:15px; margin-right:8px; margin-bottom:8px; font-weight:bold; font-size:14px;'>{k}: <span style='color:#d32f2f;'>{v}</span> tareas</span>" for k, v in conteo.items()])
+                        st.markdown(html_tags, unsafe_allow_html=True)
+                        st.markdown("<hr style='margin-top: 5px; margin-bottom: 15px;'>", unsafe_allow_html=True)
+                except:
+                    pass
+                
                 c_p1, c_p2 = st.columns([1, 2])
                 with c_p1:
                     with st.form("form_nuevo_plan", clear_on_submit=True):
