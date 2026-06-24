@@ -1082,7 +1082,12 @@ def render_pestana_agenda(client):
         citas_manana = []
         if res_manana_data:
             for c in res_manana_data:
-                if "[ESTADO: Pendiente]" not in c.get('servicio', ''): continue
+                estado_c, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
+                if estado_c in ["Cancelada", "Anulada", "No presentado", "Asistió"]: continue
+                
+                emoji_estado = EMOJIS_ESTADO.get(estado_c, "🟢")
+                estado_con_emoji = f"{emoji_estado} {estado_c}"
+
                 mascota_info = c.get('mascotas', {}) or {}
                 cliente_info = mascota_info.get('clientes', {}) or {}
                 dueno = cliente_info.get('nombre_dueno', 'Dueño')
@@ -1103,26 +1108,50 @@ def render_pestana_agenda(client):
                     msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería para {nombre_m}\nHora: {hora_str}\nDía: {fecha_str_wa}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶"
                     
                 url_wa = generar_enlace_wa(telefono, msg)
-                    
-                import re
-                s_raw = c.get('servicio', '')
-                s_clean = re.sub(r'\[ESTADO:\s*.*?\]\s*', '', s_raw).strip()
                 
                 citas_manana.append({
+                    "id": c['id'],
                     "Hora": hora_str,
+                    "Estado": estado_con_emoji,
                     "Mascota": nombre_m,
                     "Dueño": dueno + (" 🚚" if domicilio else ""),
-                    "Dirección": direccion if domicilio else "En local",
-                    "Canal Pref.": pref_contacto,
                     "Servicio": s_clean,
-                    "WhatsApp": url_wa
+                    "Peluquero/a": assigned_e,
+                    "Canal Pref.": pref_contacto,
+                    "WhatsApp": url_wa,
+                    "Dirección": direccion if domicilio else "En local"
                 })
                 
         if citas_manana:
             df_manana = pd.DataFrame(citas_manana).sort_values("Hora")
-            st.dataframe(df_manana, use_container_width=True, hide_index=True, column_config={"WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Pedir Confirmación")})
+            ed_manana = st.data_editor(
+                df_manana[['id', 'Hora', 'Estado', 'Mascota', 'Dueño', 'Servicio', 'Canal Pref.', 'WhatsApp', 'Peluquero/a']],
+                use_container_width=True, hide_index=True, key="ed_manana_ag",
+                column_config={
+                    "id": None,
+                    "Peluquero/a": None,
+                    "Servicio": None,
+                    "Estado": st.column_config.SelectboxColumn("🎨 Estado", options=[f"{EMOJIS_ESTADO.get(e, '')} {e}" for e in ESTADOS_CITA], required=True),
+                    "WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Recordatorio")
+                }
+            )
+            
+            if st.button("💾 Guardar Estados de Mañana", type="primary"):
+                import re
+                for _, row in ed_manana.iterrows():
+                    new_estado = re.sub(r'^[\W\s]+\s*', '', row['Estado']).strip()
+                    servicio_final = f"[ESTADO: {new_estado}] {row['Servicio']}"
+                    if row['Peluquero/a'] != "Sin Asignar":
+                        servicio_final += f" ({row['Peluquero/a']})"
+                    client.table("citas").update({"servicio": servicio_final}).eq("id", row['id']).execute()
+                    
+                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                st.success("Estados actualizados.")
+                time.sleep(0.5)
+                limpiar_cache_agenda()
+                st.rerun()
         else:
-            st.success(f"No hay citas pendientes de confirmación para el {nombre_dia_obj.lower()}.")
+            st.success(f"No hay citas para confirmar para el {nombre_dia_obj.lower()}.")
 
         st.markdown("---")
         
