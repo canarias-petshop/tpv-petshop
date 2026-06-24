@@ -1074,8 +1074,8 @@ def render_pestana_agenda(client):
         
         st.markdown(f"##### 📅 1. Confirmaciones para el {nombre_dia_obj} ({manana_dt.strftime('%d/%m')})")
         
-        manana_str_ini = manana_dt.strftime('%Y-%m-%dT00:00:00')
-        manana_str_fin = manana_dt.strftime('%Y-%m-%dT23:59:59')
+        manana_str_ini = manana_dt.strftime('%Y-%m-%d 00:00:00')
+        manana_str_fin = manana_dt.strftime('%Y-%m-%d 23:59:59')
         
         res_manana_data = get_manana_ag_cached(client, st.session_state.get('db_version', 0), manana_str_ini, manana_str_fin)
         
@@ -1134,7 +1134,7 @@ def render_pestana_agenda(client):
         with c_al1:
             dias_aviso = st.slider("Mostrar mascotas sin venir en más de (días):", min_value=15, max_value=180, value=45, step=5)
         
-        hoy_str = hoy_dt.strftime('%Y-%m-%dT00:00:00')
+        hoy_str = hoy_dt.strftime('%Y-%m-%d 00:00:00')
         res_futuras_data = get_futuras_ag_cached(client, st.session_state.get('db_version', 0), hoy_str)
         mascotas_con_cita = set()
         if res_futuras_data:
