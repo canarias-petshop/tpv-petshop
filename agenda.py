@@ -50,7 +50,7 @@ def get_alertas_m_ag_cached(_client, v):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_manana_ag_cached(_client, v, m_ini, m_fin):
-    return _client.table("citas").select("id, fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto, direccion, servicio_domicilio))").gte("fecha_hora", m_ini).lte("fecha_hora", m_fin).execute().data
+    return _client.table("citas").select("id, fecha_hora, servicio, observaciones, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto, direccion, servicio_domicilio))").gte("fecha_hora", m_ini).lte("fecha_hora", m_fin).execute().data
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_futuras_ag_cached(_client, v, h_str):
@@ -1085,8 +1085,10 @@ def render_pestana_agenda(client):
                 estado_c, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
                 if estado_c in ["Cancelada", "Anulada", "No presentado", "Asistió"]: continue
                 
-                emoji_estado = EMOJIS_ESTADO.get(estado_c, "🟢")
-                estado_con_emoji = f"{emoji_estado} {estado_c}"
+                obs_raw = c.get('observaciones') or ''
+                import re
+                m_aviso = re.search(r'\[RECORDATORIO:\s*(.*?)\]', obs_raw)
+                aviso_status = m_aviso.group(1).strip() if m_aviso else "Sin avisar"
 
                 mascota_info = c.get('mascotas', {}) or {}
                 cliente_info = mascota_info.get('clientes', {}) or {}
@@ -1111,42 +1113,44 @@ def render_pestana_agenda(client):
                 
                 citas_manana.append({
                     "id": c['id'],
+                    "Aviso": aviso_status,
                     "Hora": hora_str,
-                    "Estado": estado_con_emoji,
                     "Mascota": nombre_m,
                     "Dueño": dueno + (" 🚚" if domicilio else ""),
                     "Servicio": s_clean,
-                    "Peluquero/a": assigned_e,
                     "Canal Pref.": pref_contacto,
                     "WhatsApp": url_wa,
-                    "Dirección": direccion if domicilio else "En local"
+                    "Observaciones_Old": obs_raw
                 })
                 
         if citas_manana:
             df_manana = pd.DataFrame(citas_manana).sort_values("Hora")
             ed_manana = st.data_editor(
-                df_manana[['id', 'Hora', 'Estado', 'Mascota', 'Dueño', 'Servicio', 'Canal Pref.', 'WhatsApp', 'Peluquero/a']],
+                df_manana[['id', 'Hora', 'Aviso', 'Mascota', 'Dueño', 'Servicio', 'Canal Pref.', 'WhatsApp', 'Observaciones_Old']],
                 use_container_width=True, hide_index=True, key="ed_manana_ag",
                 column_config={
                     "id": None,
-                    "Peluquero/a": None,
-                    "Servicio": None,
-                    "Estado": st.column_config.SelectboxColumn("🎨 Estado", options=[f"{EMOJIS_ESTADO.get(e, '')} {e}" for e in ESTADOS_CITA], required=True),
+                    "Observaciones_Old": None,
+                    "Aviso": st.column_config.SelectboxColumn("🔔 Aviso", options=["Sin avisar", "Avisado"], required=True),
                     "WhatsApp": st.column_config.LinkColumn("📱 Acción Automática", display_text="💬 Recordatorio")
                 }
             )
             
-            if st.button("💾 Guardar Estados de Mañana", type="primary"):
+            if st.button("💾 Guardar Avisos de Mañana", type="primary"):
                 import re
                 for _, row in ed_manana.iterrows():
-                    new_estado = re.sub(r'^[\W\s]+\s*', '', row['Estado']).strip()
-                    servicio_final = f"[ESTADO: {new_estado}] {row['Servicio']}"
-                    if row['Peluquero/a'] != "Sin Asignar":
-                        servicio_final += f" ({row['Peluquero/a']})"
-                    client.table("citas").update({"servicio": servicio_final}).eq("id", row['id']).execute()
+                    new_aviso = row['Aviso']
+                    obs_old = row['Observaciones_Old']
+                    
+                    if '[RECORDATORIO:' in obs_old:
+                        new_obs = re.sub(r'\[RECORDATORIO:\s*.*?\]', f'[RECORDATORIO: {new_aviso}]', obs_old)
+                    else:
+                        new_obs = (obs_old + f" [RECORDATORIO: {new_aviso}]").strip()
+                        
+                    client.table("citas").update({"observaciones": new_obs}).eq("id", row['id']).execute()
                     
                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                st.success("Estados actualizados.")
+                st.success("Avisos actualizados.")
                 time.sleep(0.5)
                 limpiar_cache_agenda()
                 st.rerun()
