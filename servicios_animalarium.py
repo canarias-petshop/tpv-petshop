@@ -129,7 +129,7 @@ def render_pestana_servicios(client):
                             if pd.notna(r['id']):
                                 client.table("servicios_paseo").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
                         limpiar_cache_servicios()
-                        st.rerun()
+                        st.success("Guardado"); time.sleep(0.5); st.rerun()
                 else: st.info("No hay paseos programados.")
             except: st.info("Ejecuta el código SQL para habilitar la tabla de Paseos.")
 
@@ -212,7 +212,7 @@ def render_pestana_servicios(client):
                             if pd.notna(r['id']):
                                 client.table("servicios_adiestramiento").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
                         limpiar_cache_servicios()
-                        st.rerun()
+                        st.success("Guardado"); time.sleep(0.5); st.rerun()
                 else: st.info("No hay sesiones de adiestramiento programadas.")
             except: st.info("Ejecuta el código SQL para habilitar la tabla de Adiestramiento.")
 
@@ -301,7 +301,7 @@ def render_pestana_servicios(client):
                                 if pd.notna(r['id']):
                                     client.table("servicios_recogida").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
                             limpiar_cache_servicios()
-                            st.rerun()
+                            st.success("Guardado"); time.sleep(0.5); st.rerun()
                     else: st.info("No hay recogidas programadas.")
                 except: st.info("Ejecuta el código SQL para habilitar la tabla de Recogidas.")
 
@@ -392,6 +392,6 @@ def render_pestana_servicios(client):
                                     client.table("pedidos_domicilio").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             limpiar_cache_servicios()
-                            st.rerun()
+                            st.success("Guardado"); time.sleep(0.5); st.rerun()
                     else: st.info("No hay pedidos a domicilio activos.")
                 except Exception as e: st.warning("⚠️ Debes crear la tabla 'pedidos_domicilio' en Supabase para que funcione este panel.")

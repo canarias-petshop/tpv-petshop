@@ -376,7 +376,8 @@ def render_pestana_proveedores(client):
                         for _, r in filas_validas.iterrows():
                             client.table("pedidos_proveedores").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                        limpiar_cache_proveedores(); st.rerun()
+                        limpiar_cache_proveedores()
+                        st.success("Estados guardados correctamente."); time.sleep(0.5); st.rerun()
                         
                     # Mostrar detalle del pedido marcado
                     filas_ped = ed_ped[(ed_ped["Ver/Editar"] == True) & (ed_ped["Borrar"] == False)]

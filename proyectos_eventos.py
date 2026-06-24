@@ -480,6 +480,8 @@ def render_pestana_proyectos_eventos(client):
                             if st.button("💾 Guardar Cambios en la Lista de Asistentes", type="primary"):
                                 for _, rb in ed_a[ed_a["Quitar"] == True].iterrows(): client.table("eventos_asistentes").delete().eq("id", rb['id']).execute()
                                 for _, rg in ed_a[ed_a["Quitar"] == False].iterrows(): client.table("eventos_asistentes").update({"pagado": bool(rg['Reserva Pagada'])}).eq("id", rg['id']).execute()
-                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1; st.rerun()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success("Lista de asistentes actualizada"); time.sleep(0.5)
+                                st.rerun()
                 else: st.info("No hay eventos programados. Rellena el formulario de la izquierda para crear el primero.")
             except Exception as e: st.info("🔧 Ejecuta el código SQL en Supabase para activar la función de Eventos.")

@@ -207,7 +207,8 @@ def render_pestana_inventario(client):
                         st.success("Inventario sincronizado correctamente")
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         limpiar_cache_inventario()
-                        st.rerun() # Recargamos para ver los cambios [cite: 9]
+                        time.sleep(0.5)
+                        st.rerun() # Recargamos para ver los cambios
 
                 with sub_serv:
                     # --- TABLA DE SERVICIOS MEJORADA ---
@@ -282,6 +283,7 @@ def render_pestana_inventario(client):
                         st.success("Catálogo de servicios actualizado")
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         limpiar_cache_inventario()
+                        time.sleep(0.5)
                         st.rerun()
                         
                 with sub_interno:
