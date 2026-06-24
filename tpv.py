@@ -32,7 +32,7 @@ def fetch_empleados_tpv(_client):
     return _client.table("personal_empleados").select("nombre").execute()
 
 @st.cache_data(show_spinner=False, ttl=300)
-def fetch_clientes_puntos_tpv(_client):
+def fetch_clientes_puntos_tpv(_client, v):
     _all = []
     _off = 0
     while True:
@@ -627,7 +627,7 @@ def render_pestana_tpv(client):
                 sub_antes = edited_df["Subtotal"].sum()
                 
                 # --- FIDELIZACIÓN ---
-                all_cli_puntos = fetch_clientes_puntos_tpv(client)
+                all_cli_puntos = fetch_clientes_puntos_tpv(client, st.session_state.get('db_version', 0))
                 
                 class DummyRes: pass
                 res_cli_puntos = DummyRes()
