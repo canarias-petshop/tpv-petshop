@@ -50,7 +50,7 @@ def get_alertas_m_ag_cached(_client, v):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_manana_ag_cached(_client, v, m_ini, m_fin):
-    return _client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto, direccion, servicio_domicilio))").gte("fecha_hora", m_ini).lte("fecha_hora", m_fin).execute().data
+    return _client.table("citas").select("id, fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto, direccion, servicio_domicilio))").gte("fecha_hora", m_ini).lte("fecha_hora", m_fin).execute().data
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_futuras_ag_cached(_client, v, h_str):
