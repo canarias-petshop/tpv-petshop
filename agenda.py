@@ -1081,47 +1081,78 @@ def render_pestana_agenda(client):
         
         citas_manana = []
         if res_manana_data:
+            # 1. Agrupar citas por teléfono del cliente
+            agrupadas_por_tlf = {}
             for c in res_manana_data:
                 estado_c, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
                 if estado_c in ["Cancelada", "Anulada", "No presentado", "Asistió"]: continue
                 
-                obs_raw = c.get('observaciones') or ''
-                import re
-                m_aviso = re.search(r'\[RECORDATORIO:\s*(.*?)\]', obs_raw)
-                aviso_status = m_aviso.group(1).strip() if m_aviso else "Sin avisar"
-
                 mascota_info = c.get('mascotas', {}) or {}
                 cliente_info = mascota_info.get('clientes', {}) or {}
-                dueno = cliente_info.get('nombre_dueno', 'Dueño')
                 telefono = cliente_info.get('telefono', '')
-                pref_contacto = cliente_info.get('metodo_contacto') or 'WhatsApp'
-                domicilio = cliente_info.get('servicio_domicilio', False)
-                direccion = cliente_info.get('direccion', '')
-                nombre_m = mascota_info.get('nombre', 'tu mascota')
                 
-                dt_obj = pd.to_datetime(c['fecha_hora'])
-                hora_str = dt_obj.strftime('%H:%M')
+                if telefono not in agrupadas_por_tlf:
+                    agrupadas_por_tlf[telefono] = []
+                agrupadas_por_tlf[telefono].append({
+                    "c": c, "s_clean": s_clean, "mascota_info": mascota_info, "cliente_info": cliente_info
+                })
                 
+            # 2. Generar mensajes combinados y poblar la tabla
+            for tlf, citas_del_tlf in agrupadas_por_tlf.items():
+                lista_info = []
+                domicilio_alguno = False
+                direccion_alguno = ""
+                for item in citas_del_tlf:
+                    dt_obj = pd.to_datetime(item['c']['fecha_hora'])
+                    hora_str = dt_obj.strftime('%H:%M')
+                    nombre_m = item['mascota_info'].get('nombre', 'tu mascota')
+                    lista_info.append(f"{nombre_m} a las {hora_str}")
+                    if item['cliente_info'].get('servicio_domicilio', False):
+                        domicilio_alguno = True
+                        direccion_alguno = item['cliente_info'].get('direccion', '')
+                
+                if len(lista_info) == 1:
+                    texto_mascotas_horas = f"para {lista_info[0].split(' a las ')[0]}\nHora: {lista_info[0].split(' a las ')[1]}"
+                elif len(lista_info) == 2:
+                    texto_mascotas_horas = "para " + " y ".join(lista_info)
+                else:
+                    texto_mascotas_horas = "para " + ", ".join(lista_info[:-1]) + " y " + lista_info[-1]
+                    
                 fecha_str_wa = f"{nombre_dia_obj.lower()} {manana_dt.day} {meses_es[manana_dt.month]}"
                 
-                if domicilio:
-                    msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería para {nombre_m}\nHora: {hora_str}\nDía: {fecha_str_wa}\nDirección de recogida: {direccion}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶🚗"
+                if domicilio_alguno:
+                    msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería {texto_mascotas_horas}\nDía: {fecha_str_wa}\nDirección de recogida: {direccion_alguno}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶🚗"
                 else:
-                    msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería para {nombre_m}\nHora: {hora_str}\nDía: {fecha_str_wa}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶"
+                    msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería {texto_mascotas_horas}\nDía: {fecha_str_wa}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶"
                     
-                url_wa = generar_enlace_wa(telefono, msg)
+                url_wa = generar_enlace_wa(tlf, msg)
                 
-                citas_manana.append({
-                    "id": c['id'],
-                    "Aviso": aviso_status,
-                    "Hora": hora_str,
-                    "Mascota": nombre_m,
-                    "Dueño": dueno + (" 🚚" if domicilio else ""),
-                    "Servicio": s_clean,
-                    "Canal Pref.": pref_contacto,
-                    "WhatsApp": url_wa,
-                    "Observaciones_Old": obs_raw
-                })
+                for item in citas_del_tlf:
+                    c = item['c']
+                    obs_raw = c.get('observaciones') or ''
+                    import re
+                    m_aviso = re.search(r'\[RECORDATORIO:\s*(.*?)\]', obs_raw)
+                    aviso_status = m_aviso.group(1).strip() if m_aviso else "Sin avisar"
+                    
+                    dueno = item['cliente_info'].get('nombre_dueno', 'Dueño')
+                    pref_contacto = item['cliente_info'].get('metodo_contacto') or 'WhatsApp'
+                    domicilio = item['cliente_info'].get('servicio_domicilio', False)
+                    nombre_m = item['mascota_info'].get('nombre', 'tu mascota')
+                    
+                    dt_obj = pd.to_datetime(c['fecha_hora'])
+                    hora_str = dt_obj.strftime('%H:%M')
+                    
+                    citas_manana.append({
+                        "id": c['id'],
+                        "Aviso": aviso_status,
+                        "Hora": hora_str,
+                        "Mascota": nombre_m,
+                        "Dueño": dueno + (" 🚚" if domicilio else ""),
+                        "Servicio": item['s_clean'],
+                        "Canal Pref.": pref_contacto,
+                        "WhatsApp": url_wa,
+                        "Observaciones_Old": obs_raw
+                    })
                 
         if citas_manana:
             df_manana = pd.DataFrame(citas_manana).sort_values("Hora")
