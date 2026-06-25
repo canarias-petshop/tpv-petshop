@@ -295,12 +295,14 @@ def render_pestana_tareas(client):
                         st.markdown("##### ➕ Nueva Gestión / Reunión")
                         g_titulo = st.text_input("Asunto / Tarea *", key=f"g_tit_{st.session_state.llave_tarea_due}")
                         g_fecha = st.date_input("Fecha", value=date.today(), key=f"g_fec_{st.session_state.llave_tarea_due}")
-                        g_frecuencia = st.selectbox("Periodicidad", ["Puntual", "Semanal", "Mensual", "Anual"], key=f"g_fre_{st.session_state.llave_tarea_due}")
+                        g_frecuencia = st.selectbox("Periodicidad", ["Puntual", "Diario", "Semanal", "Mensual", "Anual", "Por horas"], key=f"g_fre_{st.session_state.llave_tarea_due}")
+                        g_hora = st.time_input("Hora concreta (Opcional)", value=None, key=f"g_hor_due_{st.session_state.llave_tarea_due}")
                         g_notas = st.text_area("Notas", key=f"g_not_{st.session_state.llave_tarea_due}")
                         
                         if st.form_submit_button("Programar", type="primary", use_container_width=True):
                             if g_titulo:
-                                client.table("tareas_duenos").insert({"titulo": g_titulo, "fecha_programada": str(g_fecha), "periodicidad": g_frecuencia, "notas": g_notas, "estado": "Pendiente ⏳"}).execute()
+                                tit_final = f"🕒 {g_hora.strftime('%H:%M')} - {g_titulo}" if g_hora else g_titulo
+                                client.table("tareas_duenos").insert({"titulo": tit_final, "fecha_programada": str(g_fecha), "periodicidad": g_frecuencia, "notas": g_notas, "estado": "Pendiente ⏳"}).execute()
                                 st.session_state.llave_tarea_due += 1
                                 limpiar_cache_tareas()
                                 st.success("Agendado."); time.sleep(0.5); st.rerun()
@@ -317,11 +319,17 @@ def render_pestana_tareas(client):
                             
                             ed_due = st.data_editor(
                                 df_v_due, hide_index=True, use_container_width=True, height=350,
-                                column_config={"Borrar": st.column_config.CheckboxColumn("🗑️", width="small"), "id": None, "titulo": "Asunto", "periodicidad": "Frecuencia", "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente ⏳", "En curso 🏗️", "Completada ✅"])}, key="ed_duenos"
+                                column_config={
+                                    "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"), 
+                                    "id": None, 
+                                    "titulo": "Asunto", 
+                                    "periodicidad": st.column_config.SelectboxColumn("Frecuencia", options=["Puntual", "Diario", "Semanal", "Mensual", "Anual", "Por horas"]), 
+                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente ⏳", "En curso 🏗️", "Completada ✅"])
+                                }, key="ed_duenos"
                             )
                             if st.button("💾 Guardar Cambios", type="primary"):
                                 for _, rb in ed_due[ed_due["Borrar"] == True].iterrows(): client.table("tareas_duenos").delete().eq("id", rb['id']).execute()
-                                for _, rv in ed_due[ed_due["Borrar"] == False].iterrows(): client.table("tareas_duenos").update({"titulo": str(rv['titulo']), "estado": str(rv['estado']), "notas": str(rv['notas'])}).eq("id", rv['id']).execute()
+                                for _, rv in ed_due[ed_due["Borrar"] == False].iterrows(): client.table("tareas_duenos").update({"titulo": str(rv['titulo']), "periodicidad": str(rv['periodicidad']), "estado": str(rv['estado']), "notas": str(rv['notas'])}).eq("id", rv['id']).execute()
                                 limpiar_cache_tareas()
                                 st.success("Guardado"); time.sleep(0.5); st.rerun()
                         else: st.info("No hay gestiones pendientes.")
