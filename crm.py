@@ -878,14 +878,6 @@ def render_pestana_crm(client):
                         hoy_date = pd.Timestamp.now('Atlantic/Canary')
                         alertas_encargos = []
                         for idx, row in df_e.iterrows():
-                            # Generar enlace de WhatsApp dinámico para el encargo
-                            tel_enc = str(row.get('telefono', ''))
-                            tel_limpio = ''.join(filter(str.isdigit, tel_enc))
-                            if tel_limpio:
-                                if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
-                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium para avisarte de que tu encargo ({row['detalle_pedido']}) ya está en la tienda listo para recoger. ¡Te esperamos! Un saludo."
-                                df_e.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_encargo)}"
-                                
                             try:
                                 dt_c = dt_e[idx]
                                 if dt_c.tzinfo is None: dt_c = dt_c.tz_localize('UTC')
@@ -903,6 +895,22 @@ def render_pestana_crm(client):
                                     except: pass
                                 else:
                                     dias_desde_aviso = dias_desde_creacion
+                                    
+                                # Generar enlace de WhatsApp dinámico contextual
+                                tel_enc = str(row.get('telefono', ''))
+                                tel_limpio = ''.join(filter(str.isdigit, tel_enc))
+                                if tel_limpio:
+                                    if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
+                                    
+                                    # Mensaje por defecto (Primer aviso o genérico)
+                                    mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium para avisarte de que tu encargo ({row['detalle_pedido']}) ya está en la tienda listo para recoger. ¡Te esperamos! Un saludo."
+                                    
+                                    if estado_actual == 'Recibido y Avisado' and dias_desde_aviso >= 7:
+                                        mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium para recordarte que tu encargo ({row['detalle_pedido']}) sigue en la tienda esperándote. Por favor, confírmanos si vas a venir a recogerlo. ¡Un saludo!"
+                                    elif estado_actual == 'Confirmación de aviso' and dias_desde_aviso >= 14:
+                                        mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Lamentamos informarte que ha finalizado el plazo máximo de 14 días para recoger tu encargo ({row['detalle_pedido']}). Procedemos a anular la reserva y liberar el producto. Si tienes cualquier duda, contáctanos. Un saludo."
+                                        
+                                    df_e.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_encargo)}"
                                 
                                 if estado_actual == 'Pendiente' and dias_desde_creacion >= 2:
                                     alertas_encargos.append(("error", f"🚨 **PEDIDO RETRASADO:** El encargo de **{row['nombre_cliente']}** lleva {dias_desde_creacion} días Pendiente de pedir al proveedor."))
