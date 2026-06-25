@@ -163,30 +163,27 @@ def render_pestana_inventario(client):
                     )
 
                     if st.button("💾 Guardar cambios en Productos", key="btn_save_p_sep"):
-                        # 1. Detectar si alguna fila ha sido borrada
                         ids_actuales = edit_p['id'].dropna().tolist()
                         ids_originales = df_solo_productos['id'].tolist()
                         ids_a_borrar = [id_orig for id_orig in ids_originales if id_orig not in ids_actuales]
 
-                        # 2. Borrar de Supabase los que ya no están en la tabla
+                        errores = []
                         for id_del in ids_a_borrar:
-                            client.table("productos").delete().eq("id", id_del).execute()
+                            try:
+                                client.table("productos").delete().eq("id", id_del).execute()
+                            except Exception as e:
+                                errores.append(f"Error al borrar producto: {e}")
 
-                        # 3. Actualizar los que se han quedado (por si cambiaste precios o stock)
                         for i, row in edit_p.iterrows():
-                            if pd.notna(row['id']): # Solo actualizamos si el producto ya existía
+                            if pd.notna(row['id']):
                                 datos = row.to_dict()
-                                
-                                # --- Gestión del proveedor ---
                                 prov_nombre = datos.get('Proveedor', '---')
                                 
                                 for col_eliminar in ['categoria_filt', 'Proveedor', 'productos_proveedores']:
                                     if col_eliminar in datos: del datos[col_eliminar]
                                     
-                                # Limpiar NaNs de Pandas para evitar errores de JSON/Postgrest
                                 datos = {k: (None if pd.isna(v) else v) for k, v in datos.items()}
                                     
-                                # Convertir None a null en bbdd si borran la fecha
                                 if pd.isna(datos.get('fecha_caducidad')) or str(datos.get('fecha_caducidad')).strip() in ["", "None", "NaT"]:
                                     datos['fecha_caducidad'] = None
                                 else:
@@ -194,21 +191,23 @@ def render_pestana_inventario(client):
                                     
                                 try:
                                     client.table("productos").update(datos).eq("id", row['id']).execute()
+                                    
+                                    client.table("productos_proveedores").delete().eq("producto_id", row['id']).execute()
+                                    if prov_nombre != "---" and prov_nombre in dict_proveedores:
+                                        client.table("productos_proveedores").insert({
+                                            "producto_id": row['id'], "proveedor_id": dict_proveedores[prov_nombre], "precio_coste": float(datos.get('precio_base', 0.0))
+                                        }).execute()
                                 except Exception as e:
-                                    st.error(f"Error técnico al guardar el producto '{row['nombre']}': {e}")
+                                    errores.append(f"Error en '{row['nombre']}': {e}")
                                 
-                                # Actualizar la relación principal del proveedor
-                                client.table("productos_proveedores").delete().eq("producto_id", row['id']).execute()
-                                if prov_nombre != "---" and prov_nombre in dict_proveedores:
-                                    client.table("productos_proveedores").insert({
-                                        "producto_id": row['id'], "proveedor_id": dict_proveedores[prov_nombre], "precio_coste": float(datos.get('precio_base', 0.0))
-                                    }).execute()
-
-                        st.success("Inventario sincronizado correctamente")
-                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                        limpiar_cache_inventario()
-                        time.sleep(0.5)
-                        st.rerun() # Recargamos para ver los cambios
+                        if errores:
+                            for err in errores: st.error(err)
+                        else:
+                            st.success("✅ Inventario sincronizado correctamente. Guardando...")
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            limpiar_cache_inventario()
+                            time.sleep(1.5)
+                            st.rerun()
 
                 with sub_serv:
                     # --- TABLA DE SERVICIOS MEJORADA ---
@@ -255,19 +254,19 @@ def render_pestana_inventario(client):
                     )
 
                     if st.button("💾 Guardar cambios en Servicios", key="btn_save_s_sep"):
-                        # 1. Identificar si algún servicio fue eliminado de la tabla
                         ids_s_actuales = edit_s['id'].dropna().tolist()
                         ids_s_originales = df_solo_servicios['id'].tolist()
                         ids_s_a_borrar = [id_orig for id_orig in ids_s_originales if id_orig not in ids_s_actuales]
 
-                        # 2. Borrar de la base de datos los servicios eliminados
+                        errores_s = []
                         for id_del in ids_s_a_borrar:
-                            client.table("productos").delete().eq("id", id_del).execute()
+                            try:
+                                client.table("productos").delete().eq("id", id_del).execute()
+                            except Exception as e:
+                                errores_s.append(f"Error al borrar servicio: {e}")
 
-                        # 3. Actualizar o guardar los cambios en los servicios que quedan
                         for i, row in edit_s.iterrows():
                             if pd.notna(row['id']):
-                                # Recalculamos la base real de forma automática si cambiaste el PVP o el IGIC en la tabla
                                 nuevo_pvp = float(row['precio_pvp'])
                                 nuevo_igic = float(row['igic_tipo'])
                                 nueva_base = nuevo_pvp / (1 + (nuevo_igic / 100))
@@ -278,13 +277,16 @@ def render_pestana_inventario(client):
                                         "precio_pvp": nuevo_pvp, "igic_tipo": nuevo_igic, "precio_base": nueva_base
                                     }).eq("id", row['id']).execute()
                                 except Exception as e:
-                                    st.error(f"Error técnico al guardar el servicio '{row['nombre']}': {e}")
+                                    errores_s.append(f"Error en '{row['nombre']}': {e}")
 
-                        st.success("Catálogo de servicios actualizado")
-                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                        limpiar_cache_inventario()
-                        time.sleep(0.5)
-                        st.rerun()
+                        if errores_s:
+                            for err in errores_s: st.error(err)
+                        else:
+                            st.success("✅ Catálogo de servicios actualizado. Guardando...")
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            limpiar_cache_inventario()
+                            time.sleep(1.5)
+                            st.rerun()
                         
                 with sub_interno:
                     st.markdown("#### 🏢 Traspaso para Uso Interno (Peluquería)")
