@@ -328,10 +328,49 @@ def render_pestana_tareas(client):
                                 }, key="ed_duenos"
                             )
                             if st.button("💾 Guardar Cambios", type="primary"):
-                                for _, rb in ed_due[ed_due["Borrar"] == True].iterrows(): client.table("tareas_duenos").delete().eq("id", rb['id']).execute()
-                                for _, rv in ed_due[ed_due["Borrar"] == False].iterrows(): client.table("tareas_duenos").update({"titulo": str(rv['titulo']), "periodicidad": str(rv['periodicidad']), "estado": str(rv['estado']), "notas": str(rv['notas'])}).eq("id", rv['id']).execute()
+                                # Eliminar
+                                for _, rb in ed_due[ed_due["Borrar"] == True].iterrows():
+                                    client.table("tareas_duenos").delete().eq("id", rb['id']).execute()
+                                    
+                                # Actualizar e inyectar tareas recurrentes
+                                for _, rv in ed_due[ed_due["Borrar"] == False].iterrows():
+                                    t_id = rv['id']
+                                    nuevo_estado = str(rv['estado'])
+                                    nueva_periodicidad = str(rv['periodicidad'])
+                                    
+                                    # Obtener estado original
+                                    fila_orig = df_due[df_due['id'] == t_id].iloc[0]
+                                    estado_orig = str(fila_orig['estado'])
+                                    
+                                    # Actualizar la fila actual
+                                    client.table("tareas_duenos").update({
+                                        "titulo": str(rv['titulo']), "periodicidad": nueva_periodicidad,
+                                        "estado": nuevo_estado, "notas": str(rv['notas'])
+                                    }).eq("id", t_id).execute()
+                                    
+                                    # Generación automática de tarea si se marca como Completada y es recurrente
+                                    if nuevo_estado == "Completada ✅" and estado_orig != "Completada ✅":
+                                        if nueva_periodicidad in ["Diario", "Semanal", "Mensual", "Anual"]:
+                                            # Calcular próxima fecha
+                                            fecha_base = pd.to_datetime(fila_orig['fecha_programada'])
+                                            if nueva_periodicidad == "Diario": offset = pd.DateOffset(days=1)
+                                            elif nueva_periodicidad == "Semanal": offset = pd.DateOffset(weeks=1)
+                                            elif nueva_periodicidad == "Mensual": offset = pd.DateOffset(months=1)
+                                            elif nueva_periodicidad == "Anual": offset = pd.DateOffset(years=1)
+                                            
+                                            proxima_fecha = (fecha_base + offset).strftime('%Y-%m-%d')
+                                            
+                                            # Insertar clon
+                                            client.table("tareas_duenos").insert({
+                                                "titulo": str(rv['titulo']), 
+                                                "fecha_programada": proxima_fecha, 
+                                                "periodicidad": nueva_periodicidad, 
+                                                "notas": str(rv['notas']), 
+                                                "estado": "Pendiente ⏳"
+                                            }).execute()
+
                                 limpiar_cache_tareas()
-                                st.success("Guardado"); time.sleep(0.5); st.rerun()
+                                st.success("Guardado y sincronizado."); time.sleep(0.5); st.rerun()
                         else: st.info("No hay gestiones pendientes.")
                     except: pass
                     
