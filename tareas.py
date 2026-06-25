@@ -2,6 +2,72 @@ import streamlit as st
 import pandas as pd
 import time
 from datetime import date, timedelta
+import calendar
+
+def generar_proyeccion_virtual(todas_tareas, fecha_inicio, fecha_fin):
+    if not todas_tareas: return []
+    import pandas as pd
+    df = pd.DataFrame(todas_tareas)
+    df['fecha_programada'] = pd.to_datetime(df['fecha_programada'])
+    
+    maestros = df.loc[df.groupby(['titulo', 'periodicidad'])['fecha_programada'].idxmin()].copy()
+    
+    df['fecha_str'] = df['fecha_programada'].dt.strftime('%Y-%m-%d')
+    reales_dict = {}
+    for _, r in df.iterrows():
+        key = (str(r['titulo']).strip(), str(r['periodicidad']).strip(), str(r['fecha_str']).strip())
+        reales_dict[key] = r.to_dict()
+        
+    proyectadas = []
+    start_dt = pd.to_datetime(fecha_inicio)
+    end_dt = pd.to_datetime(fecha_fin)
+    
+    for _, m in maestros.iterrows():
+        tit = str(m['titulo']).strip()
+        per = str(m['periodicidad']).strip()
+        f_base = m['fecha_programada']
+        notas = m.get('notas', '')
+        
+        if per in ["Puntual", "Por horas", "nan", "None", ""]:
+            continue
+            
+        curr = f_base
+        limite_seguridad = 0
+        while curr <= end_dt and limite_seguridad < 2000:
+            limite_seguridad += 1
+            curr_str = curr.strftime('%Y-%m-%d')
+            if curr >= start_dt:
+                key = (tit, per, curr_str)
+                if key in reales_dict:
+                    rd = reales_dict[key].copy()
+                    rd['es_virtual'] = False
+                    proyectadas.append(rd)
+                else:
+                    proyectadas.append({
+                        "id": f"v_{tit}_{curr_str}",
+                        "titulo": tit,
+                        "fecha_programada": curr_str,
+                        "periodicidad": per,
+                        "estado": "Pendiente ⏳",
+                        "notas": notas,
+                        "es_virtual": True
+                    })
+                    
+            if per == "Diario": curr += pd.DateOffset(days=1)
+            elif per == "Semanal": curr += pd.DateOffset(weeks=1)
+            elif per == "Mensual": curr += pd.DateOffset(months=1)
+            elif per == "Anual": curr += pd.DateOffset(years=1)
+            else: break
+            
+    for _, r in df.iterrows():
+        per = str(r['periodicidad']).strip()
+        if per in ["Puntual", "Por horas", "nan", "None", ""]:
+            if start_dt <= r['fecha_programada'] <= end_dt:
+                rd = r.to_dict()
+                rd['es_virtual'] = False
+                proyectadas.append(rd)
+                
+    return proyectadas
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_empleados_activos(_client):
@@ -236,143 +302,212 @@ def render_pestana_tareas(client):
             sub_admin = st.tabs(["👔 1. Calendario y Tareas de Dueños", "⚙️ 2. Configurar Plannings", "✅ 3. Historial de Cumplimiento"])
             
             with sub_admin[0]:
+                st.markdown("##### 📅 Calendario de Proyección Virtual")
                 c_cal1, c_cal2 = st.columns([1, 3])
                 with c_cal1:
-                    dia_ref_due = st.date_input("Ver semana del:", value=date.today(), key="sem_ref_due")
-                
-                start_week_due = dia_ref_due - timedelta(days=dia_ref_due.weekday())
-                end_week_due = start_week_due + timedelta(days=6)
+                    vista_cal = st.radio("Tipo de Vista", ["Semanal", "Mensual"], horizontal=True)
+                    dia_ref_due = st.date_input("Fecha de referencia:", value=date.today(), key="sem_ref_due")
                 
                 try:
-                    tareas_sem = fetch_tareas_duenos_rango(client, str(start_week_due), str(end_week_due))
+                    todas_tareas_db = fetch_tareas_duenos_all(client)
                 except:
-                    tareas_sem = []
-                    
-                dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-                html_cal_due = '''
-                <style>
-                    .cal-due-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; background-color: white; margin-bottom: 20px;}
-                    .cal-due-table th { background-color: #005275; color: white; padding: 6px; text-align: center; border: 1px solid #ddd; }
-                    .cal-due-table td { border: 1px solid #ddd; vertical-align: top; padding: 5px; height: 100px; background-color: #fafafa; }
-                    .day-head-due { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
-                    .td-today-due { background-color: #fffde7 !important; border: 2px solid #fbc02d !important; }
-                    .tarea-card { background-color: white; border-left: 4px solid #f57c00; padding: 5px; margin-bottom: 5px; border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 0.85em; line-height: 1.2; word-wrap: break-word;}
-                    .t-pend { border-left-color: #f57c00; }
-                    .t-cur { border-left-color: #2196f3; }
-                    .t-comp { border-left-color: #4caf50; opacity: 0.7; text-decoration: line-through; }
-                </style>
-                <table class="cal-due-table"><tr>
-                '''
-                for d_name in dias_semana_nombres: html_cal_due += f"<th>{d_name}</th>"
-                html_cal_due += "</tr><tr>"
+                    todas_tareas_db = []
                 
-                hoy_str_g = str(date.today())
-                for i in range(7):
-                    d_obj = start_week_due + timedelta(days=i)
-                    d_str = str(d_obj)
-                    td_class = "td-today-due" if d_str == hoy_str_g else ""
+                if vista_cal == "Semanal":
+                    start_view = dia_ref_due - timedelta(days=dia_ref_due.weekday())
+                    end_view = start_view + timedelta(days=6)
+                    tareas_proy = generar_proyeccion_virtual(todas_tareas_db, start_view, end_view)
                     
-                    html_cal_due += f"<td class='{td_class}'>"
-                    html_cal_due += f"<div class='day-head-due'>{d_obj.strftime('%d/%m')}</div>"
+                    dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+                    html_cal = '''
+                    <style>
+                        .cal-due-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; background-color: white; margin-bottom: 20px;}
+                        .cal-due-table th { background-color: #005275; color: white; padding: 6px; text-align: center; border: 1px solid #ddd; }
+                        .cal-due-table td { border: 1px solid #ddd; vertical-align: top; padding: 5px; height: 100px; background-color: #fafafa; }
+                        .day-head-due { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
+                        .td-today-due { background-color: #fffde7 !important; border: 2px solid #fbc02d !important; }
+                        .tarea-card { background-color: white; border-left: 4px solid #f57c00; padding: 5px; margin-bottom: 5px; border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 0.85em; line-height: 1.2; word-wrap: break-word;}
+                        .t-pend { border-left-color: #f57c00; }
+                        .t-cur { border-left-color: #2196f3; }
+                        .t-comp { border-left-color: #4caf50; opacity: 0.7; text-decoration: line-through; }
+                        .t-fail { border-left-color: #d32f2f; opacity: 0.7; text-decoration: line-through; color: #d32f2f; }
+                    </style>
+                    <table class="cal-due-table"><tr>
+                    '''
+                    for d_name in dias_semana_nombres: html_cal += f"<th>{d_name}</th>"
+                    html_cal += "</tr><tr>"
                     
-                    t_dia = [t for t in tareas_sem if t.get('fecha_programada') == d_str]
-                    for t in t_dia:
-                        est = t.get('estado', '')
-                        t_class = "t-pend"; icon = "⏳"
-                        if "curso" in est.lower(): t_class = "t-cur"; icon = "🏗️"
-                        elif "completada" in est.lower(): t_class = "t-comp"; icon = "✅"
-                        html_cal_due += f"<div class='tarea-card {t_class}'><b>{icon} {t['titulo']}</b><br><span style='color:#666;'>{t.get('periodicidad','')}</span></div>"
+                    hoy_str_g = str(date.today())
+                    for i in range(7):
+                        d_obj = start_view + timedelta(days=i)
+                        d_str = str(d_obj)
+                        td_class = "td-today-due" if d_str == hoy_str_g else ""
                         
-                    html_cal_due += "</td>"
-                html_cal_due += "</tr></table>"
+                        html_cal += f"<td class='{td_class}'>"
+                        html_cal += f"<div class='day-head-due'>{d_obj.strftime('%d/%m')}</div>"
+                        
+                        t_dia = [t for t in tareas_proy if t.get('fecha_programada') == d_str]
+                        for t in t_dia:
+                            est = str(t.get('estado', ''))
+                            t_class = "t-pend"; icon = "⏳"
+                            if "curso" in est.lower(): t_class = "t-cur"; icon = "🏗️"
+                            elif "completada" in est.lower(): t_class = "t-comp"; icon = "✅"
+                            elif "no realizada" in est.lower() or "fallida" in est.lower() or "❌" in est: t_class = "t-fail"; icon = "❌"
+                            
+                            virt_mark = "✦" if t.get('es_virtual') else ""
+                            html_cal += f"<div class='tarea-card {t_class}' title='{est}'><b>{icon} {t['titulo']} {virt_mark}</b></div>"
+                            
+                        html_cal += "</td>"
+                    html_cal += "</tr></table>"
+                    st.markdown(html_cal, unsafe_allow_html=True)
+                    
+                else: # Mensual
+                    year = dia_ref_due.year
+                    month = dia_ref_due.month
+                    _, num_days = calendar.monthrange(year, month)
+                    start_view = date(year, month, 1)
+                    end_view = date(year, month, num_days)
+                    tareas_proy = generar_proyeccion_virtual(todas_tareas_db, start_view, end_view)
+                    
+                    html_cal = '''
+                    <style>
+                        .cal-due-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; background-color: white; margin-bottom: 20px;}
+                        .cal-due-table th { background-color: #005275; color: white; padding: 6px; text-align: center; border: 1px solid #ddd; }
+                        .cal-due-table td { border: 1px solid #ddd; vertical-align: top; padding: 5px; height: 100px; background-color: #fafafa; }
+                        .day-head-due { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
+                        .td-today-due { background-color: #fffde7 !important; border: 2px solid #fbc02d !important; }
+                        .tarea-card { background-color: white; border-left: 4px solid #f57c00; padding: 5px; margin-bottom: 5px; border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 0.85em; line-height: 1.2; word-wrap: break-word;}
+                        .t-pend { border-left-color: #f57c00; }
+                        .t-cur { border-left-color: #2196f3; }
+                        .t-comp { border-left-color: #4caf50; opacity: 0.7; text-decoration: line-through; }
+                        .t-fail { border-left-color: #d32f2f; opacity: 0.7; text-decoration: line-through; color: #d32f2f; }
+                    </style>
+                    <table class="cal-due-table">
+                    <tr><th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th><th>Sábado</th><th>Domingo</th></tr>
+                    <tr>
+                    '''
+                    first_weekday = start_view.weekday()
+                    for _ in range(first_weekday): html_cal += "<td></td>"
+                    
+                    hoy_str_g = str(date.today())
+                    current_col = first_weekday
+                    
+                    for day in range(1, num_days + 1):
+                        d_obj = date(year, month, day)
+                        d_str = str(d_obj)
+                        td_class = "td-today-due" if d_str == hoy_str_g else ""
+                        html_cal += f"<td class='{td_class}' style='height: 80px;'><div class='day-head-due'>{day}</div>"
+                        
+                        t_dia = [t for t in tareas_proy if t.get('fecha_programada') == d_str]
+                        for t in t_dia:
+                            est = str(t.get('estado', ''))
+                            t_class = "t-pend"; icon = "⏳"
+                            if "curso" in est.lower(): t_class = "t-cur"; icon = "🏗️"
+                            elif "completada" in est.lower(): t_class = "t-comp"; icon = "✅"
+                            elif "no realizada" in est.lower() or "❌" in est: t_class = "t-fail"; icon = "❌"
+                            
+                            html_cal += f"<div class='tarea-card {t_class}' style='font-size: 0.7em; padding: 2px;' title='{t['titulo']} - {est}'><b>{icon} {t['titulo'][:12]}..</b></div>"
+                            
+                        html_cal += "</td>"
+                        current_col += 1
+                        if current_col == 7:
+                            html_cal += "</tr><tr>"
+                            current_col = 0
+                            
+                    while current_col < 7 and current_col > 0:
+                        html_cal += "<td></td>"
+                        current_col += 1
+                    html_cal += "</tr></table>"
+                    st.markdown(html_cal, unsafe_allow_html=True)
                 
-                st.markdown(html_cal_due, unsafe_allow_html=True)
                 st.markdown("---")
                 
+                # PANEL DE CONTROL DIARIO
                 c_due1, c_due2 = st.columns([1, 2])
                 with c_due1:
+                    st.markdown("##### 📝 Panel de Control Diario")
+                    st.info("Selecciona la fecha que quieras gestionar en la tabla de la derecha.")
+                    dia_gestionar = st.date_input("Día a gestionar:", value=date.today(), key="dia_gest_due")
+                    
                     with st.form("form_nueva_gestion", clear_on_submit=True):
-                        st.markdown("##### ➕ Nueva Gestión / Reunión")
-                        g_titulo = st.text_input("Asunto / Tarea *", key=f"g_tit_{st.session_state.llave_tarea_due}")
-                        g_fecha = st.date_input("Fecha", value=date.today(), key=f"g_fec_{st.session_state.llave_tarea_due}")
-                        g_frecuencia = st.selectbox("Periodicidad", ["Puntual", "Diario", "Semanal", "Mensual", "Anual", "Por horas"], key=f"g_fre_{st.session_state.llave_tarea_due}")
-                        g_hora = st.time_input("Hora concreta (Opcional)", value=None, key=f"g_hor_due_{st.session_state.llave_tarea_due}")
-                        g_notas = st.text_area("Notas", key=f"g_not_{st.session_state.llave_tarea_due}")
+                        st.markdown("➕ **Nueva Tarea / Master**")
+                        g_titulo = st.text_input("Asunto / Tarea *", key="g_tit")
+                        g_frecuencia = st.selectbox("Periodicidad", ["Puntual", "Diario", "Semanal", "Mensual", "Anual", "Por horas"], key="g_fre")
+                        g_hora = st.time_input("Hora (Opcional)", value=None, key="g_hor_due")
+                        g_notas = st.text_area("Notas", key="g_not")
                         
-                        if st.form_submit_button("Programar", type="primary", use_container_width=True):
+                        if st.form_submit_button("Añadir al Plan", type="primary", use_container_width=True):
                             if g_titulo:
                                 tit_final = f"🕒 {g_hora.strftime('%H:%M')} - {g_titulo}" if g_hora else g_titulo
-                                client.table("tareas_duenos").insert({"titulo": tit_final, "fecha_programada": str(g_fecha), "periodicidad": g_frecuencia, "notas": g_notas, "estado": "Pendiente ⏳"}).execute()
-                                st.session_state.llave_tarea_due += 1
+                                client.table("tareas_duenos").insert({"titulo": tit_final, "fecha_programada": str(dia_gestionar), "periodicidad": g_frecuencia, "notas": g_notas, "estado": "Pendiente ⏳"}).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 limpiar_cache_tareas()
-                                st.success("Agendado."); time.sleep(0.5); st.rerun()
+                                st.success("Añadido."); time.sleep(0.5); st.rerun()
                             else: st.warning("El asunto es obligatorio.")
-                        
-                with c_due2:
-                    try:
-                        res_due = fetch_tareas_duenos_all(client)
-                        if res_due:
-                            df_due = pd.DataFrame(res_due)
-                            df_due['Fecha'] = pd.to_datetime(df_due['fecha_programada']).dt.strftime('%d/%m/%Y')
-                            df_v_due = df_due[['id', 'Fecha', 'titulo', 'periodicidad', 'estado', 'notas']].copy()
-                            df_v_due.insert(0, "Borrar", False)
                             
-                            ed_due = st.data_editor(
-                                df_v_due, hide_index=True, use_container_width=True, height=350,
+                with c_due2:
+                    st.markdown(f"**Gestiones Proyectadas para el {dia_gestionar.strftime('%d/%m/%Y')}**")
+                    try:
+                        todas_tareas_hoy = fetch_tareas_duenos_all(client)
+                        tareas_hoy_proy = generar_proyeccion_virtual(todas_tareas_hoy, str(dia_gestionar), str(dia_gestionar))
+                        
+                        if tareas_hoy_proy:
+                            df_hoy = pd.DataFrame(tareas_hoy_proy)
+                            df_v_hoy = df_hoy[['id', 'titulo', 'periodicidad', 'estado', 'notas', 'es_virtual']].copy()
+                            df_v_hoy.insert(0, "Borrar", False)
+                            
+                            ed_hoy = st.data_editor(
+                                df_v_hoy, hide_index=True, use_container_width=True, height=350,
                                 column_config={
                                     "Borrar": st.column_config.CheckboxColumn("🗑️", width="small"), 
-                                    "id": None, 
+                                    "id": None, "es_virtual": None,
                                     "titulo": "Asunto", 
                                     "periodicidad": st.column_config.SelectboxColumn("Frecuencia", options=["Puntual", "Diario", "Semanal", "Mensual", "Anual", "Por horas"]), 
-                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente ⏳", "En curso 🏗️", "Completada ✅"])
-                                }, key="ed_duenos"
+                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente ⏳", "En curso 🏗️", "Completada ✅", "No realizada ❌"])
+                                }, key=f"ed_duenos_hoy_{st.session_state.get('db_version', 0)}"
                             )
-                            if st.button("💾 Guardar Cambios", type="primary"):
-                                # Eliminar
-                                for _, rb in ed_due[ed_due["Borrar"] == True].iterrows():
-                                    client.table("tareas_duenos").delete().eq("id", rb['id']).execute()
-                                    
-                                # Actualizar e inyectar tareas recurrentes
-                                for _, rv in ed_due[ed_due["Borrar"] == False].iterrows():
-                                    t_id = rv['id']
+                            if st.button("💾 Guardar Estado del Día", type="primary"):
+                                cambios = 0
+                                for _, rb in ed_hoy[ed_hoy["Borrar"] == True].iterrows():
+                                    if not rb['es_virtual']: 
+                                        client.table("tareas_duenos").delete().eq("id", rb['id']).execute()
+                                        cambios += 1
+                                
+                                for _, rv in ed_hoy[ed_hoy["Borrar"] == False].iterrows():
+                                    t_id = str(rv['id'])
                                     nuevo_estado = str(rv['estado'])
-                                    nueva_periodicidad = str(rv['periodicidad'])
+                                    es_virt = rv['es_virtual']
                                     
-                                    # Obtener estado original
-                                    fila_orig = df_due[df_due['id'] == t_id].iloc[0]
-                                    estado_orig = str(fila_orig['estado'])
-                                    
-                                    # Actualizar la fila actual
-                                    client.table("tareas_duenos").update({
-                                        "titulo": str(rv['titulo']), "periodicidad": nueva_periodicidad,
-                                        "estado": nuevo_estado, "notas": str(rv['notas'])
-                                    }).eq("id", t_id).execute()
-                                    
-                                    # Generación automática de tarea si se marca como Completada y es recurrente
-                                    if nuevo_estado == "Completada ✅" and estado_orig != "Completada ✅":
-                                        if nueva_periodicidad in ["Diario", "Semanal", "Mensual", "Anual"]:
-                                            # Calcular próxima fecha
-                                            fecha_base = pd.to_datetime(fila_orig['fecha_programada'])
-                                            if nueva_periodicidad == "Diario": offset = pd.DateOffset(days=1)
-                                            elif nueva_periodicidad == "Semanal": offset = pd.DateOffset(weeks=1)
-                                            elif nueva_periodicidad == "Mensual": offset = pd.DateOffset(months=1)
-                                            elif nueva_periodicidad == "Anual": offset = pd.DateOffset(years=1)
-                                            
-                                            proxima_fecha = (fecha_base + offset).strftime('%Y-%m-%d')
-                                            
-                                            # Insertar clon
+                                    if not es_virt:
+                                        fila_orig = df_hoy[df_hoy['id'].astype(str) == t_id].iloc[0]
+                                        if nuevo_estado != str(fila_orig['estado']) or str(rv['notas']) != str(fila_orig.get('notas','')):
+                                            client.table("tareas_duenos").update({
+                                                "titulo": str(rv['titulo']), "periodicidad": str(rv['periodicidad']),
+                                                "estado": nuevo_estado, "notas": str(rv['notas'])
+                                            }).eq("id", int(float(t_id)) if t_id.replace('.','',1).isdigit() else t_id).execute()
+                                            cambios += 1
+                                    else:
+                                        # Es una fila virtual, solo la insertamos si cambiaron el estado o añadieron notas
+                                        if nuevo_estado != "Pendiente ⏳" or str(rv['notas']).strip():
                                             client.table("tareas_duenos").insert({
                                                 "titulo": str(rv['titulo']), 
-                                                "fecha_programada": proxima_fecha, 
-                                                "periodicidad": nueva_periodicidad, 
+                                                "fecha_programada": str(dia_gestionar), 
+                                                "periodicidad": str(rv['periodicidad']), 
                                                 "notas": str(rv['notas']), 
-                                                "estado": "Pendiente ⏳"
+                                                "estado": nuevo_estado
                                             }).execute()
-
-                                limpiar_cache_tareas()
-                                st.success("Guardado y sincronizado."); time.sleep(0.5); st.rerun()
-                        else: st.info("No hay gestiones pendientes.")
-                    except: pass
+                                            cambios += 1
+                                            
+                                if cambios > 0:
+                                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                    limpiar_cache_tareas()
+                                    st.success(f"Día actualizado ({cambios} cambios)."); time.sleep(0.5); st.rerun()
+                                else:
+                                    st.info("Sin cambios.")
+                        else:
+                            st.info("🎉 ¡Día libre! No hay tareas ni gestiones proyectadas para este día.")
+                    except Exception as e:
+                        st.error(f"Error cargando el control diario: {e}")
                     
             with sub_admin[1]:
                 try:
