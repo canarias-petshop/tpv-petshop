@@ -8,6 +8,7 @@ Como administrador, tienes acceso a la configuración avanzada de tus empleados.
 
 - **Registro de Empleados:** En la parte inferior de la pestaña "Personal", puedes dar de alta a nuevos empleados asignándoles un PIN de 4 dígitos.
 - **Asignación de Turnos (Editor Visual):** Ve a "Gestión de Cuadrante (Editable)". Verás un calendario apilado por semanas que funciona como un Excel.
+- **Planning y Tareas Diario:** La pestaña "Gestión y Dueño" contiene el Planning Diario y Calendario de Tareas categorizado (Ej. Tienda, Limpieza). Puedes asignar qué empleado hace cada bloque y el sistema calculará al vuelo el reparto de carga laboral del día.
 - **Revisión de Horas:** Puedes ver una tabla con los fichajes reales (Entrada y Salida) y las horas totales trabajadas, útil para preparar las nóminas a final de mes.
 
 ---

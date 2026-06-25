@@ -20,8 +20,17 @@
   - Se unificó el motor de filtros de fechas: un solo control maestro rige toda la pestaña (finanzas, gráficas, ROI y agenda) de forma unificada.
   - Cuadre milimétrico con 2 decimales y formato de moneda en todo el informe.
 
+### 2. Mejoras de Experiencia de Usuario (UX) y Arquitectura (NUEVO)
+- **Selectores Nativos Interactivos**: Todos los campos de la aplicación (Agenda, Tareas, Eventos, Paseos, Proveedores) que requerían escribir fechas u horas a mano se han migrado a selectores interactivos (`DateColumn`, `TimeColumn`, `date_input`), eliminando errores de formato.
+- **Estandarización de Guardado**: Se ha creado un patrón unificado de confirmación visual (`st.success`) que retroalimenta al usuario durante 0.5s antes de refrescar limpiamente la pantalla tras cualquier acción de guardado en el sistema.
+- **Centro de Recordatorios Inteligente**:
+  - Corrección matemática en el descarte de clientes de mantenimiento (para no avisar a los que ya tienen cita).
+  - La tabla de confirmaciones del día siguiente ahora es editable en vivo y posee una columna independiente ("🔔 Aviso") que guarda en *observaciones* si se ha mandado el WhatsApp, para no ensuciar el estado oficial de la cita.
+- **Planning y Tareas**: Visualización mejorada agrupada por tipos de tarea, permitiendo la edición en vivo del empleado asignado para cada tramo horario con contadores en tiempo real.
+- **Sincronización en Caliente (TPV ↔ CRM)**: Un nuevo parche en la caché del sistema permite que, al estar cobrando y tener un carrito a medias, si un usuario se va a la pestaña del CRM a dar de alta un nuevo cliente VIP, al volver a la Caja el selector de clientes se refresca automáticamente mostrando al nuevo cliente *sin vaciar el carrito*.
 
-### 2. Tienda Online (E-Commerce)
+
+### 3. Tienda Online (E-Commerce)
 - **Desarrollo Inicial Rápido**: Se ha construido la estructura base usando **Next.js 15** (tecnología puntera y ultrarrápida).
 - **Diseño a Medida**: Integrado el logotipo oficial de Animalarium y sus colores (Rosa vibrante y Amarillo cálido) creando una interfaz moderna ("glassmorphism").
 - **Sincronización en Tiempo Real y Filtros Avanzados**: La web lee directamente de Supabase. Posee un panel de filtros lateral dinámico e instantáneo (por Categorías y Marcas).

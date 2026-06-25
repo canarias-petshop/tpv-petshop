@@ -25,7 +25,7 @@ Esta es la pantalla principal para cobrar a los clientes.
 3. **Fidelización VIP:** Si el cliente está registrado, búscalo por nombre o teléfono en "Cliente VIP".
 4. **Cobrar y Enviar a Domicilio:**
    - Selecciona el método de pago (Efectivo, Tarjeta, Bizum). Puedes introducir cantidades exactas para pagos mixtos.
-   - **Dejar a deber:** Asegúrate de seleccionar su nombre en el desplegable de "Cliente VIP" para poder dejar la deuda pendiente.
+   - **Dejar a deber:** Asegúrate de seleccionar su nombre en el desplegable de "Cliente VIP" para poder dejar la deuda pendiente. *(💡 Truco: Si le ofreces puntos y el cliente aún no existe, puedes irte a la pestaña Clientes, crearlo y al volver a la caja aparecerá mágicamente en el desplegable sin perder los productos de tu carrito).*
    - **Atención a Fianzas:** Si un servicio de peluquería tiene la etiqueta **`[💰 FIANZA PAGADA]`**, ¡descuenta ese importe del total antes de cobrar!
    - **🚚 Enviar pedido a Domicilio (Novedad):** Al marcar la casilla "Enviar pedido a Domicilio", el sistema recuperará automáticamente la dirección de la ficha del cliente y la pre-rellenará. Al cobrar el ticket, se creará el Servicio a Domicilio de forma 100% automática en la hoja de repartos.
    - Pulsa el botón verde **"💳 COBRAR TICKET"**.
@@ -58,13 +58,23 @@ La pestaña de CRM tiene una subsección fundamental para los encargos, dividida
 El sistema de citas está conectado con nuestros turnos de trabajo y las fichas de los clientes.
 
 ### Cómo dar una cita:
-- **🔔 Centro de Recordatorios (Rutina Matutina):** En "Recordatorios", verás a los perros citados para el próximo día laborable. Pulsa el botón para pedir confirmación por WhatsApp.
+- **🔔 Centro de Recordatorios (Rutina Matutina):** En la pestaña de Agenda, verás a los perros citados para el próximo día laborable. 
+  - Pulsa el botón "💬 Recordatorio" para pedirles confirmación por WhatsApp.
+  - Luego, en la tabla de al lado, cambia el desplegable de "🔔 Aviso" a **"Avisado"** y guárdalo. De este modo, tú y tus compañeros sabrán que el mensaje ya salió de la tienda, sin alterar el estado general de la cita en el calendario.
 - **🚨 Alertas Sin Historial:** Verás alertas rojas si olvidaste rellenar el historial de una mascota tras su cita.
 - **🚨 Política de Reincidentes (Fianzas):** Si el cliente acumula 2 faltas (plantones o cancelaciones en el mismo día), el sistema bloqueará su agenda. Deberá pagar una fianza (Bizum) para desbloquear el botón de cita.
 
 ---
 
-## 5. 💰 Caja Fuerte y Turnos
+## 5. 📋 Gestión de Tareas y Planning Diario
+El panel de "Gestión de Dueños" aloja vuestro tablón de tareas categorizado.
+
+- **Configurar Planning:** Puedes asignar quién hace el turno de mañana y quién el de tarde, y modificar el personal responsable de cada tramo horario de manera instantánea pulsando en la tabla.
+- El sistema cuenta en vivo cuántas tareas tiene asignadas cada persona. ¡Revisad el tablero a primera hora de la mañana para saber qué os toca!
+
+---
+
+## 6. 💰 Caja Fuerte y Turnos
 - **Abrir Turno:** Ve a "Control de Caja". Revisa el **Fondo Inicial** sugerido y pulsa "Apertura de Turno".
 - **Gastos de Tienda (Ej. Fregasuelos):** En "Entradas y Salidas", selecciona "Retirada", pon el importe y el motivo muy claro.
 - **Cierre Z:** Usa la calculadora contando el dinero de la caja, el sistema imprimirá el resumen de lo cobrado en cada datáfono individualmente. Pulsa "Imprimir Cierre Z".
