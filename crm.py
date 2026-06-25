@@ -888,17 +888,28 @@ def render_pestana_crm(client):
                                 
                             try:
                                 dt_c = dt_e[idx]
-                                if dt_c.tzinfo is None:
-                                    dt_c = dt_c.tz_localize('UTC')
-                                dias = (pd.Timestamp.now('Atlantic/Canary') - dt_c.tz_convert('Atlantic/Canary')).days
+                                if dt_c.tzinfo is None: dt_c = dt_c.tz_localize('UTC')
+                                dias_desde_creacion = (pd.Timestamp.now('Atlantic/Canary') - dt_c.tz_convert('Atlantic/Canary')).days
                                 estado_actual = row.get('estado')
+                                notas_texto = str(row.get('notas', ''))
                                 
-                                if estado_actual == 'Pendiente' and dias >= 1:
-                                    alertas_encargos.append(("warning", f"⚠️ **PEDIDO RETRASADO:** El encargo de **{row['nombre_cliente']}** se anotó hace {dias} día(s) y sigue Pendiente de pedir al proveedor."))
-                                elif estado_actual == 'Recibido':
-                                    alertas_encargos.append(("warning", f"🔔 **AVISO PENDIENTE:** El encargo de **{row['nombre_cliente']}** está Recibido. ¡Recuerda avisar al cliente hoy!"))
-                                elif estado_actual == 'Avisado' and dias >= 14:
-                                    alertas_encargos.append(("error", f"🚨 **REVISIÓN NECESARIA:** El encargo de **{row['nombre_cliente']}** lleva 14+ días desde su creación y sigue 'Avisado'. ¿Se entregó y olvidaste marcarlo, o el cliente no vino a buscarlo?"))
+                                import re
+                                dias_desde_aviso = 0
+                                m_fecha = re.search(r'\[Aviso:\s*(\d{4}-\d{2}-\d{2})\]', notas_texto)
+                                if m_fecha:
+                                    try:
+                                        fecha_aviso = pd.to_datetime(m_fecha.group(1)).tz_localize('Atlantic/Canary')
+                                        dias_desde_aviso = (pd.Timestamp.now('Atlantic/Canary') - fecha_aviso).days
+                                    except: pass
+                                else:
+                                    dias_desde_aviso = dias_desde_creacion
+                                
+                                if estado_actual == 'Pendiente' and dias_desde_creacion >= 2:
+                                    alertas_encargos.append(("error", f"🚨 **PEDIDO RETRASADO:** El encargo de **{row['nombre_cliente']}** lleva {dias_desde_creacion} días Pendiente de pedir al proveedor."))
+                                elif estado_actual == 'Recibido y Avisado' and dias_desde_aviso >= 7:
+                                    alertas_encargos.append(("error", f"🚨 **FALTA RESPUESTA:** Hace {dias_desde_aviso} días que avisamos a **{row['nombre_cliente']}**. ¡Mandar recordatorio!"))
+                                elif estado_actual == 'Confirmación de aviso' and dias_desde_aviso >= 14:
+                                    alertas_encargos.append(("error", f"🚨 **CADUCADO:** El encargo de **{row['nombre_cliente']}** lleva {dias_desde_aviso} días retenido desde el aviso. Anular o consultar con el cliente."))
                             except Exception: pass
                             
                         if alertas_encargos:
@@ -921,7 +932,7 @@ def render_pestana_crm(client):
                                 column_config={
                                     "id": None, "origen": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                     "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
-                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado", "Cancelado"]),
+                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido y Avisado", "Confirmación de aviso", "Retrasado por cliente", "Entregado", "Cancelado"]),
                                     "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
                                 },
                                 num_rows="dynamic"
@@ -934,7 +945,7 @@ def render_pestana_crm(client):
                                 column_config={
                                     "id": None, "origen": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                     "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
-                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido", "Avisado", "Entregado", "Cancelado"]),
+                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido y Avisado", "Confirmación de aviso", "Retrasado por cliente", "Entregado", "Cancelado"]),
                                     "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
                                 },
                                 num_rows="dynamic"
@@ -1021,9 +1032,20 @@ def render_pestana_crm(client):
                                         orig_match = df_e_vista[df_e_vista['id'] == r['id']]
                                         if not orig_match.empty:
                                             orig_row = orig_match.iloc[0]
-                                            if str(r['estado']) != str(orig_row['estado']) or str(r.get('notas', '')) != str(orig_row['notas']):
+                                            nuevo_est = str(r['estado'])
+                                            viejo_est = str(orig_row['estado'])
+                                            nuevas_notas = str(r.get('notas', '')).strip()
+                                            
+                                            # Inyectar etiqueta de aviso
+                                            if nuevo_est == 'Recibido y Avisado' and viejo_est != 'Recibido y Avisado':
+                                                if "[Aviso:" not in nuevas_notas:
+                                                    hoy_str = pd.Timestamp.now('Atlantic/Canary').strftime('%Y-%m-%d')
+                                                    etiqueta = f"[Aviso: {hoy_str}]"
+                                                    nuevas_notas = f"{nuevas_notas} {etiqueta}".strip()
+                                            
+                                            if nuevo_est != viejo_est or nuevas_notas != str(orig_row['notas']).strip():
                                                 client.table("encargos_clientes").update({
-                                                    "estado": str(r['estado']), "notas": str(r.get('notas', ''))
+                                                    "estado": nuevo_est, "notas": nuevas_notas
                                                 }).eq("id", r['id']).execute()
                                                 cambios_realizados += 1
                                                 
