@@ -116,6 +116,9 @@ def render_pestana_inventario(client):
                 if 'fecha_caducidad' not in df_solo_productos.columns: df_solo_productos['fecha_caducidad'] = None
                 if 'familia' not in df_solo_productos.columns: df_solo_productos['familia'] = "Generico"
                 if 'marca' not in df_solo_productos.columns: df_solo_productos['marca'] = "Generico"
+                if 'subcategoria' not in df_solo_productos.columns: df_solo_productos['subcategoria'] = ""
+                if 'mascota' not in df_solo_productos.columns: df_solo_productos['mascota'] = "Universal"
+                if 'caracteristicas' not in df_solo_productos.columns: df_solo_productos['caracteristicas'] = ""
 
                 sub_prod, sub_serv, sub_interno = st.tabs(["📦 Inventario", "✂️ Servicios", "🏢 Uso Interno"])
                 
@@ -146,7 +149,10 @@ def render_pestana_inventario(client):
                         column_config={
                             "id": None, "categoria": None, "categoria_filt": None,
                             "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
-                            "familia": st.column_config.TextColumn("Categoría Web", help="Categoría para la Tienda Online"),
+                            "familia": st.column_config.TextColumn("Categoría", help="Categoría Principal"),
+                            "subcategoria": st.column_config.SelectboxColumn("Subcategoría", options=["", "Pienso Seco", "Pienso Húmedo", "Semi-húmedo", "Snacks", "Collares/Arneses", "Champús", "Medicamentos", "Juguetes", "Otros"]),
+                            "mascota": st.column_config.SelectboxColumn("Mascota", options=["Perro", "Gato", "Roedor", "Aves", "Reptiles", "Universal"]),
+                            "caracteristicas": st.column_config.TextColumn("Características", help="Ej: Grain Free, Salmón, Esterilizado"),
                             "marca": st.column_config.TextColumn("Marca", help="Marca del producto"),
                             "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
                             "precio_base": st.column_config.NumberColumn("Costo Base", format="%.2f €"),
@@ -155,7 +161,7 @@ def render_pestana_inventario(client):
                             "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
                             "cantidad_reponer": st.column_config.NumberColumn("Reponer Ud", step=1)
                         },
-                        column_order=["sku", "codigo_barras", "nombre", "familia", "marca", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "fecha_caducidad", "stock_minimo", "cantidad_reponer"],
+                        column_order=["sku", "codigo_barras", "nombre", "familia", "subcategoria", "mascota", "caracteristicas", "marca", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "fecha_caducidad", "stock_minimo", "cantidad_reponer"],
                         hide_index=True, 
                         use_container_width=True, 
                         num_rows="dynamic",
