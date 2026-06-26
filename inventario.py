@@ -152,7 +152,7 @@ def render_pestana_inventario(client):
                             "familia": st.column_config.TextColumn("Categoría", help="Categoría Principal"),
                             "subcategoria": st.column_config.SelectboxColumn("Subcategoría", options=["", "Pienso Seco", "Pienso Húmedo", "Semi-húmedo", "Snacks", "Collares/Arneses", "Champús", "Medicamentos", "Juguetes", "Otros"]),
                             "mascota": st.column_config.SelectboxColumn("Mascota", options=["Perro", "Gato", "Roedor", "Aves", "Reptiles", "Universal"]),
-                            "caracteristicas": st.column_config.TextColumn("Características", help="Ej: Grain Free, Salmón, Esterilizado"),
+                            "caracteristicas": st.column_config.TextColumn("Características", help="Escribe separadas por comas. Ej: Puppy, Kitten, Adult, Mini, Senior, Gigante, Sterilized, Grain Free, Salmón..."),
                             "marca": st.column_config.TextColumn("Marca", help="Marca del producto"),
                             "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
                             "precio_base": st.column_config.NumberColumn("Costo Base", format="%.2f €"),
