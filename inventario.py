@@ -118,6 +118,10 @@ def render_pestana_inventario(client):
                 if 'marca' not in df_solo_productos.columns: df_solo_productos['marca'] = "Generico"
                 if 'subcategoria' not in df_solo_productos.columns: df_solo_productos['subcategoria'] = ""
                 if 'mascota' not in df_solo_productos.columns: df_solo_productos['mascota'] = "Universal"
+                if 'edad' not in df_solo_productos.columns: df_solo_productos['edad'] = "Todas"
+                if 'tamano' not in df_solo_productos.columns: df_solo_productos['tamano'] = "Todos"
+                if 'necesidad_especial' not in df_solo_productos.columns: df_solo_productos['necesidad_especial'] = "Ninguna"
+                if 'sabor_principal' not in df_solo_productos.columns: df_solo_productos['sabor_principal'] = "Mix/Varios"
                 if 'caracteristicas' not in df_solo_productos.columns: df_solo_productos['caracteristicas'] = ""
 
                 sub_prod, sub_serv, sub_interno = st.tabs(["📦 Inventario", "✂️ Servicios", "🏢 Uso Interno"])
@@ -149,10 +153,14 @@ def render_pestana_inventario(client):
                         column_config={
                             "id": None, "categoria": None, "categoria_filt": None,
                             "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
-                            "familia": st.column_config.TextColumn("Categoría", help="Categoría Principal"),
+                            "familia": st.column_config.SelectboxColumn("Categoría", options=["Alimentación", "Accesorios", "Higiene", "Paseo", "Juguetes", "Descanso", "Farmacia/Cuidados", "Otros"]),
                             "subcategoria": st.column_config.SelectboxColumn("Subcategoría", options=["", "Pienso Seco", "Pienso Húmedo", "Semi-húmedo", "Snacks", "Collares/Arneses", "Champús", "Medicamentos", "Juguetes", "Otros"]),
                             "mascota": st.column_config.SelectboxColumn("Mascota", options=["Perro", "Gato", "Roedor", "Aves", "Reptiles", "Universal"]),
-                            "caracteristicas": st.column_config.TextColumn("Características", help="Escribe separadas por comas. Ej: Puppy, Kitten, Adult, Mini, Senior, Gigante, Sterilized, Grain Free, Salmón..."),
+                            "edad": st.column_config.SelectboxColumn("Edad", options=["Todas", "Cachorro (Puppy/Kitten)", "Adulto", "Senior"]),
+                            "tamano": st.column_config.SelectboxColumn("Tamaño", options=["Todos", "Mini/Pequeño", "Mediano", "Grande/Maxi", "Gigante"]),
+                            "necesidad_especial": st.column_config.SelectboxColumn("Necesidad", options=["Ninguna", "Esterilizado", "Hipoalergénico", "Control de Peso", "Cuidado Renal", "Cuidado Urinario", "Digestivo", "Articulaciones", "Piel y Pelo"]),
+                            "sabor_principal": st.column_config.SelectboxColumn("Sabor", options=["Mix/Varios", "Pollo", "Salmón", "Pescado", "Cordero", "Cerdo", "Ternera", "Pavo", "Pato", "Conejo", "Ciervo", "Insectos"]),
+                            "caracteristicas": st.column_config.TextColumn("Extra (Opcional)", help="Escribe separadas por comas. Ej: Grain Free, Monoproteico, Natural..."),
                             "marca": st.column_config.TextColumn("Marca", help="Marca del producto"),
                             "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
                             "precio_base": st.column_config.NumberColumn("Costo Base", format="%.2f €"),
@@ -161,7 +169,7 @@ def render_pestana_inventario(client):
                             "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
                             "cantidad_reponer": st.column_config.NumberColumn("Reponer Ud", step=1)
                         },
-                        column_order=["sku", "codigo_barras", "nombre", "familia", "subcategoria", "mascota", "caracteristicas", "marca", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "fecha_caducidad", "stock_minimo", "cantidad_reponer"],
+                        column_order=["sku", "codigo_barras", "nombre", "familia", "subcategoria", "mascota", "edad", "tamano", "necesidad_especial", "sabor_principal", "caracteristicas", "marca", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "fecha_caducidad", "stock_minimo", "cantidad_reponer"],
                         hide_index=True, 
                         use_container_width=True, 
                         num_rows="dynamic",
