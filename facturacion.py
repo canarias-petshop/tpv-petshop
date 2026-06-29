@@ -391,7 +391,7 @@ def render_pestana_facturacion(client):
                                 ultimo_error = None
                                 
                                 # 1. Lista oficial de modelos estables y seguros
-                                modelos_a_probar = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash-latest']
+                                modelos_a_probar = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
                                 
                                 # 2. Preguntar a Google qué más hay, esquivando modelos experimentales o retirados
                                 try:
