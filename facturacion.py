@@ -1001,7 +1001,7 @@ def render_pestana_facturacion(client):
                         fecha_fac_val = pd.to_datetime(c_data.get('fecha_factura') or c_data['created_at']).date()
                         f_fac_ed = st.date_input("Fecha Factura", value=fecha_fac_val, key="ed_ffac")
                     with cc3:
-                        dto_pp = st.number_input("Desc. Pronto Pago (%)", value=float(c_data.get('descuento_pp', 0.0)), step=0.1, key="ed_dto_pp")
+                        dto_pp = st.number_input("Desc. Pronto Pago (%)", value=float(c_data.get('descuento_pp') or 0.0), step=0.1, key="ed_dto_pp")
                     
                     ed_pc = st.data_editor(
                         prods, hide_index=True, use_container_width=True, num_rows="dynamic", key=f"ed_c_{c_id}", 
