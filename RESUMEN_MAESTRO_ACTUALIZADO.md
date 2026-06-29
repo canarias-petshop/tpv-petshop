@@ -3,6 +3,12 @@
 
 Este documento centraliza todos los avances, arquitecturas y módulos del ecosistema completo de Animalarium (TPV Físico + Tienda Web). Es el punto de partida **obligatorio** para retomar el proyecto en futuras sesiones.
 
+> [!CAUTION]
+> **NORMA ESTRICTA: PRODUCTOS vs SERVICIOS**
+> Una cosa son los productos (piensos, accesorios) y otra muy distinta son los servicios (peluquería, clínica).
+> Si el usuario ordena eliminar o modificar una marca concreta o un grupo de artículos en el contexto de "productos", **JAMÁS** debes alterar los registros que pertenezcan a "servicios" (aunque compartan tabla en la base de datos o utilicen la marca 'Genérico' u otra para categorizarse).
+> **No asumas ni interpretes nada.** Verifica siempre si la acción puede afectar a los servicios antes de ejecutar un borrado masivo.
+
 ---
 
 ## 🏆 Lo que se ha conseguido hasta hoy (Historial de Éxitos)
