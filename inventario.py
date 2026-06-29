@@ -118,10 +118,10 @@ def render_pestana_inventario(client):
                 if 'marca' not in df_solo_productos.columns: df_solo_productos['marca'] = "Generico"
                 if 'subcategoria' not in df_solo_productos.columns: df_solo_productos['subcategoria'] = ""
                 if 'mascota' not in df_solo_productos.columns: df_solo_productos['mascota'] = "Universal"
-                if 'edad' not in df_solo_productos.columns: df_solo_productos['edad'] = "Todas"
-                if 'tamano' not in df_solo_productos.columns: df_solo_productos['tamano'] = "Todos"
+                if 'edad' not in df_solo_productos.columns: df_solo_productos['edad'] = "Todas las edades"
+                if 'tamano' not in df_solo_productos.columns: df_solo_productos['tamano'] = "Todas las Razas"
                 if 'necesidad_especial' not in df_solo_productos.columns: df_solo_productos['necesidad_especial'] = "Ninguna"
-                if 'sabor_principal' not in df_solo_productos.columns: df_solo_productos['sabor_principal'] = "Mix/Varios"
+                if 'sabor_principal' not in df_solo_productos.columns: df_solo_productos['sabor_principal'] = "Sin especificar"
                 if 'caracteristicas' not in df_solo_productos.columns: df_solo_productos['caracteristicas'] = ""
 
                 sub_prod, sub_serv, sub_interno = st.tabs(["📦 Inventario", "✂️ Servicios", "🏢 Uso Interno"])
@@ -156,10 +156,10 @@ def render_pestana_inventario(client):
                             "familia": st.column_config.SelectboxColumn("Categoría", options=["Alimentación", "Accesorios", "Higiene", "Paseo", "Juguetes", "Descanso", "Farmacia/Cuidados", "Otros"]),
                             "subcategoria": st.column_config.SelectboxColumn("Subcategoría", options=["", "Pienso Seco", "Pienso Húmedo", "Semi-húmedo", "Snacks", "Collares/Arneses", "Champús", "Medicamentos", "Juguetes", "Otros"]),
                             "mascota": st.column_config.SelectboxColumn("Mascota", options=["Perro", "Gato", "Roedor", "Aves", "Reptiles", "Universal"]),
-                            "edad": st.column_config.SelectboxColumn("Edad", options=["Todas", "Cachorro (Puppy/Kitten)", "Adulto", "Senior"]),
-                            "tamano": st.column_config.SelectboxColumn("Tamaño", options=["Todos", "Mini/Pequeño", "Mediano", "Grande/Maxi", "Gigante"]),
-                            "necesidad_especial": st.column_config.SelectboxColumn("Necesidad", options=["Ninguna", "Esterilizado", "Hipoalergénico", "Control de Peso", "Cuidado Renal", "Cuidado Urinario", "Digestivo", "Articulaciones", "Piel y Pelo"]),
-                            "sabor_principal": st.column_config.SelectboxColumn("Sabor", options=["Mix/Varios", "Pollo", "Salmón", "Pescado", "Cordero", "Cerdo", "Ternera", "Pavo", "Pato", "Conejo", "Ciervo", "Insectos"]),
+                            "edad": st.column_config.SelectboxColumn("Edad", options=["Todas las edades", "Cachorro / Kitten", "Adulto", "Senior"]),
+                            "tamano": st.column_config.SelectboxColumn("Tamaño", options=["Todas las Razas", "Mini / Pequeño", "Mediano", "Grande", "Gigante"]),
+                            "necesidad_especial": st.column_config.SelectboxColumn("Necesidad", options=["Ninguna", "Esterilizado", "Hipoalergénico", "Control de Peso", "Sensible / Digestivo", "Renal", "Urinario", "Bolas de Pelo", "Articulaciones", "Pelo Blanco", "Paladares Exigentes"]),
+                            "sabor_principal": st.column_config.SelectboxColumn("Sabor", options=["Sin especificar", "Pollo", "Salmón", "Pescado", "Atún", "Cordero", "Cerdo", "Ternera / Buey", "Pavo", "Pato", "Conejo", "Ciervo", "Jabalí", "Mix de Carnes"]),
                             "caracteristicas": st.column_config.TextColumn("Extra (Opcional)", help="Escribe separadas por comas. Ej: Grain Free, Monoproteico, Natural..."),
                             "marca": st.column_config.TextColumn("Marca", help="Marca del producto"),
                             "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
