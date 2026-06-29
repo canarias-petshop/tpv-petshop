@@ -20,6 +20,7 @@ Esta es la pantalla principal para cobrar a los clientes.
 1. **Añadir Productos:**
    - **Escáner:** Dispara con la pistola de códigos de barras al producto. Se añadirá automáticamente al ticket y la casilla de búsqueda se vaciará sola.
    - **Buscador Manual:** Escribe el nombre del producto en el cuadro de búsqueda y pulsa "Añadir".
+   - **Cajas Multipack:** Para productos como comida húmeda (Ej. Royal Canin), ten en cuenta que existe el producto "Caja entera" (Ej. 12Ud) y el producto "Unidad Suelta" (1Ud) con el precio dividido. ¡Asegúrate de marcar el correcto en el buscador si abres cajas para vender suelto!
    - **Servicios:** Selecciona servicios como Peluquería o Veterinaria desde el menú desplegable "Añadir Servicio Rápido".
 2. **Modificar Ticket:** Usa el botón "🗑️" junto al producto en el ticket para eliminarlo, o cambia la cantidad manualmente.
 3. **Fidelización VIP:** Si el cliente está registrado, búscalo por nombre o teléfono en "Cliente VIP".

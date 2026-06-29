@@ -1,0 +1,1 @@
+﻿import toml; from supabase import create_client; s = toml.load('D:/clon vs mode/tpv-petshop/.streamlit/secrets.toml'); client = create_client(s['url'], s['key']); res = client.table('productos').select('nombre, tamano').ilike('nombre', '%MINI%').limit(5).execute(); print(res.data)

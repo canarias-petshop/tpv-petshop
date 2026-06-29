@@ -97,5 +97,25 @@ if res_fac.data:
     df_f.to_excel(os.path.join(carpeta_hoy, "4_Facturas_Emitidas.xlsx"), index=False)
     print("  ✅ Facturas guardadas.")
 
+# ==========================================
+# 5. DESCARGAR PRODUCTOS Y SERVICIOS (CATÁLOGO)
+# ==========================================
+print("⏳ Descargando Catálogo de Productos y Servicios...")
+_all_prods = []
+_off = 0
+while True:
+    _r = client.table("productos").select("*").range(_off, _off + 999).execute()
+    if _r.data:
+        _all_prods.extend(_r.data)
+        if len(_r.data) < 1000: break
+        _off += 1000
+    else: break
+
+if _all_prods:
+    df_p = pd.DataFrame(_all_prods)
+    # Convertir a datetime si es necesario o dejar como string
+    df_p.to_excel(os.path.join(carpeta_hoy, "5_Catalogo_y_Servicios.xlsx"), index=False)
+    print("  ✅ Catálogo guardado.")
+
 print("\n🎉 ¡COPIA DE SEGURIDAD TOTAL COMPLETADA CON ÉXITO!")
 print(f"Revisa la carpeta: {carpeta_hoy}")

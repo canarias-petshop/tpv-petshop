@@ -53,9 +53,18 @@ Control estricto de la liquidez en las cuentas de la empresa.
 
 ---
 
-## 6. 📦 Modificación Avanzada de Inventario (¡Actualizado para la Web!)
-- **Familias y Categoría Web:** Mantén el catálogo ordenado por categorías. La columna **`Categoría Web` (`familia`)** dicta en qué sección de la tienda online (Next.js) aparece cada artículo.
-- **Marcas (NUEVO):** En la nueva columna **`Marca`** del inventario, escribe exactamente la marca real del pienso o producto (Ej: "Royal Canin"). Esto habilitará automáticamente el filtro por marcas en la tienda online.
+## 6. 📦 Modificación Avanzada de Inventario y Categorización Web
+- **Categorización E-Commerce:** Para que el menú lateral de la tienda online funcione y los clientes puedan filtrar, debes usar el editor de la pestaña de Inventario para rellenar las siguientes columnas con los desplegables:
+  - **`Categoría Web` (`familia`) y `Subcategoría`:** Dictan en qué sección y subsección de la tienda aparece cada artículo.
+  - **`Marca`:** Escribe la marca real (Ej: "OWNAT", "ROYAL CANIN"). Todos los nombres de marca se normalizan a mayúsculas automáticamente.
+  - **`Mascota`:** Selecciona "Perro", "Gato", "Roedor", etc.
+  - **`Edad` y `Tamaño`:** Filtros vitales (Ej: "Puppy", "Senior", "Mini", "Gigante").
+  - **`Necesidad Especial`:** Filtros clínicos o de dieta (Ej: "Esterilizado", "Hipoalergénico", "Control de Peso").
+  - **`Sabor Principal`:** Ideal para dueños que buscan ingredientes específicos (Ej: "Pollo", "Salmón").
+- **Robot Importador y Emparejador de Fotografías V2:** El sistema cuenta con un robot inteligente capaz de escanear la carpeta de OneDrive local ("Fotos productos"). 
+  - Debes organizar las fotos respetando la jerarquía: `Marca > Mascota > Categoría (seco/humedo/snacks) > Subgama (Grain Free / Cereales)`.
+  - El robot usa reglas difusas y explícitas adaptadas a cada marca para detectar variantes (ej. Optima Nova Grain Free vs Cereales) y asigna las fotos correctamente ignorando los kilos.
+- **Importación de Cajas Multipack:** Al importar PDFs de tarifas de marcas como Royal Canin, si el sistema detecta cajas (Ej. `Pouch 85Gr X 12Ud`), insertará automáticamente **dos productos**: la caja entera y la unidad suelta dividiendo matemáticamente el coste y el PVP.
 - **Importación Masiva de Catálogos:** Utiliza los scripts extractores para subir excels de comerciales extrayendo el código de barras, coste y PVP.
 
 ---
