@@ -571,7 +571,7 @@ def render_pestana_facturacion(client):
                                         st.stop()
                                 else:
                                     client.table("compras").insert({
-                                        "proveedor_id": prov_id_final, "total": round(total_guardar_ia, 2), "descuento_pp": dto_pp_val, "estado": "Borrador", "tipo": tipo_doc_completo, "fecha_vencimiento": fecha_fac, "productos": st.session_state.compra_temp, "pagado": 0.0, "pendiente": round(total_guardar_ia, 2)
+                                        "proveedor_id": prov_id_final, "total": round(total_guardar_ia, 2), "descuento_pp": dto_pp_val, "estado": "Borrador", "tipo": tipo_doc_completo, "fecha_vencimiento": fecha_fac, "fecha_factura": fecha_fac, "productos": st.session_state.compra_temp, "pagado": 0.0, "pendiente": round(total_guardar_ia, 2)
                                     }).execute()
                                     msg_exito = f"✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla."
                                 
@@ -778,6 +778,7 @@ def render_pestana_facturacion(client):
                     client.table("compras").insert({
                         "proveedor_id": p_id, "total": float(total_guardar), "descuento_pp": float(desc_pp or 0.0),
                         "estado": nuevo_estado, "tipo": f"{prefijo_doc}: {n_fac}", "fecha_vencimiento": str(f_ven),
+                        "fecha_factura": str(f_fac),
                         "productos": st.session_state.compra_temp,
                         "pagado": 0.0, "pendiente": float(total_guardar)
                     }).execute()
@@ -938,8 +939,24 @@ def render_pestana_facturacion(client):
                             if not isinstance(prods_raw, list):
                                 prods_raw = []
                             for p in prods_raw:
-                                res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
-                                if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p['id']).execute()
+                                p_id = p.get('id') if isinstance(p, dict) else None
+                                # Validar que sea un UUID válido antes de consultar
+                                is_uuid = False
+                                if p_id:
+                                    try:
+                                        import uuid
+                                        uuid.UUID(str(p_id))
+                                        is_uuid = True
+                                    except ValueError:
+                                        pass
+                                
+                                if is_uuid and str(p_id).strip() not in ["", "None", "0"]:
+                                    try:
+                                        res_p = client.table("productos").select("stock_actual").eq("id", p_id).execute()
+                                        if res_p.data:
+                                            client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p_id).execute()
+                                    except Exception:
+                                        pass
                             # Eliminar registro
                             client.table("compras").delete().eq("id", c_id).execute()
                         st.success("Compra(s) eliminada(s) correctamente."); time.sleep(1); st.rerun()
@@ -976,7 +993,15 @@ def render_pestana_facturacion(client):
                     else:
                         prods = pd.DataFrame(columns=['id', 'Código', 'Descripción', 'Cantidad', 'Base Ud', 'IGIC %', 'Desc %', 'PVP (€)', 'Base Neta', 'IGIC €', 'Total Línea'])
                     
-                    st.markdown(f"#### 🛒 Editando Compra {c_data['tipo']}")
+                    st.markdown(f"#### ✏️ Editando Compra {c_data['tipo']}")
+                    
+                    cc1, cc2, cc3 = st.columns(3)
+                    with cc1: n_fac_ed = st.text_input("Nº Documento (Referencia)", value=str(c_data['tipo']).split(":")[-1].strip(), key="ed_nfac")
+                    with cc2: 
+                        fecha_fac_val = pd.to_datetime(c_data.get('fecha_factura') or c_data['created_at']).date()
+                        f_fac_ed = st.date_input("Fecha Factura", value=fecha_fac_val, key="ed_ffac")
+                    with cc3:
+                        dto_pp = st.number_input("Desc. Pronto Pago (%)", value=float(c_data.get('descuento_pp', 0.0)), step=0.1, key="ed_dto_pp")
                     
                     ed_pc = st.data_editor(
                         prods, hide_index=True, use_container_width=True, num_rows="dynamic", key=f"ed_c_{c_id}", 
@@ -1046,7 +1071,8 @@ def render_pestana_facturacion(client):
                             client.table("compras").update({
                                 "productos": json.loads(ed_pc.to_json(orient='records')), 
                                 "total": float(nuevo_total_guardar), "pendiente": nuevo_pendiente, 
-                                "estado": nuevo_estado, "descuento_pp": float(dto_pp)
+                                "estado": nuevo_estado, "descuento_pp": float(dto_pp),
+                                "fecha_factura": str(f_fac_ed)
                             }).eq("id", c_id).execute()
                             
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
@@ -1062,7 +1088,7 @@ def render_pestana_facturacion(client):
                             nuevo_pendiente = max(0.0, float(new_total) - pagado_actual)
                             nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else str(c_data.get('estado', 'Pendiente'))
                             
-                        client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(nuevo_total_guardar), "pendiente": nuevo_pendiente, "estado": nuevo_estado, "descuento_pp": float(dto_pp)}).eq("id", c_id).execute()
+                        client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(nuevo_total_guardar), "pendiente": nuevo_pendiente, "estado": nuevo_estado, "descuento_pp": float(dto_pp), "fecha_factura": str(f_fac_ed)}).eq("id", c_id).execute()
                         st.success("Compra actualizada."); st.rerun()
 
     # ==========================================

@@ -50,7 +50,7 @@ def fetch_facturas_informe(_client, fecha_inicio_q, fecha_fin_q):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_compras_informe(_client, fecha_inicio_q, fecha_fin_q):
-    return _client.table("compras").select("id, created_at, tipo, total, estado, productos, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+    return _client.table("compras").select("id, created_at, fecha_factura, tipo, total, estado, productos, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_gastos_recurrentes_cat(_client):
@@ -462,6 +462,7 @@ def render_pestana_contabilidad(client):
             if dt_comp_arc.dt.tz is None:
                 dt_comp_arc = dt_comp_arc.dt.tz_localize('UTC')
             df_comp_arc['Fecha'] = dt_comp_arc.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
+            df_comp_arc['Fecha Factura'] = pd.to_datetime(df_comp_arc['fecha_factura']).dt.strftime('%d/%m/%Y').fillna('---')
             
             st.markdown("##### 🗂️ Clasificación de Documentos")
             filtro_cat_arc = st.selectbox(
@@ -491,7 +492,7 @@ def render_pestana_contabilidad(client):
             if df_filtrado_arc.empty:
                 st.info("No hay registros en esta categoría para las fechas seleccionadas.")
             else:
-                df_vista_arc = df_filtrado_arc[['id', 'Fecha', 'tipo', 'total', 'Proveedor', 'estado']].copy()
+                df_vista_arc = df_filtrado_arc[['id', 'Fecha', 'Fecha Factura', 'tipo', 'total', 'Proveedor', 'estado']].copy()
                 df_vista_arc.insert(0, "Borrar", False)
                 
                 ed_comp_arc = st.data_editor(
@@ -499,7 +500,8 @@ def render_pestana_contabilidad(client):
                     column_config={
                         "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"),
                         "id": None, "tipo": "Documento / Concepto",
-                        "Fecha": "Fecha Reg."
+                        "Fecha": "Fecha Reg.",
+                        "Fecha Factura": "F. Factura/Emisión"
                     }
                 )
 
@@ -513,10 +515,11 @@ def render_pestana_contabilidad(client):
                             prods_raw = c_data.get('productos', [])
                             if isinstance(prods_raw, list):
                                 for p in prods_raw:
-                                    if p.get('id'):
+                                    p_id = p.get('id') if isinstance(p, dict) else None
+                                    if p_id and str(p_id).strip() not in ["", "None", "0"]:
                                         try:
-                                            res_p = fetch_producto_stock(client, p['id'])
-                                            if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p['id']).execute()
+                                            res_p = fetch_producto_stock(client, p_id)
+                                            if res_p.data: client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p_id).execute()
                                         except: pass
                             client.table("compras").delete().eq("id", c_id).execute()
                         limpiar_cache_contabilidad()
