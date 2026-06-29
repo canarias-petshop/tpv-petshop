@@ -117,6 +117,7 @@ def render_pestana_inventario(client):
                 if 'familia' not in df_solo_productos.columns: df_solo_productos['familia'] = "Generico"
                 if 'marca' not in df_solo_productos.columns: df_solo_productos['marca'] = "Generico"
                 if 'subcategoria' not in df_solo_productos.columns: df_solo_productos['subcategoria'] = ""
+                if 'gama' not in df_solo_productos.columns: df_solo_productos['gama'] = ""
                 if 'mascota' not in df_solo_productos.columns: df_solo_productos['mascota'] = "Universal"
                 if 'edad' not in df_solo_productos.columns: df_solo_productos['edad'] = "Todas las edades"
                 if 'tamano' not in df_solo_productos.columns: df_solo_productos['tamano'] = "Todas las Razas"
@@ -155,6 +156,7 @@ def render_pestana_inventario(client):
                             "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
                             "familia": st.column_config.SelectboxColumn("Categoría", options=["Alimentación", "Accesorios", "Higiene", "Paseo", "Juguetes", "Descanso", "Farmacia/Cuidados", "Otros"]),
                             "subcategoria": st.column_config.SelectboxColumn("Subcategoría", options=["", "Pienso Seco", "Pienso Húmedo", "Semi-húmedo", "Snacks", "Collares/Arneses", "Champús", "Medicamentos", "Juguetes", "Otros"]),
+                            "gama": st.column_config.TextColumn("Gama", help="Gama o subtipo (Ej: Grain Free, Low Grain)"),
                             "mascota": st.column_config.SelectboxColumn("Mascota", options=["Perro", "Gato", "Roedor", "Aves", "Reptiles", "Universal"]),
                             "edad": st.column_config.SelectboxColumn("Edad", options=["Todas las edades", "Cachorro / Kitten", "Adulto", "Senior"]),
                             "tamano": st.column_config.SelectboxColumn("Tamaño", options=["Todas las Razas", "Mini / Pequeño", "Mediano", "Grande", "Gigante"]),
@@ -169,7 +171,7 @@ def render_pestana_inventario(client):
                             "stock_minimo": st.column_config.NumberColumn("Avisar en", step=1),
                             "cantidad_reponer": st.column_config.NumberColumn("Reponer Ud", step=1)
                         },
-                        column_order=["sku", "codigo_barras", "nombre", "familia", "subcategoria", "mascota", "edad", "tamano", "necesidad_especial", "sabor_principal", "caracteristicas", "marca", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "fecha_caducidad", "stock_minimo", "cantidad_reponer"],
+                        column_order=["sku", "codigo_barras", "nombre", "familia", "subcategoria", "gama", "mascota", "edad", "tamano", "necesidad_especial", "sabor_principal", "caracteristicas", "marca", "Proveedor", "precio_base", "igic_tipo", "precio_pvp", "stock_actual", "fecha_caducidad", "stock_minimo", "cantidad_reponer"],
                         hide_index=True, 
                         use_container_width=True, 
                         num_rows="dynamic",
