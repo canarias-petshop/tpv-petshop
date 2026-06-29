@@ -40,6 +40,12 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
 - **Frontend Web Mejorado (`ClientCatalog.tsx`)**: 
   - El menú lateral izquierdo ahora agrupa de forma interactiva. 
   - Al lado de la marca "OWNAT" aparece el símbolo `+` que despliega sus familias (Classic, Prime, Ultra, Wetline...). Esto permite filtrados cruzados súper precisos.
+  - Se eliminó visualmente la opción "Ninguna" de las necesidades especiales para limpiar la interfaz.
+  - Se forzó el modo `force-dynamic` (sin caché) en el catálogo de Next.js para que refleje los cambios de base de datos en tiempo real al hacer F5.
+- **Ajustes Exactos de Amanova y Servicios**:
+  - Se rescataron 54 servicios históricos desde la tabla de citas y se aislaron bajo la marca "Genérico" para que desapareciera el filtro fantasma "Animalarium" de la web.
+  - Se reestructuraron las gamas de Amanova: los húmedos se reasignaron a "Wet Line", y 18 formatos exactos de pienso seco (indicados manualmente por gerencia) se clasificaron estrictamente como "Low Grain", dejando el resto como "Grain Free".
+  - Se añadió la columna visible **"Gama"** en la tabla de inventario del TPV (`inventario.py`) para permitir gestión manual, y se automatizó su despliegue a Streamlit Cloud.
 - **Auto-registro de Clientes y Conexión Web-TPV**: Integración bidireccional entre el carrito de la web y el módulo de Delivery del TPV físico.
 
 ---
