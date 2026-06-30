@@ -28,29 +28,77 @@ def fetch_cuentas_bancarias(_client):
 def fetch_caja_abierta(_client):
     return _client.table("control_caja").select("*").eq("estado", "Abierta").execute()
 
-@st.cache_data(show_spinner=False, ttl=300)
-def fetch_compras_archivo(_client, f_ini_arc, f_fin_arc):
-    return _client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini_arc}T00:00:00").lte("created_at", f"{f_fin_arc}T23:59:59").order("id", desc=True).execute()
+class PostgrestResult:
+    def __init__(self, data):
+        self.data = data
 
 @st.cache_data(show_spinner=False, ttl=300)
+def fetch_compras_archivo(_client, f_ini_arc, f_fin_arc):
+    all_data = []
+    limit = 1000
+    offset = 0
+    while True:
+        res = _client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini_arc}T00:00:00").lte("created_at", f"{f_fin_arc}T23:59:59").range(offset, offset + limit - 1).order("id", desc=True).execute()
+        if not res.data: break
+        all_data.extend(res.data)
+        if len(res.data) < limit: break
+        offset += limit
+    return PostgrestResult(all_data)
+
 def fetch_producto_stock(_client, p_id):
     return _client.table("productos").select("stock_actual").eq("id", p_id).execute()
 
-@st.cache_data(show_spinner=False, ttl=300)
 def fetch_productos_categorias(_client):
-    return _client.table("productos").select("id, nombre, categoria").execute()
+    # También paginamos los productos porque el inventario puede tener más de 1000 artículos
+    all_data = []
+    limit = 1000
+    offset = 0
+    while True:
+        res = _client.table("productos").select("id, nombre, categoria").range(offset, offset + limit - 1).order("id").execute()
+        if not res.data: break
+        all_data.extend(res.data)
+        if len(res.data) < limit: break
+        offset += limit
+    return PostgrestResult(all_data)
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_ventas_informe(_client, fecha_inicio_q, fecha_fin_q):
-    return _client.table("ventas_historial").select("id, created_at, total, metodo_pago, estado, cliente_deuda, productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+    all_data = []
+    limit = 1000
+    offset = 0
+    while True:
+        res = _client.table("ventas_historial").select("id, created_at, total, metodo_pago, estado, cliente_deuda, productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).range(offset, offset + limit - 1).order("id").execute()
+        if not res.data: break
+        all_data.extend(res.data)
+        if len(res.data) < limit: break
+        offset += limit
+    return PostgrestResult(all_data)
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_facturas_informe(_client, fecha_inicio_q, fecha_fin_q):
-    return _client.table("facturas").select("numero_factura, created_at, total_neto, total_igic, total_final, forma_pago, clientes(nombre_dueno, cif), productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+    all_data = []
+    limit = 1000
+    offset = 0
+    while True:
+        res = _client.table("facturas").select("numero_factura, created_at, total_neto, total_igic, total_final, forma_pago, clientes(nombre_dueno, cif), productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).range(offset, offset + limit - 1).order("id").execute()
+        if not res.data: break
+        all_data.extend(res.data)
+        if len(res.data) < limit: break
+        offset += limit
+    return PostgrestResult(all_data)
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_compras_informe(_client, fecha_inicio_q, fecha_fin_q):
-    return _client.table("compras").select("id, created_at, fecha_factura, tipo, total, estado, productos, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).execute()
+    all_data = []
+    limit = 1000
+    offset = 0
+    while True:
+        res = _client.table("compras").select("id, created_at, fecha_factura, tipo, total, estado, productos, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).range(offset, offset + limit - 1).order("id").execute()
+        if not res.data: break
+        all_data.extend(res.data)
+        if len(res.data) < limit: break
+        offset += limit
+    return PostgrestResult(all_data)
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_gastos_recurrentes_cat(_client):

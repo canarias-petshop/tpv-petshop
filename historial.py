@@ -11,13 +11,25 @@ import string
 def fetch_caja_abierta_created_at_h(_client):
     return _client.table("control_caja").select("created_at").eq("estado", "Abierta").execute()
 
-@st.cache_data(show_spinner=False, ttl=300)
+class PostgrestResult:
+    def __init__(self, data):
+        self.data = data
+
 def fetch_ventas_historial_por_id_h(_client, b_ticket):
     return _client.table("ventas_historial").select("*").eq("id", b_ticket).execute()
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_ventas_historial_por_fechas_h(_client, f_inicio, f_fin):
-    return _client.table("ventas_historial").select("*").gte("created_at", f"{f_inicio}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
+    all_data = []
+    limit = 1000
+    offset = 0
+    while True:
+        res = _client.table("ventas_historial").select("*").gte("created_at", f"{f_inicio}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").range(offset, offset + limit - 1).order("id", desc=True).execute()
+        if not res.data: break
+        all_data.extend(res.data)
+        if len(res.data) < limit: break
+        offset += limit
+    return PostgrestResult(all_data)
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_cuentas_bancarias_nombres_h(_client):
@@ -662,7 +674,14 @@ def render_pestana_historial(client):
                 if dt_parsed.dt.tz is None:
                     dt_parsed = dt_parsed.dt.tz_localize('UTC')
                 df_c['Fecha Apertura'] = dt_parsed.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
-                df_c_vista = df_c[['id', 'Fecha Apertura', 'fondo_inicial', 'total_contado', 'descuadre']].copy()
+                def calc_total_ventas(row):
+                    res = row.get('resumen_pagos')
+                    if not res or not isinstance(res, dict) or pd.isna(res):
+                        return 0.0
+                    return float(res.get('Efectivo', 0.0) + res.get('Tarjeta', 0.0) + res.get('Bizum', 0.0))
+                
+                df_c['Ventas Totales (€)'] = df_c.apply(calc_total_ventas, axis=1)
+                df_c_vista = df_c[['id', 'Fecha Apertura', 'fondo_inicial', 'Ventas Totales (€)', 'total_contado', 'descuadre']].copy()
                 df_c_vista.insert(0, "Seleccionar", False)
                 
                 st.markdown("💡 *Marca la casilla **'🖨️ Seleccionar'** para ver el desglose e imprimir el Cierre Z.*")
@@ -674,6 +693,7 @@ def render_pestana_historial(client):
                         "id": None,
                         "Fecha Apertura": "Apertura",
                         "fondo_inicial": st.column_config.NumberColumn("Fondo Inicial (€)", format="%.2f", step=0.01),
+                        "Ventas Totales (€)": st.column_config.NumberColumn("Ventas Totales (€)", format="%.2f", step=0.01, disabled=True),
                         "total_contado": st.column_config.NumberColumn("Efectivo Final (€)", format="%.2f", step=0.01),
                         "descuadre": st.column_config.NumberColumn("Descuadre (€)", format="%.2f", step=0.01)
                     },
