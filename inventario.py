@@ -251,15 +251,20 @@ def render_pestana_inventario(client):
                         st.write("Esta herramienta utiliza Gemini para rellenar automáticamente las categorías faltantes basándose en el nombre del producto.")
                         if st.button("🚀 Iniciar Auto-Categorización (Lote de 20)"):
                             def esta_incompleto(p):
-                                if p.get('familia', 'Generico') in ['Generico', '', None]: return True
-                                if p.get('mascota', 'Universal') in ['Universal', '', None]: return True
-                                if p.get('subcategoria', '') in ['', None]: return True
-                                if p.get('marca', 'Generico') in ['Generico', '', None]: return True
+                                import pandas as pd
+                                def is_empty(val, default):
+                                    if pd.isna(val) or val in [default, '', None]: return True
+                                    return False
+                                    
+                                if is_empty(p.get('familia'), 'Generico'): return True
+                                if is_empty(p.get('mascota'), 'Universal'): return True
+                                if is_empty(p.get('subcategoria'), ''): return True
+                                if is_empty(p.get('marca'), 'Generico'): return True
                                 return False
                                 
                             prods_incompletos = [p for p in df_solo_productos.to_dict('records') if esta_incompleto(p)]
                             if not prods_incompletos:
-                                st.success("¡Todos los productos ya tienen una familia asignada!")
+                                st.success("¡Todos los productos están perfectamente categorizados!")
                             else:
                                 st.info(f"Se han encontrado {len(prods_incompletos)} productos sin categorizar. Procesando un lote de hasta 20...")
                                 lote = prods_incompletos[:20]
