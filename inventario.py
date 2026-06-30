@@ -26,6 +26,8 @@ def limpiar_cache_inventario():
 
 def render_pestana_inventario(client):
     st.markdown("<h3 style='margin-top: -15px;'>📦 Gestión de Inventario y Servicios</h3>", unsafe_allow_html=True)
+    if st.session_state.pop("inventario_saved", False):
+        st.success("✅ Los cambios se han guardado correctamente.")
     
     col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
@@ -254,10 +256,10 @@ def render_pestana_inventario(client):
                         if errores:
                             for err in errores: st.error(err)
                         else:
-                            st.success("✅ Inventario sincronizado correctamente. Guardando...")
+                            st.session_state["inventario_saved"] = True
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             limpiar_cache_inventario()
-                            time.sleep(1.5)
+                            time.sleep(0.5)
                             st.rerun()
 
                 with sub_serv:
@@ -333,10 +335,10 @@ def render_pestana_inventario(client):
                         if errores_s:
                             for err in errores_s: st.error(err)
                         else:
-                            st.success("✅ Catálogo de servicios actualizado. Guardando...")
+                            st.session_state["inventario_saved"] = True
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             limpiar_cache_inventario()
-                            time.sleep(1.5)
+                            time.sleep(0.5)
                             st.rerun()
                         
                 with sub_interno:

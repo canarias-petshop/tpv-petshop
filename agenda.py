@@ -62,7 +62,7 @@ def get_canc_ag_cached(_client, v):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_sin_hist_ag_cached(_client, v, h_str):
-    return _client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", h_str).like("servicio", "%[ESTADO: Confirmada]%").execute().data
+    return _client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", h_str).or_("servicio.ilike.%[ESTADO: Confirmada]%,servicio.ilike.%[ESTADO: Asistió]%").execute().data
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_turnos_ag_cached(_client, v, f_ini, f_fin):

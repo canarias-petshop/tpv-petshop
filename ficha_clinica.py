@@ -28,7 +28,7 @@ def calcular_duracion_media(historial):
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_ficha_alerts_cached(_client, v, mid, hoy):
     try:
-        r1 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).lt("fecha_hora", hoy).like("servicio", "%[ESTADO: Confirmada]%").execute().data
+        r1 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).lt("fecha_hora", hoy).or_("servicio.ilike.%[ESTADO: Confirmada]%,servicio.ilike.%[ESTADO: Asistió]%").execute().data
         r2 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%,servicio.ilike.%[ESTADO: Anulada]%,servicio.ilike.%[ESTADO: Cambio (mismo día)]%").execute().data
         return r1, r2
     except: return [], []
@@ -146,7 +146,7 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
     servicios_usados = [s for s in df_hist["Trabajo / Servicio"].dropna().unique().tolist() if str(s).strip() != ""]
     opciones_seguras = [""] + servicios_lista + [s for s in servicios_usados if s not in servicios_lista]
 
-    st.markdown("💡 *Nota: Si indicas **Inicio** y **Fin**, o seleccionas un **Servicio**, los **Precios, Descuentos y Duración** se calcularán solos al hacer clic en **Guardar**.*")
+    st.markdown("💡 *Nota: Si seleccionas un **Servicio**, los Precios se calcularán solos (si pones el precio a 0 se actualizará a la tarifa del catálogo).*")
     
     df_visual = df_hist.drop(columns=["Extras"]) if "Extras" in df_hist.columns else df_hist
     
