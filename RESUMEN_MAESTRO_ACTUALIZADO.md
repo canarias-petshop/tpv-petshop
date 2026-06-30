@@ -1,5 +1,5 @@
 # Resumen Maestro Actualizado - TPV y E-Commerce Animalarium
-**Fecha de última actualización**: 29 de Junio de 2026
+**Fecha de última actualización**: 30 de Junio de 2026
 
 Este documento centraliza todos los avances, arquitecturas y módulos del ecosistema completo de Animalarium (TPV Físico + Tienda Web). Es el punto de partida **obligatorio** para retomar el proyecto en futuras sesiones.
 
@@ -52,7 +52,22 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
   - Se rescataron 54 servicios históricos desde la tabla de citas y se aislaron bajo la marca "Genérico" para que desapareciera el filtro fantasma "Animalarium" de la web.
   - Se reestructuraron las gamas de Amanova: los húmedos se reasignaron a "Wet Line", y 18 formatos exactos de pienso seco (indicados manualmente por gerencia) se clasificaron estrictamente como "Low Grain", dejando el resto como "Grain Free".
   - Se añadió la columna visible **"Gama"** en la tabla de inventario del TPV (`inventario.py`) para permitir gestión manual, y se automatizó su despliegue a Streamlit Cloud.
-- **Auto-registro de Clientes y Conexión Web-TPV**: Integración bidireccional entre el carrito de la web y el módulo de Delivery del TPV físico.
+- **Auto-registro de Clientes y Conexión Web-TPV**: Integración bidireccional perfeccionada. El sistema en la web busca cruzar clientes no solo por teléfono, sino también por **Nombre y Apellidos completos**, evitando duplicados y vinculando las cuentas existentes.
+- **Checkout, Puntos y Descuentos Automatizados**: 
+  - La web aplica las reglas de negocio del TPV físico: Acumulación de 1 punto por cada 10€ de compra y canjeo (1 punto = 0.50€ descuento, máximo 50% del total).
+  - El sistema crea la venta en estado "Deuda" en el historial del TPV, y se coordina un encargo para descontar stock. Si el encargo se cancela por falta de stock físico, una devolución en el TPV restaura el inventario.
+- **Lógica de Envíos y Portes Web**:
+  - Implementado coste dinámico de envío: Envío Cercanía (Santa Cruz/La Laguna) = 5€; Distancias largas = 10€; Envío Gratuito a partir de 130€.
+  - Los gastos de envío se desglosan en ticket como un *servicio* con 7% de IGIC, a diferencia de la alimentación animal (exenta).
+- **"Candado" del Catálogo Web**: La web bloquea y oculta estrictamente cualquier producto que no sea de la categoría "Alimentación seca", "Alimentación húmeda" o "Snack". Todo lo demás (champús, collares, etc.) se gestiona en el TPV pero no contamina el catálogo online.
+- **Enriquecimiento de Catálogo Asistido por IA (Gemini)**:
+  - Se implementó un script automatizado en Python (`enrich_products.py`) para consultar la API de Gemini 2.5 Flash, el cual redacta descripciones comerciales cortas (con emojis y destacando ingredientes clave) para todos los productos que no tenían información.
+  - Más del 50% del catálogo (330+ productos) ya cuenta con textos únicos generados, lo que mejora drásticamente el SEO y la experiencia de usuario.
+- **Corrección de Permisos RLS (Row Level Security) y Mi Cuenta**:
+  - Solucionado el problema permanente de "Ficha en revisión" en la web. Se creó un cliente `anonSupabase` dedicado para consultar los perfiles (puntos y mascotas) saltando las restricciones RLS, permitiendo la vinculación instantánea web-TPV.
+- **Mejoras Visuales de UX Web**:
+  - Se modificaron las tarjetas de producto (`ClientCatalog.tsx`) para exponer claramente la Referencia (Ref) del artículo y la Descripción generada por la IA, directamente sobre el precio.
+- **DESPLIEGUE A PRODUCCIÓN**: La web ha sido subida a la nube (Vercel) con despliegue automático conectado a GitHub, y el dominio final de GoDaddy (`animalariumtenerife.es`) ha sido vinculado exitosamente con certificados SSL.
 
 ---
 
@@ -63,20 +78,22 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
 
 ## 🚀 Planificación para la Próxima Sesión (Siguientes Pasos)
 
-**Hito 1: Gestión de Web y Delivery (Workflow Avanzado)**
+**Hito 1: Escaparate Web, Marketing y Responsive Design**
+- **Adaptación Móvil (Responsive)**: Escribir las reglas CSS (Media Queries) para que la web se vea perfecta en teléfonos y tablets (menú hamburguesa, apilar grid de productos, reducir fuentes del Hero).
+- **Banners Rotativos**: Implementar el plan de anuncios rotativos (`PromoBanner.tsx`) en la cabecera del catálogo y en la página de inicio, anunciando: 10% primera compra, 10% en cajas enteras de pouch, sistema de puntos, y portes gratis >130€.
+
+**Hito 2: Gestión de Web y Delivery (Workflow Avanzado)**
 - **Alertas de Antigüedad**: Implementar un sistema visual que alerte cuando un "Pedido Web" lleve más de 2 días atascado sin enviarse o recogerse.
 - **Gestión de Estados y Cancelaciones**: Implementar el estado final "Recibido y Avisado" para los encargos locales, junto con la lógica de cancelación y borrado seguro.
-- **Lógica E-Commerce**: Limitar los repartos locales gratuitos a un importe mínimo por zonas, aplicar sobrecostes según radio de entrega e implementar envíos por mensajería externa.
 
-**Hito 2: Agenda y Periodicidad**
+**Hito 3: Agenda y Periodicidad**
 - Avanzar en el sistema de recurrencia y repetición de tareas (diario/semanal/mensual) dentro de la agenda o calendario.
 
-**Hito 3: UX Web y Filtros Finales**
+**Hito 4: UX Web y Filtros Finales**
 - **Sincronización Web Avanzada**: Modificar la interfaz web para mostrar las opciones secundarias conectadas de forma reactiva, permitiendo una experiencia de compra fluida.
 - **Ajustes Estéticos**: Rediseñar la zona del pie de página y botones de WhatsApp web.
 
-**Hito 4: Integraciones Futuras (A medio plazo)**
-- **Nuevas Marcas**: Cuando se integre Royal Canin o cualquier otra marca, se deberá usar **estrictamente** el "Diccionario Maestro" para encajarla.
-- **Pasarela de Pago (Stripe)**: Configurar la pasarela para aceptar cobros directos desde el carrito de la web.
+**Hito 5: Integraciones Futuras (A medio plazo)**
+- **Nuevas Marcas**: Cuando se integre Royal Canin o cualquier otra marca, se deberá usar **estrictamente** el "Diccionario Maestro" para encajarla mediante scripts de importación (la web lo asimilará instantáneamente).
+- **Pasarela de Pago (Stripe)**: Configurar la pasarela para aceptar cobros directos online.
 - **Módulos Adicionales**: Ampliación hacia categorías de accesorios o reservas directas de peluquería en la tienda online.
-- **Despliegue Web**: Subir a Vercel y conectar con dominio final.
