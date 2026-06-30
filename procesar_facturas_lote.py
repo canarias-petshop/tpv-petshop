@@ -66,12 +66,17 @@ def procesar_lote():
 
     print(f"Se han encontrado {len(archivos)} facturas para procesar.\n")
     
-    prompt = """
+    # Fetch current providers
+    res_prov = client.table("proveedores").select("nombre_empresa").execute()
+    provs_list = [p['nombre_empresa'] for p in res_prov.data] if res_prov.data else []
+    provs_str = ", ".join(provs_list) if provs_list else "Ninguno"
+    
+    prompt = f"""
     Eres un contable experto. Extrae los datos de esta factura y devuelvelos ESTRICTAMENTE en este formato JSON, sin texto adicional ni markdown:
-    {
+    {{
       "numero_factura": "12345",
       "fecha_factura": "YYYY-MM-DD",
-      "nombre_proveedor": "Nombre de la Empresa",
+      "nombre_proveedor": "Intenta emparejar con: [{provs_str}]. Si coincide, devuelve EXACTAMENTE el de la lista. Si es nuevo, tal cual.",
       "articulos": [
         {
           "descripcion": "Nombre del articulo",
@@ -83,7 +88,7 @@ def procesar_lote():
           "precio_pvp": 15.50
         }
       ]
-    }
+    }}
     Si no encuentras un dato o IGIC, pon 0 o dejalo vacio ("").
     """
     

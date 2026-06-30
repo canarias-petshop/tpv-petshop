@@ -348,11 +348,15 @@ def render_pestana_facturacion(client):
                                     
                                 genai.configure(api_key=st.secrets["gemini_api_key"])
                                 
-                                prompt = """
+                                provs_list = df_prov['nombre_empresa'].tolist() if not df_prov.empty else []
+                                provs_str = ", ".join(provs_list) if provs_list else "Ninguno"
+                                
+                                prompt = f"""
                                 Eres un contable experto y un sistema de lectura OCR de máxima precisión.
                                 
                                 REGLAS ESTRICTAS ANTI-INVENCIÓN:
                                 1. NUNCA INVENTES DATOS. Si la imagen está borrosa o un texto no se lee perfectamente, sáltalo o déjalo en cero.
+                                2. Para 'nombre_proveedor', intenta emparejar la factura con uno de nuestros proveedores registrados: [{provs_str}]. Si la factura pertenece a alguno de ellos, devuelve EXACTAMENTE el nombre de la lista. Si es un proveedor nuevo, escribe su nombre tal cual aparece en el papel.
                                 2. Escribe EXACTAMENTE el nombre del producto que aparece en el papel. No inventes marcas ni añadas productos que no estén explícitamente escritos ahí.
                                 3. Extrae exactamente las cantidades y precios unitarios. NO pongas descuentos si no vienen indicados en el papel claramente.
                                 4. El 'precio_base' debe ser estrictamente el precio unitario SIN impuestos. El 'igic_porcentaje' debe ser el % de IGIC aplicado a esa línea (ej: 3.0, 7.0).
