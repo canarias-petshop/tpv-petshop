@@ -127,7 +127,11 @@ def render_pestana_servicios(client):
                     )
                     if st.button("💾 Guardar Cambios en Paseos", type="primary"):
                         for _, r in ed_p[ed_p["Borrar"] == True].iterrows():
-                            if pd.notna(r['id']): client.table("servicios_paseo").delete().eq("id", r['id']).execute()
+                            if pd.notna(r['id']): 
+                                try:
+                                    client.table("servicios_paseo").delete().eq("id", r['id']).execute()
+                                except Exception as e:
+                                    st.error(f"Error al eliminar paseo: {e}")
                         for _, r in ed_p[ed_p["Borrar"] == False].iterrows():
                             if pd.notna(r['id']):
                                 client.table("servicios_paseo").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
@@ -210,7 +214,11 @@ def render_pestana_servicios(client):
                     )
                     if st.button("💾 Guardar Cambios en Sesiones", type="primary"):
                         for _, r in ed_a[ed_a["Borrar"] == True].iterrows():
-                            if pd.notna(r['id']): client.table("servicios_adiestramiento").delete().eq("id", r['id']).execute()
+                            if pd.notna(r['id']): 
+                                try:
+                                    client.table("servicios_adiestramiento").delete().eq("id", r['id']).execute()
+                                except Exception as e:
+                                    st.error(f"Error al eliminar sesión: {e}")
                         for _, r in ed_a[ed_a["Borrar"] == False].iterrows():
                             if pd.notna(r['id']):
                                 client.table("servicios_adiestramiento").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
@@ -302,7 +310,11 @@ def render_pestana_servicios(client):
                         )
                         if st.button("💾 Guardar Cambios en Recogidas", type="primary"):
                             for _, r in ed_r[ed_r["Borrar"] == True].iterrows():
-                                if pd.notna(r['id']): client.table("servicios_recogida").delete().eq("id", r['id']).execute()
+                                if pd.notna(r['id']): 
+                                    try:
+                                        client.table("servicios_recogida").delete().eq("id", r['id']).execute()
+                                    except Exception as e:
+                                        st.error(f"Error al eliminar recogida: {e}")
                             for _, r in ed_r[ed_r["Borrar"] == False].iterrows():
                                 if pd.notna(r['id']):
                                     client.table("servicios_recogida").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()
@@ -374,7 +386,7 @@ def render_pestana_servicios(client):
                                 mensaje_dom = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium. Tu pedido a domicilio ya está en camino a la dirección: {row['direccion']}. ¡Un saludo!"
                                 df_d.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_dom)}"
                                 
-                            msg_eq = f"¡Nuevo Pedido a Domicilio! 🛵\nCliente: {row['nombre_cliente']}\nDirección: {row.get('direccion', '')}\nPedido: {row['detalle_pedido']}"
+                            msg_eq = f"¡Nuevo Pedido a Domicilio! 🛵\nCliente: {row['nombre_cliente']}\nDirección: {row['direccion']}\nPedido: {row['detalle_pedido']}"
                             df_d.at[idx, 'Avisar Equipo'] = f"https://wa.me/34645749708?text={urllib.parse.quote(msg_eq)}"
                                 
                         df_d_vista = df_d[['id', 'Fecha', 'nombre_cliente', 'telefono', 'direccion', 'detalle_pedido', 'estado', 'WhatsApp', 'Avisar Equipo']].copy()
@@ -392,7 +404,11 @@ def render_pestana_servicios(client):
                         )
                         if st.button("💾 Guardar Cambios en Pedidos", type="primary"):
                             for _, r in ed_d[ed_d["Borrar"] == True].iterrows():
-                                if pd.notna(r['id']): client.table("pedidos_domicilio").delete().eq("id", r['id']).execute()
+                                if pd.notna(r['id']): 
+                                    try:
+                                        client.table("pedidos_domicilio").delete().eq("id", r['id']).execute()
+                                    except Exception as e:
+                                        st.error(f"Error al eliminar pedido: {e}")
                             for _, r in ed_d[ed_d["Borrar"] == False].iterrows():
                                 if pd.notna(r['id']):
                                     client.table("pedidos_domicilio").update({"estado": str(r['estado'])}).eq("id", r['id']).execute()

@@ -120,12 +120,20 @@ def render_pestana_proveedores(client):
                 if not filas_borrar.empty:
                     st.error(f"⚠️ Has marcado {len(filas_borrar)} proveedor(es) para eliminar.")
                     if st.button("🚨 CONFIRMAR ELIMINACIÓN", type="primary", use_container_width=True):
+                        errores = []
                         for _, row in filas_borrar.iterrows():
-                            client.table("productos_proveedores").delete().eq("proveedor_id", row['id']).execute()
-                            client.table("pedidos_proveedores").delete().eq("proveedor_id", row['id']).execute()
-                            client.table("proveedores").delete().eq("id", row['id']).execute()
-                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                        st.success("Proveedor(es) eliminado(s) correctamente."); time.sleep(1.5); limpiar_cache_proveedores(); st.rerun()
+                            try:
+                                client.table("productos_proveedores").delete().eq("proveedor_id", row['id']).execute()
+                                client.table("pedidos_proveedores").delete().eq("proveedor_id", row['id']).execute()
+                                client.table("proveedores").delete().eq("id", row['id']).execute()
+                            except Exception as e:
+                                errores.append(str(row['nombre_empresa']))
+                        
+                        if errores:
+                            st.error(f"⚠️ No se pudieron eliminar los siguientes proveedores porque tienen compras o pedidos asociados en el historial: {', '.join(errores)}. Por favor, elimine los registros vinculados primero o edite el proveedor en su lugar.")
+                        else:
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            st.success("Proveedor(es) eliminado(s) correctamente."); time.sleep(1.5); limpiar_cache_proveedores(); st.rerun()
 
                 if st.button("💾 Guardar Cambios Rápidos", type="primary"):
                     filas_validas = ed_p[ed_p["Borrar"] == False]
@@ -367,10 +375,16 @@ def render_pestana_proveedores(client):
                     if not filas_borrar.empty:
                         st.error(f"⚠️ Has marcado {len(filas_borrar)} pedido(s) para eliminar.")
                         if st.button("🚨 CONFIRMAR ELIMINACIÓN", type="primary", use_container_width=True):
+                            errores = False
                             for idx, row in filas_borrar.iterrows():
-                                client.table("pedidos_proveedores").delete().eq("id", row['id']).execute()
-                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                            st.success("Pedido(s) eliminado(s) correctamente."); time.sleep(1); limpiar_cache_proveedores(); st.rerun()
+                                try:
+                                    client.table("pedidos_proveedores").delete().eq("id", row['id']).execute()
+                                except Exception as e:
+                                    errores = True
+                                    st.error(f"Error al eliminar el pedido {row['id']}: es posible que tenga registros asociados.")
+                            if not errores:
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success("Pedido(s) eliminado(s) correctamente."); time.sleep(1); limpiar_cache_proveedores(); st.rerun()
                             
                     if st.button("💾 Guardar Estados de Pedidos"):
                         filas_validas = ed_ped[ed_ped["Borrar"] == False]

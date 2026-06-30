@@ -9,18 +9,17 @@ import shutil
 import google.generativeai as genai
 from postgrest import SyncPostgrestClient
 
-CARPETA_ENTRADA = os.path.join(os.getcwd(), "Fotos_Facturas_Entrada")
-CARPETA_PROCESADAS = os.path.join(os.getcwd(), "Facturas_Digitales")
-
+CARPETA_ENTRADA = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\FACTURAS DIGITALES\ZOOTECNIA\2026\04"
+CARPETA_PROCESADAS = os.path.join(CARPETA_ENTRADA, "Procesadas")
 CARPETA_ERRORES = os.path.join(CARPETA_ENTRADA, "Errores")
 
-for carpeta in [CARPETA_ENTRADA, CARPETA_PROCESADAS, CARPETA_ERRORES]:
+for carpeta in [CARPETA_PROCESADAS, CARPETA_ERRORES]:
     if not os.path.exists(carpeta):
         os.makedirs(carpeta)
 
 # --- INICIALIZACIÓN DE SUPABASE Y GEMINI ---
 def init_clients():
-    print("🔌 Conectando con Supabase y Gemini...")
+    print("Conectando con Supabase y Gemini...")
     secrets_path = os.path.join(".streamlit", "secrets.toml")
     with open(secrets_path, "r") as f: secrets = toml.load(f)
     
@@ -33,7 +32,7 @@ def init_clients():
     # Gemini
     gemini_key = secrets.get("gemini_api_key", "").strip()
     if not gemini_key:
-        raise Exception("No se encontró gemini_api_key en secrets.toml")
+        raise Exception("No se encontro gemini_api_key en secrets.toml")
     genai.configure(api_key=gemini_key)
     
     return client
@@ -59,16 +58,16 @@ def parse_float_ia(val):
 
 def procesar_lote():
     client = init_clients()
-    archivos = [f for f in os.listdir(CARPETA_ENTRADA) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
+    archivos = [f for f in os.listdir(CARPETA_ENTRADA) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.pdf'))]
     
     if not archivos:
-        print(f"🤷‍♂️ No hay imágenes en la carpeta '{CARPETA_ENTRADA}'. Pon tus facturas ahí y vuelve a ejecutar.")
+        print(f"No hay facturas (PDF/Imagenes) en la carpeta '{CARPETA_ENTRADA}'.")
         return
 
-    print(f"🚀 Se han encontrado {len(archivos)} facturas para procesar.\n")
+    print(f"Se han encontrado {len(archivos)} facturas para procesar.\n")
     
     prompt = """
-    Eres un contable experto. Extrae los datos de esta imagen de factura y devuélvelos ESTRICTAMENTE en este formato JSON, sin texto adicional ni markdown:
+    Eres un contable experto. Extrae los datos de esta factura y devuelvelos ESTRICTAMENTE en este formato JSON, sin texto adicional ni markdown:
     {
       "numero_factura": "12345",
       "fecha_factura": "YYYY-MM-DD",
@@ -85,19 +84,25 @@ def procesar_lote():
         }
       ]
     }
-    Si no encuentras un dato o IGIC, pon 0 o déjalo vacío ("").
+    Si no encuentras un dato o IGIC, pon 0 o dejalo vacio ("").
     """
     
-    modelo = genai.GenerativeModel('gemini-1.5-flash')
+    modelo = genai.GenerativeModel('gemini-2.5-flash')
 
     for archivo in archivos:
         ruta_archivo = os.path.join(CARPETA_ENTRADA, archivo)
-        print(f"📄 Procesando: {archivo} ...")
+        print(f"Procesando: {archivo} ...")
         
         try:
             # 1. Leer con Gemini
-            img = Image.open(ruta_archivo)
-            response = modelo.generate_content([prompt, img])
+            if archivo.lower().endswith('.pdf'):
+                with open(ruta_archivo, "rb") as f_pdf:
+                    payload = [prompt, {"mime_type": "application/pdf", "data": f_pdf.read()}]
+            else:
+                img = Image.open(ruta_archivo)
+                payload = [prompt, img]
+                
+            response = modelo.generate_content(payload)
             
             res_text = response.text.strip()
             if res_text.startswith("```json"): res_text = res_text[7:]
@@ -113,16 +118,16 @@ def procesar_lote():
             if res_prov.data:
                 prov_id = res_prov.data[0]['id']
             else:
-                print(f"   ➕ Creando nuevo proveedor: {nombre_prov}")
+                print(f"   Creando nuevo proveedor: {nombre_prov}")
                 res_new_prov = client.table("proveedores").insert({"nombre_empresa": nombre_prov, "cif": ""}).execute()
                 prov_id = res_new_prov.data[0]['id']
 
-            # 3. Gestionar Artículos y Calcular Total
+            # 3. Gestionar Articulos y Calcular Total
             productos_compra = []
             total_compra = 0.0
             
             for art in datos_ia.get("articulos", []):
-                desc = art.get("descripcion", "Artículo desconocido")
+                desc = art.get("descripcion", "Articulo desconocido")
                 cant = int(parse_float_ia(art.get("cantidad", 1)) or 1)
                 p_base = parse_float_ia(art.get("precio_base", 0.0))
                 igic = parse_float_ia(art.get("igic_porcentaje", 0.0))
@@ -130,30 +135,25 @@ def procesar_lote():
                 pvp_ia = parse_float_ia(art.get("precio_pvp", 0.0))
                 ref_barras = art.get("codigo_referencia_o_barras", "")
 
-                # Buscar si el artículo ya existe en Inventario
+                # Buscar si el articulo ya existe en Inventario
                 res_prod = client.table("productos").select("id, sku, stock_actual, precio_pvp").ilike("nombre", f"%{desc.strip()}%").execute()
                 
                 if res_prod.data:
-                    # EL ARTÍCULO EXISTE
+                    # EL ARTICULO EXISTE
                     item = res_prod.data[0]
                     prod_id = item['id']
                     sku_final = item['sku']
                     
-                    # NO SUMAMOS STOCK AQUÍ (Se guarda como Borrador para validación manual)
-                    # nuevo_stock = (item['stock_actual'] or 0) + cant
-                    # pvp_final = pvp_ia if pvp_ia > 0 else float(item.get('precio_pvp', 0.0))
-                    # client.table("productos").update({"stock_actual": nuevo_stock, "precio_base": p_base, "precio_pvp": pvp_final}).eq("id", prod_id).execute()
-                    
-                    # VINCULAR A ESTE PROVEEDOR (Para Auto-Distribuidor / Smart Restock)
+                    # VINCULAR A ESTE PROVEEDOR
                     res_link = client.table("productos_proveedores").select("id").eq("producto_id", prod_id).eq("proveedor_id", prov_id).execute()
                     if not res_link.data:
-                        print(f"   🔗 Vinculando artículo existente '{desc}' al proveedor '{nombre_prov}'.")
+                        print(f"   Vinculando articulo existente '{desc}' al proveedor '{nombre_prov}'.")
                         client.table("productos_proveedores").insert({"producto_id": prod_id, "proveedor_id": prov_id, "precio_coste": p_base}).execute()
                     else:
                         client.table("productos_proveedores").update({"precio_coste": p_base}).eq("producto_id", prod_id).eq("proveedor_id", prov_id).execute()
                 else:
-                    # EL ARTÍCULO ES NUEVO (Crear)
-                    print(f"   ✨ Creando nuevo artículo en inventario: {desc}")
+                    # EL ARTICULO ES NUEVO (Crear)
+                    print(f"   Creando nuevo articulo en inventario: {desc}")
                     sku_final = generar_sku(client, desc)
                     res_new = client.table("productos").insert({
                         "nombre": desc, "sku": sku_final, "codigo_barras": ref_barras,
@@ -166,7 +166,7 @@ def procesar_lote():
                     client.table("productos_proveedores").insert({"producto_id": prod_id, "proveedor_id": prov_id, "precio_coste": p_base}).execute()
 
                 # Preparar JSON para la compra
-                productos_compra.append({"id": str(prod_id), "Código": sku_final, "Descripción": desc, "Cantidad": cant, "Base Ud": p_base, "IGIC %": igic, "Desc %": desc_linea, "PVP (€)": pvp_ia})
+                productos_compra.append({"id": str(prod_id), "Codigo": sku_final, "Descripcion": desc, "Cantidad": cant, "Base Ud": p_base, "IGIC %": igic, "Desc %": desc_linea, "PVP (e)": pvp_ia})
                 
                 # Sumar al total de la factura
                 base_neta = (p_base * cant) * (1 - desc_linea / 100)
@@ -186,25 +186,24 @@ def procesar_lote():
                     prods_antiguos.extend(productos_compra)
                     nuevo_total = float(fac_existente['total']) + total_compra
                     nuevo_pendiente = float(fac_existente['pendiente']) + total_compra
-                    client.table("compras").update({"productos": prods_antiguos, "total": round(nuevo_total, 2), "pendiente": round(nuevo_pendiente, 2)}).eq("id", fac_existente['id']).execute()
-                    print(f"   🔄 Factura '{num_fac}' existente. Página adicional fusionada en Borrador.")
+                    client.table("compras").update({"productos": prods_antiguos, "total": round(nuevo_total, 2), "pendiente": round(nuevo_pendiente, 2), "fecha_factura": fecha_fac}).eq("id", fac_existente['id']).execute()
+                    print(f"   Factura '{num_fac}' existente. Pagina adicional fusionada en Borrador.")
                 else:
-                    print(f"   🚨 Factura '{num_fac}' ya está validada y archivada. Saltando para evitar duplicados.")
+                    print(f"   Factura '{num_fac}' ya esta validada y archivada. Saltando para evitar duplicados.")
             else:
                 client.table("compras").insert({
                     "proveedor_id": prov_id, "total": round(total_compra, 2), "estado": "Borrador",
-                    "tipo": f"Factura: {num_fac}", "fecha_vencimiento": fecha_fac, "productos": productos_compra,
+                    "tipo": f"Factura: {num_fac}", "fecha_vencimiento": fecha_fac, "fecha_factura": fecha_fac, "productos": productos_compra,
                     "pagado": 0.0, "pendiente": round(total_compra, 2)
                 }).execute()
-                print("   ✅ Procesada y guardada como nuevo Borrador.")
+                print("   Procesada y guardada como nuevo Borrador con Fecha Factura.")
 
-            # 5. Mover a Mis Facturas Digitales organizado por Año / Mes
-            # (Función desactivada: El usuario gestiona sus propias carpetas de facturas digitalizadas).
-            ruta_final_leida = os.path.join(CARPETA_PROCESADAS, f"PROCESADA_{archivo}")
+            # 5. Mover a Procesadas
+            ruta_final_leida = os.path.join(CARPETA_PROCESADAS, archivo)
             shutil.move(ruta_archivo, ruta_final_leida)
             
         except Exception as e:
-            print(f"   ❌ Error al procesar {archivo}: {e}")
+            print(f"   Error al procesar {archivo}: {e}")
             shutil.move(ruta_archivo, os.path.join(CARPETA_ERRORES, archivo))
 
 if __name__ == "__main__":
