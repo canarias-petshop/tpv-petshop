@@ -25,8 +25,7 @@ def limpiar_cache_inventario():
     get_inv_full.clear()
 
 def procesar_lote_ia_gemini(productos_lote, client):
-    import google.genai as genai
-    from google.genai import types
+    import google.generativeai as genai
     import os
     import json
     import streamlit as st
@@ -35,7 +34,7 @@ def procesar_lote_ia_gemini(productos_lote, client):
     if not api_key:
         return {"error": "No se encontró GEMINI_API_KEY"}
         
-    ai_client = genai.Client(api_key=api_key)
+    genai.configure(api_key=api_key)
     
     prompt = """
 Eres un experto en productos para mascotas. 
@@ -75,12 +74,12 @@ LISTA DE PRODUCTOS:
         prompt += f"- ID: {p['id']} | Nombre: {p['nombre']} | Marca actual: {p.get('marca', '')}\n"
 
     try:
-        response = ai_client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
                 response_mime_type="application/json",
-            ),
+            )
         )
         data = json.loads(response.text)
         

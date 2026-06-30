@@ -3,4 +3,3 @@ supabase
 postgrest
 xlsxwriter
 google-generativeai
-pillowgoogle-genai
