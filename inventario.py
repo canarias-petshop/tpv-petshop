@@ -128,6 +128,41 @@ def render_pestana_inventario(client):
                 sub_prod, sub_serv, sub_interno = st.tabs(["📦 Inventario", "✂️ Servicios", "🏢 Uso Interno"])
                 
                 with sub_prod:
+                    st.markdown("#### 📦 Traspaso de Cajas a Unidades (Desempaquetar)")
+                    with st.expander("Abrir Caja / Saco"):
+                        tc1, tc2, tc3 = st.columns([2, 2, 1])
+                        productos_tuplas = [(p['id'], str(p['nombre'])) for _, p in df_solo_productos.iterrows() if pd.notna(p['id']) and pd.notna(p['nombre'])]
+                        
+                        with tc1:
+                            id_caja = st.selectbox("1. Selecciona la Caja Origen", options=[None] + productos_tuplas, format_func=lambda x: x[1] if x else "---", key="sel_caja")
+                        with tc2:
+                            id_unidad = st.selectbox("2. Selecciona la Unidad Destino", options=[None] + productos_tuplas, format_func=lambda x: x[1] if x else "---", key="sel_unidad")
+                        with tc3:
+                            cant_cajas = st.number_input("Cajas a abrir", min_value=1, value=1, step=1, key="num_cajas")
+                            uds_por_caja = st.number_input("Unidades por caja", min_value=1, value=12, step=1, key="uds_caja")
+                        
+                        if st.button("🔄 Confirmar Traspaso de Stock", use_container_width=True):
+                            if id_caja and id_unidad:
+                                try:
+                                    caja_data = df_solo_productos[df_solo_productos['id'] == id_caja[0]].iloc[0]
+                                    unidad_data = df_solo_productos[df_solo_productos['id'] == id_unidad[0]].iloc[0]
+                                    
+                                    nuevo_stock_caja = float(caja_data.get('stock_actual', 0)) - cant_cajas
+                                    nuevo_stock_unidad = float(unidad_data.get('stock_actual', 0)) + (cant_cajas * uds_por_caja)
+                                    
+                                    client.table("productos").update({"stock_actual": nuevo_stock_caja}).eq("id", id_caja[0]).execute()
+                                    client.table("productos").update({"stock_actual": nuevo_stock_unidad}).eq("id", id_unidad[0]).execute()
+                                    st.success(f"✅ Traspaso exitoso: Restado {cant_cajas} a [{caja_data['nombre']}]. Sumado {cant_cajas * uds_por_caja} a [{unidad_data['nombre']}].")
+                                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                    limpiar_cache_inventario()
+                                    time.sleep(2)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error al traspasar: {e}")
+                            else:
+                                st.warning("Debes seleccionar la Caja de origen y la Unidad de destino.")
+                    st.divider()
+
                     st.markdown("#### 📦 Inventario de Productos")
 
                     c_busq1, c_busq2 = st.columns([2, 1])
