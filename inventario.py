@@ -250,7 +250,14 @@ def render_pestana_inventario(client):
                     with st.expander("🤖 Auto-Categorizar con IA (Experimental)"):
                         st.write("Esta herramienta utiliza Gemini para rellenar automáticamente las categorías faltantes basándose en el nombre del producto.")
                         if st.button("🚀 Iniciar Auto-Categorización (Lote de 20)"):
-                            prods_incompletos = [p for p in df_solo_productos.to_dict('records') if p.get('familia', 'Generico') in ['Generico', '', None]]
+                            def esta_incompleto(p):
+                                if p.get('familia', 'Generico') in ['Generico', '', None]: return True
+                                if p.get('mascota', 'Universal') in ['Universal', '', None]: return True
+                                if p.get('subcategoria', '') in ['', None]: return True
+                                if p.get('marca', 'Generico') in ['Generico', '', None]: return True
+                                return False
+                                
+                            prods_incompletos = [p for p in df_solo_productos.to_dict('records') if esta_incompleto(p)]
                             if not prods_incompletos:
                                 st.success("¡Todos los productos ya tienen una familia asignada!")
                             else:
