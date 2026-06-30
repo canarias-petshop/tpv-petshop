@@ -516,8 +516,12 @@ def render_pestana_contabilidad(client):
             f_ini_arc_val = hoy.replace(month=1, day=1)
             f_fin_arc_val = hoy
         else: # Personalizado
-            f_ini_arc_val = hoy - timedelta(days=30)
-            f_fin_arc_val = hoy
+            f_ini_arc_val = st.session_state.get("arc_i", hoy - timedelta(days=30))
+            f_fin_arc_val = st.session_state.get("arc_f", hoy)
+
+        if preset_arc != "Personalizado":
+            st.session_state["arc_i"] = f_ini_arc_val
+            st.session_state["arc_f"] = f_fin_arc_val
 
         with c_f1_arc:
             f_ini_arc = st.date_input("Desde:", value=f_ini_arc_val, disabled=(preset_arc != "Personalizado"), key="arc_i")
@@ -627,8 +631,12 @@ def render_pestana_contabilidad(client):
             f_ini_val = hoy.replace(month=1, day=1)
             f_fin_val = hoy
         else: # Personalizado
-            f_ini_val = hoy.replace(day=1)
-            f_fin_val = hoy
+            f_ini_val = st.session_state.get("f_desde_inf", hoy.replace(day=1))
+            f_fin_val = st.session_state.get("f_hasta_inf", hoy)
+
+        if preset_inf != "Personalizado":
+            st.session_state["f_desde_inf"] = f_ini_val
+            st.session_state["f_hasta_inf"] = f_fin_val
 
         with c_inf1:
             f_desde_inf = st.date_input("📅 Desde la fecha:", value=f_ini_val, disabled=(preset_inf != "Personalizado"), key="f_desde_inf")
