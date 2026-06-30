@@ -1,99 +1,116 @@
-# Resumen Maestro Actualizado - TPV y E-Commerce Animalarium
-**Fecha de última actualización**: 30 de Junio de 2026
+﻿# Resumen Maestro Actualizado - TPV y E-Commerce Animalarium
+**Fecha de Ãºltima actualizaciÃ³n**: 30 de Junio de 2026
 
-Este documento centraliza todos los avances, arquitecturas y módulos del ecosistema completo de Animalarium (TPV Físico + Tienda Web). Es el punto de partida **obligatorio** para retomar el proyecto en futuras sesiones.
+Este documento centraliza todos los avances, arquitecturas y mÃ³dulos del ecosistema completo de Animalarium (TPV FÃ­sico + Tienda Web). Es el punto de partida **obligatorio** para retomar el proyecto en futuras sesiones.
 
 > [!CAUTION]
 > **NORMA ESTRICTA: PRODUCTOS vs SERVICIOS**
-> Una cosa son los productos (piensos, accesorios) y otra muy distinta son los servicios (peluquería, clínica).
-> Si el usuario ordena eliminar o modificar una marca concreta o un grupo de artículos en el contexto de "productos", **JAMÁS** debes alterar los registros que pertenezcan a "servicios" (aunque compartan tabla en la base de datos o utilicen la marca 'Genérico' u otra para categorizarse).
-> **No asumas ni interpretes nada.** Verifica siempre si la acción puede afectar a los servicios antes de ejecutar un borrado masivo.
+> Una cosa son los productos (piensos, accesorios) y otra muy distinta son los servicios (peluquerÃ­a, clÃ­nica).
+> Si el usuario ordena eliminar o modificar una marca concreta o un grupo de artÃ­culos en el contexto de "productos", **JAMÃS** debes alterar los registros que pertenezcan a "servicios" (aunque compartan tabla en la base de datos o utilicen la marca 'GenÃ©rico' u otra para categorizarse).
+> **No asumas ni interpretes nada.** Verifica siempre si la acciÃ³n puede afectar a los servicios antes de ejecutar un borrado masivo.
+
+
+- **Herramienta de Desempaquetado (TPV)**:
+  - Creada la utilidad Traspaso de Cajas a Unidades en el inventario. Permite romper stock de un producto "Master/Caja" y sumarlo automáticamente al producto individual, calculando unidades internas.
+- **Promociones Automáticas Web**:
+  - Implementado descuento automático del 10% en productos que se venden por cajas enteras (pouches, latas).
+  - La web muestra ahora una etiqueta (badge rojo) de "-10% DTO" y el precio original tachado tanto en el catálogo como en el carrito.
+- **Flujo de Pago (Checkout) Optimizado para WhatsApp**:
+  - Se eliminó la necesidad de pagar por transferencia inmediata.
+  - El sistema asume que la tienda usará "Paygold / Enlace de Pago" (Dojo, CaixaBank, Cajasur) tras confirmar el stock. 
+  - La pasarela ofrece opciones amigables: "Tarjeta (Enlace por WhatsApp)", "Bizum (Confirmación por WhatsApp)" y "Pago al recoger".
+- **Histórico de Pedidos en Perfil de Usuario**:
+  - Añadida la sección "Histórico de Pedidos" en Mi Cuenta, donde los usuarios web pueden revisar sus compras online y ver si están Pendientes o Entregados, conectando directamente con encargos_clientes.
+- **Corrección Estructural Checkout (Bugfixes)**:
+  - Se arregló un fallo silencioso de Supabase donde entas_historial rechazaba inserciones por columnas obsoletas (cliente_fidel).
+  - Se modificó la API de Checkout para que TODOS los pedidos web caigan en "Pedidos Web" (encargos_clientes) y, si son a domicilio, se clonen inteligentemente a pedidos_domicilio para el repartidor.
 
 ---
 
-## 🏆 Lo que se ha conseguido hasta hoy (Historial de Éxitos)
+## ðŸ† Lo que se ha conseguido hasta hoy (Historial de Ã‰xitos)
 
 ### 1. Sistema TPV (Tienda Local)
-- **Cobro Rápido (Tickets)**: Solucionado el problema de duplicidad de extras en los tickets. Al cobrar una ficha clínica, el ticket desglosa el servicio general y el extra en líneas separadas sin duplicar el total.
-- **Gestión de Fichas (CRM)**: Corregido el error ("Data Mixing") que mezclaba datos de clientes y mascotas al abrir varias fichas simultáneamente.
+- **Cobro RÃ¡pido (Tickets)**: Solucionado el problema de duplicidad de extras en los tickets. Al cobrar una ficha clÃ­nica, el ticket desglosa el servicio general y el extra en lÃ­neas separadas sin duplicar el total.
+- **GestiÃ³n de Fichas (CRM)**: Corregido el error ("Data Mixing") que mezclaba datos de clientes y mascotas al abrir varias fichas simultÃ¡neamente.
 - **Inventario Avanzado**:
-  - Se han añadido nuevas columnas visuales y en base de datos para: `fecha_caducidad`, `stock_minimo`, `cantidad_reponer` y `marca`.
-  - En la vista del inventario, los campos de categorización (Edad, Tamaño, etc.) utilizan selectores cerrados (`SelectboxColumn`) para evitar erratas tipográficas y asegurar que los filtros de la web cuadren.
+  - Se han aÃ±adido nuevas columnas visuales y en base de datos para: `fecha_caducidad`, `stock_minimo`, `cantidad_reponer` y `marca`.
+  - En la vista del inventario, los campos de categorizaciÃ³n (Edad, TamaÃ±o, etc.) utilizan selectores cerrados (`SelectboxColumn`) para evitar erratas tipogrÃ¡ficas y asegurar que los filtros de la web cuadren.
 - **CRM Encargos y Delivery**: 
-  - Rediseñado en dos pestañas claras: 🏪 Encargos de Tienda y 🌐 Pedidos Web.
-  - Se habilitó la eliminación dinámica directo de filas en las tablas de encargos.
-  - Se añadió un botón "🚚 Crear Servicio a Domicilio" para convertir encargos web directamente en la hoja de reparto.
-- **Reparto desde Caja (TPV)**: Automatizada la creación de Servicios a Domicilio desde el Cobro, rellenando automáticamente la dirección guardada del cliente al seleccionarlo.
+  - RediseÃ±ado en dos pestaÃ±as claras: ðŸª Encargos de Tienda y ðŸŒ Pedidos Web.
+  - Se habilitÃ³ la eliminaciÃ³n dinÃ¡mica directo de filas en las tablas de encargos.
+  - Se aÃ±adiÃ³ un botÃ³n "ðŸšš Crear Servicio a Domicilio" para convertir encargos web directamente en la hoja de reparto.
+- **Reparto desde Caja (TPV)**: Automatizada la creaciÃ³n de Servicios a Domicilio desde el Cobro, rellenando automÃ¡ticamente la direcciÃ³n guardada del cliente al seleccionarlo.
 - **Centro de Recordatorios Inteligente**:
-  - La tabla de confirmaciones del día siguiente ahora es editable en vivo y posee una columna independiente ("🔔 Aviso") que guarda en *observaciones* si se ha mandado el WhatsApp.
-- **Optimización de Rendimiento (Caching)**: Aplicado el sistema de `Smart Caching` de Streamlit en todas las pantallas. La base de datos no se satura al cambiar de pestaña.
-- **Sincronización en Caliente (TPV ↔ CRM)**: Si al cobrar un usuario da de alta un cliente nuevo en el CRM, el selector de clientes de la Caja se refresca automáticamente *sin vaciar el carrito*.
+  - La tabla de confirmaciones del dÃ­a siguiente ahora es editable en vivo y posee una columna independiente ("ðŸ”” Aviso") que guarda en *observaciones* si se ha mandado el WhatsApp.
+- **OptimizaciÃ³n de Rendimiento (Caching)**: Aplicado el sistema de `Smart Caching` de Streamlit en todas las pantallas. La base de datos no se satura al cambiar de pestaÃ±a.
+- **SincronizaciÃ³n en Caliente (TPV â†” CRM)**: Si al cobrar un usuario da de alta un cliente nuevo en el CRM, el selector de clientes de la Caja se refresca automÃ¡ticamente *sin vaciar el carrito*.
 
-### 2. Tienda Online (E-Commerce) y Estandarización de Base de Datos
-- **El "Diccionario Maestro" Universal (¡GRAN LOGRO!)**: 
-  - Se reescribieron las entrañas de los más de 400 productos en Supabase (Amanova y OWNAT) para que dejen de usar el vocabulario del fabricante (Puppy vs Junior, Mini vs Small) y utilicen un **Estándar Universal** fijado por la tienda.
+### 2. Tienda Online (E-Commerce) y EstandarizaciÃ³n de Base de Datos
+- **El "Diccionario Maestro" Universal (Â¡GRAN LOGRO!)**: 
+  - Se reescribieron las entraÃ±as de los mÃ¡s de 400 productos en Supabase (Amanova y OWNAT) para que dejen de usar el vocabulario del fabricante (Puppy vs Junior, Mini vs Small) y utilicen un **EstÃ¡ndar Universal** fijado por la tienda.
   - *Edades*: Cachorro / Kitten, Adulto, Senior, Todas las edades.
-  - *Tamaños*: Mini / Pequeño, Mediano, Grande, Gigante, Todas las Razas.
-  - *Necesidades*: Esterilizado, Control de Peso, Sensible / Digestivo, Hipoalergénico, Urinario, Renal, Bolas de Pelo, Articulaciones, Pelo Blanco, Paladares Exigentes, Ninguna.
-  - *Sabores Principales*: Limpios y puros (Pollo, Salmón, Cordero, Pato, Pavo, Atún, Cerdo, Ternera/Buey, Conejo, Ciervo, Jabalí, Pescado, Mix de Carnes).
-- **Importación Inteligente y Creación de Multipacks**: 
-  - Desarrollada la lógica para leer las tarifas PDF del proveedor y detectar "Cajas Multipack" (Ej: 12x85gr).
-  - El sistema crea automáticamente **dos productos por cada caja**: el multipack entero y la unidad suelta, dividiendo a la perfección los costes y redondeando precios.
-- **Fusión y Enlazado de Imágenes Extremo (Fuzzy Matching)**: 
-  - Se completó la indexación de todas las gamas (Amanova completa, y OWNAT: Classic, Prime, Ultra, Just, Care, Hypoallergenic). 
-  - El script cruzó inteligentemente los nombres de base de datos con las fotos locales renombradas manualmente, superando casi 800 imágenes perfectas de alta calidad.
-  - Nomenclaturas estandarizadas (ej. marca `OWNAT` siempre en mayúsculas en DB). Se han limpiado y eliminado productos descatalogados.
+  - *TamaÃ±os*: Mini / PequeÃ±o, Mediano, Grande, Gigante, Todas las Razas.
+  - *Necesidades*: Esterilizado, Control de Peso, Sensible / Digestivo, HipoalergÃ©nico, Urinario, Renal, Bolas de Pelo, Articulaciones, Pelo Blanco, Paladares Exigentes, Ninguna.
+  - *Sabores Principales*: Limpios y puros (Pollo, SalmÃ³n, Cordero, Pato, Pavo, AtÃºn, Cerdo, Ternera/Buey, Conejo, Ciervo, JabalÃ­, Pescado, Mix de Carnes).
+- **ImportaciÃ³n Inteligente y CreaciÃ³n de Multipacks**: 
+  - Desarrollada la lÃ³gica para leer las tarifas PDF del proveedor y detectar "Cajas Multipack" (Ej: 12x85gr).
+  - El sistema crea automÃ¡ticamente **dos productos por cada caja**: el multipack entero y la unidad suelta, dividiendo a la perfecciÃ³n los costes y redondeando precios.
+- **FusiÃ³n y Enlazado de ImÃ¡genes Extremo (Fuzzy Matching)**: 
+  - Se completÃ³ la indexaciÃ³n de todas las gamas (Amanova completa, y OWNAT: Classic, Prime, Ultra, Just, Care, Hypoallergenic). 
+  - El script cruzÃ³ inteligentemente los nombres de base de datos con las fotos locales renombradas manualmente, superando casi 800 imÃ¡genes perfectas de alta calidad.
+  - Nomenclaturas estandarizadas (ej. marca `OWNAT` siempre en mayÃºsculas en DB). Se han limpiado y eliminado productos descatalogados.
 - **Frontend Web Mejorado (`ClientCatalog.tsx`)**: 
-  - El menú lateral izquierdo ahora agrupa de forma interactiva. 
-  - Al lado de la marca "OWNAT" aparece el símbolo `+` que despliega sus familias (Classic, Prime, Ultra, Wetline...). Esto permite filtrados cruzados súper precisos.
-  - Se eliminó visualmente la opción "Ninguna" de las necesidades especiales para limpiar la interfaz.
-  - Se forzó el modo `force-dynamic` (sin caché) en el catálogo de Next.js para que refleje los cambios de base de datos en tiempo real al hacer F5.
+  - El menÃº lateral izquierdo ahora agrupa de forma interactiva. 
+  - Al lado de la marca "OWNAT" aparece el sÃ­mbolo `+` que despliega sus familias (Classic, Prime, Ultra, Wetline...). Esto permite filtrados cruzados sÃºper precisos.
+  - Se eliminÃ³ visualmente la opciÃ³n "Ninguna" de las necesidades especiales para limpiar la interfaz.
+  - Se forzÃ³ el modo `force-dynamic` (sin cachÃ©) en el catÃ¡logo de Next.js para que refleje los cambios de base de datos en tiempo real al hacer F5.
 - **Ajustes Exactos de Amanova y Servicios**:
-  - Se rescataron 54 servicios históricos desde la tabla de citas y se aislaron bajo la marca "Genérico" para que desapareciera el filtro fantasma "Animalarium" de la web.
-  - Se reestructuraron las gamas de Amanova: los húmedos se reasignaron a "Wet Line", y 18 formatos exactos de pienso seco (indicados manualmente por gerencia) se clasificaron estrictamente como "Low Grain", dejando el resto como "Grain Free".
-  - Se añadió la columna visible **"Gama"** en la tabla de inventario del TPV (`inventario.py`) para permitir gestión manual, y se automatizó su despliegue a Streamlit Cloud.
-- **Auto-registro de Clientes y Conexión Web-TPV**: Integración bidireccional perfeccionada. El sistema en la web busca cruzar clientes no solo por teléfono, sino también por **Nombre y Apellidos completos**, evitando duplicados y vinculando las cuentas existentes.
+  - Se rescataron 54 servicios histÃ³ricos desde la tabla de citas y se aislaron bajo la marca "GenÃ©rico" para que desapareciera el filtro fantasma "Animalarium" de la web.
+  - Se reestructuraron las gamas de Amanova: los hÃºmedos se reasignaron a "Wet Line", y 18 formatos exactos de pienso seco (indicados manualmente por gerencia) se clasificaron estrictamente como "Low Grain", dejando el resto como "Grain Free".
+  - Se aÃ±adiÃ³ la columna visible **"Gama"** en la tabla de inventario del TPV (`inventario.py`) para permitir gestiÃ³n manual, y se automatizÃ³ su despliegue a Streamlit Cloud.
+- **Auto-registro de Clientes y ConexiÃ³n Web-TPV**: IntegraciÃ³n bidireccional perfeccionada. El sistema en la web busca cruzar clientes no solo por telÃ©fono, sino tambiÃ©n por **Nombre y Apellidos completos**, evitando duplicados y vinculando las cuentas existentes.
 - **Checkout, Puntos y Descuentos Automatizados**: 
-  - La web aplica las reglas de negocio del TPV físico: Acumulación de 1 punto por cada 10€ de compra y canjeo (1 punto = 0.50€ descuento, máximo 50% del total).
-  - El sistema crea la venta en estado "Deuda" en el historial del TPV, y se coordina un encargo para descontar stock. Si el encargo se cancela por falta de stock físico, una devolución en el TPV restaura el inventario.
-- **Lógica de Envíos y Portes Web**:
-  - Implementado coste dinámico de envío: Envío Cercanía (Santa Cruz/La Laguna) = 5€; Distancias largas = 10€; Envío Gratuito a partir de 130€.
-  - Los gastos de envío se desglosan en ticket como un *servicio* con 7% de IGIC, a diferencia de la alimentación animal (exenta).
-- **"Candado" del Catálogo Web**: La web bloquea y oculta estrictamente cualquier producto que no sea de la categoría "Alimentación seca", "Alimentación húmeda" o "Snack". Todo lo demás (champús, collares, etc.) se gestiona en el TPV pero no contamina el catálogo online.
-- **Enriquecimiento de Catálogo Asistido por IA (Gemini)**:
-  - Se implementó un script automatizado en Python (`enrich_products.py`) para consultar la API de Gemini 2.5 Flash, el cual redacta descripciones comerciales cortas (con emojis y destacando ingredientes clave) para todos los productos que no tenían información.
-  - Más del 50% del catálogo (330+ productos) ya cuenta con textos únicos generados, lo que mejora drásticamente el SEO y la experiencia de usuario.
-- **Corrección de Permisos RLS (Row Level Security) y Mi Cuenta**:
-  - Solucionado el problema permanente de "Ficha en revisión" en la web. Se creó un cliente `anonSupabase` dedicado para consultar los perfiles (puntos y mascotas) saltando las restricciones RLS, permitiendo la vinculación instantánea web-TPV.
+  - La web aplica las reglas de negocio del TPV fÃ­sico: AcumulaciÃ³n de 1 punto por cada 10â‚¬ de compra y canjeo (1 punto = 0.50â‚¬ descuento, mÃ¡ximo 50% del total).
+  - El sistema crea la venta en estado "Deuda" en el historial del TPV, y se coordina un encargo para descontar stock. Si el encargo se cancela por falta de stock fÃ­sico, una devoluciÃ³n en el TPV restaura el inventario.
+- **LÃ³gica de EnvÃ­os y Portes Web**:
+  - Implementado coste dinÃ¡mico de envÃ­o: EnvÃ­o CercanÃ­a (Santa Cruz/La Laguna) = 5â‚¬; Distancias largas = 10â‚¬; EnvÃ­o Gratuito a partir de 130â‚¬.
+  - Los gastos de envÃ­o se desglosan en ticket como un *servicio* con 7% de IGIC, a diferencia de la alimentaciÃ³n animal (exenta).
+- **"Candado" del CatÃ¡logo Web**: La web bloquea y oculta estrictamente cualquier producto que no sea de la categorÃ­a "AlimentaciÃ³n seca", "AlimentaciÃ³n hÃºmeda" o "Snack". Todo lo demÃ¡s (champÃºs, collares, etc.) se gestiona en el TPV pero no contamina el catÃ¡logo online.
+- **Enriquecimiento de CatÃ¡logo Asistido por IA (Gemini)**:
+  - Se implementÃ³ un script automatizado en Python (`enrich_products.py`) para consultar la API de Gemini 2.5 Flash, el cual redacta descripciones comerciales cortas (con emojis y destacando ingredientes clave) para todos los productos que no tenÃ­an informaciÃ³n.
+  - MÃ¡s del 50% del catÃ¡logo (330+ productos) ya cuenta con textos Ãºnicos generados, lo que mejora drÃ¡sticamente el SEO y la experiencia de usuario.
+- **CorrecciÃ³n de Permisos RLS (Row Level Security) y Mi Cuenta**:
+  - Solucionado el problema permanente de "Ficha en revisiÃ³n" en la web. Se creÃ³ un cliente `anonSupabase` dedicado para consultar los perfiles (puntos y mascotas) saltando las restricciones RLS, permitiendo la vinculaciÃ³n instantÃ¡nea web-TPV.
 - **Mejoras Visuales de UX Web**:
-  - Se modificaron las tarjetas de producto (`ClientCatalog.tsx`) para exponer claramente la Referencia (Ref) del artículo y la Descripción generada por la IA, directamente sobre el precio.
-- **DESPLIEGUE A PRODUCCIÓN**: La web ha sido subida a la nube (Vercel) con despliegue automático conectado a GitHub, y el dominio final de GoDaddy (`animalariumtenerife.es`) ha sido vinculado exitosamente con certificados SSL.
+  - Se modificaron las tarjetas de producto (`ClientCatalog.tsx`) para exponer claramente la Referencia (Ref) del artÃ­culo y la DescripciÃ³n generada por la IA, directamente sobre el precio.
+- **DESPLIEGUE A PRODUCCIÃ“N**: La web ha sido subida a la nube (Vercel) con despliegue automÃ¡tico conectado a GitHub, y el dominio final de GoDaddy (`animalariumtenerife.es`) ha sido vinculado exitosamente con certificados SSL.
 
 ---
 
-## 🧹 Tareas de Limpieza Realizadas
-- Se eliminaron por completo todos los scripts residuales temporales de Python (`relink_prime.py`, `standardize_categories.py`, `import_ownat_v3.py`, etc.) del directorio local para no contaminar el repositorio y dejar el área de trabajo impecable.
+## ðŸ§¹ Tareas de Limpieza Realizadas
+- Se eliminaron por completo todos los scripts residuales temporales de Python (`relink_prime.py`, `standardize_categories.py`, `import_ownat_v3.py`, etc.) del directorio local para no contaminar el repositorio y dejar el Ã¡rea de trabajo impecable.
 
 ---
 
-## 🚀 Planificación para la Próxima Sesión (Siguientes Pasos)
+## ðŸš€ PlanificaciÃ³n para la PrÃ³xima SesiÃ³n (Siguientes Pasos)
 
 **Hito 1: Escaparate Web, Marketing y Responsive Design**
-- **Adaptación Móvil (Responsive)**: Escribir las reglas CSS (Media Queries) para que la web se vea perfecta en teléfonos y tablets (menú hamburguesa, apilar grid de productos, reducir fuentes del Hero).
-- **Banners Rotativos**: Implementar el plan de anuncios rotativos (`PromoBanner.tsx`) en la cabecera del catálogo y en la página de inicio, anunciando: 10% primera compra, 10% en cajas enteras de pouch, sistema de puntos, y portes gratis >130€.
+- **AdaptaciÃ³n MÃ³vil (Responsive)**: Escribir las reglas CSS (Media Queries) para que la web se vea perfecta en telÃ©fonos y tablets (menÃº hamburguesa, apilar grid de productos, reducir fuentes del Hero).
+- **Banners Rotativos**: Implementar el plan de anuncios rotativos (`PromoBanner.tsx`) en la cabecera del catÃ¡logo y en la pÃ¡gina de inicio, anunciando: 10% primera compra, 10% en cajas enteras de pouch, sistema de puntos, y portes gratis >130â‚¬.
 
-**Hito 2: Gestión de Web y Delivery (Workflow Avanzado)**
-- **Alertas de Antigüedad**: Implementar un sistema visual que alerte cuando un "Pedido Web" lleve más de 2 días atascado sin enviarse o recogerse.
-- **Gestión de Estados y Cancelaciones**: Implementar el estado final "Recibido y Avisado" para los encargos locales, junto con la lógica de cancelación y borrado seguro.
+**Hito 2: GestiÃ³n de Web y Delivery (Workflow Avanzado)**
+- **Alertas de AntigÃ¼edad**: Implementar un sistema visual que alerte cuando un "Pedido Web" lleve mÃ¡s de 2 dÃ­as atascado sin enviarse o recogerse.
+- **GestiÃ³n de Estados y Cancelaciones**: Implementar el estado final "Recibido y Avisado" para los encargos locales, junto con la lÃ³gica de cancelaciÃ³n y borrado seguro.
 
 **Hito 3: Agenda y Periodicidad**
-- Avanzar en el sistema de recurrencia y repetición de tareas (diario/semanal/mensual) dentro de la agenda o calendario.
+- Avanzar en el sistema de recurrencia y repeticiÃ³n de tareas (diario/semanal/mensual) dentro de la agenda o calendario.
 
 **Hito 4: UX Web y Filtros Finales**
-- **Sincronización Web Avanzada**: Modificar la interfaz web para mostrar las opciones secundarias conectadas de forma reactiva, permitiendo una experiencia de compra fluida.
-- **Ajustes Estéticos**: Rediseñar la zona del pie de página y botones de WhatsApp web.
+- **SincronizaciÃ³n Web Avanzada**: Modificar la interfaz web para mostrar las opciones secundarias conectadas de forma reactiva, permitiendo una experiencia de compra fluida.
+- **Ajustes EstÃ©ticos**: RediseÃ±ar la zona del pie de pÃ¡gina y botones de WhatsApp web.
 
 **Hito 5: Integraciones Futuras (A medio plazo)**
-- **Nuevas Marcas**: Cuando se integre Royal Canin o cualquier otra marca, se deberá usar **estrictamente** el "Diccionario Maestro" para encajarla mediante scripts de importación (la web lo asimilará instantáneamente).
+- **Nuevas Marcas**: Cuando se integre Royal Canin o cualquier otra marca, se deberÃ¡ usar **estrictamente** el "Diccionario Maestro" para encajarla mediante scripts de importaciÃ³n (la web lo asimilarÃ¡ instantÃ¡neamente).
 - **Pasarela de Pago (Stripe)**: Configurar la pasarela para aceptar cobros directos online.
-- **Módulos Adicionales**: Ampliación hacia categorías de accesorios o reservas directas de peluquería en la tienda online.
+- **MÃ³dulos Adicionales**: AmpliaciÃ³n hacia categorÃ­as de accesorios o reservas directas de peluquerÃ­a en la tienda online.
+
