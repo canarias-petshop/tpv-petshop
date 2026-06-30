@@ -385,6 +385,14 @@ with c_rol:
         st.session_state.rol = None
         st.rerun()
 
+# --- ALERTA GLOBAL DE PEDIDOS WEB ---
+try:
+    res_pedidos = client.table("encargos_clientes").select("id").eq("origen", "Web").eq("estado", "Recibido").execute()
+    if res_pedidos.data and len(res_pedidos.data) > 0:
+        st.error(f"🚨 **¡ATENCIÓN! Tienes {len(res_pedidos.data)} pedido(s) web nuevo(s) sin revisar.** Ve a la pestaña 'Clientes' -> 'Encargos' para gestionarlo(s).")
+except:
+    pass
+
 # --- DEFINICIÓN DINÁMICA DE PESTAÑAS SEGÚN ROL ---
 if st.session_state.rol == "Admin":
     nombres_pestanas = [

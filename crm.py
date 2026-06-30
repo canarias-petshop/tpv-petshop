@@ -902,14 +902,29 @@ def render_pestana_crm(client):
                                 if tel_limpio:
                                     if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
                                     
-                                    # Mensaje por defecto (Primer aviso o genérico)
-                                    mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium para avisarte de que tu encargo ({row['detalle_pedido']}) ya está en la tienda listo para recoger. ¡Te esperamos! Un saludo."
-                                    
-                                    if estado_actual == 'Recibido y Avisado' and dias_desde_aviso >= 7:
-                                        mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium para recordarte que tu encargo ({row['detalle_pedido']}) sigue en la tienda esperándote. Por favor, confírmanos si vas a venir a recogerlo. ¡Un saludo!"
-                                    elif estado_actual == 'Confirmación de aviso' and dias_desde_aviso >= 14:
-                                        mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Lamentamos informarte que ha finalizado el plazo máximo de 14 días para recoger tu encargo ({row['detalle_pedido']}). Procedemos a anular la reserva y liberar el producto. Si tienes cualquier duda, contáctanos. Un saludo."
-                                        
+                                    if row.get('origen') == 'Web':
+                                        if estado_actual == 'Avisado sin stock':
+                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium sobre tu pedido web. Lamentablemente, nos falta stock de ({row['detalle_pedido']}). ¿Te interesaría cambiarlo por alguna de estas opciones similares que sí tenemos? [ELIMINA ESTO Y ESCRIBE AQUÍ LAS OPCIONES]"
+                                        elif estado_actual == 'Avisado con enlace de pago (Domicilio)':
+                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Tu pedido web ({row['detalle_pedido']}) está preparado. Puedes pagarlo usando Bizum al 627691792, por transferencia al [TU IBAN], o con tarjeta en este enlace: [PEGA AQUÍ TU ENLACE]. Avísanos al pagar para enviártelo."
+                                        elif estado_actual == 'Avisado para recogida local':
+                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Tu pedido web ({row['detalle_pedido']}) ya está preparado en la tienda. Puedes pasar a recogerlo en las próximas 24h. ¡Te esperamos!"
+                                        elif estado_actual == 'Recibido':
+                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos recibido tu pedido web. Estamos comprobando el stock y te avisaremos enseguida."
+                                        elif "Confirmado" in estado_actual:
+                                            if "(Domicilio)" in estado_actual:
+                                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos confirmado tu pago. ¿Qué hora te viene mejor para la entrega a domicilio?"
+                                            else:
+                                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos confirmado tu pedido para recogida en tienda. ¡Nos vemos pronto!"
+                                        else:
+                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos sobre tu pedido web ({row['detalle_pedido']})."
+                                    else:
+                                        mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium para avisarte de que tu encargo ({row['detalle_pedido']}) ya está en la tienda listo para recoger. ¡Te esperamos! Un saludo."
+                                        if estado_actual == 'Recibido y Avisado' and dias_desde_aviso >= 7:
+                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium para recordarte que tu encargo ({row['detalle_pedido']}) sigue en la tienda esperándote. Por favor, confírmanos si vas a venir a recogerlo. ¡Un saludo!"
+                                        elif estado_actual == 'Confirmación de aviso' and dias_desde_aviso >= 14:
+                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Lamentamos informarte que ha finalizado el plazo máximo de 14 días para recoger tu encargo ({row['detalle_pedido']}). Procedemos a anular la reserva y liberar el producto. Si tienes cualquier duda, contáctanos. Un saludo."
+                                            
                                     df_e.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_encargo)}"
                                 
                                 if estado_actual == 'Pendiente' and dias_desde_creacion >= 2:
@@ -953,62 +968,76 @@ def render_pestana_crm(client):
                                 column_config={
                                     "id": None, "origen": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                     "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
-                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido y Avisado", "Confirmación de aviso", "Retrasado por cliente", "Entregado", "Cancelado"]),
+                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Avisado sin stock", "Avisado con enlace de pago (Domicilio)", "Avisado para recogida local", "Confirmado (Domicilio)", "Confirmado (Recogida local)", "Cancelado"]),
                                     "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
                                 },
                                 num_rows="dynamic"
                             )
 
-                            st.markdown("#### 🚚 Enviar a Domicilio")
-                            st.info("Selecciona un pedido web para convertirlo en Servicio a Domicilio y pasarlo a la hoja de reparto.")
+                            st.markdown("#### 🛒 Editar Carrito (Sustituciones)")
+                            st.info("Si el cliente acepta cambiar un producto agotado, bórralo de su carrito y añade el nuevo antes de confirmar el pedido.")
                             if not df_web.empty:
                                 pd_options = ["---"] + df_web.apply(lambda x: f"{x['nombre_cliente']} - {x['detalle_pedido']} (ID: {x['id']})", axis=1).tolist()
                                 enc_sel = st.selectbox("Seleccionar Pedido Web:", pd_options)
                                 if enc_sel != "---":
                                     enc_id = int(enc_sel.split("(ID: ")[1].replace(")", ""))
-                                    
-                                    # Asegurar que no crashea si no lo encuentra por tipos raros
                                     filtro_id = df_web[df_web['id'] == enc_id]
                                     if not filtro_id.empty:
                                         enc_data = filtro_id.iloc[0]
-                                        
-                                        with st.form("form_pasar_reparto"):
-                                            c_r1, c_r2 = st.columns(2)
-                                            
-                                            tel_web = str(enc_data['telefono']).strip()
-                                            dir_sugerida = ""
+                                        notas_str = enc_data['notas']
+                                        if "[---METADATA---]" in notas_str:
+                                            import json
+                                            meta_str = notas_str.split("[---METADATA---]")[1].split("[---/METADATA---]")[0]
                                             try:
-                                                r_cli = client.table("clientes").select("direccion").eq("telefono", tel_web).execute()
-                                                if r_cli.data and r_cli.data[0].get('direccion'):
-                                                    dir_sugerida = r_cli.data[0]['direccion']
-                                            except: pass
-                                            
-                                            with c_r1: dir_reparto = st.text_input("Dirección de Entrega *", value=dir_sugerida, placeholder="Calle, Número, Piso...")
-                                            with c_r2: 
-                                                completar_pedido = st.checkbox("Marcar encargo web como 'Entregado' al crear reparto", value=True)
-                                            
-                                            if st.form_submit_button("🚚 Crear Servicio a Domicilio", type="primary"):
-                                                if dir_reparto:
-                                                    try:
-                                                        client.table("pedidos_domicilio").insert({
-                                                            "nombre_cliente": str(enc_data['nombre_cliente']),
-                                                            "telefono": str(enc_data['telefono']),
-                                                            "direccion": dir_reparto,
-                                                            "detalle_pedido": str(enc_data['detalle_pedido']),
-                                                            "estado": "Pendiente"
-                                                        }).execute()
-                                                        if completar_pedido:
-                                                            client.table("encargos_clientes").update({"estado": "Entregado"}).eq("id", enc_id).execute()
-                                                        st.success("¡Servicio de reparto creado!")
-                                                        time.sleep(1)
-                                                        limpiar_cache_crm()
-                                                        st.rerun()
-                                                    except Exception as e:
-                                                        st.error(f"Error técnico: {e}")
-                                                else:
-                                                    st.warning("⚠️ Debes introducir la dirección de entrega.")
-                                    else:
-                                        st.error(f"Error al cargar encargo: No se encontró el ID {enc_id} en los datos.")
+                                                meta = json.loads(meta_str)
+                                                st.write("##### Productos Actuales")
+                                                items = meta.get('items', [])
+                                                
+                                                for i, it in enumerate(items):
+                                                    col1, col2, col3, col4 = st.columns([4, 1, 1, 1])
+                                                    with col1: st.write(f"**{it['nombre']}**")
+                                                    with col2: st.write(f"{it['cantidad']}x")
+                                                    with col3: st.write(f"{float(it['precio']):.2f}€")
+                                                    with col4:
+                                                        if st.button("🗑️ Borrar", key=f"del_{enc_id}_{i}"):
+                                                            items.pop(i)
+                                                            meta['items'] = items
+                                                            # Recalcular total
+                                                            nuevo_tot = sum(float(x['precio']) * int(x['cantidad']) for x in items)
+                                                            meta['total_final'] = nuevo_tot
+                                                            nuevo_det = " + ".join([f"{x['cantidad']}x {x['nombre']}" for x in items])
+                                                            nuevo_meta_str = json.dumps(meta)
+                                                            nueva_nota = notas_str.split("[---METADATA---]")[0] + "[---METADATA---]" + nuevo_meta_str + "[---/METADATA---]"
+                                                            client.table("encargos_clientes").update({"notas": nueva_nota, "detalle_pedido": nuevo_det}).eq("id", enc_id).execute()
+                                                            st.rerun()
+                                                
+                                                st.write(f"**Total a cobrar:** {meta['total_final']:.2f}€")
+                                                
+                                                st.markdown("##### ➕ Añadir Sustituto")
+                                                res_prod = client.table("productos").select("id, nombre, precio, codigo_barras").eq("es_servicio", False).execute()
+                                                if res_prod.data:
+                                                    opts = [""] + [f"{p['nombre']} - {p['precio']}€ ({p['codigo_barras']})" for p in res_prod.data]
+                                                    p_add = st.selectbox("Buscar producto", opts)
+                                                    cant = st.number_input("Cantidad", min_value=1, value=1)
+                                                    if st.button("Añadir al carrito"):
+                                                        if p_add:
+                                                            p_id = res_prod.data[opts.index(p_add)-1]['id']
+                                                            p_name = res_prod.data[opts.index(p_add)-1]['nombre']
+                                                            p_precio = res_prod.data[opts.index(p_add)-1]['precio']
+                                                            items.append({"id": p_id, "nombre": p_name, "precio": p_precio, "cantidad": cant, "sku": "", "igic": "0%"})
+                                                            meta['items'] = items
+                                                            nuevo_tot = sum(float(x['precio']) * int(x['cantidad']) for x in items)
+                                                            meta['total_final'] = nuevo_tot
+                                                            nuevo_det = " + ".join([f"{x['cantidad']}x {x['nombre']}" for x in items])
+                                                            nuevo_meta_str = json.dumps(meta)
+                                                            nueva_nota = notas_str.split("[---METADATA---]")[0] + "[---METADATA---]" + nuevo_meta_str + "[---/METADATA---]"
+                                                            client.table("encargos_clientes").update({"notas": nueva_nota, "detalle_pedido": nuevo_det}).eq("id", enc_id).execute()
+                                                            st.success("Añadido")
+                                                            st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Error parseando carrito: {e}")
+                                        else:
+                                            st.warning("Este pedido web es antiguo y no tiene el carrito estructurado. No se puede editar aquí.")
 
                         if st.button("💾 Guardar Cambios en Encargos"):
                             ed_e = pd.concat([ed_e_tnd, ed_e_web])
@@ -1052,10 +1081,62 @@ def render_pestana_crm(client):
                                                     nuevas_notas = f"{nuevas_notas} {etiqueta}".strip()
                                             
                                             if nuevo_est != viejo_est or nuevas_notas != str(orig_row['notas']).strip():
-                                                client.table("encargos_clientes").update({
-                                                    "estado": nuevo_est, "notas": nuevas_notas
-                                                }).eq("id", r['id']).execute()
-                                                cambios_realizados += 1
+                                                import json
+                                                import hashlib
+                                                
+                                                if "Confirmado" in nuevo_est and "Confirmado" not in viejo_est and r.get('origen') == 'Web':
+                                                    metadata_str = nuevas_notas.split("[---METADATA---]")[1].split("[---/METADATA---]")[0] if "[---METADATA---]" in nuevas_notas else None
+                                                    if metadata_str:
+                                                        try:
+                                                            meta = json.loads(metadata_str)
+                                                            
+                                                            # 1. Registrar Venta (Deuda)
+                                                            hash_ant_res = client.table("ventas_historial").select("hash_actual").order("id", desc=True).limit(1).execute()
+                                                            hash_ant = hash_ant_res.data[0]['hash_actual'] if hash_ant_res.data else "GENESIS"
+                                                            fecha_str = pd.Timestamp.now('Atlantic/Canary').strftime('%d/%m/%Y, %H:%M')
+                                                            str_data = f"{pd.Timestamp.now('Atlantic/Canary').isoformat()}-{meta['total_final']}-{hash_ant}"
+                                                            hash_act = hashlib.sha256(str_data.encode()).hexdigest()
+                                                            
+                                                            client.table("ventas_historial").insert({
+                                                                "fecha": fecha_str, "productos": meta['items'], "total": meta['total_final'],
+                                                                "pagado": 0, "pendiente": meta['total_final'], "metodo_pago": f"{meta['metodo_pago']} (WEB)",
+                                                                "cliente_deuda": r['nombre_cliente'], "puntos_ganados": meta['puntos_ganados'],
+                                                                "puntos_usados": meta['puntos_usados'], "descuento_global": 0,
+                                                                "hash_anterior": hash_ant, "hash_actual": hash_act, "estado": "Deuda",
+                                                                "cliente_vip_nombre": r['nombre_cliente']
+                                                            }).execute()
+                                                            
+                                                            # 2. Descontar Stock
+                                                            for item in meta['items']:
+                                                                if item['id'] != 'ENVIO':
+                                                                    prod_res = client.table("productos").select("stock_actual").eq("id", item['id']).execute()
+                                                                    if prod_res.data:
+                                                                        nuevo_stock = (prod_res.data[0]['stock_actual'] or 0) - item['cantidad']
+                                                                        client.table("productos").update({"stock_actual": nuevo_stock}).eq("id", item['id']).execute()
+                                                                        
+                                                            # 3. Puntos
+                                                            if meta.get('cliente_id'):
+                                                                cli_res = client.table("clientes").select("puntos").eq("id", meta['cliente_id']).execute()
+                                                                if cli_res.data:
+                                                                    pts = cli_res.data[0]['puntos'] or 0
+                                                                    client.table("clientes").update({"puntos": pts - meta['puntos_usados'] + meta['puntos_ganados']}).eq("id", meta['cliente_id']).execute()
+                                                                    
+                                                            # 4. Servicio a Domicilio
+                                                            if "(Domicilio)" in nuevo_est:
+                                                                client.table("pedidos_domicilio").insert({
+                                                                    "nombre_cliente": r['nombre_cliente'], "telefono": r['telefono'], "direccion": meta['direccion'],
+                                                                    "detalle_pedido": r['detalle_pedido'], "estado": "Pendiente", "notas": f"Pedido Web Confirmado - Pago: {meta['metodo_pago']}"
+                                                                }).execute()
+                                                                
+                                                        except Exception as e:
+                                                            st.error(f"Error procesando confirmación web: {e}")
+                                                            errores = True
+                                                            
+                                                if not errores:
+                                                    client.table("encargos_clientes").update({
+                                                        "estado": nuevo_est, "notas": nuevas_notas
+                                                    }).eq("id", r['id']).execute()
+                                                    cambios_realizados += 1
                                                 
                                 if cambios_realizados > 0:
                                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1

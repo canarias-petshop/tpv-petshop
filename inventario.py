@@ -24,6 +24,86 @@ def limpiar_cache_inventario():
     get_proveedores.clear()
     get_inv_full.clear()
 
+def procesar_lote_ia_gemini(productos_lote, client):
+    import google.genai as genai
+    from google.genai import types
+    import os
+    import json
+    import streamlit as st
+    
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return {"error": "No se encontró GEMINI_API_KEY"}
+        
+    ai_client = genai.Client(api_key=api_key)
+    
+    prompt = """
+Eres un experto en productos para mascotas. 
+Se te proporcionará una lista de productos con su ID, Nombre y Marca (si existe).
+Tu tarea es categorizarlos devolviendo un JSON estrictamente estructurado como un array de objetos con las siguientes claves y posibles valores (DEBES elegir de las listas provistas si aplica, o dejar vacío si no sabes o no aplica):
+
+OPCIONES PERMITIDAS:
+- "familia": ["Alimentación húmeda", "Alimentación seca", "Snack", "Accesorios", "Higiene", "Paseo", "Juguetes", "Descanso", "Farmacia/Cuidados", "Otros"]
+- "subcategoria": ["Pienso Seco", "Pienso Húmedo", "Semi-húmedo", "Snacks", "Collares/Arneses", "Champús", "Medicamentos", "Juguetes", "Otros"]
+- "gama": ["Grain free", "Low grain", "Wet line", "Atlantic Pet Special Bully", "Classic Supreme", "Classic Supreme gato", "Premium Receta gato", "Premium Receta", "Super Premium Receta", "Super Premium Receta grain free", "Ultra Premium Receta grain free", "Author", "Care", "Classic", "Hipoalergénico", "Just", "Prime", "Ultra"]
+- "mascota": ["Perro", "Gato", "Roedor", "Aves", "Reptiles", "Universal"]
+- "edad": ["Adulto", "Cachorro/Kitten", "Senior", "Todas las edades"]
+- "tamano": ["Grande", "Mediano", "Mini", "Pequeño", "Todas las razas"]
+- "necesidad_especial": ["Articulaciones", "Bolas de pelo", "Control de peso", "Esterilizado", "Hipoalergénico", "Paladares exigentes", "Pelo blanco", "Sensible/digestivo", "Urinario", "Renal", "Hepático", "Ninguna"]
+- "sabor_principal": ["Atún", "Cerdo", "Ciervo", "Conejo", "Cordero", "Mix de carne", "Mix de carnes", "Pato", "Pavo", "Pescado", "Pollo", "Salmón", "Sin especificar", "Ternera/Buey"]
+- "marca": [Extrae la marca si la ves evidente (ej. Royal Canin, Amanova, etc), sino usa "Generico"]
+
+FORMATO DE SALIDA (JSON array puro):
+[
+  {
+    "id": 123,
+    "familia": "...",
+    "subcategoria": "...",
+    "gama": "...",
+    "mascota": "...",
+    "edad": "...",
+    "tamano": "...",
+    "necesidad_especial": "...",
+    "sabor_principal": "...",
+    "marca": "..."
+  }
+]
+
+LISTA DE PRODUCTOS:
+"""
+    for p in productos_lote:
+        prompt += f"- ID: {p['id']} | Nombre: {p['nombre']} | Marca actual: {p.get('marca', '')}\n"
+
+    try:
+        response = ai_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
+        )
+        data = json.loads(response.text)
+        
+        for d in data:
+            if not isinstance(d, dict) or 'id' not in d: continue
+            
+            update_data = {
+                "familia": d.get("familia", "") or "Generico",
+                "subcategoria": d.get("subcategoria", ""),
+                "gama": d.get("gama", ""),
+                "mascota": d.get("mascota", ""),
+                "edad": d.get("edad", ""),
+                "tamano": d.get("tamano", ""),
+                "necesidad_especial": d.get("necesidad_especial", ""),
+                "sabor_principal": d.get("sabor_principal", ""),
+                "marca": d.get("marca", "") or "Generico"
+            }
+            client.table("productos").update(update_data).eq("id", d['id']).execute()
+            
+        return {"success": len(data)}
+    except Exception as e:
+        return {"error": str(e)}
+
 def render_pestana_inventario(client):
     st.markdown("<h3 style='margin-top: -15px;'>📦 Gestión de Inventario y Servicios</h3>", unsafe_allow_html=True)
     if st.session_state.pop("inventario_saved", False):
@@ -167,6 +247,24 @@ def render_pestana_inventario(client):
 
                     st.markdown("#### 📦 Inventario de Productos")
 
+                    with st.expander("🤖 Auto-Categorizar con IA (Experimental)"):
+                        st.write("Esta herramienta utiliza Gemini para rellenar automáticamente las categorías faltantes basándose en el nombre del producto.")
+                        if st.button("🚀 Iniciar Auto-Categorización (Lote de 20)"):
+                            prods_incompletos = [p for p in df_solo_productos.to_dict('records') if p.get('familia', 'Generico') in ['Generico', '', None]]
+                            if not prods_incompletos:
+                                st.success("¡Todos los productos ya tienen una familia asignada!")
+                            else:
+                                st.info(f"Se han encontrado {len(prods_incompletos)} productos sin categorizar. Procesando un lote de hasta 20...")
+                                lote = prods_incompletos[:20]
+                                res = procesar_lote_ia_gemini(lote, client)
+                                if "error" in res:
+                                    st.error(f"Error de IA: {res['error']}")
+                                else:
+                                    st.success(f"¡Se han categorizado {res.get('success', 0)} productos! Recargando...")
+                                    time.sleep(2)
+                                    limpiar_cache_inventario()
+                                    st.rerun()
+
                     c_busq1, c_busq2 = st.columns([2, 1])
                     with c_busq1:
                         b_inv = st.text_input("🔍 Buscar producto (Nombre o SKU):", key="b_inv_p").strip().lower()
@@ -191,14 +289,14 @@ def render_pestana_inventario(client):
                         column_config={
                             "id": None, "categoria": None, "categoria_filt": None,
                             "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
-                            "familia": st.column_config.SelectboxColumn("Categoría", options=["Alimentación", "Accesorios", "Higiene", "Paseo", "Juguetes", "Descanso", "Farmacia/Cuidados", "Otros"]),
+                            "familia": st.column_config.SelectboxColumn("Categoría", options=["", "Alimentación húmeda", "Alimentación seca", "Snack", "Accesorios", "Higiene", "Paseo", "Juguetes", "Descanso", "Farmacia/Cuidados", "Otros"]),
                             "subcategoria": st.column_config.SelectboxColumn("Subcategoría", options=["", "Pienso Seco", "Pienso Húmedo", "Semi-húmedo", "Snacks", "Collares/Arneses", "Champús", "Medicamentos", "Juguetes", "Otros"]),
-                            "gama": st.column_config.TextColumn("Gama", help="Gama o subtipo (Ej: Grain Free, Low Grain)"),
-                            "mascota": st.column_config.SelectboxColumn("Mascota", options=["Perro", "Gato", "Roedor", "Aves", "Reptiles", "Universal"]),
-                            "edad": st.column_config.SelectboxColumn("Edad", options=["Todas las edades", "Cachorro / Kitten", "Adulto", "Senior"]),
-                            "tamano": st.column_config.SelectboxColumn("Tamaño", options=["Todas las Razas", "Mini / Pequeño", "Mediano", "Grande", "Gigante"]),
-                            "necesidad_especial": st.column_config.SelectboxColumn("Necesidad", options=["Ninguna", "Esterilizado", "Hipoalergénico", "Control de Peso", "Sensible / Digestivo", "Renal", "Urinario", "Bolas de Pelo", "Articulaciones", "Pelo Blanco", "Paladares Exigentes"]),
-                            "sabor_principal": st.column_config.SelectboxColumn("Sabor", options=["Sin especificar", "Pollo", "Salmón", "Pescado", "Atún", "Cordero", "Cerdo", "Ternera / Buey", "Pavo", "Pato", "Conejo", "Ciervo", "Jabalí", "Mix de Carnes"]),
+                            "gama": st.column_config.SelectboxColumn("Gama", options=["", "Grain free", "Low grain", "Wet line", "Atlantic Pet Special Bully", "Classic Supreme", "Classic Supreme gato", "Premium Receta gato", "Premium Receta", "Super Premium Receta", "Super Premium Receta grain free", "Ultra Premium Receta grain free", "Author", "Care", "Classic", "Hipoalergénico", "Just", "Prime", "Ultra"]),
+                            "mascota": st.column_config.SelectboxColumn("Mascota", options=["", "Perro", "Gato", "Roedor", "Aves", "Reptiles", "Universal"]),
+                            "edad": st.column_config.SelectboxColumn("Edad", options=["", "Adulto", "Cachorro/Kitten", "Senior", "Todas las edades"]),
+                            "tamano": st.column_config.SelectboxColumn("Tamaño", options=["", "Grande", "Mediano", "Mini", "Pequeño", "Todas las razas"]),
+                            "necesidad_especial": st.column_config.SelectboxColumn("Necesidad", options=["", "Articulaciones", "Bolas de pelo", "Control de peso", "Esterilizado", "Hipoalergénico", "Paladares exigentes", "Pelo blanco", "Sensible/digestivo", "Urinario", "Renal", "Hepático", "Ninguna"]),
+                            "sabor_principal": st.column_config.SelectboxColumn("Sabor", options=["", "Atún", "Cerdo", "Ciervo", "Conejo", "Cordero", "Mix de carne", "Mix de carnes", "Pato", "Pavo", "Pescado", "Pollo", "Salmón", "Sin especificar", "Ternera/Buey"]),
                             "caracteristicas": st.column_config.TextColumn("Extra (Opcional)", help="Escribe separadas por comas. Ej: Grain Free, Monoproteico, Natural..."),
                             "marca": st.column_config.TextColumn("Marca", help="Marca del producto"),
                             "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
