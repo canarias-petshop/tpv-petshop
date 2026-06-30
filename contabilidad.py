@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, timedelta
 import io
 import time
 
@@ -498,9 +498,31 @@ def render_pestana_contabilidad(client):
         st.markdown("#### 📖 Archivo Contable (Libro Mayor)")
         st.info("💡 Este es el **Libro Mayor**. Muestra el historial inalterable de **todos** los movimientos contables registrados (pagados y pendientes). Usa los filtros para localizar cualquier documento.")
         
-        c_f1_arc, c_f2_arc = st.columns(2)
-        f_ini_arc = c_f1_arc.date_input("Desde:", pd.Timestamp.now('Atlantic/Canary').date() - pd.Timedelta(days=30), key="arc_i")
-        f_fin_arc = c_f2_arc.date_input("Hasta:", pd.Timestamp.now('Atlantic/Canary').date(), key="arc_f")
+        c_f0_arc, c_f1_arc, c_f2_arc = st.columns(3)
+        with c_f0_arc:
+            preset_arc = st.selectbox("📅 Filtro rápido:", ["Esta semana", "Este mes", "Trimestre Actual", "Todo el año", "Personalizado"], index=1, key="preset_arc")
+        
+        hoy = pd.Timestamp.now('Atlantic/Canary').date()
+        if preset_arc == "Esta semana":
+            f_ini_arc_val = hoy - timedelta(days=hoy.weekday())
+            f_fin_arc_val = hoy
+        elif preset_arc == "Este mes":
+            f_ini_arc_val = hoy.replace(day=1)
+            f_fin_arc_val = hoy
+        elif preset_arc == "Trimestre Actual":
+            f_ini_arc_val = hoy.replace(month=((hoy.month-1)//3)*3+1, day=1)
+            f_fin_arc_val = hoy
+        elif preset_arc == "Todo el año":
+            f_ini_arc_val = hoy.replace(month=1, day=1)
+            f_fin_arc_val = hoy
+        else: # Personalizado
+            f_ini_arc_val = hoy - timedelta(days=30)
+            f_fin_arc_val = hoy
+
+        with c_f1_arc:
+            f_ini_arc = st.date_input("Desde:", value=f_ini_arc_val, disabled=(preset_arc != "Personalizado"), key="arc_i")
+        with c_f2_arc:
+            f_fin_arc = st.date_input("Hasta:", value=f_fin_arc_val, disabled=(preset_arc != "Personalizado"), key="arc_f")
 
         res_comp_arc = fetch_compras_archivo(client, str(f_ini_arc), str(f_fin_arc))
         if res_comp_arc.data:
@@ -587,9 +609,31 @@ def render_pestana_contabilidad(client):
     with sec_informes:
         st.markdown("#### 📥 Selector de Fechas Personalizado")
         
-        c_inf1, c_inf2 = st.columns(2)
-        with c_inf1: f_desde_inf = st.date_input("📅 Desde la fecha:", value=pd.Timestamp.now('Atlantic/Canary').date().replace(day=1))
-        with c_inf2: f_hasta_inf = st.date_input("📅 Hasta la fecha:", value=pd.Timestamp.now('Atlantic/Canary').date())
+        c_inf_pres, c_inf1, c_inf2 = st.columns(3)
+        with c_inf_pres:
+            preset_inf = st.selectbox("📅 Filtro rápido:", ["Esta semana", "Este mes", "Trimestre Actual", "Todo el año", "Personalizado"], index=1, key="preset_inf")
+        
+        hoy = pd.Timestamp.now('Atlantic/Canary').date()
+        if preset_inf == "Esta semana":
+            f_ini_val = hoy - timedelta(days=hoy.weekday())
+            f_fin_val = hoy
+        elif preset_inf == "Este mes":
+            f_ini_val = hoy.replace(day=1)
+            f_fin_val = hoy
+        elif preset_inf == "Trimestre Actual":
+            f_ini_val = hoy.replace(month=((hoy.month-1)//3)*3+1, day=1)
+            f_fin_val = hoy
+        elif preset_inf == "Todo el año":
+            f_ini_val = hoy.replace(month=1, day=1)
+            f_fin_val = hoy
+        else: # Personalizado
+            f_ini_val = hoy.replace(day=1)
+            f_fin_val = hoy
+
+        with c_inf1:
+            f_desde_inf = st.date_input("📅 Desde la fecha:", value=f_ini_val, disabled=(preset_inf != "Personalizado"), key="f_desde_inf")
+        with c_inf2:
+            f_hasta_inf = st.date_input("📅 Hasta la fecha:", value=f_fin_val, disabled=(preset_inf != "Personalizado"), key="f_hasta_inf")
         
         st.markdown(f"<p style='color: gray; font-size: 13px;'>Filtrando datos entre el <b>{f_desde_inf.strftime('%d/%m/%Y')}</b> y el <b>{f_hasta_inf.strftime('%d/%m/%Y')}</b>.</p>", unsafe_allow_html=True)
         st.markdown("---")
