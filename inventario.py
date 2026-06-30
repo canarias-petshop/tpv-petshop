@@ -30,9 +30,9 @@ def procesar_lote_ia_gemini(productos_lote, client):
     import json
     import streamlit as st
     
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = st.secrets.get("gemini_api_key")
     if not api_key:
-        return {"error": "No se encontró GEMINI_API_KEY"}
+        return {"error": "No se encontró gemini_api_key en secrets"}
         
     genai.configure(api_key=api_key)
     
