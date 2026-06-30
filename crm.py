@@ -1014,7 +1014,7 @@ def render_pestana_crm(client):
                                                 st.write(f"**Total a cobrar:** {meta['total_final']:.2f}€")
                                                 
                                                 st.markdown("##### ➕ Añadir Sustituto")
-                                                res_prod = client.table("productos").select("id, nombre, precio, codigo_barras").eq("es_servicio", False).execute()
+                                                res_prod = client.table("productos").select("id, nombre, precio, codigo_barras").eq("categoria", "Producto").execute()
                                                 if res_prod.data:
                                                     opts = [""] + [f"{p['nombre']} - {p['precio']}€ ({p['codigo_barras']})" for p in res_prod.data]
                                                     p_add = st.selectbox("Buscar producto", opts)
