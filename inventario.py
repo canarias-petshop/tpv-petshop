@@ -86,17 +86,37 @@ LISTA DE PRODUCTOS:
         for d in data:
             if not isinstance(d, dict) or 'id' not in d: continue
             
-            update_data = {
-                "familia": d.get("familia", "") or "Generico",
-                "subcategoria": d.get("subcategoria", ""),
-                "gama": d.get("gama", ""),
-                "mascota": d.get("mascota", ""),
-                "edad": d.get("edad", ""),
-                "tamano": d.get("tamano", ""),
-                "necesidad_especial": d.get("necesidad_especial", ""),
-                "sabor_principal": d.get("sabor_principal", ""),
-                "marca": d.get("marca", "") or "Generico"
+            valid = {
+                "familia": ["Alimentación húmeda", "Alimentación seca", "Snack", "Accesorios", "Higiene", "Paseo", "Juguetes", "Descanso", "Farmacia/Cuidados", "Otros"],
+                "subcategoria": ["Pienso Seco", "Pienso Húmedo", "Semi-húmedo", "Snacks", "Collares/Arneses", "Champús", "Medicamentos", "Juguetes", "Otros"],
+                "gama": ["Grain free", "Low grain", "Wet line", "Atlantic Pet Special Bully", "Classic Supreme", "Classic Supreme gato", "Premium Receta gato", "Premium Receta", "Super Premium Receta", "Super Premium Receta grain free", "Ultra Premium Receta grain free", "Author", "Care", "Classic", "Hipoalergénico", "Just", "Prime", "Ultra"],
+                "mascota": ["Perro", "Gato", "Roedor", "Aves", "Reptiles", "Universal"],
+                "edad": ["Adulto", "Cachorro/Kitten", "Senior", "Todas las edades"],
+                "tamano": ["Grande", "Mediano", "Mini", "Pequeño", "Todas las razas"],
+                "necesidad_especial": ["Articulaciones", "Bolas de pelo", "Control de peso", "Esterilizado", "Hipoalergénico", "Paladares exigentes", "Pelo blanco", "Sensible/digestivo", "Urinario", "Renal", "Hepático", "Ninguna"],
+                "sabor_principal": ["Atún", "Cerdo", "Ciervo", "Conejo", "Cordero", "Mix de carne", "Mix de carnes", "Pato", "Pavo", "Pescado", "Pollo", "Salmón", "Sin especificar", "Ternera/Buey"]
             }
+            
+            def check_v(k, v):
+                val = str(v).strip() if v else ""
+                if k == "familia" and val in ["Alimentación", "Alimento"]: return "Alimentación seca"
+                if k == "familia" and val in ["Alimento Húmedo"]: return "Alimentación húmeda"
+                if val in valid[k]: return val
+                return ""
+            
+            update_data = {
+                "familia": check_v("familia", d.get("familia")),
+                "subcategoria": check_v("subcategoria", d.get("subcategoria")),
+                "gama": check_v("gama", d.get("gama")),
+                "mascota": check_v("mascota", d.get("mascota")),
+                "edad": check_v("edad", d.get("edad")),
+                "tamano": check_v("tamano", d.get("tamano")),
+                "necesidad_especial": check_v("necesidad_especial", d.get("necesidad_especial")),
+                "sabor_principal": check_v("sabor_principal", d.get("sabor_principal")),
+                "marca": str(d.get("marca", "")).strip()
+            }
+            if update_data["marca"] == "Generico": update_data["marca"] = ""
+            
             client.table("productos").update(update_data).eq("id", d['id']).execute()
             
         return {"success": len(data)}
