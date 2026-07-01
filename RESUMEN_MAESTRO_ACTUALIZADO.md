@@ -87,6 +87,20 @@ Este documento centraliza todos los avances, arquitecturas y mÃ³dulos del ecos
 
 ---
 
+
+### 3. Mantenimiento y Limpieza de Datos (1 de Julio de 2026)
+- **Corrección de la IA de Categorización (Gemini)**:
+  - Se parcheó el módulo de Streamlit Cloud para soportar de forma nativa la nueva API de Google, resolviendo el conflicto de dependencias.
+  - El filtro de lectura en inventario.py se ha blindado contra valores vacíos (NaN) procedentes del Excel.
+- **Limpieza de Vocabulario (Filtros Web)**:
+  - Se eliminaron las duplicidades visuales en la web causadas por diferencias de espacios y mayúsculas entre la importación del Excel y el código (ej. *Wet Line* vs *Wet line*, *Todas las Razas* vs *Todas las razas*).
+  - Se unificaron los sabores en la base de datos (se fusionó *Mix de carne* en *Mix de carnes*, y *Ternera / Buey* en *Ternera/Buey*).
+- **Restauración Estratégica**:
+  - Tras una categorización automática de la IA, se utilizó el Excel original como copia de seguridad para inyectar de vuelta las Categorías (Familias) exactas que el usuario había asignado, garantizando que el árbol de navegación de la web mantenga la estructura comercial deseada.
+  - Se bloqueó a la IA para que convierta automáticamente las siglas Amv en AMANOVA.
+
+---
+
 ## ðŸ§¹ Tareas de Limpieza Realizadas
 - Se eliminaron por completo todos los scripts residuales temporales de Python (`relink_prime.py`, `standardize_categories.py`, `import_ownat_v3.py`, etc.) del directorio local para no contaminar el repositorio y dejar el Ã¡rea de trabajo impecable.
 
