@@ -115,7 +115,8 @@ LISTA DE PRODUCTOS:
                 "sabor_principal": check_v("sabor_principal", d.get("sabor_principal")),
                 "marca": str(d.get("marca", "")).strip()
             }
-            if update_data["marca"] == "Generico": update_data["marca"] = ""
+            if update_data["marca"].lower() == "amv": update_data["marca"] = "AMANOVA"
+            if update_data["marca"].lower() == "generico": update_data["marca"] = ""
             
             client.table("productos").update(update_data).eq("id", d['id']).execute()
             
