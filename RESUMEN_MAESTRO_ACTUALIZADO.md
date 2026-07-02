@@ -1,7 +1,7 @@
-﻿# Resumen Maestro Actualizado - TPV y E-Commerce Animalarium
-**Fecha de Ãºltima actualizaciÃ³n**: 30 de Junio de 2026
+# Resumen Maestro Actualizado - TPV y E-Commerce Animalarium
+**Fecha de última actualización**: 2 de Julio de 2026
 
-Este documento centraliza todos los avances, arquitecturas y mÃ³dulos del ecosistema completo de Animalarium (TPV FÃ­sico + Tienda Web). Es el punto de partida **obligatorio** para retomar el proyecto en futuras sesiones.
+Este documento centraliza todos los avances, arquitecturas y módulos del ecosistema completo de Animalarium (TPV Físico + Tienda Web). Es el punto de partida **obligatorio** para retomar el proyecto en futuras sesiones.
 
 > [!CAUTION]
 > **NORMA ESTRICTA: PRODUCTOS vs SERVICIOS**
@@ -98,6 +98,23 @@ Este documento centraliza todos los avances, arquitecturas y mÃ³dulos del ecos
 - **Restauración Estratégica**:
   - Tras una categorización automática de la IA, se utilizó el Excel original como copia de seguridad para inyectar de vuelta las Categorías (Familias) exactas que el usuario había asignado, garantizando que el árbol de navegación de la web mantenga la estructura comercial deseada.
   - Se bloqueó a la IA para que convierta automáticamente las siglas Amv en AMANOVA.
+
+### 4. Expansión del Catálogo y Flujo de Importación (Lenda, Amanova y Atlantic Pet - Julio 2026)
+- **Importación del Catálogo de Lenda (132 Productos)**:
+  - Se extrajeron con éxito las tarifas en PDF de Lenda 2026 y Lenda Grain Free, inyectándose en Supabase.
+  - Se estandarizó la marca a mayúsculas ("LENDA") en todos los registros.
+- **Revisión y Consolidación de Amanova y Atlantic Pet**:
+  - Se aplicó el nuevo flujo estricto: se exportaron 164 productos de Amanova y 54 de Atlantic Pet a Excel (CSV).
+  - El usuario rellenó manualmente los PVPs vacíos y purgó productos descatalogados.
+  - El sistema auto-calculó los PVDs faltantes y eliminó permanentemente los productos descartados tanto de la BD como sus fotos del servidor web.
+- **Tratamiento Automático de Imágenes (Script Anti-Transparencias)**:
+  - Se detectó un problema crítico visual: las fotos originales en formato `.png` o `.webp` (transparentes) generaban fondos negros feos o se mezclaban con el _placeholder_ amarillo del catálogo al pasarlas a la web.
+  - Se creó un script de saneamiento visual (`fix_black_backgrounds.py` y equivalentes) que detecta transparencias o falsos JPGs (WebP camuflados), fundiéndolos sobre un fondo 100% blanco puro antes de convertirlos a un `.jpg` real.
+- **Corrección Frontend de Fallback**:
+  - Se eliminó el "doble fondo" (`backgroundImage` múltiple) en los componentes de React (`ClientCatalog.tsx`, `FeaturedProductsGrid.tsx`, `FloatingProductWidget.tsx`). La web ahora renderiza las fotos sobre un fondo limpio sin asomar la imagen de reemplazo.
+- **Normativa de Inteligencia Artificial (`AGENTS.md`)**:
+  - A petición de gerencia, se ha instaurado como **ley fundamental** el "Flujo Estándar de Importación de Marcas".
+  - Se ha creado el archivo `.agents/AGENTS.md` que obliga a la IA a someter toda nueva importación de datos a una revisión manual en Excel por parte del usuario antes de inyectar en la base de datos o subir imágenes a la nube.
 
 ---
 
