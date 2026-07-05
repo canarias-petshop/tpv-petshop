@@ -49,7 +49,7 @@ OPCIONES PERMITIDAS:
 - "edad": ["Adulto", "Cachorro/Kitten", "Senior", "Todas las edades"]
 - "tamano": ["Grande", "Mediano", "Mini", "Pequeño", "Todas las razas"]
 - "necesidad_especial": ["Articulaciones", "Bolas de pelo", "Control de peso", "Esterilizado", "Hipoalergénico", "Paladares exigentes", "Pelo blanco", "Sensible/digestivo", "Urinario", "Renal", "Hepático", "Ninguna"]
-- "sabor_principal": ["Atún", "Cerdo", "Ciervo", "Conejo", "Cordero", "Mix de carne", "Mix de carnes", "Pato", "Pavo", "Pescado", "Pollo", "Salmón", "Sin especificar", "Ternera/Buey"]
+- "sabor_principal": ["Atún", "Cerdo", "Ciervo", "Conejo", "Cordero", "Mix de carnes", "Pato", "Pavo", "Pescado", "Pollo", "Salmón", "Sin especificar", "Ternera/Buey"]
 - "marca": [Extrae la marca si la ves evidente (ej. Royal Canin, Amanova, etc), sino usa "Generico"]
 
 FORMATO DE SALIDA (JSON array puro):
@@ -94,7 +94,7 @@ LISTA DE PRODUCTOS:
                 "edad": ["Adulto", "Cachorro/Kitten", "Senior", "Todas las edades"],
                 "tamano": ["Grande", "Mediano", "Mini", "Pequeño", "Todas las razas"],
                 "necesidad_especial": ["Articulaciones", "Bolas de pelo", "Control de peso", "Esterilizado", "Hipoalergénico", "Paladares exigentes", "Pelo blanco", "Sensible/digestivo", "Urinario", "Renal", "Hepático", "Ninguna"],
-                "sabor_principal": ["Atún", "Cerdo", "Ciervo", "Conejo", "Cordero", "Mix de carne", "Mix de carnes", "Pato", "Pavo", "Pescado", "Pollo", "Salmón", "Sin especificar", "Ternera/Buey"]
+                "sabor_principal": ["Atún", "Cerdo", "Ciervo", "Conejo", "Cordero", "Mix de carnes", "Pato", "Pavo", "Pescado", "Pollo", "Salmón", "Sin especificar", "Ternera/Buey"]
             }
             
             def check_v(k, v):
@@ -249,11 +249,11 @@ def render_pestana_inventario(client):
                                     caja_data = df_solo_productos[df_solo_productos['id'] == id_caja[0]].iloc[0]
                                     unidad_data = df_solo_productos[df_solo_productos['id'] == id_unidad[0]].iloc[0]
                                     
-                                    nuevo_stock_caja = float(caja_data.get('stock_actual', 0)) - cant_cajas
-                                    nuevo_stock_unidad = float(unidad_data.get('stock_actual', 0)) + (cant_cajas * uds_por_caja)
+                                    nuevo_stock_caja = int(float(caja_data.get('stock_actual', 0))) - int(cant_cajas)
+                                    nuevo_stock_unidad = int(float(unidad_data.get('stock_actual', 0))) + int(cant_cajas * uds_por_caja)
                                     
-                                    client.table("productos").update({"stock_actual": nuevo_stock_caja}).eq("id", id_caja[0]).execute()
-                                    client.table("productos").update({"stock_actual": nuevo_stock_unidad}).eq("id", id_unidad[0]).execute()
+                                    client.table("productos").update({"stock_actual": nuevo_stock_caja}).eq("id", int(id_caja[0])).execute()
+                                    client.table("productos").update({"stock_actual": nuevo_stock_unidad}).eq("id", int(id_unidad[0])).execute()
                                     st.success(f"✅ Traspaso exitoso: Restado {cant_cajas} a [{caja_data['nombre']}]. Sumado {cant_cajas * uds_por_caja} a [{unidad_data['nombre']}].")
                                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                     limpiar_cache_inventario()
@@ -328,7 +328,7 @@ def render_pestana_inventario(client):
                             "edad": st.column_config.SelectboxColumn("Edad", options=["", "Adulto", "Cachorro/Kitten", "Senior", "Todas las edades"]),
                             "tamano": st.column_config.SelectboxColumn("Tamaño", options=["", "Grande", "Mediano", "Mini", "Pequeño", "Todas las razas"]),
                             "necesidad_especial": st.column_config.SelectboxColumn("Necesidad", options=["", "Articulaciones", "Bolas de pelo", "Control de peso", "Esterilizado", "Hipoalergénico", "Paladares exigentes", "Pelo blanco", "Sensible/digestivo", "Urinario", "Renal", "Hepático", "Ninguna"]),
-                            "sabor_principal": st.column_config.SelectboxColumn("Sabor", options=["", "Atún", "Cerdo", "Ciervo", "Conejo", "Cordero", "Mix de carne", "Mix de carnes", "Pato", "Pavo", "Pescado", "Pollo", "Salmón", "Sin especificar", "Ternera/Buey"]),
+                            "sabor_principal": st.column_config.SelectboxColumn("Sabor", options=["", "Atún", "Cerdo", "Ciervo", "Conejo", "Cordero", "Mix de carnes", "Pato", "Pavo", "Pescado", "Pollo", "Salmón", "Sin especificar", "Ternera/Buey"]),
                             "caracteristicas": st.column_config.TextColumn("Extra (Opcional)", help="Escribe separadas por comas. Ej: Grain Free, Monoproteico, Natural..."),
                             "marca": st.column_config.TextColumn("Marca", help="Marca del producto"),
                             "Proveedor": st.column_config.SelectboxColumn("Proveedor", options=["---"] + list(dict_proveedores.keys())),
