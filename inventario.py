@@ -252,8 +252,8 @@ def render_pestana_inventario(client):
                                     nuevo_stock_caja = int(float(caja_data.get('stock_actual', 0))) - int(cant_cajas)
                                     nuevo_stock_unidad = int(float(unidad_data.get('stock_actual', 0))) + int(cant_cajas * uds_por_caja)
                                     
-                                    client.table("productos").update({"stock_actual": nuevo_stock_caja}).eq("id", int(id_caja[0])).execute()
-                                    client.table("productos").update({"stock_actual": nuevo_stock_unidad}).eq("id", int(id_unidad[0])).execute()
+                                    client.table("productos").update({"stock_actual": nuevo_stock_caja}).eq("id", id_caja[0]).execute()
+                                    client.table("productos").update({"stock_actual": nuevo_stock_unidad}).eq("id", id_unidad[0]).execute()
                                     st.success(f"✅ Traspaso exitoso: Restado {cant_cajas} a [{caja_data['nombre']}]. Sumado {cant_cajas * uds_por_caja} a [{unidad_data['nombre']}].")
                                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                     limpiar_cache_inventario()
