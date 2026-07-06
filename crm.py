@@ -852,6 +852,94 @@ def render_pestana_crm(client):
             
             with col_en2:
                 st.markdown("#### 📌 Encargos Pendientes")
+                
+                # --- VISUALIZAR TICKET WEB RECIÉN GENERADO ---
+                t_web = st.session_state.get('ticket_web_generado')
+                if t_web:
+                    with st.expander(f"🎉 TICKET GENERADO #{t_web['id']} PARA {t_web['cliente_fidel']} (WEB)", expanded=True):
+                        st.success(f"Venta web confirmada exitosamente. ID de Ticket: {t_web['id']}")
+                        
+                        import base64
+                        import urllib.parse
+                        import streamlit.components.v1 as components
+                        
+                        logo_html = ""
+                        try:
+                            with open("LOGO.jpg", "rb") as img_file:
+                                b64_string = base64.b64encode(img_file.read()).decode("utf-8")
+                                logo_html = f'<img src="data:image/jpeg;base64,{b64_string}" style="max-width: 200px; margin-bottom: 10px;"><br>'
+                        except: pass
+                        
+                        texto_wa = f"¡Hola {t_web['cliente_fidel']}! 🐾 Tu pedido web ya está confirmado y registrado en tienda.\n\nAquí tienes tu resguardo de compra:\n*Ticket #{t_web['id']}*\n*Total: {t_web['total']}€*\n\nSi tienes dudas, contáctanos.\n¡Gracias por tu confianza!"
+                        tel_wa = str(t_web.get('telefono', '')).replace(' ', '').replace('+', '')
+                        wa_url = f"https://wa.me/{tel_wa}?text={urllib.parse.quote(texto_wa)}"
+                        
+                        html_t_web = f"""
+                        <!DOCTYPE html><html><head><meta charset='utf-8'>
+                        <style>
+                            .btn-print {{ padding: 12px; background-color: #005275; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; margin-bottom: 8px; }}
+                            .btn-wa {{ background-color: #25D366; }}
+                        </style>
+                        </head><body style='margin:0; padding:10px; background-color:white; font-family: sans-serif;'>
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <button class="btn-print" onclick="imprimirWebTicket()">🖨️ IMPRIMIR TICKET</button>
+                                <a href="{wa_url}" target="_blank" style="flex: 1; text-decoration: none;">
+                                    <button class="btn-print btn-wa">📲 ENVIAR POR WHATSAPP</button>
+                                </a>
+                            </div>
+                            
+                            <div id="ticket-web-impresion" style="width: 100%; max-width: 350px; margin: 0 auto; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
+                                <div style="text-align: center; font-family: monospace; width: 100%; font-size: 18px; color: black; font-weight: bold;">
+                                    {logo_html}
+                                    <b style="font-size: 24px;">ANIMALARIUM</b><br>
+                                    Raquel Trujillo Hernández<br>DNI: 78854854K<br>C/ José Hernández Alfonso, 26<br>38009 S/C de Tenerife<br><br>
+                                    <div style="text-align: left; font-size: 16px;">Fecha: {t_web['fecha']}<br>TICKET #{t_web['id']} (WEB)</div>
+                                    <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+                                    <table style="width: 100%; font-size: 16px; text-align: left; font-weight: bold;">
+                        """
+                        for p in t_web['productos']:
+                            html_t_web += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
+                        
+                        html_t_web += f"""
+                                    </table>
+                                    <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
+                                    <div style="text-align: right; font-size: 18px; color: black; margin-top: 5px; border: 2px solid black; padding: 3px;"><b>DEUDA PENDIENTE: {t_web['pendiente']:.2f}€</b></div>
+                                    <div style="text-align: right; font-size: 22px;"><b>TOTAL: {t_web['total']:.2f}€</b></div>
+                                    <div style="font-size: 16px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {t_web['metodo']}</div>
+                        """
+                        if t_web.get('cliente_fidel'):
+                            html_t_web += f"<div style='font-size:14px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {t_web['cliente_fidel']}</b>"
+                            html_t_web += f"<br>Has ganado +{t_web['puntos_ganados']} puntos hoy!<br>Saldo actual disponible: {t_web.get('nuevo_saldo', 0)} puntos<br><span style='font-size:12px; color:#555;'>Ganas 1 pto por cada 10€ de compra.</span></div>"
+                        
+                        html_t_web += f"""
+                                    <div style="text-align: center; margin-top: 25px;">
+                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=TICKET-{t_web['id']}" alt="QR Ticket" />
+                                        <div style="font-size: 14px; margin-top: 5px; color: #555;">TICKET #{t_web['id']}</div>
+                                    </div>
+                                    <div style="font-size: 14px; color: #000; margin-top: 20px; text-align: center;"><b>POLÍTICA DE DEVOLUCIÓN</b><br>Plazo de 14 días con ticket y<br>embalaje original en perfecto estado.</div>
+                                </div>
+                            </div>
+                            <script>
+                            function imprimirWebTicket() {{
+                                var ticketHTML = document.getElementById('ticket-web-impresion').innerHTML;
+                                var fullHTML = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0; padding:0; background-color:white;'>" + ticketHTML + "</body></html>";
+                                var htmlCodificado = encodeURIComponent(fullHTML);
+                                var backURL = encodeURIComponent(window.location.href);
+                                var iframe = document.createElement('iframe');
+                                iframe.style.display = 'none';
+                                iframe.src = "starpassprnt://v1/print/nopreview?back=" + backURL + "&html=" + htmlCodificado;
+                                document.body.appendChild(iframe);
+                            }}
+                            </script>
+                        </body></html>
+                        """
+                        components.html(html_t_web, height=550, scrolling=True)
+                        
+                        if st.button("❌ Cerrar vista del Ticket", use_container_width=True):
+                            st.session_state.ticket_web_generado = None
+                            st.rerun()
+                # --- FIN VISUALIZAR TICKET WEB RECIÉN GENERADO ---
+
                 mostrar_historial = st.toggle("👁️ Mostrar historial (Entregados / Cancelados)", value=False)
                 
                 try:
@@ -1014,16 +1102,16 @@ def render_pestana_crm(client):
                                                 st.write(f"**Total a cobrar:** {meta['total_final']:.2f}€")
                                                 
                                                 st.markdown("##### ➕ Añadir Sustituto")
-                                                res_prod = client.table("productos").select("id, nombre, precio, codigo_barras").eq("categoria", "Producto").execute()
+                                                res_prod = client.table("productos").select("id, nombre, precio_pvp, codigo_barras").eq("categoria", "Producto").execute()
                                                 if res_prod.data:
-                                                    opts = [""] + [f"{p['nombre']} - {p['precio']}€ ({p['codigo_barras']})" for p in res_prod.data]
+                                                    opts = [""] + [f"{p['nombre']} - {p['precio_pvp']}€ ({p['codigo_barras']})" for p in res_prod.data]
                                                     p_add = st.selectbox("Buscar producto", opts)
                                                     cant = st.number_input("Cantidad", min_value=1, value=1)
                                                     if st.button("Añadir al carrito"):
                                                         if p_add:
                                                             p_id = res_prod.data[opts.index(p_add)-1]['id']
                                                             p_name = res_prod.data[opts.index(p_add)-1]['nombre']
-                                                            p_precio = res_prod.data[opts.index(p_add)-1]['precio']
+                                                            p_precio = res_prod.data[opts.index(p_add)-1]['precio_pvp']
                                                             items.append({"id": p_id, "nombre": p_name, "precio": p_precio, "cantidad": cant, "sku": "", "igic": "0%"})
                                                             meta['items'] = items
                                                             nuevo_tot = sum(float(x['precio']) * int(x['cantidad']) for x in items)
@@ -1097,7 +1185,7 @@ def render_pestana_crm(client):
                                                             str_data = f"{pd.Timestamp.now('Atlantic/Canary').isoformat()}-{meta['total_final']}-{hash_ant}"
                                                             hash_act = hashlib.sha256(str_data.encode()).hexdigest()
                                                             
-                                                            client.table("ventas_historial").insert({
+                                                            res_venta_web = client.table("ventas_historial").insert({
                                                                 "fecha": fecha_str, "productos": meta['items'], "total": meta['total_final'],
                                                                 "pagado": 0, "pendiente": meta['total_final'], "metodo_pago": f"{meta['metodo_pago']} (WEB)",
                                                                 "cliente_deuda": r['nombre_cliente'], "puntos_ganados": meta['puntos_ganados'],
@@ -1105,6 +1193,32 @@ def render_pestana_crm(client):
                                                                 "hash_anterior": hash_ant, "hash_actual": hash_act, "estado": "Deuda",
                                                                 "cliente_vip_nombre": r['nombre_cliente']
                                                             }).execute()
+                                                            
+                                                            ticket_id = res_venta_web.data[0]['id'] if res_venta_web.data else "S/N"
+                                                            carrito_ticket = []
+                                                            for item in meta['items']:
+                                                                c = item.get('cantidad', 1)
+                                                                p = item.get('precio_unitario', 0)
+                                                                carrito_ticket.append({
+                                                                    "Cantidad": c,
+                                                                    "Producto": item.get('nombre', item.get('id', 'Producto Web')),
+                                                                    "Precio": float(p),
+                                                                    "Desc. %": 0,
+                                                                    "Subtotal": float(c * p)
+                                                                })
+                                                                
+                                                            st.session_state.ticket_web_generado = {
+                                                                "id": ticket_id,
+                                                                "fecha": fecha_str,
+                                                                "productos": carrito_ticket,
+                                                                "total": meta['total_final'],
+                                                                "pendiente": meta['total_final'],
+                                                                "metodo": f"{meta['metodo_pago']} (WEB)",
+                                                                "cliente_fidel": r['nombre_cliente'],
+                                                                "puntos_ganados": meta['puntos_ganados'],
+                                                                "telefono": r['telefono'],
+                                                                "nuevo_saldo": 0
+                                                            }
                                                             
                                                             # 2. Descontar Stock
                                                             for item in meta['items']:
@@ -1119,7 +1233,10 @@ def render_pestana_crm(client):
                                                                 cli_res = client.table("clientes").select("puntos").eq("id", meta['cliente_id']).execute()
                                                                 if cli_res.data:
                                                                     pts = cli_res.data[0]['puntos'] or 0
-                                                                    client.table("clientes").update({"puntos": pts - meta['puntos_usados'] + meta['puntos_ganados']}).eq("id", meta['cliente_id']).execute()
+                                                                    nuevo_saldo = pts - meta['puntos_usados'] + meta['puntos_ganados']
+                                                                    client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", meta['cliente_id']).execute()
+                                                                    if 'ticket_web_generado' in st.session_state:
+                                                                        st.session_state.ticket_web_generado['nuevo_saldo'] = nuevo_saldo
                                                                     
                                                             # 4. Servicio a Domicilio
                                                             if "(Domicilio)" in nuevo_est:

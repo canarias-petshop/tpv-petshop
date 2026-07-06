@@ -397,6 +397,18 @@ try:
 except:
     pass
 
+# --- ALERTA GLOBAL DE PEDIDOS MANUALES A PROVEEDORES ---
+try:
+    from proveedores import fetch_proveedores, get_alertas_manuales
+    res_provs = fetch_proveedores(client)
+    if res_provs.data:
+        alertas_pendientes = get_alertas_manuales(res_provs.data)["urgentes"]
+        if alertas_pendientes:
+            nombres_provs = ", ".join([a['proveedor'] for a in alertas_pendientes])
+            st.warning(f"⏰ **ALERTA DE PROVEEDORES:** Tienes {len(alertas_pendientes)} pedido(s) urgente(s) pendiente(s) de realizar ({nombres_provs}). Ve a 'Proveedores y Pedidos' para registrarlo(s).")
+except:
+    pass
+
 # --- DEFINICIÓN DINÁMICA DE PESTAÑAS SEGÚN ROL ---
 if st.session_state.rol == "Admin":
     nombres_pestanas = [

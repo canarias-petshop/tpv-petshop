@@ -1054,8 +1054,19 @@ def render_pestana_facturacion(client):
                                         }).eq("id", p['id']).execute()
                                         
                                         if not es_abono_archivo:
-                                            client.table("productos").update({"precio_base": float(p.get('Base Ud', 0)), "precio_pvp": float(p.get('PVP (€)', 0.0))}).eq("id", p['id']).execute()
-                                        
+                                            # Se actualizan todos los datos clave que el usuario pudo haber corregido en el borrador
+                                            upd_data = {
+                                                "precio_base": float(p.get('Base Ud', 0)), 
+                                                "precio_pvp": float(p.get('PVP (€)', 0.0))
+                                            }
+                                            if p.get('Descripción'):
+                                                upd_data["nombre"] = str(p.get('Descripción'))
+                                            if p.get('Ref/EAN'):
+                                                upd_data["codigo_barras"] = str(p.get('Ref/EAN'))
+                                            if p.get('IGIC %') is not None:
+                                                upd_data["igic_tipo"] = float(p.get('IGIC %', 0))
+                                                
+                                            client.table("productos").update(upd_data).eq("id", p['id']).execute()
                                         if not es_abono_archivo and c_data.get('proveedor_id'):
                                             res_link = client.table("productos_proveedores").select("id").eq("producto_id", p['id']).eq("proveedor_id", c_data['proveedor_id']).execute()
                                             if not res_link.data:

@@ -750,7 +750,7 @@ def render_pestana_tpv(client):
                 nombres_tarjetas = [f"Tarjeta ({b['nombre_banco']})" for b in lista_bancos] if lista_bancos else ["Tarjeta"]
                 
                 opciones_pago = ["Efectivo"] + nombres_tarjetas + ["Bizum", "Mixto"]
-                metodo = st.radio("p", opciones_pago, horizontal=True, label_visibility="collapsed")
+                metodo = st.radio("p", opciones_pago, horizontal=True, label_visibility="collapsed", index=None)
                 pagado_hoy = 0.0; pendiente = 0.0; metodo_log = metodo
                 p_efectivo = 0.0; p_tarjeta = 0.0; p_bizum = 0.0
 
@@ -758,7 +758,10 @@ def render_pestana_tpv(client):
                 banco_sel_id = None
                 banco_sel_saldo = 0.0
 
-                if metodo == "Efectivo":
+                if metodo is None:
+                    st.markdown(f"<h3 style='text-align: right; margin: 0; color: #d32f2f;'>Total a Cobrar: {total_f:.2f}€</h3>", unsafe_allow_html=True)
+                    st.info("👆 Por favor, selecciona una forma de pago para poder finalizar el cobro.")
+                elif metodo == "Efectivo":
                     c_tot, c_ent, c_cam = st.columns([0.8, 1, 1], vertical_alignment="bottom")
                     with c_tot: st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>TOTAL</p><h3 style='margin:0; color:#d32f2f;'>{total_f:.2f}€</h3>", unsafe_allow_html=True)
                     with c_ent: entregado = st.number_input("Entregado € (Intro)", min_value=0.0, value=float(total_f), format="%.2f", step=0.01)
@@ -833,7 +836,7 @@ def render_pestana_tpv(client):
                 st.markdown("<div style='height: 2px;'></div>", unsafe_allow_html=True)
                 c_cob, c_vac = st.columns([2, 1])
                 with c_cob:
-                    bloqueo = (pendiente > 0 and "Ninguno" in cliente_fidelidad)
+                    bloqueo = (pendiente > 0 and "Ninguno" in cliente_fidelidad) or (metodo is None)
                     if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
                         # --- PROTECCIÓN DOBLE CLIC BACKEND ---
                         import time

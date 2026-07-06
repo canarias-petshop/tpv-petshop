@@ -3,6 +3,83 @@ import pandas as pd
 import time
 import json
 import urllib.parse
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+import re
+
+def parsear_dias_reparto(texto):
+    if not texto: return []
+    texto = texto.lower()
+    if "demanda" in texto or "sin especificar" in texto: return []
+    dias = []
+    if "lunes a viernes" in texto: return [0, 1, 2, 3, 4]
+    if "lunes" in texto: dias.append(0)
+    if "martes" in texto: dias.append(1)
+    if "miercoles" in texto or "miércoles" in texto: dias.append(2)
+    if "jueves" in texto: dias.append(3)
+    if "viernes" in texto: dias.append(4)
+    if "sabado" in texto or "sábado" in texto: dias.append(5)
+    if "domingo" in texto: dias.append(6)
+    return dias
+
+def get_alertas_manuales(proveedores_data):
+    ahora = datetime.now(ZoneInfo("Atlantic/Canary"))
+    alertas = {"urgentes": [], "bajo_demanda": []}
+    
+    for p in proveedores_data:
+        freq = p.get('frecuencia_reparto', '')
+        dias_entrega = parsear_dias_reparto(freq)
+        
+        contacto = p.get('contacto', '')
+        ultimo_manual_dt = None
+        metodo_pedido = "Email"
+        if contacto and contacto.strip():
+            try:
+                data = json.loads(contacto)
+                if 'ultimo_manual' in data:
+                    ultimo_manual_dt = datetime.fromisoformat(data['ultimo_manual'])
+                    if ultimo_manual_dt.tzinfo is None:
+                        ultimo_manual_dt = ultimo_manual_dt.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
+                if 'metodo_pedido' in data:
+                    metodo_pedido = data['metodo_pedido']
+            except: pass
+
+        if not dias_entrega:
+            alertas["bajo_demanda"].append({
+                "id": p['id'], "proveedor": p.get('nombre_empresa', 'Desconocido'),
+                "corte_dt": None, "ultimo_manual": ultimo_manual_dt, "frecuencia": freq,
+                "metodo_pedido": metodo_pedido
+            })
+            continue
+            
+        hora_corte_str = p.get('hora_limite', '')
+        m = re.search(r'(\d{1,2})', str(hora_corte_str))
+        hora = 12
+        if m: hora = int(m.group(1))
+            
+        for i in range(1, 8):
+            dia_futuro = ahora + timedelta(days=i)
+            if dia_futuro.weekday() in dias_entrega:
+                dia_corte = dia_futuro - timedelta(days=1)
+                while dia_corte.weekday() > 4:
+                    dia_corte -= timedelta(days=1)
+                
+                corte_dt = dia_corte.replace(hour=hora, minute=0, second=0, microsecond=0)
+                
+                tiempo_hasta_corte = (corte_dt - ahora).total_seconds() / 3600
+                
+                # Show if within 30h of cutoff or up to 14h after cutoff
+                if -14 <= tiempo_hasta_corte <= 30:
+                    if ultimo_manual_dt and (ahora - ultimo_manual_dt).total_seconds() / 3600 < 48:
+                        break
+                    alertas["urgentes"].append({
+                        "id": p['id'], "proveedor": p.get('nombre_empresa', 'Desconocido'),
+                        "corte_dt": corte_dt, "ultimo_manual": ultimo_manual_dt,
+                        "metodo_pedido": metodo_pedido
+                    })
+                break
+    return alertas
+
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_proveedores(_client):
@@ -10,7 +87,7 @@ def fetch_proveedores(_client):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_pedidos_borrador_alertas(_client):
-    return _client.table("pedidos_proveedores").select("id, proveedores(nombre_empresa, email, frecuencia_reparto, hora_limite), productos").eq("estado", "Borrador").execute()
+    return _client.table("pedidos_proveedores").select("id, proveedores(nombre_empresa, email, movil, frecuencia_reparto, hora_limite, contacto), productos").eq("estado", "Borrador").execute()
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_productos_paginados(_client, offset):
@@ -74,7 +151,10 @@ def render_pestana_proveedores(client):
                 n_frec = st.text_input("Días de Reparto", placeholder="Ej: Todos los días, Los martes, Bajo demanda...", value="Bajo demanda", key=f"np_frec_{st.session_state.llave_n_prov}")
                 n_hora_input = st.time_input("Hora límite de pedido", value=None, key=f"np_hora_{st.session_state.llave_n_prov}")
                 n_hora = n_hora_input.strftime('%H:%M') if n_hora_input else "Sin límite"
-                n_min = st.number_input("Pedido Mínimo (€) para portes gratis", min_value=0.0, format="%.2f", step=0.01, key=f"np_min_{st.session_state.llave_n_prov}")
+                
+                c_np7, c_np8 = st.columns(2)
+                with c_np7: n_min = st.number_input("Pedido Mínimo (€) portes", min_value=0.0, format="%.2f", step=0.01, key=f"np_min_{st.session_state.llave_n_prov}")
+                with c_np8: n_metodo = st.selectbox("Método Pedido Preferido", ["Email", "WhatsApp", "Web/Plataforma B2B", "Llamada Telefónica", "Otro"], key=f"np_met_{st.session_state.llave_n_prov}")
                 
                 if st.form_submit_button("Guardar Proveedor", use_container_width=True, type="primary"):
                     if n_emp:
@@ -83,7 +163,8 @@ def render_pestana_proveedores(client):
                             "telefono": n_tel, "movil": n_mov, "email": n_ema,
                             "direccion": n_dir, "poblacion": n_pob, "pais": n_pais,
                             "frecuencia_reparto": n_frec, "hora_limite": n_hora,
-                            "pedido_minimo": float(n_min)
+                            "pedido_minimo": float(n_min),
+                            "contacto": json.dumps({"metodo_pedido": n_metodo})
                         }).execute()
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         st.session_state.llave_n_prov += 1
@@ -187,17 +268,30 @@ def render_pestana_proveedores(client):
                     with cf16: f_frec = st.text_input("Días de Envío", value=p_data.get('frecuencia_reparto','Bajo demanda'))
                     with cf17: f_hora = st.text_input("Hora de Corte", value=p_data.get('hora_limite','Sin límite'))
                     
+                    metodo_actual = "Email"
+                    contacto_json = {}
+                    if p_data.get('contacto') and str(p_data['contacto']).strip() and str(p_data['contacto']).strip() != "nan":
+                        try:
+                            contacto_json = json.loads(str(p_data['contacto']))
+                            metodo_actual = contacto_json.get("metodo_pedido", "Email")
+                        except: pass
+                        
                     st.markdown("**3. Facturación y Notas**")
-                    cf13, cf14, cf15, cf18 = st.columns([1, 1.5, 1, 1])
+                    cf13, cf14, cf15, cf18, cf19 = st.columns([1, 1.5, 1, 1, 1.5])
                     with cf13: f_fpago = st.text_input("Forma de Pago", value=p_data.get('forma_pago',''))
                     with cf14: f_iban = st.text_input("IBAN", value=p_data.get('iban',''))
                     with cf15: f_swift = st.text_input("SWIFT", value=p_data.get('swift',''))
-                    with cf18: f_min = st.number_input("Pedido Mínimo (€)", value=float(p_data.get('pedido_minimo', 0.0)), step=0.01, format="%.2f")
+                    with cf18: f_min = st.number_input("Pedido Mínimo (€)", value=float(p_data.get('pedido_minimo', 0.0) if pd.notna(p_data.get('pedido_minimo')) else 0.0), step=0.01, format="%.2f")
+                    with cf19: 
+                        opciones_metodo = ["Email", "WhatsApp", "Web/Plataforma B2B", "Llamada Telefónica", "Otro"]
+                        idx_met = opciones_metodo.index(metodo_actual) if metodo_actual in opciones_metodo else 0
+                        f_metodo = st.selectbox("Método Pedido", opciones_metodo, index=idx_met)
                     
                     f_not = st.text_area("Fax / Otras Notas / Observaciones", value=p_data.get('notas',''))
                     
                     if st.form_submit_button("💾 Guardar Ficha Completa", type="primary", use_container_width=True):
                         if f_nom:
+                            contacto_json["metodo_pedido"] = f_metodo
                             client.table("proveedores").update({
                                 "nombre_empresa": f_nom, "cif": f_cif, "persona_contacto": f_per,
                                 "telefono": f_tel, "movil": f_mov, "email": f_ema, "direccion": f_dir,
@@ -205,7 +299,7 @@ def render_pestana_proveedores(client):
                                 "pais": f_pais, "frecuencia_reparto": f_frec, "hora_limite": f_hora,
                                 "forma_pago": f_fpago, "iban": f_iban, "swift": f_swift, "notas": f_not,
                                 "pedido_minimo": float(f_min),
-                                "contacto": "" # Borramos la línea antigua ya que se ha organizado
+                                "contacto": json.dumps(contacto_json)
                             }).eq("id", p_id).execute()
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.success("Ficha del proveedor actualizada correctamente."); time.sleep(0.5); limpiar_cache_proveedores(); st.rerun()
@@ -213,7 +307,60 @@ def render_pestana_proveedores(client):
                             st.error("El nombre de la empresa es obligatorio.")
 
     with sub_pedidos:
-        st.markdown("####  Centro de Envíos (Alertas de Pedidos)")
+        st.markdown("#### ⏰ Alertas de Pedidos Manuales")
+        st.info("Recordatorios calculados automáticamente en base a los días de reparto y horas de corte de cada proveedor. No interfiere con los borradores automáticos.")
+        
+        res_provs_alertas = fetch_proveedores(client)
+        if res_provs_alertas.data:
+            alertas = get_alertas_manuales(res_provs_alertas.data)
+            
+            if alertas["urgentes"]:
+                for a in alertas["urgentes"]:
+                    corte_str = a['corte_dt'].strftime('%d/%m/%Y a las %H:%M')
+                    ult = a['ultimo_manual'].strftime('%d/%m/%Y %H:%M') if a['ultimo_manual'] else "Nunca registrado"
+                    
+                    st.error(f"⚠️ **{a['proveedor']}** (Vía: {a['metodo_pedido']}) - ⏳ Límite para pedir: **{corte_str}**")
+                    ca1, ca2 = st.columns([2, 1], vertical_alignment="center")
+                    with ca1:
+                        st.caption(f"Último pedido registrado: {ult}")
+                    with ca2:
+                        if st.button(f"✅ Marcar Pedido Realizado", key=f"btn_manual_urg_{a['id']}", use_container_width=True):
+                            nuevo_contacto = json.dumps({
+                                "ultimo_manual": datetime.now(ZoneInfo("Atlantic/Canary")).isoformat(),
+                                "metodo_pedido": a['metodo_pedido']
+                            })
+                            client.table("proveedores").update({"contacto": nuevo_contacto}).eq("id", a['id']).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            st.success("¡Registrado!")
+                            time.sleep(0.5)
+                            limpiar_cache_proveedores()
+                            st.rerun()
+            else:
+                st.success("✨ No hay alertas de pedidos manuales urgentes para hoy o mañana.")
+                
+            if alertas["bajo_demanda"]:
+                with st.expander("📦 Proveedores Bajo Demanda / Sin Día Fijo", expanded=False):
+                    for a in alertas["bajo_demanda"]:
+                        ult = a['ultimo_manual'].strftime('%d/%m/%Y %H:%M') if a['ultimo_manual'] else "Nunca registrado"
+                        col1, col2 = st.columns([2, 1], vertical_alignment="center")
+                        with col1:
+                            st.markdown(f"**{a['proveedor']}** (Vía: {a['metodo_pedido']}) - _{a['frecuencia']}_")
+                            st.caption(f"Último pedido registrado: {ult}")
+                        with col2:
+                            if st.button(f"✅ Registrar Pedido Libre", key=f"btn_manual_bd_{a['id']}", use_container_width=True):
+                                nuevo_contacto = json.dumps({
+                                    "ultimo_manual": datetime.now(ZoneInfo("Atlantic/Canary")).isoformat(),
+                                    "metodo_pedido": a['metodo_pedido']
+                                })
+                                client.table("proveedores").update({"contacto": nuevo_contacto}).eq("id", a['id']).execute()
+                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                st.success("¡Registrado!")
+                                time.sleep(0.5)
+                                limpiar_cache_proveedores()
+                                st.rerun()
+        st.markdown("---")
+
+        st.markdown("#### 📧 Centro de Envíos (Borradores Automáticos)")
         st.info("Revisa aquí rápidamente los borradores pendientes de enviar a tus proveedores y su hora de corte.")
         try:
             res_alertas = fetch_pedidos_borrador_alertas(client)
@@ -235,22 +382,39 @@ def render_pestana_proveedores(client):
                             texto_pedido += f"• {art.get('Cantidad', 1)} uds. - {art.get('Producto', '')}\n"
                     texto_pedido += "\nQuedamos a la espera de su confirmación y de la fecha estimada de entrega.\n\nAtentamente,\nEl equipo de Animalarium\nC/ José Hernández Alfonso, 26\n38009 S/C de Tenerife"
                     
-                    link_email = f"mailto:{email_prov}?subject=Pedido%20Animalarium&body={urllib.parse.quote(texto_pedido)}" if email_prov else None
+                    prov_contacto = prov_info.get('contacto', '')
+                    metodo_pedido = "Email"
+                    if prov_contacto and str(prov_contacto).strip() and str(prov_contacto).strip() != "nan":
+                        try:
+                            metodo_pedido = json.loads(str(prov_contacto)).get("metodo_pedido", "Email")
+                        except: pass
+                        
+                    movil_prov = str(prov_info.get('movil', '')).strip()
+
+                    link_envio = None
+                    if metodo_pedido == "WhatsApp" and movil_prov and movil_prov != "nan":
+                        num = re.sub(r'\D', '', movil_prov)
+                        if len(num) == 9 and (num.startswith('6') or num.startswith('7')): num = "34" + num
+                        link_envio = f"https://wa.me/{num}?text={urllib.parse.quote(texto_pedido)}"
+                    elif email_prov and str(email_prov) != "nan" and metodo_pedido != "Llamada Telefónica":
+                        link_envio = f"mailto:{email_prov}?subject=Pedido%20Animalarium&body={urllib.parse.quote(texto_pedido)}"
+                    elif metodo_pedido == "Llamada Telefónica" and movil_prov and movil_prov != "nan":
+                        link_envio = f"tel:{movil_prov}"
                         
                     alertas_list.append({
                         "Borrador Nº": p['id'],
-                        "Proveedor": nombre_prov,
+                        "Proveedor": f"{nombre_prov} ({metodo_pedido})",
                         "Días Envío": dias_rep,
                         "Hora Límite": hora_corte,
                         "Artículos": num_arts,
-                        "Acción Rápida": link_email
+                        "Acción Rápida": link_envio
                     })
                     
                 df_alertas_ped = pd.DataFrame(alertas_list)
                 st.warning(f"⚠️ Tienes **{len(alertas_list)}** borrador(es) pendiente(s) de revisar y enviar.")
                 st.dataframe(
                     df_alertas_ped, use_container_width=True, hide_index=True,
-                    column_config={"Acción Rápida": st.column_config.LinkColumn("✉️ Acción Automática", display_text="Generar Correo")}
+                    column_config={"Acción Rápida": st.column_config.LinkColumn("🚀 Enviar Pedido", display_text="Abrir Envío")}
                 )
             else:
                 st.success("✨ ¡Todo al día! No tienes borradores pendientes de enviar a proveedores.")

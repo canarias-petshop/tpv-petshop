@@ -8,14 +8,7 @@ from PIL import Image
 import shutil
 import google.generativeai as genai
 from postgrest import SyncPostgrestClient
-
-CARPETA_ENTRADA = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\FACTURAS DIGITALES\ZOOTECNIA\2026\04"
-CARPETA_PROCESADAS = os.path.join(CARPETA_ENTRADA, "Procesadas")
-CARPETA_ERRORES = os.path.join(CARPETA_ENTRADA, "Errores")
-
-for carpeta in [CARPETA_PROCESADAS, CARPETA_ERRORES]:
-    if not os.path.exists(carpeta):
-        os.makedirs(carpeta)
+import difflib
 
 # --- INICIALIZACIÓN DE SUPABASE Y GEMINI ---
 def init_clients():
@@ -58,13 +51,23 @@ def parse_float_ia(val):
 
 def procesar_lote():
     client = init_clients()
-    archivos = [f for f in os.listdir(CARPETA_ENTRADA) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.pdf'))]
+    ROOT_DIR = r"C:\Users\truji\OneDrive\Documentos\ANIMALARIUM\TPV ANIMALARIUM\CONTABILIDAD\FACTURAS DIGITALES"
     
-    if not archivos:
-        print(f"No hay facturas (PDF/Imagenes) en la carpeta '{CARPETA_ENTRADA}'.")
+    archivos_a_procesar = []
+    for root, dirs, files in os.walk(ROOT_DIR):
+        # Ignorar carpetas que ya son destinos finales
+        if "Procesadas" in root or "Errores" in root:
+            continue
+            
+        for file in files:
+            if file.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.pdf')):
+                archivos_a_procesar.append(os.path.join(root, file))
+    
+    if not archivos_a_procesar:
+        print(f"No hay facturas pendientes en '{ROOT_DIR}'.")
         return
 
-    print(f"Se han encontrado {len(archivos)} facturas para procesar.\n")
+    print(f"Se han encontrado {len(archivos_a_procesar)} facturas para procesar en total.\n")
     
     # Fetch current providers
     res_prov = client.table("proveedores").select("nombre_empresa").execute()
@@ -76,9 +79,9 @@ def procesar_lote():
     {{
       "numero_factura": "12345",
       "fecha_factura": "YYYY-MM-DD",
-      "nombre_proveedor": "Intenta emparejar con: [{provs_str}]. Si coincide, devuelve EXACTAMENTE el de la lista. Si es nuevo, tal cual.",
+      "nombre_proveedor": "OBLIGATORIO: busca el nombre del emisor de la factura en esta lista de proveedores registrados: [{provs_str}]. Si encuentras uno con nombre igual o muy parecido (aunque tenga puntos, comas o abreviaciones distintas), devuelve EXACTAMENTE el nombre de la lista, sin modificar ni una letra. Solo si el proveedor es completamente nuevo y no tiene ninguna similitud con ninguno de la lista, devuelve el nombre tal como aparece en la factura.",
       "articulos": [
-        {
+        {{
           "descripcion": "Nombre del articulo",
           "codigo_referencia_o_barras": "12345678",
           "cantidad": 1,
@@ -86,7 +89,7 @@ def procesar_lote():
           "igic_porcentaje": 7.0,
           "descuento_porcentaje": 0.0,
           "precio_pvp": 15.50
-        }
+        }}
       ]
     }}
     Si no encuentras un dato o IGIC, pon 0 o dejalo vacio ("").
@@ -94,9 +97,21 @@ def procesar_lote():
     
     modelo = genai.GenerativeModel('gemini-2.5-flash')
 
-    for archivo in archivos:
-        ruta_archivo = os.path.join(CARPETA_ENTRADA, archivo)
-        print(f"Procesando: {archivo} ...")
+    print("Cargando catálogo completo para búsqueda inteligente...")
+    res_all = client.table("productos").select("id, sku, nombre").execute()
+    todos_productos = res_all.data if res_all.data else []
+    nombres_productos = {p['nombre']: p for p in todos_productos}
+
+    for ruta_archivo in archivos_a_procesar:
+        carpeta_origen = os.path.dirname(ruta_archivo)
+        archivo = os.path.basename(ruta_archivo)
+        
+        carpeta_procesadas = os.path.join(carpeta_origen, "Procesadas")
+        carpeta_errores = os.path.join(carpeta_origen, "Errores")
+        if not os.path.exists(carpeta_procesadas): os.makedirs(carpeta_procesadas)
+        if not os.path.exists(carpeta_errores): os.makedirs(carpeta_errores)
+        
+        print(f"Procesando: {ruta_archivo} ...")
         
         try:
             # 1. Leer con Gemini
@@ -107,7 +122,20 @@ def procesar_lote():
                 img = Image.open(ruta_archivo)
                 payload = [prompt, img]
                 
-            response = modelo.generate_content(payload)
+            intentos = 0
+            while intentos < 2:
+                try:
+                    response = modelo.generate_content(payload)
+                    break
+                except Exception as ex:
+                    if "429" in str(ex):
+                        print("   Rate limit excedido (429). Esperando 10 segundos...")
+                        time.sleep(10)
+                        intentos += 1
+                    else:
+                        raise ex
+            if intentos == 2:
+                raise Exception("Se excedieron los reintentos por limite de cuota.")
             
             res_text = response.text.strip()
             if res_text.startswith("```json"): res_text = res_text[7:]
@@ -116,13 +144,32 @@ def procesar_lote():
             
             datos_ia = json.loads(res_text.strip())
             
-            # 2. Gestionar Proveedor (Crear si no existe)
+            # 2. Gestionar Proveedor — búsqueda en 2 niveles para evitar duplicados
             nombre_prov = datos_ia.get("nombre_proveedor", "Proveedor Desconocido").strip()
-            res_prov = client.table("proveedores").select("id").ilike("nombre_empresa", f"%{nombre_prov}%").execute()
             
+            # Cargar todos los proveedores actuales para comparación
+            todos_provs = client.table("proveedores").select("id, nombre_empresa").execute().data or []
+            
+            prov_id = None
+            
+            # NIVEL 1: Búsqueda exacta/parcial por texto (ilike)
+            res_prov = client.table("proveedores").select("id, nombre_empresa").ilike("nombre_empresa", f"%{nombre_prov}%").execute()
             if res_prov.data:
                 prov_id = res_prov.data[0]['id']
-            else:
+                print(f"   Proveedor encontrado (ilike): {res_prov.data[0]['nombre_empresa']}")
+            
+            # NIVEL 2: Si no se encontró, buscar por similitud fuzzy (>=80%)
+            if not prov_id:
+                nombres_existentes = [p['nombre_empresa'] for p in todos_provs]
+                coincidencias = difflib.get_close_matches(nombre_prov, nombres_existentes, n=1, cutoff=0.80)
+                if coincidencias:
+                    nombre_match = coincidencias[0]
+                    prov_match = next(p for p in todos_provs if p['nombre_empresa'] == nombre_match)
+                    prov_id = prov_match['id']
+                    print(f"   Proveedor encontrado (fuzzy 80%): '{nombre_prov}' -> '{nombre_match}'")
+            
+            # NIVEL 3: Si tampoco hay coincidencia, crear nuevo proveedor
+            if not prov_id:
                 print(f"   Creando nuevo proveedor: {nombre_prov}")
                 res_new_prov = client.table("proveedores").insert({"nombre_empresa": nombre_prov, "cif": ""}).execute()
                 prov_id = res_new_prov.data[0]['id']
@@ -133,6 +180,11 @@ def procesar_lote():
             
             for art in datos_ia.get("articulos", []):
                 desc = art.get("descripcion", "Articulo desconocido")
+                
+                # REGLA: Convertir "Amv" a "AMANOVA" para no duplicar en DB
+                if desc.upper().startswith("AMV "):
+                    desc = "AMANOVA" + desc[3:]
+
                 cant = int(parse_float_ia(art.get("cantidad", 1)) or 1)
                 p_base = parse_float_ia(art.get("precio_base", 0.0))
                 igic = parse_float_ia(art.get("igic_porcentaje", 0.0))
@@ -140,25 +192,25 @@ def procesar_lote():
                 pvp_ia = parse_float_ia(art.get("precio_pvp", 0.0))
                 ref_barras = art.get("codigo_referencia_o_barras", "")
 
-                # Buscar si el articulo ya existe en Inventario
-                res_prod = client.table("productos").select("id, sku, stock_actual, precio_pvp").ilike("nombre", f"%{desc.strip()}%").execute()
+                # Buscar si el articulo ya existe en Inventario (Alta Semejanza 88%)
+                coincidencias = difflib.get_close_matches(desc, nombres_productos.keys(), n=1, cutoff=0.88)
                 
-                if res_prod.data:
+                if coincidencias:
                     # EL ARTICULO EXISTE
-                    item = res_prod.data[0]
+                    item = nombres_productos[coincidencias[0]]
                     prod_id = item['id']
                     sku_final = item['sku']
                     
                     # VINCULAR A ESTE PROVEEDOR
                     res_link = client.table("productos_proveedores").select("id").eq("producto_id", prod_id).eq("proveedor_id", prov_id).execute()
                     if not res_link.data:
-                        print(f"   Vinculando articulo existente '{desc}' al proveedor '{nombre_prov}'.")
+                        print(f"   Vinculando articulo '{coincidencias[0]}' al proveedor '{nombre_prov}'.")
                         client.table("productos_proveedores").insert({"producto_id": prod_id, "proveedor_id": prov_id, "precio_coste": p_base}).execute()
                     else:
                         client.table("productos_proveedores").update({"precio_coste": p_base}).eq("producto_id", prod_id).eq("proveedor_id", prov_id).execute()
                 else:
                     # EL ARTICULO ES NUEVO (Crear)
-                    print(f"   Creando nuevo articulo en inventario: {desc}")
+                    print(f"   Creando nuevo articulo: {desc}")
                     sku_final = generar_sku(client, desc)
                     res_new = client.table("productos").insert({
                         "nombre": desc, "sku": sku_final, "codigo_barras": ref_barras,
@@ -192,24 +244,24 @@ def procesar_lote():
                     nuevo_total = float(fac_existente['total']) + total_compra
                     nuevo_pendiente = float(fac_existente['pendiente']) + total_compra
                     client.table("compras").update({"productos": prods_antiguos, "total": round(nuevo_total, 2), "pendiente": round(nuevo_pendiente, 2), "fecha_factura": fecha_fac}).eq("id", fac_existente['id']).execute()
-                    print(f"   Factura '{num_fac}' existente. Pagina adicional fusionada en Borrador.")
+                    print(f"   Factura '{num_fac}' existente. Pagina fusionada.")
                 else:
-                    print(f"   Factura '{num_fac}' ya esta validada y archivada. Saltando para evitar duplicados.")
+                    print(f"   Factura '{num_fac}' ya esta validada. Saltando.")
             else:
                 client.table("compras").insert({
                     "proveedor_id": prov_id, "total": round(total_compra, 2), "estado": "Borrador",
                     "tipo": f"Factura: {num_fac}", "fecha_vencimiento": fecha_fac, "fecha_factura": fecha_fac, "productos": productos_compra,
                     "pagado": 0.0, "pendiente": round(total_compra, 2)
                 }).execute()
-                print("   Procesada y guardada como nuevo Borrador con Fecha Factura.")
+                print("   Procesada y guardada como nuevo Borrador.")
 
             # 5. Mover a Procesadas
-            ruta_final_leida = os.path.join(CARPETA_PROCESADAS, archivo)
+            ruta_final_leida = os.path.join(carpeta_procesadas, archivo)
             shutil.move(ruta_archivo, ruta_final_leida)
             
         except Exception as e:
             print(f"   Error al procesar {archivo}: {e}")
-            shutil.move(ruta_archivo, os.path.join(CARPETA_ERRORES, archivo))
+            shutil.move(ruta_archivo, os.path.join(carpeta_errores, archivo))
 
 if __name__ == "__main__":
     procesar_lote()
