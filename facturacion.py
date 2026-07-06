@@ -457,6 +457,7 @@ def render_pestana_facturacion(client):
                                 
                                 # Volcar artículos a la tabla
                                 st.session_state.compra_temp = []
+                                skus_generados_temporales = {}
                                 for art in datos_ia.get("articulos", []):
                                     desc = art.get("descripcion", "Artículo desconocido")
                                     cant = int(parse_float_ia(art.get("cantidad", 1)) or 1)
@@ -493,15 +494,20 @@ def render_pestana_facturacion(client):
                                         letras = ''.join([c for c in desc if c.isalpha()]).upper()
                                         prefijo = letras[:2] if len(letras) >= 2 else (letras + "X" if letras else "XX")
                                         
-                                        res_sku = get_prod_sku_like_fac(client, prefijo)
-                                        max_num = 0
-                                        if res_sku.data:
-                                            for s in res_sku.data:
-                                                try:
-                                                    num = int(s['sku'].split("-")[1])
-                                                    if num > max_num: max_num = num
-                                                except: pass
+                                        if prefijo in skus_generados_temporales:
+                                            max_num = skus_generados_temporales[prefijo]
+                                        else:
+                                            res_sku = get_prod_sku_like_fac(client, prefijo)
+                                            max_num = 0
+                                            if res_sku.data:
+                                                for s in res_sku.data:
+                                                    try:
+                                                        num = int(s['sku'].split("-")[1])
+                                                        if num > max_num: max_num = num
+                                                    except: pass
+                                        
                                         nuevo_sku = f"{prefijo}-{max_num + 1:03d}"
+                                        skus_generados_temporales[prefijo] = max_num + 1
                                         
                                         res_new = client.table("productos").insert({
                                             "nombre": desc, "sku": nuevo_sku, "codigo_barras": ref_barras,
