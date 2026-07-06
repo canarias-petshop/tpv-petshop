@@ -3,6 +3,8 @@ import pandas as pd
 import time
 from datetime import date
 import urllib.parse
+import base64
+import streamlit.components.v1 as components
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_empleados_crm(_client):
@@ -858,10 +860,6 @@ def render_pestana_crm(client):
                 if t_web:
                     with st.expander(f"🎉 TICKET GENERADO #{t_web['id']} PARA {t_web['cliente_fidel']} (WEB)", expanded=True):
                         st.success(f"Venta web confirmada exitosamente. ID de Ticket: {t_web['id']}")
-                        
-                        import base64
-                        import urllib.parse
-                        import streamlit.components.v1 as components
                         
                         logo_html = ""
                         try:
