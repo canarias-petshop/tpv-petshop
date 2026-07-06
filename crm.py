@@ -908,6 +908,7 @@ def render_pestana_crm(client):
                         if t_web.get('pendiente', 0) > 0:
                             html_t_web += f"""<div style="text-align: right; font-size: 18px; color: black; margin-top: 5px; border: 2px solid black; padding: 3px;"><b>DEUDA PENDIENTE: {t_web['pendiente']:.2f}€</b></div>"""
 
+                        html_t_web += f"""
                                     <div style="text-align: right; font-size: 22px;"><b>TOTAL: {t_web['total']:.2f}€</b></div>
                                     <div style="font-size: 16px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {t_web['metodo']}</div>
                         """
