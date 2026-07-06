@@ -500,7 +500,7 @@ def render_pestana_contabilidad(client):
         
         c_f0_arc, c_f1_arc, c_f2_arc = st.columns(3)
         with c_f0_arc:
-            preset_arc = st.selectbox("📅 Filtro rápido:", ["Esta semana", "Este mes", "Trimestre Actual", "Todo el año", "Personalizado"], index=1, key="preset_arc")
+            preset_arc = st.selectbox("📅 Filtro rápido:", ["Esta semana", "Este mes", "1º Trimestre", "2º Trimestre", "3º Trimestre", "4º Trimestre", "Trimestre Actual", "Todo el año", "Personalizado"], index=1, key="preset_arc")
         
         hoy = pd.Timestamp.now('Atlantic/Canary').date()
         if preset_arc == "Esta semana":
@@ -509,6 +509,18 @@ def render_pestana_contabilidad(client):
         elif preset_arc == "Este mes":
             f_ini_arc_val = hoy.replace(day=1)
             f_fin_arc_val = hoy
+        elif preset_arc == "1º Trimestre":
+            f_ini_arc_val = date(hoy.year, 1, 1)
+            f_fin_arc_val = date(hoy.year, 3, 31)
+        elif preset_arc == "2º Trimestre":
+            f_ini_arc_val = date(hoy.year, 4, 1)
+            f_fin_arc_val = date(hoy.year, 6, 30)
+        elif preset_arc == "3º Trimestre":
+            f_ini_arc_val = date(hoy.year, 7, 1)
+            f_fin_arc_val = date(hoy.year, 9, 30)
+        elif preset_arc == "4º Trimestre":
+            f_ini_arc_val = date(hoy.year, 10, 1)
+            f_fin_arc_val = date(hoy.year, 12, 31)
         elif preset_arc == "Trimestre Actual":
             f_ini_arc_val = hoy.replace(month=((hoy.month-1)//3)*3+1, day=1)
             f_fin_arc_val = hoy
@@ -615,7 +627,7 @@ def render_pestana_contabilidad(client):
         
         c_inf_pres, c_inf1, c_inf2 = st.columns(3)
         with c_inf_pres:
-            preset_inf = st.selectbox("📅 Filtro rápido:", ["Esta semana", "Este mes", "Trimestre Actual", "Todo el año", "Personalizado"], index=1, key="preset_inf")
+            preset_inf = st.selectbox("📅 Filtro rápido:", ["Esta semana", "Este mes", "1º Trimestre", "2º Trimestre", "3º Trimestre", "4º Trimestre", "Trimestre Actual", "Todo el año", "Personalizado"], index=1, key="preset_inf")
         
         hoy = pd.Timestamp.now('Atlantic/Canary').date()
         if preset_inf == "Esta semana":
@@ -624,6 +636,18 @@ def render_pestana_contabilidad(client):
         elif preset_inf == "Este mes":
             f_ini_val = hoy.replace(day=1)
             f_fin_val = hoy
+        elif preset_inf == "1º Trimestre":
+            f_ini_val = date(hoy.year, 1, 1)
+            f_fin_val = date(hoy.year, 3, 31)
+        elif preset_inf == "2º Trimestre":
+            f_ini_val = date(hoy.year, 4, 1)
+            f_fin_val = date(hoy.year, 6, 30)
+        elif preset_inf == "3º Trimestre":
+            f_ini_val = date(hoy.year, 7, 1)
+            f_fin_val = date(hoy.year, 9, 30)
+        elif preset_inf == "4º Trimestre":
+            f_ini_val = date(hoy.year, 10, 1)
+            f_fin_val = date(hoy.year, 12, 31)
         elif preset_inf == "Trimestre Actual":
             f_ini_val = hoy.replace(month=((hoy.month-1)//3)*3+1, day=1)
             f_fin_val = hoy
