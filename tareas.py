@@ -132,11 +132,11 @@ def render_pestana_tareas(client):
     opciones_asignacion = opciones_rol + [f"👤 {e['nombre']}" for e in empleados]
 
     if is_admin:
-        tabs = st.tabs([" 1. Calendario General", "👤 2. Mi Ficha de Trabajo", "⚙️ 3. Gestión y Dueños"])
-        tab_general, tab_individual, tab_admin = tabs
+        tabs = st.tabs([" 1. Calendario General", "👤 2. Mi Ficha de Trabajo", "📝 3. Notas Internas", "⚙️ 4. Gestión y Dueños"])
+        tab_general, tab_individual, tab_notas, tab_admin = tabs
     else:
-        tabs = st.tabs([" 1. Calendario General", "👤 2. Mi Ficha de Trabajo"])
-        tab_general, tab_individual = tabs[0], tabs[1]
+        tabs = st.tabs([" 1. Calendario General", "👤 2. Mi Ficha de Trabajo", "📝 3. Notas Internas"])
+        tab_general, tab_individual, tab_notas = tabs
         tab_admin = None
         
     with tab_general:
@@ -295,6 +295,97 @@ def render_pestana_tareas(client):
                 st.success(f"🎉 ¡Genial, {mi_nombre}! No tienes tareas pendientes asignadas para hoy.")
         except Exception as e:
             st.error(f"Error cargando tareas individuales: {e}")
+
+    with tab_notas:
+        st.markdown("#### 📝 Notas y Avisos Internos")
+        st.info("Tablón colaborativo para dejar notas a otros compañeros o apuntes generales.")
+        
+        nombres_empleados = [e['nombre'] for e in empleados]
+        opciones_personas = ["Administración", "Todos los empleados"] + nombres_empleados
+        autor_defecto = "Administración" if is_admin else (nombres_empleados[0] if nombres_empleados else "Administración")
+            
+        with st.expander("➕ Escribir Nueva Nota", expanded=False):
+            with st.form(f"form_nueva_nota_{st.session_state.get('db_version', 0)}"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    autor_nota = st.selectbox("Autor (Quién escribe):", opciones_personas, index=opciones_personas.index(autor_defecto) if autor_defecto in opciones_personas else 0)
+                    destinatario_nota = st.selectbox("Destinatario (Para quién):", opciones_personas, index=1)
+                with c2:
+                    asunto_nota = st.text_input("Asunto / Título *")
+                    urgencia_nota = st.selectbox("Urgencia:", ["Normal", "Importante", "Urgente"])
+                
+                contenido_nota = st.text_area("Contenido de la nota *")
+                
+                if st.form_submit_button("Enviar Nota", type="primary"):
+                    if asunto_nota and contenido_nota:
+                        try:
+                            client.table("notas_internas").insert({
+                                "autor": autor_nota,
+                                "destinatario": destinatario_nota,
+                                "asunto": asunto_nota,
+                                "contenido": contenido_nota,
+                                "urgencia": urgencia_nota,
+                                "estado": "Pendiente"
+                            }).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            st.success("Nota enviada correctamente.")
+                            time.sleep(0.8)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al enviar la nota: {e}\n(Asegúrate de haber creado la tabla notas_internas en Supabase)")
+                    else:
+                        st.warning("El Asunto y el Contenido son obligatorios.")
+                        
+        st.markdown("---")
+        c_filtro1, c_filtro2 = st.columns(2)
+        with c_filtro1:
+            filtro_destinatario = st.selectbox("Ver notas para:", ["Todos"] + opciones_personas)
+        with c_filtro2:
+            filtro_estado = st.selectbox("Estado de las notas:", ["Pendientes", "Resueltas/Archivadas", "Todas"])
+            
+        try:
+            query = client.table("notas_internas").select("*").order("created_at", desc=True)
+            if filtro_estado == "Pendientes":
+                query = query.eq("estado", "Pendiente")
+            elif filtro_estado == "Resueltas/Archivadas":
+                query = query.eq("estado", "Resuelta")
+                
+            res_notas = query.execute()
+            notas_data = res_notas.data
+            
+            if filtro_destinatario != "Todos":
+                notas_data = [n for n in notas_data if n['destinatario'] == filtro_destinatario or n['destinatario'] == "Todos los empleados" or n['autor'] == filtro_destinatario]
+                
+            if not notas_data:
+                st.info("No hay notas que coincidan con estos filtros.")
+            else:
+                for n in notas_data:
+                    color_urg = "#4caf50" if n['urgencia'] == 'Normal' else ("#ff9800" if n['urgencia'] == 'Importante' else "#f44336")
+                    bg_color = "#fff" if n['estado'] == 'Pendiente' else "#f5f5f5"
+                    
+                    st.markdown(f'''
+                    <div style="border: 1px solid #ddd; border-left: 5px solid {color_urg}; border-radius: 5px; padding: 15px; margin-bottom: 10px; background-color: {bg_color};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h5 style="margin: 0; color: #333; font-size: 1.1rem;">{n['asunto']}</h5>
+                            <span style="font-size: 0.8rem; background-color: {color_urg}; color: white; padding: 3px 8px; border-radius: 12px; font-weight: bold;">{n['urgencia']}</span>
+                        </div>
+                        <div style="font-size: 0.9rem; color: #666; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed #eee;">
+                            <b>De:</b> {n['autor']} &nbsp;|&nbsp; <b>Para:</b> {n['destinatario']} &nbsp;|&nbsp; <b>Fecha:</b> {str(n['created_at'])[:16].replace('T', ' ')}
+                        </div>
+                        <div style="font-size: 1rem; color: #444; white-space: pre-wrap; margin-bottom: 10px; line-height: 1.4;">{n['contenido']}</div>
+                    </div>
+                    ''', unsafe_allow_html=True)
+                    
+                    if n['estado'] == 'Pendiente':
+                        if st.button(f"✅ Marcar como Resuelta / Leída", key=f"res_nota_{n['id']}_{st.session_state.get('db_version', 0)}"):
+                            client.table("notas_internas").update({"estado": "Resuelta"}).eq("id", n['id']).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            st.rerun()
+                            
+        except Exception as e:
+            st.warning(f"Aún no hay notas registradas o falta crear la tabla `notas_internas`. (Aviso interno: {e})")
+
+
 
     if tab_admin:
         with tab_admin:

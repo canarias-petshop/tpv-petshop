@@ -896,12 +896,18 @@ def render_pestana_crm(client):
                                     <table style="width: 100%; font-size: 16px; text-align: left; font-weight: bold;">
                         """
                         for p in t_web['productos']:
-                            html_t_web += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}</td><td style='text-align: right; padding-bottom: 5px;'>{p['Subtotal']:.2f}€</td></tr>"
+                            html_t_web += f"<tr><td style='padding-bottom: 5px;'>{p['Cantidad']}x {p['Producto']}<br><span style='font-size: 13px; font-weight: normal;'>A {p['Precio']:.2f}€/ud</span></td><td style='text-align: right; padding-bottom: 5px; vertical-align: top;'>{p['Subtotal']:.2f}€</td></tr>"
                         
                         html_t_web += f"""
                                     </table>
                                     <hr style="border-top: 2px dashed #000; margin: 10px 0px;">
-                                    <div style="text-align: right; font-size: 18px; color: black; margin-top: 5px; border: 2px solid black; padding: 3px;"><b>DEUDA PENDIENTE: {t_web['pendiente']:.2f}€</b></div>
+                        """
+                        if t_web.get('descuento_global', 0) > 0:
+                            html_t_web += f"<div style='text-align: right; font-size: 16px; color: #d32f2f;'><b>DTO. 1ERA COMPRA: -{t_web['descuento_global']:.2f}€</b></div>"
+                            
+                        if t_web.get('pendiente', 0) > 0:
+                            html_t_web += f"""<div style="text-align: right; font-size: 18px; color: black; margin-top: 5px; border: 2px solid black; padding: 3px;"><b>DEUDA PENDIENTE: {t_web['pendiente']:.2f}€</b></div>"""
+
                                     <div style="text-align: right; font-size: 22px;"><b>TOTAL: {t_web['total']:.2f}€</b></div>
                                     <div style="font-size: 16px; text-align: left; margin-top: 10px;"><b>Método de pago:</b> {t_web['metodo']}</div>
                         """
@@ -1183,12 +1189,19 @@ def render_pestana_crm(client):
                                                             str_data = f"{pd.Timestamp.now('Atlantic/Canary').isoformat()}-{meta['total_final']}-{hash_ant}"
                                                             hash_act = hashlib.sha256(str_data.encode()).hexdigest()
                                                             
+                                                            # Si el encargo se pasa a Confirmado, se asume pagado
+                                                            es_pagado = "(Domicilio)" in nuevo_est or "(Recogida local)" in nuevo_est
+                                                            estado_venta = "Completado" if es_pagado else "Deuda"
+                                                            pagado_val = meta['total_final'] if es_pagado else 0
+                                                            pendiente_val = 0 if es_pagado else meta['total_final']
+                                                            descuento_primera = meta.get('descuento_primera_compra', 0)
+                                                            
                                                             res_venta_web = client.table("ventas_historial").insert({
                                                                 "fecha": fecha_str, "productos": meta['items'], "total": meta['total_final'],
-                                                                "pagado": 0, "pendiente": meta['total_final'], "metodo_pago": f"{meta['metodo_pago']} (WEB)",
-                                                                "cliente_deuda": r['nombre_cliente'], "puntos_ganados": meta['puntos_ganados'],
-                                                                "puntos_usados": meta['puntos_usados'], "descuento_global": 0,
-                                                                "hash_anterior": hash_ant, "hash_actual": hash_act, "estado": "Deuda",
+                                                                "pagado": pagado_val, "pendiente": pendiente_val, "metodo_pago": f"{meta['metodo_pago']} (WEB)",
+                                                                "cliente_deuda": r['nombre_cliente'] if not es_pagado else "", "puntos_ganados": meta['puntos_ganados'],
+                                                                "puntos_usados": meta['puntos_usados'], "descuento_global": descuento_primera,
+                                                                "hash_anterior": hash_ant, "hash_actual": hash_act, "estado": estado_venta,
                                                                 "cliente_vip_nombre": r['nombre_cliente']
                                                             }).execute()
                                                             
@@ -1205,12 +1218,22 @@ def render_pestana_crm(client):
                                                                     "Subtotal": float(c * p)
                                                                 })
                                                                 
+                                                            if descuento_primera > 0:
+                                                                carrito_ticket.append({
+                                                                    "Cantidad": 1,
+                                                                    "Producto": "DTO. 1ERA COMPRA WEB (10%)",
+                                                                    "Precio": -float(descuento_primera),
+                                                                    "Desc. %": 0,
+                                                                    "Subtotal": -float(descuento_primera)
+                                                                })
+                                                                
                                                             st.session_state.ticket_web_generado = {
                                                                 "id": ticket_id,
                                                                 "fecha": fecha_str,
                                                                 "productos": carrito_ticket,
                                                                 "total": meta['total_final'],
-                                                                "pendiente": meta['total_final'],
+                                                                "pendiente": pendiente_val,
+                                                                "descuento_global": descuento_primera,
                                                                 "metodo": f"{meta['metodo_pago']} (WEB)",
                                                                 "cliente_fidel": r['nombre_cliente'],
                                                                 "puntos_ganados": meta['puntos_ganados'],
