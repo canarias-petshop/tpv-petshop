@@ -11,7 +11,7 @@ def get_inv_fac(_client, v):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("productos").select("id, sku, nombre, precio_base, igic_tipo, precio_pvp, stock_actual").range(_off, _off + 999).execute()
+        _r = _client.table("productos").select("id, sku, nombre, precio_base, igic_tipo, precio_pvp, stock_actual, codigo_barras").range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
@@ -469,14 +469,45 @@ def render_pestana_facturacion(client):
                                     lote = art.get("lote", "")
                                     cad = art.get("fecha_caducidad")
                                     
-                                    # Intentar cruzar con Inventario
-                                    if not df_inv.empty: match = df_inv[df_inv['nombre'].astype(str).str.lower() == desc.lower()]
-                                    if not df_inv.empty: 
-                                        term = desc.lower().strip()
-                                        match = df_inv[df_inv['nombre'].astype(str).str.lower() == term]
+                                    # Intentar cruzar con Inventario de forma inteligente
+                                    match = pd.DataFrame()
+                                    if not df_inv.empty:
+                                        # 1. Por Referencia/Código de barras exacto (Prioridad Máxima)
+                                        if ref_barras:
+                                            ref_str = str(ref_barras).strip().lower()
+                                            mask_barras = (df_inv['sku'].astype(str).str.strip().str.lower() == ref_str) | (df_inv['codigo_barras'].astype(str).str.strip().str.lower() == ref_str)
+                                            match = df_inv[mask_barras]
+                                            
+                                        # 2. Coincidencias por Nombre
                                         if match.empty:
-                                            match = df_inv[df_inv['nombre'].astype(str).str.lower().str.contains(term, regex=False, na=False)]
-                                    else: match = pd.DataFrame()
+                                            term = desc.lower().strip()
+                                            # 2.1 Exacta
+                                            match = df_inv[df_inv['nombre'].astype(str).str.lower() == term]
+                                            
+                                            # 2.2 Inventario contiene Factura
+                                            if match.empty:
+                                                match = df_inv[df_inv['nombre'].astype(str).str.lower().str.contains(term, regex=False, na=False)]
+                                                
+                                            # 2.3 Factura contiene Inventario (ej: Factura dice "Pienso Perro 7kg X2" e Inventario "Pienso Perro 7kg")
+                                            if match.empty:
+                                                inv_names = df_inv['nombre'].astype(str).str.lower()
+                                                mask_inv = inv_names.apply(lambda x: x in term if len(x)>5 else False)
+                                                match = df_inv[mask_inv]
+                                                
+                                            # 2.4 Fuzzy Keyword Match (si coinciden más del 70% de las palabras clave)
+                                            if match.empty:
+                                                palabras_fac = set([p for p in term.replace(',', ' ').replace('.', ' ').replace('-', ' ').split() if len(p) > 2 or p.isdigit()])
+                                                if palabras_fac:
+                                                    mejor_pt = 0; mejor_idx = None
+                                                    for idx, row in df_inv.iterrows():
+                                                        nom_inv = str(row['nombre']).lower()
+                                                        palabras_inv = set([p for p in nom_inv.replace(',', ' ').replace('.', ' ').replace('-', ' ').split() if len(p) > 2 or p.isdigit()])
+                                                        if not palabras_inv: continue
+                                                        pt = len(palabras_fac.intersection(palabras_inv)) / len(palabras_fac)
+                                                        if pt > mejor_pt and pt >= 0.7:
+                                                            mejor_pt = pt; mejor_idx = idx
+                                                    if mejor_idx is not None:
+                                                        match = df_inv.loc[[mejor_idx]]
                                         
                                     if not match.empty:
                                         item = match.iloc[0]
