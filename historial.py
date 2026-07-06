@@ -335,8 +335,17 @@ def render_pestana_historial(client):
                             if p.get('__meta__'):
                                 vale_aplicado_meta = p.get('vale_aplicado')
                                 desc_vale_eur_meta = float(p.get('desc_vale_eur', 0.0))
-                            elif p.get('Producto') and str(p.get('Producto')).strip() != "" and p.get('Subtotal') is not None:
-                                prods.append(p)
+                            else:
+                                # Normalizar formato WEB ('nombre', 'cantidad', 'precio') a formato TPV ('Producto', 'Cantidad', 'Subtotal')
+                                if 'Producto' not in p and 'nombre' in p:
+                                    p['Producto'] = p['nombre']
+                                if 'Cantidad' not in p and 'cantidad' in p:
+                                    p['Cantidad'] = p['cantidad']
+                                if 'Subtotal' not in p and 'precio' in p:
+                                    p['Subtotal'] = float(p['precio']) * float(p.get('Cantidad', 1))
+                                    
+                                if p.get('Producto') and str(p.get('Producto')).strip() != "" and p.get('Subtotal') is not None:
+                                    prods.append(p)
 
                 if prods:
                     df_prods = pd.DataFrame(prods)
