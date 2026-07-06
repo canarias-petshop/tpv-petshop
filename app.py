@@ -289,6 +289,8 @@ if bloqueo:
                         # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
                         res_ult = client.table("personal_fichajes").select("*").eq("empleado_id", bloqueo['emp_id']).eq("fecha", bloqueo['hora'].date().isoformat()).order("id", desc=True).limit(1).execute()
                         if res_ult.data:
+                            bloquear_fichaje = False
+                            m_diff = 0
                             str_h = res_ult.data[0].get('hora_salida') or res_ult.data[0].get('hora_entrada')
                             if str_h:
                                 try:
@@ -335,6 +337,8 @@ if bloqueo:
                         # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
                         res_ult = client.table("personal_fichajes").select("*").eq("empleado_id", bloqueo['emp_id']).eq("fecha", bloqueo['hora'].date().isoformat()).order("id", desc=True).limit(1).execute()
                         if res_ult.data:
+                            bloquear_fichaje = False
+                            m_diff = 0
                             str_h = res_ult.data[0].get('hora_salida') or res_ult.data[0].get('hora_entrada')
                             if str_h:
                                 try:
