@@ -361,13 +361,13 @@ def render_pestana_facturacion(client):
                                 3. Extrae exactamente las cantidades y precios unitarios. NO pongas descuentos si no vienen indicados en el papel claramente.
                                 4. El 'precio_base' debe ser estrictamente el precio unitario SIN impuestos. El 'igic_porcentaje' debe ser el % de IGIC aplicado a esa línea (ej: 3.0, 7.0).
                                 5. Devuelve los datos ESTRICTAMENTE en este formato JSON, sin texto adicional ni markdown:
-                                {
+                                {{
                                   "numero_factura": "12345",
                                   "fecha_factura": "YYYY-MM-DD",
                                   "nombre_proveedor": "Nombre de la Empresa (Busca en logotipos, emails o webs impresas si no hay texto claro)",
                                   "descuento_pronto_pago_porcentaje": 0.0,
                                   "articulos": [
-                                    {
+                                    {{
                                       "descripcion": "Nombre EXACTO del articulo tal cual aparece",
                                       "codigo_referencia_o_barras": "12345678",
                                       "cantidad": 1,
@@ -377,9 +377,9 @@ def render_pestana_facturacion(client):
                                       "precio_pvp": 15.50,
                                       "lote": "L-1234",
                                       "fecha_caducidad": "YYYY-MM-DD"
-                                    }
+                                    }}
                                   ]
-                                }
+                                }}
                                 Si no encuentras un dato o IGIC, pon 0 o déjalo vacío (""). Si no hay caducidad explícita, usa null.
                                 """
                                 
