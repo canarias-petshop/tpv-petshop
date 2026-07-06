@@ -44,7 +44,6 @@ def get_last_hash_fac(_client):
 def get_prod_stock_fac(_client, id_prod):
     return _client.table("productos").select("stock_actual").eq("id", id_prod).execute()
 
-@st.cache_data(show_spinner=False, ttl=300)
 def get_prod_sku_like_fac(_client, prefijo):
     return _client.table("productos").select("sku").like("sku", f"{prefijo}-%").execute()
 
@@ -94,7 +93,6 @@ def limpiar_cache_facturacion():
     get_prov_fac.clear()
     get_last_hash_fac.clear()
     get_prod_stock_fac.clear()
-    get_prod_sku_like_fac.clear()
     get_compras_dup_fac.clear()
     get_pedidos_pendientes_fac.clear()
     get_pedido_prod_fac.clear()
