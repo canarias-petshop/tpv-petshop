@@ -68,8 +68,9 @@ def get_alertas_manuales(proveedores_data):
                 
                 tiempo_hasta_corte = (corte_dt - ahora).total_seconds() / 3600
                 
-                # Show if within 30h of cutoff or up to 14h after cutoff
-                if -14 <= tiempo_hasta_corte <= 30:
+                # Solo mostrar el mismo día del corte O la tarde anterior (<= 16h antes)
+                # Se mantiene visible hasta 14h después si se te pasó
+                if ahora.date() == corte_dt.date() or (-14 <= tiempo_hasta_corte <= 16):
                     if ultimo_manual_dt and (ahora - ultimo_manual_dt).total_seconds() / 3600 < 48:
                         break
                     alertas["urgentes"].append({
