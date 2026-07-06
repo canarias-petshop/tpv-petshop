@@ -15,6 +15,7 @@ class PostgrestResult:
     def __init__(self, data):
         self.data = data
 
+@st.cache_data(show_spinner=False, ttl=300)
 def fetch_ventas_historial_por_id_h(_client, b_ticket):
     return _client.table("ventas_historial").select("*").eq("id", b_ticket).execute()
 
