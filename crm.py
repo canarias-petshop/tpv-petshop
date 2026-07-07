@@ -997,12 +997,41 @@ def render_pestana_crm(client):
                                     if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
                                     
                                     if row.get('origen') == 'Web':
+                                        
+                                        # Extraer metadata para obtener el método de pago y el total
+                                        metodo_pago = "Tarjeta"
+                                        total_str = ""
+                                        detalles_web = str(row.get('detalle_pedido', ''))
+                                        
+                                        import json
+                                        if "[---METADATA---]" in notas_texto:
+                                            try:
+                                                meta_str = notas_texto.split("[---METADATA---]")[1].split("[---/METADATA---]")[0]
+                                                meta = json.loads(meta_str)
+                                                if meta.get('metodo_pago'):
+                                                    metodo_pago = meta.get('metodo_pago')
+                                                if meta.get('total_final'):
+                                                    total_str = f"{meta.get('total_final'):.2f}€"
+                                                # Opcional: Reconstruir detalle por si se editó y se quiere mostrar de forma más limpia
+                                                if meta.get('items'):
+                                                    detalles_web = "\n".join([f"• {x['cantidad']}x {x['nombre']}" for x in meta['items']])
+                                            except: pass
+                                            
+                                        if not total_str:
+                                            total_str = "(Ver enlace)"
+                                            
                                         if estado_actual == 'Avisado sin stock':
                                             mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium sobre tu pedido web. Lamentablemente, nos falta stock de ({row['detalle_pedido']}). ¿Te interesaría cambiarlo por alguna de estas opciones similares que sí tenemos? [ELIMINA ESTO Y ESCRIBE AQUÍ LAS OPCIONES]"
                                         elif estado_actual == 'Aviso de servicio a domicilio con enlace de pago':
-                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Todo listo. Puedes revisar tu pedido final y pagarlo con Tarjeta o Bizum aquí: https://animalariumtenerife.es/pago/{row['id']}"
+                                            if "Bizum" in metodo_pago:
+                                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Todo listo para tu envío a domicilio. Tu pedido es:\n{detalles_web}\n\n*Total a pagar: {total_str}*\n\nPor favor, realiza el Bizum a nuestro número indicando tu nombre. En cuanto lo recibamos, prepararemos tu paquete para la entrega."
+                                            else:
+                                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Todo listo para tu envío a domicilio. Tu pedido es:\n{detalles_web}\n\n*Total a pagar: {total_str}*\n\nPuedes revisar tu pedido final y pagarlo de forma 100% segura con tu tarjeta aquí: https://animalariumtenerife.es/pago/{row['id']}"
                                         elif estado_actual == 'Aviso de recogida local con enlace de pago':
-                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Todo listo. Por favor, realiza el pago seguro aquí: https://animalariumtenerife.es/pago/{row['id']}. Podrás recogerlo en nuestro local en horario de 9:00 a 21:00 ininterrumpido. Te confirmaremos por esta vía en un plazo de 24 a 48 horas en cuanto el producto esté en el local listo para su entrega."
+                                            if "Bizum" in metodo_pago:
+                                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Todo listo. Tu pedido es:\n{detalles_web}\n\n*Total a pagar: {total_str}*\n\nPor favor, realiza el Bizum a nuestro número indicando tu nombre. Podrás recogerlo en nuestro local (9:00 a 21:00 ininterrumpido). Te confirmaremos por esta vía en un plazo de 24 a 48 horas en cuanto el producto esté en el local listo para su entrega."
+                                            else:
+                                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Todo listo. Tu pedido es:\n{detalles_web}\n\n*Total a pagar: {total_str}*\n\nPor favor, realiza el pago seguro con tarjeta aquí: https://animalariumtenerife.es/pago/{row['id']}. Podrás recogerlo en nuestro local en horario de 9:00 a 21:00 ininterrumpido. Te confirmaremos por esta vía en un plazo de 24 a 48 horas en cuanto el producto esté en el local listo para su entrega."
                                         elif estado_actual == 'Recibido':
                                             mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos recibido tu pedido web. Estamos comprobando el stock y te avisaremos enseguida."
                                         elif "Confirmado" in str(estado_actual):
@@ -1062,7 +1091,7 @@ def render_pestana_crm(client):
                                 column_config={
                                     "id": None, "origen": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                     "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
-                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Avisado sin stock", "Aviso de recogida local con enlace de pago", "Aviso de servicio a domicilio con enlace de pago", "Confirmado con reparto a domicilio", "Confirmado con recogida local", "Cancelado"]),
+                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Avisado sin stock", "Aviso de recogida en el local", "Aviso de servicio a domicilio", "Aviso de recogida local con enlace de pago", "Aviso de servicio a domicilio con enlace de pago", "Confirmado (Domicilio)", "Confirmado (Recogida local)", "Confirmado con reparto a domicilio", "Confirmado con recogida local", "Cancelado", "Pendiente"]),
                                     "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
                                 },
                                 num_rows="dynamic"
@@ -1192,7 +1221,7 @@ def render_pestana_crm(client):
                                                             hash_act = hashlib.sha256(str_data.encode()).hexdigest()
                                                             
                                                             # Si el encargo se pasa a Confirmado, se asume pagado
-                                                            es_pagado = "(Domicilio)" in nuevo_est or "(Recogida local)" in nuevo_est
+                                                            es_pagado = "reparto a domicilio" in nuevo_est or "recogida local" in nuevo_est
                                                             estado_venta = "Completado" if es_pagado else "Deuda"
                                                             pagado_val = meta['total_final'] if es_pagado else 0
                                                             pendiente_val = 0 if es_pagado else meta['total_final']
@@ -1262,7 +1291,7 @@ def render_pestana_crm(client):
                                                                         st.session_state.ticket_web_generado['nuevo_saldo'] = nuevo_saldo
                                                                     
                                                             # 4. Servicio a Domicilio
-                                                            if "(Domicilio)" in nuevo_est:
+                                                            if "reparto a domicilio" in nuevo_est:
                                                                 client.table("pedidos_domicilio").insert({
                                                                     "nombre_cliente": r['nombre_cliente'], "telefono": r['telefono'], "direccion": meta['direccion'],
                                                                     "detalle_pedido": r['detalle_pedido'], "estado": "Pendiente", "notas": f"Pedido Web Confirmado - Pago: {meta['metodo_pago']}"
