@@ -49,6 +49,10 @@ st.markdown("""
         #MainMenu, .stActionButton, [data-testid="manage-app-button"]
         {display: none !important;}
         [data-testid="stHeader"] {background: transparent !important; box-shadow: none !important;}
+        
+        /* Asegurar que el botón de expandir la barra lateral SIEMPRE esté visible */
+        [data-testid="collapsedControl"] { display: flex !important; visibility: visible !important; opacity: 1 !important; z-index: 99999 !important; color: #000 !important; }
+        section[data-testid="stSidebar"] > div { padding-top: 2rem !important; }
 
         /* Estilo para alertas de vencimiento */
         .vencido { color: #d32f2f; font-weight: bold; background-color: #ffebee; padding: 2px 5px; border-radius: 3px; }
