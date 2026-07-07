@@ -637,7 +637,7 @@ def render_pestana_agenda(client):
                 * **Liberación de Huecos:** Marcar una cita como *Cancelada*, *Anulada*, *No presentado* o *Cambio* libera instantáneamente esa hora en el cuadrante para cubrirla de manera espontánea.
                 """)
 
-    elif seccion_agenda == "📅 Vista Diaria":
+    elif seccion_agenda == "🕒 Vista Diaria":
         st.markdown("#### 🕒 Cuadrante de Trabajo Diario (Intervalos de 5 min)")
         
         c_diario1, c_diario2, c_diario3 = st.columns([1, 1.5, 1])
@@ -789,7 +789,7 @@ def render_pestana_agenda(client):
             else:
                 st.info("No hay horas disponibles en el rango seleccionado.")
 
-    elif seccion_agenda == "📆 Vista Semanal":
+    elif seccion_agenda == "🗓️ Vista Semanal":
         st.markdown("#### 🗓️ Cuadrante de Trabajo Semanal (Vista Calendario)")
         c_sem1, c_sem2, _ = st.columns([1, 1, 2])
         with c_sem1:
@@ -924,7 +924,7 @@ def render_pestana_agenda(client):
             
         st.markdown(html_week, unsafe_allow_html=True)
             
-    elif seccion_agenda == "🗓️ Vista Mensual":
+    elif seccion_agenda == "📅 Vista Mensual":
         st.markdown("#### 📅 Calendario Mensual (Turnos y Volumen de Citas)")
         c_mes1, c_mes2, _ = st.columns([1, 1, 2])
         hoy_mes = pd.Timestamp.now('Atlantic/Canary').date()
