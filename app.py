@@ -439,7 +439,7 @@ if st.session_state.seccion_principal_key not in nombres_pestanas:
 
 c_nav1, c_nav2 = st.columns([1, 5])
 with c_nav1:
-    st.markdown("<div style='padding-top: 10px; font-weight: bold; font-size: 1.5rem;'>🧭 Navegación:</div>", unsafe_allow_html=True)
+    st.markdown("<div style='padding-top: 2px; font-weight: bold; font-size: 1.5rem;'>🧭 Navegación:</div>", unsafe_allow_html=True)
 with c_nav2:
     seccion_principal = st.selectbox("Ir a la sección:", nombres_pestanas, key="seccion_principal_key", label_visibility="collapsed")
 
