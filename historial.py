@@ -79,9 +79,9 @@ def render_pestana_historial(client):
         st.session_state.vale_generado = None
 
     st.markdown("<h3 style='margin-top: -15px;'>📜 Historial de Ventas y Cajas</h3>", unsafe_allow_html=True)
-    sub_h_ventas, sub_h_cajas = st.tabs(["🛒 Tickets y Ventas", "🔒 Cierres de Caja"])
+    seccion_historial = st.radio("Sección Historial:", ["🧾 Tickets y Ventas", "💰 Cierres de Caja"], horizontal=True, label_visibility="collapsed")
     
-    with sub_h_ventas:
+    if seccion_historial == "🧾 Tickets y Ventas":
         # --- VISTA DE ABONO O VALE ---
         if st.session_state.devolucion_actual:
             d = st.session_state.devolucion_actual
@@ -670,7 +670,7 @@ def render_pestana_historial(client):
         else: st.info("No hay ventas en este rango de fechas.")
 
     # --- SUB-PESTAÑA CAJAS (MANTENEMOS TU CÓDIGO ORIGINAL INTACTO) ---
-    with sub_h_cajas:
+    elif seccion_historial == "💰 Cierres de Caja":
         c_fc1, c_fc2 = st.columns(2)
         with c_fc1: f_inicio_c = st.date_input("Cajas desde:", value=pd.Timestamp.now('Atlantic/Canary').date() - pd.Timedelta(days=7), key="fc1")
         with c_fc2: f_fin_c = st.date_input("Cajas hasta:", value=pd.Timestamp.now('Atlantic/Canary').date(), key="fc2")

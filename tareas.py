@@ -132,14 +132,13 @@ def render_pestana_tareas(client):
     opciones_asignacion = opciones_rol + [f"👤 {e['nombre']}" for e in empleados]
 
     if is_admin:
-        tabs = st.tabs([" 1. Calendario General", "👤 2. Mi Ficha de Trabajo", "📝 3. Notas Internas", "⚙️ 4. Gestión y Dueños"])
-        tab_general, tab_individual, tab_notas, tab_admin = tabs
+        opciones_seccion = ["📅 1. Calendario General", "👤 2. Mi Ficha de Trabajo", "📝 3. Notas Internas", "⚙️ 4. Gestión y Dueños"]
     else:
-        tabs = st.tabs([" 1. Calendario General", "👤 2. Mi Ficha de Trabajo", "📝 3. Notas Internas"])
-        tab_general, tab_individual, tab_notas = tabs
-        tab_admin = None
+        opciones_seccion = ["📅 1. Calendario General", "👤 2. Mi Ficha de Trabajo", "📝 3. Notas Internas"]
         
-    with tab_general:
+    seccion_tareas = st.radio("Sección Tareas:", opciones_seccion, horizontal=True, label_visibility="collapsed")
+        
+    if seccion_tareas == "📅 1. Calendario General":
         st.markdown("#### 📅 Calendario General de Plannings")
         st.info("Visión global de todas las rutinas de la tienda para esta semana.")
         c_cale1, c_cale2 = st.columns([1, 3])
@@ -230,7 +229,7 @@ def render_pestana_tareas(client):
         
         st.markdown(html_cal_emp, unsafe_allow_html=True)
         
-    with tab_individual:
+    elif seccion_tareas == "👤 2. Mi Ficha de Trabajo":
         st.markdown("#### 👤 Mi Ficha de Trabajo Individual")
         st.info("Selecciona tu nombre para ver y marcar exclusivamente las tareas que debes cubrir hoy.")
         
@@ -296,7 +295,7 @@ def render_pestana_tareas(client):
         except Exception as e:
             st.error(f"Error cargando tareas individuales: {e}")
 
-    with tab_notas:
+    elif seccion_tareas == "📝 3. Notas Internas":
         st.markdown("#### 📝 Notas y Avisos Internos")
         st.info("Tablón colaborativo para dejar notas a otros compañeros o apuntes generales.")
         
@@ -387,12 +386,11 @@ def render_pestana_tareas(client):
 
 
 
-    if tab_admin:
-        with tab_admin:
+    if is_admin and seccion_tareas == "⚙️ 4. Gestión y Dueños":
             st.markdown("#### ⚙️ Configuración y Administración General")
-            sub_admin = st.tabs(["👔 1. Calendario y Tareas de Dueños", "⚙️ 2. Configurar Plannings", "✅ 3. Historial de Cumplimiento"])
+            seccion_admin_tareas = st.radio("Sección Administración Tareas:", ["👔 1. Calendario y Tareas de Dueños", "⚙️ 2. Configurar Plannings", "✅ 3. Historial de Cumplimiento"], horizontal=True, label_visibility="collapsed")
             
-            with sub_admin[0]:
+            if seccion_admin_tareas == "👔 1. Calendario y Tareas de Dueños":
                 st.markdown("##### 📅 Calendario de Proyección Virtual")
                 c_cal1, c_cal2 = st.columns([1, 3])
                 with c_cal1:
@@ -600,7 +598,7 @@ def render_pestana_tareas(client):
                     except Exception as e:
                         st.error(f"Error cargando el control diario: {e}")
                     
-            with sub_admin[1]:
+            elif seccion_admin_tareas == "⚙️ 2. Configurar Plannings":
                 try:
                     res_act_load = fetch_tareas_plannings_activos(client)
                     if res_act_load:
@@ -715,7 +713,7 @@ def render_pestana_tareas(client):
                                 limpiar_cache_tareas()
                                 st.success("Actualizado"); time.sleep(0.5); st.rerun()
                     except: pass
-            with sub_admin[2]:
+            elif seccion_admin_tareas == "✅ 3. Historial de Cumplimiento":
                 try:
                     res_hist = fetch_tareas_historial(client)
                     if res_hist:

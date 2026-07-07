@@ -405,9 +405,9 @@ def render_pestana_crm(client):
                         limpiar_cache_crm()
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
 
-        sub_cli, sub_masc, sub_encargos, sub_deudas = st.tabs(["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "💸 Pagos Pendientes"])
+        seccion_crm = st.radio("Sección CRM:", ["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "💸 Pagos Pendientes"], horizontal=True, label_visibility="collapsed")
         
-        with sub_cli:
+        if seccion_crm == "👤 Directorio de Clientes":
             all_cli = get_cli_crm(client)
             class DummyRes: pass
             res_clientes = DummyRes()
@@ -681,7 +681,7 @@ def render_pestana_crm(client):
                     else:
                         st.warning("Falta el nombre de la mascota.")
                         
-        with sub_masc:
+        elif seccion_crm == "🐾 Mascotas":
             all_masc = get_masc_crm(client)
             class DummyRes: pass
             res_mascotas = DummyRes()
@@ -808,7 +808,7 @@ def render_pestana_crm(client):
                     mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix="ind")
             else: st.info("No hay mascotas registradas.")
 
-        with sub_encargos:
+        elif seccion_crm == "🛍️ Encargos":
             col_en1, col_en2 = st.columns([1, 2])
             with col_en1:
                 st.markdown("#### 📝 Registrar Encargo")
@@ -1039,9 +1039,9 @@ def render_pestana_crm(client):
                         df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'notas', 'estado', 'WhatsApp', 'origen']].copy()
                         df_e_vista['notas'] = df_e_vista['notas'].fillna("")
                         
-                        tab_tnd, tab_web = st.tabs(["🏪 Encargos de Tienda", "🌐 Pedidos Web"])
+                        seccion_encargos = st.radio("Sección Encargos:", ["🛍️ Encargos de Tienda", "🌐 Pedidos Web"], horizontal=True, label_visibility="collapsed")
                         
-                        with tab_tnd:
+                        if seccion_encargos == "🛍️ Encargos de Tienda":
                             df_tnd = df_e_vista[df_e_vista['origen'] != 'Web'].copy()
                             ed_e_tnd = st.data_editor(
                                 df_tnd, hide_index=True, use_container_width=True, height=300, key=f"ed_tabla_encargos_tnd_{st.session_state.get('db_version', 0)}",
@@ -1054,7 +1054,7 @@ def render_pestana_crm(client):
                                 num_rows="dynamic"
                             )
                             
-                        with tab_web:
+                        elif seccion_encargos == "🌐 Pedidos Web":
                             df_web = df_e_vista[df_e_vista['origen'] == 'Web'].copy()
                             ed_e_web = st.data_editor(
                                 df_web, hide_index=True, use_container_width=True, height=300, key=f"ed_tabla_encargos_web_{st.session_state.get('db_version', 0)}",
@@ -1288,7 +1288,7 @@ def render_pestana_crm(client):
                     else: st.info("No hay encargos activos.")
                 except Exception as e: st.warning(f"Error al cargar encargos: {e}")
                 
-        with sub_deudas:
+        elif seccion_crm == "💸 Pagos Pendientes":
             st.markdown("#### 💸 Clientes con Pagos Pendientes (Deudas de Tienda)")
             st.info("Aquí se agrupan automáticamente los clientes que dejaron a deber alguna compra en el TPV.")
             try:

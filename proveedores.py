@@ -126,9 +126,9 @@ def render_pestana_proveedores(client):
         st.session_state.llave_n_art_ped = 0
 
     st.markdown("<h3 style='margin-top:-15px;'> Gestión de Proveedores y Pedidos</h3>", unsafe_allow_html=True)
-    sub_prov, sub_pedidos = st.tabs(["🏢 Directorio de Proveedores", "📦 Gestión de Pedidos y Borradores"])
+    seccion_proveedores = st.radio("Sección Proveedores:", ["🏢 Directorio de Proveedores", "📦 Gestión de Pedidos y Borradores"], horizontal=True, label_visibility="collapsed")
     
-    with sub_prov:
+    if seccion_proveedores == "🏢 Directorio de Proveedores":
         cp1, cp2 = st.columns([1, 2])
         with cp1:
             st.markdown("#### ➕ Nuevo Proveedor")
@@ -307,7 +307,7 @@ def render_pestana_proveedores(client):
                         else:
                             st.error("El nombre de la empresa es obligatorio.")
 
-    with sub_pedidos:
+    elif seccion_proveedores == "📦 Gestión de Pedidos y Borradores":
         st.markdown("#### ⏰ Alertas de Pedidos Manuales")
         st.info("Recordatorios calculados automáticamente en base a los días de reparto y horas de corte de cada proveedor. No interfiere con los borradores automáticos.")
         
@@ -601,9 +601,9 @@ def render_pestana_proveedores(client):
                             
                         st.markdown("---")
                         st.markdown("##### 🛒 Añadir más Artículos al Pedido")
-                        t_cat, t_man = st.tabs(["📚 Desde el Catálogo", "✍️ Artículo Manual (Encargos)"])
+                        seccion_add = st.radio("Sección Añadir:", ["📋 Desde el Catálogo", "✍️ Artículo Manual (Encargos)"], horizontal=True, label_visibility="collapsed")
                         
-                        with t_cat:
+                        if seccion_add == "📋 Desde el Catálogo":
                             if not df_solo_productos.empty:
                                 c_cat1, c_cat2 = st.columns([3, 1], vertical_alignment="bottom")
                                 with c_cat1: prods_a_pedir = st.multiselect("Selecciona productos del inventario:", df_solo_productos['nombre'].tolist(), key=f"ms_cat_{ped_id}")
@@ -619,7 +619,7 @@ def render_pestana_proveedores(client):
                                         else:
                                             st.warning("Selecciona algún producto.")
                         
-                        with t_man:
+                        elif seccion_add == "✍️ Artículo Manual (Encargos)":
                             with st.form(f"add_manual_ped_{ped_id}", clear_on_submit=True, border=False):
                                 cm1, cm2, cm3 = st.columns([2, 1, 1])
                                 with cm1: m_prod = st.text_input("Nombre del producto", placeholder="Ej: Correa roja...", key=f"am_nom_{ped_id}_{st.session_state.llave_n_art_ped}")

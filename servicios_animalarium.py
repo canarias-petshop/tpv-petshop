@@ -53,13 +53,13 @@ def render_pestana_servicios(client):
         opc_cli.append(etiqueta)
         mapa_cli[etiqueta] = c
             
-    t_paseos, t_adiestramiento, t_domicilio = st.tabs([
-        "🐕 Servicio de Paseo", 
-        "🎓 Adiestramiento y Educación", 
-        "🚚 Servicios a Domicilio"
-    ])
+    seccion_servicios = st.radio("Sección Servicios:", [
+        "🦮 Paseos", 
+        "🎓 Adiestramiento", 
+        "🏠 Servicios a Domicilio"
+    ], horizontal=True, label_visibility="collapsed")
     
-    with t_paseos:
+    if seccion_servicios == "🦮 Paseos":
         st.markdown("#### 🐕 Registro de Servicio de Paseo")
         col_p1, col_p2 = st.columns([1, 2.2])
         with col_p1:
@@ -140,7 +140,7 @@ def render_pestana_servicios(client):
                 else: st.info("No hay paseos programados.")
             except: st.info("Ejecuta el código SQL para habilitar la tabla de Paseos.")
 
-    with t_adiestramiento:
+    elif seccion_servicios == "🎓 Adiestramiento":
         st.markdown("#### 🎓 Registro de Adiestramiento y Educación")
         col_a1, col_a2 = st.columns([1, 2.2])
         with col_a1:
@@ -227,10 +227,10 @@ def render_pestana_servicios(client):
                 else: st.info("No hay sesiones de adiestramiento programadas.")
             except: st.info("Ejecuta el código SQL para habilitar la tabla de Adiestramiento.")
 
-    with t_domicilio:
-        d_reco, d_rep = st.tabs(["🚐 Recogida para Peluquería", "🛵 Reparto a Domicilio (Pedidos)"])
+    elif seccion_servicios == "🏠 Servicios a Domicilio":
+        seccion_domicilio = st.radio("Sección Domicilio:", ["✂️ Recogida para Peluquería", "🛍️ Reparto a Domicilio (Pedidos)"], horizontal=True, label_visibility="collapsed")
         
-        with d_reco:
+        if seccion_domicilio == "✂️ Recogida para Peluquería":
             col_r1, col_r2 = st.columns([1, 2.2])
             with col_r1:
                 st.markdown("#### 🚐 Solicitar Recogida")
@@ -323,7 +323,7 @@ def render_pestana_servicios(client):
                     else: st.info("No hay recogidas programadas.")
                 except: st.info("Ejecuta el código SQL para habilitar la tabla de Recogidas.")
 
-        with d_rep:
+        elif seccion_domicilio == "🛍️ Reparto a Domicilio (Pedidos)":
             col_d1, col_d2 = st.columns([1, 2.2])
             with col_d1:
                 st.markdown("#### 🛵 Registrar Pedido a Domicilio")

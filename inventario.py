@@ -227,9 +227,9 @@ def render_pestana_inventario(client):
                 if 'sabor_principal' not in df_solo_productos.columns: df_solo_productos['sabor_principal'] = "Sin especificar"
                 if 'caracteristicas' not in df_solo_productos.columns: df_solo_productos['caracteristicas'] = ""
 
-                sub_prod, sub_serv, sub_interno = st.tabs(["📦 Inventario", "✂️ Servicios", "🏢 Uso Interno"])
+                seccion_inventario = st.radio("Sección Inventario:", ["📦 Inventario", "🐶 Servicios", "🛠️ Uso Interno"], horizontal=True, label_visibility="collapsed")
                 
-                with sub_prod:
+                if seccion_inventario == "📦 Inventario":
                     st.markdown("#### 📦 Traspaso de Cajas a Unidades (Desempaquetar)")
                     with st.expander("Abrir Caja / Saco"):
                         tc1, tc2, tc3 = st.columns([2, 2, 1])
@@ -392,7 +392,7 @@ def render_pestana_inventario(client):
                             time.sleep(0.5)
                             st.rerun()
 
-                with sub_serv:
+                elif seccion_inventario == "🐶 Servicios":
                     # --- TABLA DE SERVICIOS MEJORADA ---
                     st.markdown("#### ✂️ Catálogo de Servicios")
                     df_solo_servicios = df_inv[df_inv['categoria_filt'] == 'Servicio'].copy()
@@ -471,7 +471,7 @@ def render_pestana_inventario(client):
                             time.sleep(0.5)
                             st.rerun()
                         
-                with sub_interno:
+                elif seccion_inventario == "🛠️ Uso Interno":
                     st.markdown("#### 🏢 Traspaso para Uso Interno (Peluquería)")
                     st.info("💡 Descuenta productos del almacén para uso profesional en la tienda (champús, mascarillas...). Esto ajusta el stock sin generar ingresos en la caja, pero deja registro contable de uso interno a 0€.")
                     

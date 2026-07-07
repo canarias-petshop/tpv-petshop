@@ -7,17 +7,15 @@ import urllib.parse
 def render_pestana_marketing(client):
     st.markdown("<h3 style='margin-top: -15px;'>🎯 Marketing Automatizado y Planificación</h3>", unsafe_allow_html=True)
     
-    tabs = st.tabs([
+    seccion_marketing = st.radio("Sección Marketing:", [
         "🎯 Objetivos y Resultados",
-        "📅 Plan Maestro y Presupuestos",
+        "🗺️ Plan Maestro y Presupuestos",
         "📢 Gestión por Canales",
-        "🚀 Campañas Especiales",
-        "♻️ Activas (Win-Back/Cumples)"
-    ])
+        "⭐ Campañas Especiales",
+        "🔄 Activas (Win-Back/Cumples)"
+    ], horizontal=True, label_visibility="collapsed")
     
-    tab_objetivos, tab_maestro, tab_canales, tab_especiales, tab_activas = tabs
-
-    with tab_objetivos:
+    if seccion_marketing == "🎯 Objetivos y Resultados":
         st.markdown("#### 🎯 Panel de Control: Objetivos de Marketing")
         st.info("Define las metas claras de tus acciones publicitarias y mide su retorno (ROI).")
         
@@ -83,7 +81,7 @@ def render_pestana_marketing(client):
             else:
                 st.info("No hay objetivos definidos en este momento.")
     
-    with tab_maestro:
+    elif seccion_marketing == "🗺️ Plan Maestro y Presupuestos":
         st.markdown("#### 📅 Plan Maestro y Control de Presupuestos")
         st.info("Programa todas tus publicaciones y acciones publicitarias. Controla el gasto y vincúlalo a tus Objetivos.")
         
@@ -204,7 +202,7 @@ def render_pestana_marketing(client):
             except:
                 st.info("🔧 Tabla 'marketing_plan' no encontrada. Créala en Supabase con el SQL proporcionado.")
                 
-    with tab_canales:
+    elif seccion_marketing == "📢 Gestión por Canales":
         st.markdown("#### 📢 Análisis de Presupuesto por Canales y Soportes")
         st.info("Analiza cómo se distribuye tu inversión publicitaria a través de medios digitales, físicos y tradicionales.")
         try:
@@ -224,7 +222,7 @@ def render_pestana_marketing(client):
                 st.info("No hay datos suficientes para generar estadísticas por canal.")
         except: pass
 
-    with tab_especiales:
+    elif seccion_marketing == "⭐ Campañas Especiales":
         st.markdown("#### 🚀 Gestión de Campañas Especiales (Ferias e Innovate)")
         st.info("Revisa las acciones de marketing que están vinculadas a grandes eventos o a la iniciativa Innovate.")
         try:
@@ -237,7 +235,7 @@ def render_pestana_marketing(client):
                 st.success("No tienes campañas especiales activas en este momento.")
         except: pass
 
-    with tab_activas:
+    elif seccion_marketing == "🔄 Activas (Win-Back/Cumples)":
         st.markdown("#### ♻️ Acciones de Recuperación y Fidelización")
         c_act1, c_act2 = st.columns(2)
         with c_act1:

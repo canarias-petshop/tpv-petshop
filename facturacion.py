@@ -111,13 +111,12 @@ def render_pestana_facturacion(client):
     if 'llave_fac_art_c' not in st.session_state: st.session_state.llave_fac_art_c = 0
 
     st.markdown("<h3 style='margin-top: -15px;'> 📑  Gestión Integral de Facturación</h3>", unsafe_allow_html=True)
-
-    sub_emitir, sub_registrar, sub_archivo, sub_pagos = st.tabs([
-        " 🧾  Emitir Factura (Venta)", 
-        " 📥  Compras y Abonos", 
-        " 📂  Archivo de Documentos",
-        " 💸  Pagos Pendientes"
-    ])
+    seccion_facturacion = st.radio("Sección Facturación:", [
+        "🧾 Emitir Factura (Venta)", 
+        "📥 Compras y Abonos", 
+        "📂 Archivo de Documentos",
+        "💸 Pagos Pendientes"
+    ], horizontal=True, label_visibility="collapsed")
     
     all_inv = get_inv_fac(client, st.session_state.get('db_version', 0))
     df_inv = pd.DataFrame(all_inv) if all_inv else pd.DataFrame()
@@ -131,7 +130,7 @@ def render_pestana_facturacion(client):
     # ==========================================
     # SUB-TAB 1: EMITIR FACTURA DE VENTA (PVP LIMPIO)
     # ==========================================
-    with sub_emitir:
+    if seccion_facturacion == "🧾 Emitir Factura (Venta)":
         if 'factura_v_temp' not in st.session_state: st.session_state.factura_v_temp = []
         if 'llave_busqueda_v' not in st.session_state: st.session_state.llave_busqueda_v = 0
         
@@ -308,7 +307,7 @@ def render_pestana_facturacion(client):
     # ==========================================
     # SUB-TAB 2: REGISTRAR COMPRA (PROVEEDOR)
     # ==========================================
-    with sub_registrar:
+    elif seccion_facturacion == "📥 Compras y Abonos":
         if 'compra_temp' not in st.session_state: st.session_state.compra_temp = []
         if 'llave_busqueda_c' not in st.session_state: st.session_state.llave_busqueda_c = 0
         if 'pedido_vinculado' not in st.session_state: st.session_state.pedido_vinculado = None
@@ -324,11 +323,13 @@ def render_pestana_facturacion(client):
         with st.container(border=True):
             col_ia1, col_ia2 = st.columns([2, 1], vertical_alignment="bottom")
             with col_ia1:
-                t_subir, t_cam = st.tabs(["📂 Subir Archivo", "📷 Usar Cámara"])
-                with t_subir:
+                seccion_camara = st.radio("Sección Subida:", ["📸 Subir Archivo", "📷 Usar Cámara"], horizontal=True, label_visibility="collapsed")
+                if seccion_camara == "📸 Subir Archivo":
                     archs_subidos = st.file_uploader("📸 Sube una o varias fotos (o PDF)", type=["jpg", "jpeg", "png", "pdf"], accept_multiple_files=True, key="file_ia_compra")
-                with t_cam:
+                    arch_cam = None
+                else:
                     arch_cam = st.camera_input("Toma la foto con tu cámara", label_visibility="collapsed", key="cam_ia_compra")
+                    archs_subidos = None
                 
                 archivos_factura = archs_subidos if archs_subidos else ([arch_cam] if arch_cam else [])
             with col_ia2:
@@ -860,7 +861,7 @@ def render_pestana_facturacion(client):
     # ==========================================
     # SUB-TAB 3: ARCHIVO Y GESTIÓN (EDICIÓN Y BORRADO DIRECTO)
     # ==========================================
-    with sub_archivo:
+    elif seccion_facturacion == "📂 Archivo de Documentos":
         st.markdown("####  🔍  Archivo de Documentos")
         tipo_doc = st.radio("Documento:", ["Facturas Emitidas (Ventas)", "Facturas Recibidas (Proveedores)", "Abonos Recibidos (Proveedores)"], horizontal=True)
         c_f1, c_f2 = st.columns(2)
@@ -1144,7 +1145,7 @@ def render_pestana_facturacion(client):
     # ==========================================
     # SUB-TAB 4: PAGOS PENDIENTES
     # ==========================================
-    with sub_pagos:
+    elif seccion_facturacion == "💸 Pagos Pendientes":
         st.markdown("#### 💸 Control de Pagos a Proveedores")
         st.info("💡 Aquí aparecen exclusivamente las facturas de **proveedores de mercancía** que no han sido marcadas como 'Pagado'.")
         

@@ -217,9 +217,9 @@ def render_pestana_personal(client: SyncPostgrestClient):
         st.divider()
         st.subheader("🛠️ Panel de Administrador (Gestión de Personal)")
         
-        tab_admin1, tab_admin2, tab_admin3, tab_admin4 = st.tabs(["Empleados", "Gestión de Cuadrante (Editable)", "Ver Fichajes", "🌴 Ausencias y Excepciones"])
+        seccion_admin = st.radio("Sección Personal:", ["Empleados", "Gestión de Cuadrante (Editable)", "Ver Fichajes", "❌ Ausencias y Excepciones"], horizontal=True, label_visibility="collapsed")
         
-        with tab_admin1:
+        if seccion_admin == "Empleados":
             st.markdown("Añadir nuevo empleado:")
             with st.form("form_nuevo_empleado"):
                 c1, c2 = st.columns(2)
@@ -237,7 +237,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
             st.markdown("Lista de empleados:")
             st.dataframe(pd.DataFrame(empleados), hide_index=True)
 
-        with tab_admin2:
+        elif seccion_admin == "Gestión de Cuadrante (Editable)":
             st.markdown("#### 🗓️ Editor Visual de Cuadrantes")
             st.info("Selecciona el rango de fechas. Edita los turnos haciendo **doble clic en las celdas**. Las tablas se dividen por semanas para mayor comodidad. Al terminar, pulsa 'Guardar Todo el Cuadrante'.")
             
@@ -297,7 +297,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                     if inserts: client.table("personal_cuadrantes").insert(inserts).execute()
                     st.success("¡Cuadrante guardado exitosamente!"); time.sleep(1); limpiar_cache_personal(); st.rerun()
         
-        with tab_admin3:
+        elif seccion_admin == "Ver Fichajes":
             st.markdown("Historial de fichajes:")
             st.warning("🔒 **REGISTRO INALTERABLE**: Según la normativa laboral vigente, los fichajes están sellados con criptografía SHA-256 (Hash) y vinculados a la hora del servidor. No se pueden modificar ni eliminar.")
             try:
@@ -332,7 +332,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
             except Exception as e:
                 pass
 
-        with tab_admin4:
+        elif seccion_admin == "❌ Ausencias y Excepciones":
             st.markdown("#### 🌴 Gestión de Ausencias, Vacaciones y Cierres")
             st.info("💡 Añade excepciones al cuadrante sin borrar la planificación base. Estas excepciones generarán un **Bloqueo en la Agenda** automáticamente para que no entren citas en esos tramos.")
             

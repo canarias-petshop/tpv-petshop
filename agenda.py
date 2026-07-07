@@ -219,9 +219,9 @@ def render_pestana_agenda(client):
         return estado, servicio_raw.strip(), emp
     
     # --- PESTAÑAS DE VISTAS ---
-    sub_agenda, sub_diario, sub_semanal, sub_mensual, sub_recordatorios, sub_cancelaciones, sub_sin_historial = st.tabs(["📝 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal", "📅 Vista Mensual", "🔔 Recordatorios", "🚫 Cancelaciones", "🚨 Sin Historial"])
+    seccion_agenda = st.radio("Sección Agenda:", ["📅 Gestión de Citas", "🕒 Vista Diaria", "🗓️ Vista Semanal", "📅 Vista Mensual", "🔔 Recordatorios", "🚫 Cancelaciones", "🚨 Sin Historial"], horizontal=True, label_visibility="collapsed")
     
-    with sub_agenda:
+    if seccion_agenda == "📅 Gestión de Citas":
         c_agenda1, c_agenda2 = st.columns([1, 2.5], gap="large")
         
         with c_agenda1:
@@ -637,7 +637,7 @@ def render_pestana_agenda(client):
                 * **Liberación de Huecos:** Marcar una cita como *Cancelada*, *Anulada*, *No presentado* o *Cambio* libera instantáneamente esa hora en el cuadrante para cubrirla de manera espontánea.
                 """)
 
-    with sub_diario:
+    elif seccion_agenda == "📅 Vista Diaria":
         st.markdown("#### 🕒 Cuadrante de Trabajo Diario (Intervalos de 5 min)")
         
         c_diario1, c_diario2, c_diario3 = st.columns([1, 1.5, 1])
@@ -789,7 +789,7 @@ def render_pestana_agenda(client):
             else:
                 st.info("No hay horas disponibles en el rango seleccionado.")
 
-    with sub_semanal:
+    elif seccion_agenda == "📆 Vista Semanal":
         st.markdown("#### 🗓️ Cuadrante de Trabajo Semanal (Vista Calendario)")
         c_sem1, c_sem2, _ = st.columns([1, 1, 2])
         with c_sem1:
@@ -924,7 +924,7 @@ def render_pestana_agenda(client):
             
         st.markdown(html_week, unsafe_allow_html=True)
             
-    with sub_mensual:
+    elif seccion_agenda == "🗓️ Vista Mensual":
         st.markdown("#### 📅 Calendario Mensual (Turnos y Volumen de Citas)")
         c_mes1, c_mes2, _ = st.columns([1, 1, 2])
         hoy_mes = pd.Timestamp.now('Atlantic/Canary').date()
@@ -1056,7 +1056,7 @@ def render_pestana_agenda(client):
         html_cal += "</table>"
         st.markdown(html_cal, unsafe_allow_html=True)
 
-    with sub_recordatorios:
+    elif seccion_agenda == "🔔 Recordatorios":
         st.markdown("#### 🔔 Centro de Recordatorios (Citas y Mantenimiento)")
         st.info("Espacio centralizado para gestionar las confirmaciones de citas y mantenimientos diarios (vía WhatsApp o llamada telefónica).")
         
@@ -1246,7 +1246,7 @@ def render_pestana_agenda(client):
             else:
                 st.success("✨ ¡Genial! Tienes la agenda al día. Ninguna mascota supera los días de alerta o ya tienen su cita.")
 
-    with sub_cancelaciones:
+    elif seccion_agenda == "🚫 Cancelaciones":
         st.markdown("#### 🚫 Registro de Cancelaciones y Plantones")
         st.info("Aquí aparecen todas las citas que han sido marcadas como 'Cancelada', 'Anulada' o 'No presentado' desde el Directorio. Estas citas liberan su hueco automáticamente en la agenda para que puedas dárselo a otro.")
         canceladas = []
@@ -1270,7 +1270,7 @@ def render_pestana_agenda(client):
         if canceladas: st.dataframe(pd.DataFrame(canceladas), use_container_width=True, hide_index=True)
         else: st.success("No hay cancelaciones registradas en el sistema.")
 
-    with sub_sin_historial:
+    elif seccion_agenda == "🚨 Sin Historial":
         st.markdown("#### 🚨 Alertas Operativas: Citas sin Registro en Historial")
         st.info("Estas son las citas **confirmadas** de días pasados a las que aún **no se les ha rellenado el importe o el registro del trabajo** en la ficha de la mascota.")
         

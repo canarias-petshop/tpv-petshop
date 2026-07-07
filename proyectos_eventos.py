@@ -12,14 +12,14 @@ def render_pestana_proyectos_eventos(client):
         emp_list = ["Todas"] + [e['nombre'] for e in res_emp.data] if res_emp.data else ["Todas"]
     except: emp_list = ["Todas"]
     
-    tab_macro, tab_ferias, tab_talleres, tab_reuniones = st.tabs([
-        "🚀 Proyectos de Expansión", 
-        "🎪 Ferias y Eventos Externos",
-        "🎟️ Talleres y Cursos (Clientes)",
-        "⛔ Reuniones y Bloqueos"
-    ])
-
-    with tab_macro:
+    seccion_proyectos = st.radio("Sección Proyectos:", [
+        "🏗️ Macro-Proyectos Internos", 
+        "🎪 Ferias y Stands", 
+        "🎓 Talleres y Clientes", 
+        "🤝 Reuniones de Equipo"
+    ], horizontal=True, label_visibility="collapsed")
+    
+    if seccion_proyectos == "🏗️ Macro-Proyectos Internos":
         st.markdown("#### 🚀 Gestión de Macro-Proyectos")
         st.info("Administra proyectos a gran escala (Ej: Abrir nueva clínica, Reformas). Para tareas del día a día, usa la pestaña 'Tareas'.")
         
@@ -69,9 +69,9 @@ def render_pestana_proyectos_eventos(client):
                 st.metric("Fechas", f"{f_i} ➔ {f_f}")
             
             st.markdown("---")
-            t_hitos, t_ajustes = st.tabs(["📌 Hitos y Tareas (Línea de tiempo)", "⚙️ Ajustes del Proyecto"])
+            seccion_macro = st.radio("Detalle Proyecto:", ["📍 Hitos y Tareas (Línea de tiempo)", "⚙️ Ajustes del Proyecto"], horizontal=True, label_visibility="collapsed")
             
-            with t_hitos:
+            if seccion_macro == "📍 Hitos y Tareas (Línea de tiempo)":
                 c_h1, c_h2 = st.columns([1, 2])
                 with c_h1:
                     st.markdown("##### ➕ Añadir Hito")
@@ -114,7 +114,7 @@ def render_pestana_proyectos_eventos(client):
                             st.success("Guardado"); time.sleep(0.5); st.rerun()
                     else: st.info("No hay hitos en este proyecto. Añade el primero en el panel izquierdo.")
             
-            with t_ajustes:
+            elif seccion_macro == "⚙️ Ajustes del Proyecto":
                 with st.form(f"ajustes_proy_{p_id}"):
                     st.markdown("##### ⚙️ Propiedades del Proyecto")
                     a_tit = st.text_input("Título", value=p_actual['titulo'])
@@ -137,7 +137,7 @@ def render_pestana_proyectos_eventos(client):
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.warning("Proyecto eliminado."); time.sleep(1); st.rerun()
 
-    with tab_reuniones:
+    elif seccion_proyectos == "🤝 Reuniones de Equipo":
         st.markdown("#### ⛔ Gestión de Reuniones y Bloqueos de Agenda")
         st.info("💡 Lo que programes aquí bloqueando agenda, impedirá dar citas en esos tramos a las peluqueras afectadas. Las reuniones aparecerán dibujadas en la Agenda.")
         c_r1, c_r2 = st.columns([1, 2.5])
@@ -197,7 +197,7 @@ def render_pestana_proyectos_eventos(client):
             except Exception as e:
                 st.info("Crea la tabla agenda_bloqueos en Supabase para habilitar esta vista.")
 
-    with tab_ferias:
+    elif seccion_proyectos == "🎪 Ferias y Stands":
         st.markdown("#### 🎪 Gestión de Ferias y Eventos Externos")
         st.info("Organiza la logística, stands y tareas de eventos corporativos o ferias (Ej: 100x100 Mascota).")
         
@@ -277,9 +277,9 @@ def render_pestana_proyectos_eventos(client):
                 st.metric("Fechas", f"{f_i} ➔ {f_f}")
                 
             st.markdown("---")
-            t_ftareas, t_flog = st.tabs(["📌 Lluvia de Ideas y Preparación", "⚙️ Logística, Planos y Ajustes"])
+            seccion_feria_tabs = st.radio("Sección Feria:", ["🧠 Lluvia de Ideas y Preparación", "📦 Logística, Planos y Ajustes"], horizontal=True, label_visibility="collapsed")
             
-            with t_ftareas:
+            if seccion_feria_tabs == "🧠 Lluvia de Ideas y Preparación":
                 c_ft1, c_ft2 = st.columns([1, 2])
                 with c_ft1:
                     st.markdown("##### ➕ Añadir Tarea")
@@ -321,7 +321,7 @@ def render_pestana_proyectos_eventos(client):
                             st.success("Guardado"); time.sleep(0.5); st.rerun()
                     else: st.info("No hay tareas asignadas para esta feria.")
             
-            with t_flog:
+            elif seccion_feria_tabs == "📦 Logística, Planos y Ajustes":
                 with st.form(f"ajustes_fer_{f_id}"):
                     st.markdown("##### ⚙️ Configuración Logística")
                     fa_tit = st.text_input("Título", value=f_actual['titulo'])
@@ -422,7 +422,7 @@ def render_pestana_proyectos_eventos(client):
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.warning("Feria eliminada."); time.sleep(1); st.rerun()
 
-    with tab_talleres:
+    elif seccion_proyectos == "🎓 Talleres y Clientes":
         st.markdown("#### 🎟️ Gestión de Talleres y Cursos (Clientes)")
         st.info("Organiza cursos presenciales en la tienda (cepillado, nutrición, etc.), controla el aforo y gestiona las reservas de los clientes.")
         c_ev1, c_ev2 = st.columns([1, 2.5])

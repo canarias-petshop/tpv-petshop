@@ -130,12 +130,12 @@ def render_pestana_contabilidad(client):
 
     st.markdown("<h3 style='margin-top: -15px;'>📊 Contabilidad e Informes para Asesoría</h3>", unsafe_allow_html=True)
     
-    sec_gastos, sec_fijos, sec_calendario, sec_pagos, sec_archivo, sec_informes = st.tabs([
+    seccion_contabilidad = st.radio("Sección Contabilidad:", [
         "💸 Gastos Puntuales", "🔄 Configurar Gastos Fijos", "📅 Calendarios y Vencimientos", 
         "💰 Pagos Pendientes", "📖 Archivo Contable", "📂 Descargas"
-    ])
+    ], horizontal=True, label_visibility="collapsed")
 
-    with sec_gastos:
+    if seccion_contabilidad == "💸 Gastos Puntuales":
         col_g1, col_g2 = st.columns([1, 2])
         with col_g1:
             with st.form("nuevo_gasto"):
@@ -181,7 +181,7 @@ def render_pestana_contabilidad(client):
             else:
                 st.info("No hay gastos puntuales pendientes. ¡Todo al día!")
 
-    with sec_fijos:
+    elif seccion_contabilidad == "🔄 Configurar Gastos Fijos":
         st.markdown("#### ➕ Registrar/Editar Gastos Fijos Recurrentes")
         c_fij1, c_fij2 = st.columns([1, 2])
         
@@ -262,7 +262,7 @@ def render_pestana_contabilidad(client):
             except Exception as e:
                 st.error(f"🔧 Error al cargar o guardar gastos fijos: {e}")
 
-    with sec_calendario:
+    elif seccion_contabilidad == "📅 Calendarios y Vencimientos":
         st.markdown("#### 📅 Calendarios de Vencimientos (Operativos e Impuestos)")
         st.info("Visualiza y gestiona tus pagos programados. Al confirmarlos aquí, se registrarán en tu Libro Mayor (Archivo Contable).")
         
@@ -377,7 +377,7 @@ def render_pestana_contabilidad(client):
         except Exception as e:
             st.error(f"Error al cargar calendario: {e}")
 
-    with sec_pagos:
+    elif seccion_contabilidad == "💰 Pagos Pendientes":
         st.markdown("#### 💰 Control de Pagos Pendientes (Gastos Puntuales)")
         st.info("💡 **IMPORTANTE:** Aquí SOLO aparecen los **Gastos Puntuales** (reparaciones, compras extra) que registraste manualmente con el estado **'Pendiente'**. Los vencimientos de tus Gastos Fijos e Impuestos se gestionan desde la pestaña '📅 Calendarios'.")
         
@@ -494,7 +494,7 @@ def render_pestana_contabilidad(client):
         else:
             st.success("¡Genial! No tienes gastos puntuales pendientes.")
 
-    with sec_archivo:
+    elif seccion_contabilidad == "📖 Archivo Contable":
         st.markdown("#### 📖 Archivo Contable (Libro Mayor)")
         st.info("💡 Este es el **Libro Mayor**. Muestra el historial inalterable de **todos** los movimientos contables registrados (pagados y pendientes). Usa los filtros para localizar cualquier documento.")
         
@@ -622,7 +622,7 @@ def render_pestana_contabilidad(client):
         else:
             st.info("No hay gastos ni compras registradas en este periodo.")
 
-    with sec_informes:
+    elif seccion_contabilidad == "📂 Descargas":
         st.markdown("#### 📥 Selector de Fechas Personalizado")
         
         c_inf_pres, c_inf1, c_inf2 = st.columns(3)

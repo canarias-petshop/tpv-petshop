@@ -424,36 +424,44 @@ else:
         "🐶 Servicios Animalarium", "⏱️ Personal", "✅ Tareas", "📖 Ayuda"
     ]
 
-tabs = st.tabs(nombres_pestanas)
+if "seccion_principal_key" not in st.session_state:
+    st.session_state.seccion_principal_key = nombres_pestanas[0]
+
+if st.session_state.seccion_principal_key not in nombres_pestanas:
+    st.session_state.seccion_principal_key = nombres_pestanas[0]
+
+with st.sidebar:
+    st.markdown("### 🧭 Menú TPV")
+    seccion_principal = st.radio("Navegación:", nombres_pestanas, key="seccion_principal_key")
 
 if st.session_state.rol == "Admin":
     st.markdown("<p style='text-align: right; color: gray; font-size: 12px;'>Versión: 1.0.1 (Fix Estadísticas)</p>", unsafe_allow_html=True)
-    with tabs[0]: render_pestana_caja(client)
-    with tabs[1]: render_pestana_tpv(client)
-    with tabs[2]: render_pestana_historial(client)
-    with tabs[3]: render_pestana_crm(client)
-    with tabs[4]: render_pestana_inventario(client)
-    with tabs[5]: render_pestana_proveedores(client)
-    with tabs[6]: render_pestana_agenda(client)
-    with tabs[7]: render_pestana_facturacion(client)
-    with tabs[8]: render_pestana_servicios(client)
-    with tabs[9]: render_pestana_contabilidad(client)
-    with tabs[10]: render_pestana_marketing(client)
-    with tabs[11]: render_pestana_proyectos_eventos(client)
-    with tabs[12]: render_pestana_estadisticas(client)
-    with tabs[13]: render_pestana_personal(client)
-    with tabs[14]: render_pestana_bancos(client)
-    with tabs[15]: render_pestana_tareas(client)
-    with tabs[16]: render_pestana_manual()
+    if seccion_principal == nombres_pestanas[0]: render_pestana_caja(client)
+    elif seccion_principal == nombres_pestanas[1]: render_pestana_tpv(client)
+    elif seccion_principal == nombres_pestanas[2]: render_pestana_historial(client)
+    elif seccion_principal == nombres_pestanas[3]: render_pestana_crm(client)
+    elif seccion_principal == nombres_pestanas[4]: render_pestana_inventario(client)
+    elif seccion_principal == nombres_pestanas[5]: render_pestana_proveedores(client)
+    elif seccion_principal == nombres_pestanas[6]: render_pestana_agenda(client)
+    elif seccion_principal == nombres_pestanas[7]: render_pestana_facturacion(client)
+    elif seccion_principal == nombres_pestanas[8]: render_pestana_servicios(client)
+    elif seccion_principal == nombres_pestanas[9]: render_pestana_contabilidad(client)
+    elif seccion_principal == nombres_pestanas[10]: render_pestana_marketing(client)
+    elif seccion_principal == nombres_pestanas[11]: render_pestana_proyectos_eventos(client)
+    elif seccion_principal == nombres_pestanas[12]: render_pestana_estadisticas(client)
+    elif seccion_principal == nombres_pestanas[13]: render_pestana_personal(client)
+    elif seccion_principal == nombres_pestanas[14]: render_pestana_bancos(client)
+    elif seccion_principal == nombres_pestanas[15]: render_pestana_tareas(client)
+    elif seccion_principal == nombres_pestanas[16]: render_pestana_manual()
 else:
-    with tabs[0]: render_pestana_caja(client)
-    with tabs[1]: render_pestana_tpv(client)
-    with tabs[2]: render_pestana_historial(client)
-    with tabs[3]: render_pestana_crm(client)
-    with tabs[4]: render_pestana_inventario(client)
-    with tabs[5]: render_pestana_proveedores(client)
-    with tabs[6]: render_pestana_agenda(client)
-    with tabs[7]: render_pestana_servicios(client)
-    with tabs[8]: render_pestana_personal(client)
-    with tabs[9]: render_pestana_tareas(client)
-    with tabs[10]: render_pestana_manual()
+    if seccion_principal == nombres_pestanas[0]: render_pestana_caja(client)
+    elif seccion_principal == nombres_pestanas[1]: render_pestana_tpv(client)
+    elif seccion_principal == nombres_pestanas[2]: render_pestana_historial(client)
+    elif seccion_principal == nombres_pestanas[3]: render_pestana_crm(client)
+    elif seccion_principal == nombres_pestanas[4]: render_pestana_inventario(client)
+    elif seccion_principal == nombres_pestanas[5]: render_pestana_proveedores(client)
+    elif seccion_principal == nombres_pestanas[6]: render_pestana_agenda(client)
+    elif seccion_principal == nombres_pestanas[7]: render_pestana_servicios(client)
+    elif seccion_principal == nombres_pestanas[8]: render_pestana_personal(client)
+    elif seccion_principal == nombres_pestanas[9]: render_pestana_tareas(client)
+    elif seccion_principal == nombres_pestanas[10]: render_pestana_manual()
