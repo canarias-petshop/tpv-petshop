@@ -427,6 +427,7 @@ else:
 tabs = st.tabs(nombres_pestanas)
 
 if st.session_state.rol == "Admin":
+    st.markdown("<p style='text-align: right; color: gray; font-size: 12px;'>Versión: 1.0.1 (Fix Estadísticas)</p>", unsafe_allow_html=True)
     with tabs[0]: render_pestana_caja(client)
     with tabs[1]: render_pestana_tpv(client)
     with tabs[2]: render_pestana_historial(client)
