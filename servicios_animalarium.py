@@ -112,7 +112,7 @@ def render_pestana_servicios(client):
                     for idx, row in df_p_vista.iterrows():
                         msg = f"¡Nuevo Paseo! 🐕\nCliente: {row['cliente']}\nMascota: {row['mascota']}\nTipo: {row['tipo_paseo']}\nFecha: {row['fecha']}\nObs: {row.get('observaciones', '')}"
                         tel_aviso = "34610606027" if row['tipo_paseo'] == "Paseo por la ciudad" else "34645749708"
-                        df_p_vista.at[idx, 'Avisar Equipo'] = f"https://wa.me/{tel_aviso}?text={urllib.parse.quote(msg)}"
+                        df_p_vista.at[idx, 'Avisar Equipo'] = f"https://api.whatsapp.com/send?phone={tel_aviso}&text={urllib.parse.quote(msg)}"
                     
                     df_p_vista.insert(0, "Borrar", False)
                     ed_p = st.data_editor(
@@ -199,7 +199,7 @@ def render_pestana_servicios(client):
                     df_a_vista['Avisar Equipo'] = None
                     for idx, row in df_a_vista.iterrows():
                         msg = f"¡Petición de Adiestramiento! 🎓\nCliente: {row['cliente']}\nMascota: {row['mascota']}\nMotivo: {row['motivo']}\nDisponibilidad: {row['fecha_sesion']}\nObs: {row.get('observaciones', '')}"
-                        df_a_vista.at[idx, 'Avisar Equipo'] = f"https://wa.me/34645749708?text={urllib.parse.quote(msg)}"
+                        df_a_vista.at[idx, 'Avisar Equipo'] = f"https://api.whatsapp.com/send?phone=34645749708&text={urllib.parse.quote(msg)}"
                         
                     df_a_vista.insert(0, "Borrar", False)
                     ed_a = st.data_editor(
@@ -290,10 +290,10 @@ def render_pestana_servicios(client):
                             if tel_limpio:
                                 if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
                                 mensaje_r = f"¡Hola {row['cliente']}! 🐾 Vamos de camino a recoger a {row['mascota']} en {row.get('direccion', 'su domicilio')} para su sesión de peluquería en Animalarium. ¡Nos vemos en unos minutos! 🚐"
-                                df_r.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_r)}"
+                                df_r.at[idx, 'WhatsApp'] = f"https://api.whatsapp.com/send?phone={tel_limpio}&text={urllib.parse.quote(mensaje_r)}"
                                 
                             msg_eq = f"¡Nueva Recogida! 🚐\nCliente: {row['cliente']}\nMascota: {row['mascota']}\nDirección: {row.get('direccion', '')}\nFecha: {row['fecha_recogida']}\nObs: {row.get('observaciones', '')}"
-                            df_r.at[idx, 'Avisar Equipo'] = f"https://wa.me/34645749708?text={urllib.parse.quote(msg_eq)}"
+                            df_r.at[idx, 'Avisar Equipo'] = f"https://api.whatsapp.com/send?phone=34645749708&text={urllib.parse.quote(msg_eq)}"
                                 
                         df_r_vista = df_r[['id', 'cliente', 'mascota', 'telefono', 'direccion', 'fecha_recogida', 'estado', 'WhatsApp', 'Avisar Equipo']].copy()
                         df_r_vista.insert(0, "Borrar", False)
@@ -384,10 +384,10 @@ def render_pestana_servicios(client):
                             if tel_limpio:
                                 if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
                                 mensaje_dom = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium. Tu pedido a domicilio ya está en camino a la dirección: {row['direccion']}. ¡Un saludo!"
-                                df_d.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_dom)}"
+                                df_d.at[idx, 'WhatsApp'] = f"https://api.whatsapp.com/send?phone={tel_limpio}&text={urllib.parse.quote(mensaje_dom)}"
                                 
                             msg_eq = f"¡Nuevo Pedido a Domicilio! 🛵\nCliente: {row['nombre_cliente']}\nDirección: {row['direccion']}\nPedido: {row['detalle_pedido']}"
-                            df_d.at[idx, 'Avisar Equipo'] = f"https://wa.me/34645749708?text={urllib.parse.quote(msg_eq)}"
+                            df_d.at[idx, 'Avisar Equipo'] = f"https://api.whatsapp.com/send?phone=34645749708&text={urllib.parse.quote(msg_eq)}"
                                 
                         df_d_vista = df_d[['id', 'Fecha', 'nombre_cliente', 'telefono', 'direccion', 'detalle_pedido', 'estado', 'WhatsApp', 'Avisar Equipo']].copy()
                         df_d_vista.insert(0, "Borrar", False)

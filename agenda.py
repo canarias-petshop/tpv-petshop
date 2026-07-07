@@ -155,7 +155,7 @@ def render_pestana_agenda(client):
         tel_limpio = ''.join(filter(str.isdigit, str(telefono)))
         if not tel_limpio: return None
         if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
-        return f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje)}"
+        return f"https://api.whatsapp.com/send?phone={tel_limpio}&text={urllib.parse.quote(mensaje)}"
     
     # --- DATOS COMUNES PARA TODAS LAS SUB-PESTAÑAS DE AGENDA ---
     all_mascotas = get_masc_ag_cached(client, st.session_state.get('db_version', 0))
@@ -463,7 +463,7 @@ def render_pestana_agenda(client):
                         msg_radar = f"¡Hola {esp['Dueño']}! Nos pediste que te avisáramos si quedaba un hueco libre antes de tu cita del {esp['Fecha Original']} para {esp['Mascota']}. ¡Se nos ha liberado una hora! ¿Te interesa adelantar la cita?"
                         tel_radar = ''.join(filter(str.isdigit, str(esp['Teléfono'])))
                         if tel_radar and len(tel_radar) == 9 and not tel_radar.startswith('34'): tel_radar = '34' + tel_radar
-                        url_wa_radar = f"https://wa.me/{tel_radar}?text={urllib.parse.quote(msg_radar)}" if tel_radar else ""
+                        url_wa_radar = f"https://api.whatsapp.com/send?phone={tel_radar}&text={urllib.parse.quote(msg_radar)}" if tel_radar else ""
                         
                         c_rad1, c_rad2 = st.columns([3, 1])
                         c_rad1.write(f"🐾 **{esp['Mascota']}** ({esp['Dueño']}) - Cita actual: {esp['Fecha Original']}")

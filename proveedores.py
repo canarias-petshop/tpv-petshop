@@ -396,7 +396,7 @@ def render_pestana_proveedores(client):
                     if metodo_pedido == "WhatsApp" and movil_prov and movil_prov != "nan":
                         num = re.sub(r'\D', '', movil_prov)
                         if len(num) == 9 and (num.startswith('6') or num.startswith('7')): num = "34" + num
-                        link_envio = f"https://wa.me/{num}?text={urllib.parse.quote(texto_pedido)}"
+                        link_envio = f"https://api.whatsapp.com/send?phone={num}&text={urllib.parse.quote(texto_pedido)}"
                     elif email_prov and str(email_prov) != "nan" and metodo_pedido != "Llamada Telefónica":
                         link_envio = f"mailto:{email_prov}?subject=Pedido%20Animalarium&body={urllib.parse.quote(texto_pedido)}"
                     elif metodo_pedido == "Llamada Telefónica" and movil_prov and movil_prov != "nan":

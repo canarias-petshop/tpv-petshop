@@ -549,7 +549,7 @@ def render_pestana_crm(client):
                             if c_tel:
                                 if len(c_tel) == 9 and not c_tel.startswith('34'): c_tel = '34' + c_tel
                                 msg_ahorro = f"¡Hola {c_nombre}! 🐾 Te escribimos de Animalarium para agradecerte tu confianza. Gracias a traer a tu mascota a sus citas de mantenimiento a tiempo, ya llevas acumulado un ahorro total de {ahorro_total:.2f}€. ¡Sigue así! Un saludo."
-                                url_wa = f"https://wa.me/{c_tel}?text={urllib.parse.quote(msg_ahorro)}"
+                                url_wa = f"https://api.whatsapp.com/send?phone={c_tel}&text={urllib.parse.quote(msg_ahorro)}"
                                 st.markdown(f"<a href='{url_wa}' target='_blank' style='text-decoration:none;'><div style='background-color:#25D366; color:white; padding:6px 12px; border-radius:6px; display:inline-block; font-size:14px; font-weight:bold;'>📱 Enviar WhatsApp de Ahorro</div></a>", unsafe_allow_html=True)
 
                     with col_ficha2:
@@ -870,7 +870,7 @@ def render_pestana_crm(client):
                         
                         texto_wa = f"¡Hola {t_web['cliente_fidel']}! 🐾 Tu pedido web ya está confirmado y registrado en tienda.\n\nAquí tienes tu resguardo de compra:\n*Ticket #{t_web['id']}*\n*Total: {t_web['total']}€*\n\nSi tienes dudas, contáctanos.\n¡Gracias por tu confianza!"
                         tel_wa = str(t_web.get('telefono', '')).replace(' ', '').replace('+', '')
-                        wa_url = f"https://wa.me/{tel_wa}?text={urllib.parse.quote(texto_wa)}"
+                        wa_url = f"https://api.whatsapp.com/send?phone={tel_wa}&text={urllib.parse.quote(texto_wa)}"
                         
                         html_t_web = f"""
                         <!DOCTYPE html><html><head><meta charset='utf-8'>
@@ -1018,7 +1018,7 @@ def render_pestana_crm(client):
                                         elif estado_actual == 'Confirmación de aviso' and dias_desde_aviso >= 14:
                                             mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Lamentamos informarte que ha finalizado el plazo máximo de 14 días para recoger tu encargo ({row['detalle_pedido']}). Procedemos a anular la reserva y liberar el producto. Si tienes cualquier duda, contáctanos. Un saludo."
                                             
-                                    df_e.at[idx, 'WhatsApp'] = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(mensaje_encargo)}"
+                                    df_e.at[idx, 'WhatsApp'] = f"https://api.whatsapp.com/send?phone={tel_limpio}&text={urllib.parse.quote(mensaje_encargo)}"
                                 
                                 if estado_actual == 'Pendiente' and dias_desde_creacion >= 2:
                                     alertas_encargos.append(("error", f"🚨 **PEDIDO RETRASADO:** El encargo de **{row['nombre_cliente']}** lleva {dias_desde_creacion} días Pendiente de pedir al proveedor."))
@@ -1315,7 +1315,7 @@ def render_pestana_crm(client):
                         if tel_limpio:
                             if len(tel_limpio) == 9 and not tel_limpio.startswith('34'): tel_limpio = '34' + tel_limpio
                             msg = f"¡Hola {cliente}! 👋 Nos ponemos en contacto desde Animalarium para recordarte que tienes un saldo pendiente en la tienda de {total_debe:.2f}€. Cuando te venga bien, puedes pasarte a saldarlo. ¡Muchas gracias y un saludo! 🐾"
-                            url_wa = f"https://wa.me/{tel_limpio}?text={urllib.parse.quote(msg)}"
+                            url_wa = f"https://api.whatsapp.com/send?phone={tel_limpio}&text={urllib.parse.quote(msg)}"
                         
                         alerta = "🔴 Avisar (Más de 15 días)" if dias_retraso >= 15 else "🟡 Reciente"
                         
