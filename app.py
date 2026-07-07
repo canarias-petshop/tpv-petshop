@@ -32,8 +32,8 @@ st.set_page_config(page_title="Animalarium TPV", layout="wide")
 
 st.markdown("""
     <style>
-        /* 1. Ajuste del contenedor para aprovechar el ancho sin aplastar */
-        .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; max-width: 98% !important; }
+        /* 1. Ajuste del contenedor para aprovechar el ancho sin aplastar y subir el contenido */
+        .block-container { padding-top: 0rem !important; margin-top: -1rem !important; padding-bottom: 0.5rem !important; max-width: 98% !important; }
         
         /* 2. Espaciado entre columnas (quitamos el estrechamiento) */
         [data-testid="column"] { padding: 0 8px !important; }
@@ -42,17 +42,12 @@ st.markdown("""
         div[data-testid="stVerticalBlock"] > div { gap: 0.5rem !important; }
         div.element-container { margin-bottom: 0.2rem !important; }
         
-        /* 4. Ocultar elementos de menú de Streamlit pero dejar el botón del sidebar */
-        [data-testid="stFooter"], footer, 
+        /* 4. Ocultar elementos de menú de Streamlit (sin barra lateral no necesitamos cabecera) */
+        [data-testid="stHeader"], [data-testid="stFooter"], footer, 
         [data-testid="stAppDeployButton"], .stDeployButton, 
         [data-testid="stToolbar"], #st-viewer-badge, [data-testid="viewerBadge"],
         #MainMenu, .stActionButton, [data-testid="manage-app-button"]
         {display: none !important;}
-        [data-testid="stHeader"] {background: transparent !important; box-shadow: none !important;}
-        
-        /* Asegurar que el botón de expandir la barra lateral SIEMPRE esté visible */
-        [data-testid="collapsedControl"] { display: flex !important; visibility: visible !important; opacity: 1 !important; z-index: 99999 !important; color: #000 !important; }
-        section[data-testid="stSidebar"] > div { padding-top: 2rem !important; }
 
         /* Estilo para alertas de vencimiento */
         .vencido { color: #d32f2f; font-weight: bold; background-color: #ffebee; padding: 2px 5px; border-radius: 3px; }
