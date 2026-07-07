@@ -291,6 +291,22 @@ except: pass
 
 num_alertas = (1 if bloqueo else 0) + (1 if pedidos_web else 0) + (1 if alertas_provs else 0)
 
+
+# --- CABECERA COMPACTA ---
+c_logo, c_titulo, c_rol = st.columns([0.08, 0.82, 0.10], vertical_alignment="center")
+with c_logo:
+    try: st.image("LOGO.jpg", width=60)
+    except: st.markdown("<h2 style='margin:0; padding:0;'>🐾</h2>", unsafe_allow_html=True)
+with c_titulo:
+    st.markdown("<h1 style='margin: 0; padding: 0; font-size: 1.8rem; line-height: 1;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
+with c_rol:
+    st.markdown(f"<div style='text-align:right; font-weight:bold; color:#005275; font-size:14px;'>👤 {st.session_state.rol}</div>", unsafe_allow_html=True)
+    if st.button("Salir", key="btn_logout", use_container_width=True):
+        st.session_state.acceso_concedido = False
+        st.session_state.rol = None
+        st.rerun()
+
+
 if num_alertas > 0:
     with st.expander(f"🔔 CENTRO DE NOTIFICACIONES: Tienes {num_alertas} alerta(s) pendiente(s) (Despliega para ver y solucionar)", expanded=False):
         if bloqueo:
@@ -399,21 +415,6 @@ if num_alertas > 0:
         if alertas_provs:
             nombres_provs = ", ".join([a['proveedor'] for a in alertas_provs])
             st.warning(f"⚠️ **ALERTA DE PROVEEDORES:** Tienes {len(alertas_provs)} pedido(s) urgente(s) pendiente(s) de realizar ({nombres_provs}). Ve a 'Proveedores y Pedidos' para registrarlo(s).")
-    st.markdown("---")
-
-# --- CABECERA COMPACTA ---
-c_logo, c_titulo, c_rol = st.columns([0.08, 0.82, 0.10], vertical_alignment="center")
-with c_logo:
-    try: st.image("LOGO.jpg", width=60)
-    except: st.markdown("<h2 style='margin:0; padding:0;'>🐾</h2>", unsafe_allow_html=True)
-with c_titulo:
-    st.markdown("<h1 style='margin: 0; padding: 0; font-size: 1.8rem; line-height: 1;'>Animalarium - TPV</h1>", unsafe_allow_html=True)
-with c_rol:
-    st.markdown(f"<div style='text-align:right; font-weight:bold; color:#005275; font-size:14px;'>👤 {st.session_state.rol}</div>", unsafe_allow_html=True)
-    if st.button("Salir", key="btn_logout", use_container_width=True):
-        st.session_state.acceso_concedido = False
-        st.session_state.rol = None
-        st.rerun()
 
 # --- DEFINICIÓN DINÁMICA DE PESTAÑAS SEGÚN ROL ---
 if st.session_state.rol == "Admin":
