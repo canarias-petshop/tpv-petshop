@@ -1000,16 +1000,16 @@ def render_pestana_crm(client):
                                         if estado_actual == 'Avisado sin stock':
                                             mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium sobre tu pedido web. Lamentablemente, nos falta stock de ({row['detalle_pedido']}). ¿Te interesaría cambiarlo por alguna de estas opciones similares que sí tenemos? [ELIMINA ESTO Y ESCRIBE AQUÍ LAS OPCIONES]"
                                         elif estado_actual == 'Avisado con enlace de pago (Domicilio)':
-                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Tu pedido web ({row['detalle_pedido']}) está preparado. Puedes pagarlo usando Bizum al 627691792, por transferencia al [TU IBAN], o con tarjeta en este enlace: [PEGA AQUÍ TU ENLACE]. Avísanos al pagar para enviártelo."
+                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Todo listo. Puedes revisar tu pedido final y pagarlo con Tarjeta o Bizum aquí: https://animalariumtenerife.es/pago/{row['id']}"
                                         elif estado_actual == 'Avisado para recogida local':
-                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Tu pedido web ({row['detalle_pedido']}) ya está preparado en la tienda. Puedes pasar a recogerlo en las próximas 24h. ¡Te esperamos!"
+                                            mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Todo listo. Por favor, realiza el pago seguro aquí: https://animalariumtenerife.es/pago/{row['id']}. Podrás recogerlo en nuestro local en horario de 9:00 a 21:00 ininterrumpido. Te confirmaremos por esta vía en un plazo de 24 a 48 horas en cuanto el producto esté en el local listo para su entrega."
                                         elif estado_actual == 'Recibido':
                                             mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos recibido tu pedido web. Estamos comprobando el stock y te avisaremos enseguida."
                                         elif "Confirmado" in estado_actual:
                                             if "(Domicilio)" in estado_actual:
-                                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos confirmado tu pago. ¿Qué hora te viene mejor para la entrega a domicilio?"
+                                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos confirmado tu pago correctamente. Aquí tienes tu ticket de compra: https://animalariumtenerife.es/ticket/{row['id']}. ¿A qué hora te viene mejor que te hagamos la entrega a domicilio?"
                                             else:
-                                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos confirmado tu pedido para recogida en tienda. ¡Nos vemos pronto!"
+                                                mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos confirmado tu pago correctamente. Aquí tienes tu ticket de compra: https://animalariumtenerife.es/ticket/{row['id']}. Tu pedido ya está esperándote en la tienda. ¡Puedes pasar cuando quieras!"
                                         else:
                                             mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos sobre tu pedido web ({row['detalle_pedido']})."
                                     else:
