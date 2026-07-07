@@ -407,11 +407,12 @@ def render_pestana_crm(client):
 
         seccion_crm = st.radio("Sección CRM:", ["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "💸 Pagos Pendientes"], horizontal=True, label_visibility="collapsed")
         
-        if seccion_crm == "👤 Directorio de Clientes":
-            all_cli = get_cli_crm(client)
-            class DummyRes: pass
-            res_clientes = DummyRes()
-            res_clientes.data = all_cli
+        all_cli = get_cli_crm(client)
+        class DummyRes: pass
+        res_clientes = DummyRes()
+        res_clientes.data = all_cli
+        
+        if "Directorio de Clientes" in seccion_crm:
             
             if res_clientes.data:
                 df_cli = pd.DataFrame(res_clientes.data)
@@ -681,7 +682,7 @@ def render_pestana_crm(client):
                     else:
                         st.warning("Falta el nombre de la mascota.")
                         
-        elif seccion_crm == "🐾 Mascotas":
+        elif "Mascotas" in seccion_crm:
             all_masc = get_masc_crm(client)
             class DummyRes: pass
             res_mascotas = DummyRes()
@@ -808,7 +809,7 @@ def render_pestana_crm(client):
                     mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix="ind")
             else: st.info("No hay mascotas registradas.")
 
-        elif seccion_crm == "🛍️ Encargos":
+        elif "Encargos" in seccion_crm:
             col_en1, col_en2 = st.columns([1, 2])
             with col_en1:
                 st.markdown("#### 📝 Registrar Encargo")
@@ -1288,7 +1289,7 @@ def render_pestana_crm(client):
                     else: st.info("No hay encargos activos.")
                 except Exception as e: st.warning(f"Error al cargar encargos: {e}")
                 
-        elif seccion_crm == "💸 Pagos Pendientes":
+        elif "Pagos Pendientes" in seccion_crm:
             st.markdown("#### 💸 Clientes con Pagos Pendientes (Deudas de Tienda)")
             st.info("Aquí se agrupan automáticamente los clientes que dejaron a deber alguna compra en el TPV.")
             try:
