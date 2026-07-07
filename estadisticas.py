@@ -55,93 +55,111 @@ def render_pestana_estadisticas(client):
         empleados_reales = [e['nombre'] for e in res_emp_est.data] if res_emp_est.data else []
     except:
         empleados_reales = []
-
-    hoy = date.today()
-        
-    tipo_periodo = st.selectbox("🗓️ Selecciona el periodo de análisis:", ["Semanal", "Mensual", "Trimestral", "Semestral", "Anual", "Personalizado"], index=1)
-    
-    if tipo_periodo == "Mensual":
+    try:
+        hoy = date.today()
         meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-        c_f1, c_f2 = st.columns(2)
-        mes_sel = c_f1.selectbox("Mes", range(1, 13), format_func=lambda x: meses[x-1], index=hoy.month-1)
-        anio_sel = c_f2.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
-        fecha_ini_dt = date(anio_sel, mes_sel, 1)
-        if mes_sel == 12: fecha_fin_dt = date(anio_sel+1, 1, 1)
-        else: fecha_fin_dt = date(anio_sel, mes_sel+1, 1)
-        fecha_ini_prev_dt = date(anio_sel - 1, 12, 1) if mes_sel == 1 else date(anio_sel, mes_sel - 1, 1)
-        fecha_fin_prev_dt = fecha_ini_dt
-        label_prev = "vs Mes Ant."
-        factor_fijos = 1.0
-    elif tipo_periodo == "Semanal":
-        c_f1, c_f2 = st.columns(2)
-        sem_ref = c_f1.date_input("Semana del:", value=hoy - timedelta(days=hoy.weekday()))
-        fecha_ini_dt = sem_ref - timedelta(days=sem_ref.weekday())
-        fecha_fin_dt = fecha_ini_dt + timedelta(days=7)
-        fecha_ini_prev_dt = fecha_ini_dt - timedelta(days=7)
-        fecha_fin_prev_dt = fecha_ini_dt
-        label_prev = "vs Sem Ant."
-        factor_fijos = 7.0 / 30.416
-    elif tipo_periodo == "Trimestral":
-        c_f1, c_f2 = st.columns(2)
-        trim_sel = c_f1.selectbox("Trimestre", [1, 2, 3, 4], format_func=lambda x: f"T{x}")
-        anio_sel = c_f2.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
-        mes_ini = (trim_sel - 1) * 3 + 1
-        fecha_ini_dt = date(anio_sel, mes_ini, 1)
-        mes_fin = mes_ini + 3
-        if mes_fin > 12: fecha_fin_dt = date(anio_sel+1, 1, 1)
-        else: fecha_fin_dt = date(anio_sel, mes_fin, 1)
-        trim_prev = 4 if trim_sel == 1 else trim_sel - 1
-        anio_prev = anio_sel - 1 if trim_sel == 1 else anio_sel
-        mes_ini_prev = (trim_prev - 1) * 3 + 1
-        fecha_ini_prev_dt = date(anio_prev, mes_ini_prev, 1)
-        fecha_fin_prev_dt = fecha_ini_dt
-        label_prev = "vs Trim Ant."
-        factor_fijos = 3.0
-    elif tipo_periodo == "Semestral":
-        c_f1, c_f2 = st.columns(2)
-        semes_sel = c_f1.selectbox("Semestre", [1, 2], format_func=lambda x: f"S{x}")
-        anio_sel = c_f2.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
-        mes_ini = 1 if semes_sel == 1 else 7
-        fecha_ini_dt = date(anio_sel, mes_ini, 1)
-        fecha_fin_dt = date(anio_sel, 7, 1) if semes_sel == 1 else date(anio_sel+1, 1, 1)
-        semes_prev = 2 if semes_sel == 1 else 1
-        anio_prev = anio_sel - 1 if semes_sel == 1 else anio_sel
-        fecha_ini_prev_dt = date(anio_prev, 7, 1) if semes_prev == 2 else date(anio_prev, 1, 1)
-        fecha_fin_prev_dt = fecha_ini_dt
-        label_prev = "vs Semes Ant."
-        factor_fijos = 6.0
-    elif tipo_periodo == "Anual":
-        c_f1, c_f2 = st.columns(2)
-        anio_sel = c_f1.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
-        fecha_ini_dt = date(anio_sel, 1, 1)
-        fecha_fin_dt = date(anio_sel+1, 1, 1)
-        fecha_ini_prev_dt = date(anio_sel - 1, 1, 1)
-        fecha_fin_prev_dt = fecha_ini_dt
-        label_prev = "vs Año Ant."
-        factor_fijos = 12.0
-    else: # Personalizado
-        rango = st.date_input("Selecciona rango:", [hoy - timedelta(days=30), hoy])
-        if isinstance(rango, tuple) and len(rango) == 2:
-            fecha_ini_dt, fecha_fin_dt_raw = rango
-            fecha_fin_dt = fecha_fin_dt_raw + timedelta(days=1)
-            delta = fecha_fin_dt - fecha_ini_dt
-            fecha_ini_prev_dt = fecha_ini_dt - delta
-            fecha_fin_prev_dt = fecha_ini_dt
-            factor_fijos = delta.days / 30.416
-        else:
+        
+        tipo_periodo = st.selectbox("🗓️ Selecciona el periodo de análisis:", ["Hoy", "Ayer", "Semanal", "Mensual", "Trimestral", "Semestral", "Anual", "Personalizado"], index=3)
+        
+        if tipo_periodo == "Hoy":
             fecha_ini_dt = hoy
             fecha_fin_dt = hoy + timedelta(days=1)
             fecha_ini_prev_dt = hoy - timedelta(days=1)
             fecha_fin_prev_dt = hoy
+            label_prev = "vs Ayer"
             factor_fijos = 1.0 / 30.416
-        label_prev = "vs Período Ant."
+        elif tipo_periodo == "Ayer":
+            fecha_ini_dt = hoy - timedelta(days=1)
+            fecha_fin_dt = hoy
+            fecha_ini_prev_dt = hoy - timedelta(days=2)
+            fecha_fin_prev_dt = hoy - timedelta(days=1)
+            label_prev = "vs Día Ant."
+            factor_fijos = 1.0 / 30.416
+        elif tipo_periodo == "Mensual":
+            c_f1, c_f2 = st.columns(2)
+            mes_sel = c_f1.selectbox("Mes", range(1, 13), format_func=lambda x: meses[x-1], index=hoy.month-1)
+            anio_sel = c_f2.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+            fecha_ini_dt = date(anio_sel, mes_sel, 1)
+            if mes_sel == 12: fecha_fin_dt = date(anio_sel+1, 1, 1)
+            else: fecha_fin_dt = date(anio_sel, mes_sel+1, 1)
+            fecha_ini_prev_dt = date(anio_sel - 1, 12, 1) if mes_sel == 1 else date(anio_sel, mes_sel - 1, 1)
+            fecha_fin_prev_dt = fecha_ini_dt
+            label_prev = "vs Mes Ant."
+            factor_fijos = 1.0
+        elif tipo_periodo == "Semanal":
+            c_f1, c_f2 = st.columns(2)
+            sem_ref = c_f1.date_input("Semana del:", value=hoy - timedelta(days=hoy.weekday()))
+            if isinstance(sem_ref, tuple):
+                sem_ref = sem_ref[0] if sem_ref else hoy
+            if not sem_ref:
+                sem_ref = hoy
+            fecha_ini_dt = sem_ref - timedelta(days=sem_ref.weekday())
+            fecha_fin_dt = fecha_ini_dt + timedelta(days=7)
+            fecha_ini_prev_dt = fecha_ini_dt - timedelta(days=7)
+            fecha_fin_prev_dt = fecha_ini_dt
+            label_prev = "vs Sem Ant."
+            factor_fijos = 7.0 / 30.416
+        elif tipo_periodo == "Trimestral":
+            c_f1, c_f2 = st.columns(2)
+            trim_sel = c_f1.selectbox("Trimestre", [1, 2, 3, 4], format_func=lambda x: f"T{x}")
+            anio_sel = c_f2.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+            mes_ini = (trim_sel - 1) * 3 + 1
+            fecha_ini_dt = date(anio_sel, mes_ini, 1)
+            mes_fin = mes_ini + 3
+            if mes_fin > 12: fecha_fin_dt = date(anio_sel+1, 1, 1)
+            else: fecha_fin_dt = date(anio_sel, mes_fin, 1)
+            trim_prev = 4 if trim_sel == 1 else trim_sel - 1
+            anio_prev = anio_sel - 1 if trim_sel == 1 else anio_sel
+            mes_ini_prev = (trim_prev - 1) * 3 + 1
+            fecha_ini_prev_dt = date(anio_prev, mes_ini_prev, 1)
+            fecha_fin_prev_dt = fecha_ini_dt
+            label_prev = "vs Trim Ant."
+            factor_fijos = 3.0
+        elif tipo_periodo == "Semestral":
+            c_f1, c_f2 = st.columns(2)
+            semestre = c_f1.selectbox("Semestre", [1, 2], format_func=lambda x: "S1 (Ene-Jun)" if x == 1 else "S2 (Jul-Dic)")
+            anio_sel = c_f2.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+            if semestre == 1:
+                fecha_ini_dt = date(anio_sel, 1, 1)
+                fecha_fin_dt = date(anio_sel, 7, 1)
+                fecha_ini_prev_dt = date(anio_sel - 1, 7, 1)
+            else:
+                fecha_ini_dt = date(anio_sel, 7, 1)
+                fecha_fin_dt = date(anio_sel+1, 1, 1)
+                fecha_ini_prev_dt = date(anio_sel, 1, 1)
+            fecha_fin_prev_dt = fecha_ini_dt
+            label_prev = "vs Semestre Ant."
+            factor_fijos = 6.0
+        elif tipo_periodo == "Anual":
+            anio_sel = st.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+            fecha_ini_dt = date(anio_sel, 1, 1)
+            fecha_fin_dt = date(anio_sel + 1, 1, 1)
+            fecha_ini_prev_dt = date(anio_sel - 1, 1, 1)
+            fecha_fin_prev_dt = fecha_ini_dt
+            label_prev = "vs Año Ant."
+            factor_fijos = 12.0
+        else: # Personalizado
+            rango = st.date_input("Selecciona rango:", [hoy - timedelta(days=30), hoy])
+            if isinstance(rango, tuple) and len(rango) == 2:
+                fecha_ini_dt, fecha_fin_dt_raw = rango
+                fecha_fin_dt = fecha_fin_dt_raw + timedelta(days=1)
+                delta = fecha_fin_dt - fecha_ini_dt
+                fecha_ini_prev_dt = fecha_ini_dt - delta
+                fecha_fin_prev_dt = fecha_ini_dt
+                factor_fijos = delta.days / 30.416
+            else:
+                fecha_ini_dt = hoy
+                fecha_fin_dt = hoy + timedelta(days=1)
+                fecha_ini_prev_dt = hoy - timedelta(days=1)
+                fecha_fin_prev_dt = hoy
+                factor_fijos = 1.0 / 30.416
+            label_prev = "vs Período Ant."
 
-    fecha_ini = fecha_ini_dt.strftime("%Y-%m-%dT00:00:00")
-    fecha_fin = fecha_fin_dt.strftime("%Y-%m-%dT00:00:00")
-    fecha_ini_prev = fecha_ini_prev_dt.strftime("%Y-%m-%dT00:00:00")
-    fecha_fin_prev = fecha_fin_prev_dt.strftime("%Y-%m-%dT00:00:00")
+        fecha_ini = fecha_ini_dt.strftime("%Y-%m-%dT00:00:00")
+        fecha_fin = fecha_fin_dt.strftime("%Y-%m-%dT00:00:00")
+        fecha_ini_prev = fecha_ini_prev_dt.strftime("%Y-%m-%dT00:00:00")
+        fecha_fin_prev = fecha_fin_prev_dt.strftime("%Y-%m-%dT00:00:00")
 
-    try:
         # CÁLCULO PERIODO ANTERIOR (Comparativa)
         res_ventas_prev = fetch_ventas_historial_prev(client, fecha_ini_prev, fecha_fin_prev)
         total_ventas_prev = 0.0
