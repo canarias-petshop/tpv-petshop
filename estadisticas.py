@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime, timedelta
-import re
+
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_personal_empleados_nombres(_client):
@@ -276,7 +276,7 @@ def render_pestana_estadisticas(client):
                     
         with sub_estad:
             def limpiar_producto(n):
-                import re
+
                 n = str(n)
                 n = re.sub(r'(?i)^producto\s+', '', n)
                 # Eliminar notas de peluqueros o estados entre paréntesis/corchetes para unificar el nombre real del producto/servicio
@@ -357,7 +357,7 @@ def render_pestana_estadisticas(client):
             res_citas_roi = fetch_citas_roi(client, fecha_ini, fecha_fin)
 
             if res_citas_roi.data:
-                import re
+
                 for c in res_citas_roi.data:
                     servicio_raw = c.get('servicio', '')
                     if "[ESTADO: Cancelada]" in servicio_raw or "[ESTADO: Anulada]" in servicio_raw or "[ESTADO: No presentado]" in servicio_raw or "[ESTADO: Cambio" in servicio_raw: continue
@@ -437,7 +437,7 @@ def render_pestana_estadisticas(client):
                         
                         servicio_raw = c.get('servicio', '')
                         estado_c = "Confirmada"
-                        import re
+
                         m_est = re.search(r'\[ESTADO:\s*(.*?)\]', servicio_raw)
                         if m_est:
                             estado_c = m_est.group(1).strip()
