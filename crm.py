@@ -999,14 +999,14 @@ def render_pestana_crm(client):
                                     if row.get('origen') == 'Web':
                                         if estado_actual == 'Avisado sin stock':
                                             mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Te escribimos desde Animalarium sobre tu pedido web. Lamentablemente, nos falta stock de ({row['detalle_pedido']}). ¿Te interesaría cambiarlo por alguna de estas opciones similares que sí tenemos? [ELIMINA ESTO Y ESCRIBE AQUÍ LAS OPCIONES]"
-                                        elif estado_actual == 'Avisado con enlace de pago (Domicilio)':
+                                        elif estado_actual == 'Aviso de servicio a domicilio con enlace de pago':
                                             mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Todo listo. Puedes revisar tu pedido final y pagarlo con Tarjeta o Bizum aquí: https://animalariumtenerife.es/pago/{row['id']}"
-                                        elif estado_actual == 'Avisado para recogida local':
+                                        elif estado_actual == 'Aviso de recogida local con enlace de pago':
                                             mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Todo listo. Por favor, realiza el pago seguro aquí: https://animalariumtenerife.es/pago/{row['id']}. Podrás recogerlo en nuestro local en horario de 9:00 a 21:00 ininterrumpido. Te confirmaremos por esta vía en un plazo de 24 a 48 horas en cuanto el producto esté en el local listo para su entrega."
                                         elif estado_actual == 'Recibido':
                                             mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos recibido tu pedido web. Estamos comprobando el stock y te avisaremos enseguida."
-                                        elif "Confirmado" in estado_actual:
-                                            if "(Domicilio)" in estado_actual:
+                                        elif "Confirmado" in str(estado_actual):
+                                            if "reparto a domicilio" in str(estado_actual):
                                                 mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos confirmado tu pago correctamente. Aquí tienes tu ticket de compra: https://animalariumtenerife.es/ticket/{row['id']}. ¿A qué hora te viene mejor que te hagamos la entrega a domicilio?"
                                             else:
                                                 mensaje_encargo = f"¡Hola {row['nombre_cliente']}! 🐾 Hemos confirmado tu pago correctamente. Aquí tienes tu ticket de compra: https://animalariumtenerife.es/ticket/{row['id']}. Tu pedido ya está esperándote en la tienda. ¡Puedes pasar cuando quieras!"
@@ -1062,7 +1062,7 @@ def render_pestana_crm(client):
                                 column_config={
                                     "id": None, "origen": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                     "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
-                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Avisado sin stock", "Avisado con enlace de pago (Domicilio)", "Avisado para recogida local", "Confirmado (Domicilio)", "Confirmado (Recogida local)", "Cancelado"]),
+                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Avisado sin stock", "Aviso de recogida local con enlace de pago", "Aviso de servicio a domicilio con enlace de pago", "Confirmado con reparto a domicilio", "Confirmado con recogida local", "Cancelado"]),
                                     "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
                                 },
                                 num_rows="dynamic"
