@@ -1041,7 +1041,7 @@ def render_pestana_crm(client):
                         
                         seccion_encargos = st.radio("Sección Encargos:", ["🛍️ Encargos de Tienda", "🌐 Pedidos Web"], horizontal=True, label_visibility="collapsed")
                         
-                        if seccion_encargos == "🛍️ Encargos de Tienda":
+                        if "Encargos de Tienda" in seccion_encargos:
                             df_tnd = df_e_vista[df_e_vista['origen'] != 'Web'].copy()
                             ed_e_tnd = st.data_editor(
                                 df_tnd, hide_index=True, use_container_width=True, height=300, key=f"ed_tabla_encargos_tnd_{st.session_state.get('db_version', 0)}",
@@ -1054,7 +1054,7 @@ def render_pestana_crm(client):
                                 num_rows="dynamic"
                             )
                             
-                        elif seccion_encargos == "🌐 Pedidos Web":
+                        elif "Pedidos Web" in seccion_encargos:
                             df_web = df_e_vista[df_e_vista['origen'] == 'Web'].copy()
                             ed_e_web = st.data_editor(
                                 df_web, hide_index=True, use_container_width=True, height=300, key=f"ed_tabla_encargos_web_{st.session_state.get('db_version', 0)}",
