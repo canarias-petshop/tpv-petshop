@@ -435,12 +435,13 @@ if "seccion_principal_key" not in st.session_state:
 if st.session_state.seccion_principal_key not in nombres_pestanas:
     st.session_state.seccion_principal_key = nombres_pestanas[0]
 
-st.markdown("### 🧭 Navegación TPV")
-seccion_principal = st.selectbox("Ir a la sección:", nombres_pestanas, key="seccion_principal_key", label_visibility="collapsed")
-st.markdown("---")
+c_nav1, c_nav2 = st.columns([1, 5])
+with c_nav1:
+    st.markdown("<div style='padding-top: 10px; font-weight: bold; font-size: 1.1rem;'>🧭 Navegación:</div>", unsafe_allow_html=True)
+with c_nav2:
+    seccion_principal = st.selectbox("Ir a la sección:", nombres_pestanas, key="seccion_principal_key", label_visibility="collapsed")
 
 if st.session_state.rol == "Admin":
-    st.markdown("<p style='text-align: right; color: gray; font-size: 12px;'>Versión: 1.0.1 (Fix Estadísticas)</p>", unsafe_allow_html=True)
     if seccion_principal == nombres_pestanas[0]: render_pestana_caja(client)
     elif seccion_principal == nombres_pestanas[1]: render_pestana_tpv(client)
     elif seccion_principal == nombres_pestanas[2]: render_pestana_historial(client)
