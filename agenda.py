@@ -1121,9 +1121,9 @@ def render_pestana_agenda(client):
                 fecha_str_wa = f"{nombre_dia_obj.lower()} {manana_dt.day} {meses_es[manana_dt.month]}"
                 
                 if domicilio_alguno:
-                    msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería {texto_mascotas_horas}\nDía: {fecha_str_wa}\nDirección de recogida: {direccion_alguno}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶🚗"
+                    msg = f"¡Hola, buenos días! ☀️ Desde Animalarium 🐾 le recordamos la cita de peluquería {texto_mascotas_horas}\n🗓️ Día: {fecha_str_wa}\n📍 Dirección de recogida: {direccion_alguno}\n\n⚠️ Confírmanos contestando a este mensaje, de lo contrario la cita será cancelada.\n🔄 Si deseas cambiar la cita, no dudes en comunicarlo.\n\n¡Te esperamos! 🐶❤️😊🚗"
                 else:
-                    msg = f"Hola buenos 🐾🐾 días desde Animalarium le recordamos la cita de peluquería {texto_mascotas_horas}\nDía: {fecha_str_wa}\nConfirmanos contestando a este mensaje, de lo contrario la cita será cancelada.\nSi desea cambiar la cita no dude en comunicarlo.🐾😊❤️🐶"
+                    msg = f"¡Hola, buenos días! ☀️ Desde Animalarium 🐾 le recordamos la cita de peluquería {texto_mascotas_horas}\n🗓️ Día: {fecha_str_wa}\n\n⚠️ Confírmanos contestando a este mensaje, de lo contrario la cita será cancelada.\n🔄 Si deseas cambiar la cita, no dudes en comunicarlo.\n\n¡Te esperamos! 🐶❤️😊"
                     
                 url_wa = generar_enlace_wa(tlf, msg)
                 
