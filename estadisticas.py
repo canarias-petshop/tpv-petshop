@@ -426,8 +426,6 @@ def render_pestana_estadisticas(client):
 
             st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
             st.markdown("#### 📊 Análisis y Rendimiento de la Agenda")
-            
-            from datetime import timedelta
             res_citas_est = fetch_citas_est(client)
             
             if res_citas_est.data:
