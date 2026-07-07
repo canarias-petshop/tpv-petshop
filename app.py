@@ -42,12 +42,13 @@ st.markdown("""
         div[data-testid="stVerticalBlock"] > div { gap: 0.5rem !important; }
         div.element-container { margin-bottom: 0.2rem !important; }
         
-        /* 4. Ocultar elementos de menú de Streamlit */
-        [data-testid="stHeader"], [data-testid="stFooter"], footer, 
+        /* 4. Ocultar elementos de menú de Streamlit pero dejar el botón del sidebar */
+        [data-testid="stFooter"], footer, 
         [data-testid="stAppDeployButton"], .stDeployButton, 
         [data-testid="stToolbar"], #st-viewer-badge, [data-testid="viewerBadge"],
         #MainMenu, .stActionButton, [data-testid="manage-app-button"]
         {display: none !important;}
+        [data-testid="stHeader"] {background: transparent !important; box-shadow: none !important;}
 
         /* Estilo para alertas de vencimiento */
         .vencido { color: #d32f2f; font-weight: bold; background-color: #ffebee; padding: 2px 5px; border-radius: 3px; }
