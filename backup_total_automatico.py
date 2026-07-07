@@ -26,7 +26,7 @@ if not os.path.exists(carpeta_maestra):
 
 # Crear la subcarpeta con la fecha de hoy
 carpeta_hoy = os.path.join(carpeta_maestra, f"Backup_{fecha_hoy}_{hora_hoy}")
-os.makedirs(carpeta_hoy)
+os.makedirs(carpeta_hoy, exist_ok=True)
 
 print(f"📥 Iniciando DESCARGA TOTAL de datos en la carpeta: {carpeta_hoy} ...\n")
 
@@ -116,6 +116,40 @@ if _all_prods:
     # Convertir a datetime si es necesario o dejar como string
     df_p.to_excel(os.path.join(carpeta_hoy, "5_Catalogo_y_Servicios.xlsx"), index=False)
     print("  ✅ Catálogo guardado.")
+
+# ==========================================
+# 6. DESCARGAR ENCARGOS Y PEDIDOS
+# ==========================================
+print("⏳ Descargando Encargos y Pedidos...")
+res_enc = client.table("encargos_clientes").select("*").execute()
+if res_enc.data:
+    df_enc = pd.DataFrame(res_enc.data)
+    dt_enc = pd.to_datetime(df_enc['created_at'])
+    if dt_enc.dt.tz is None:
+        dt_enc = dt_enc.dt.tz_localize('UTC')
+    df_enc['Fecha'] = dt_enc.dt.tz_convert('Atlantic/Canary').dt.strftime('%d/%m/%Y %H:%M')
+    df_enc.to_excel(os.path.join(carpeta_hoy, "6_Encargos_y_Pedidos.xlsx"), index=False)
+    print("  ✅ Encargos guardados.")
+
+# ==========================================
+# 7. DESCARGAR CITAS DE PELUQUERÍA
+# ==========================================
+print("⏳ Descargando Citas...")
+res_citas = client.table("citas").select("*, mascotas(nombre, clientes(nombre_dueno, telefono))").execute()
+if res_citas.data:
+    df_ci = pd.DataFrame(res_citas.data)
+    df_ci.to_excel(os.path.join(carpeta_hoy, "7_Citas_Peluqueria.xlsx"), index=False)
+    print("  ✅ Citas guardadas.")
+
+# ==========================================
+# 8. DESCARGAR PROVEEDORES
+# ==========================================
+print("⏳ Descargando Proveedores...")
+res_prov = client.table("proveedores").select("*").execute()
+if res_prov.data:
+    df_prov = pd.DataFrame(res_prov.data)
+    df_prov.to_excel(os.path.join(carpeta_hoy, "8_Proveedores.xlsx"), index=False)
+    print("  ✅ Proveedores guardados.")
 
 print("\n🎉 ¡COPIA DE SEGURIDAD TOTAL COMPLETADA CON ÉXITO!")
 print(f"Revisa la carpeta: {carpeta_hoy}")
