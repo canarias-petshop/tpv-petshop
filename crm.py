@@ -1134,7 +1134,7 @@ def render_pestana_crm(client):
                                             st.warning("Este pedido web es antiguo y no tiene el carrito estructurado. No se puede editar aquí.")
 
                         if st.button("💾 Guardar Cambios en Encargos"):
-                            ed_e = pd.concat([ed_e_tnd, ed_e_web])
+                            ed_e = ed_e_tnd if "Encargos de Tienda" in seccion_encargos else ed_e_web
                             errores = False
                             for _, r in ed_e.iterrows():
                                 if pd.notna(r['id']):
