@@ -1177,10 +1177,14 @@ def render_pestana_crm(client):
                             if not errores:
                                 cambios_realizados = 0
                                 
-                                # 1. Borrar encargos eliminados en la tabla
+                                # 1. Borrar encargos eliminados en la tabla (solo de la sección actual)
                                 ids_actuales = ed_e['id'].dropna().tolist()
-                                ids_originales = df_e_vista['id'].tolist()
-                                ids_a_borrar = [i for i in ids_originales if i not in ids_actuales]
+                                if "Encargos de Tienda" in seccion_encargos:
+                                    ids_originales_seccion = df_tnd['id'].tolist()
+                                else:
+                                    ids_originales_seccion = df_web['id'].tolist()
+                                
+                                ids_a_borrar = [i for i in ids_originales_seccion if i not in ids_actuales]
                                 
                                 for id_del in ids_a_borrar:
                                     client.table("encargos_clientes").delete().eq("id", id_del).execute()
