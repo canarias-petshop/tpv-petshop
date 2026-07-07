@@ -1,0 +1,974 @@
+[
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-PUPPY-2KG.png",
+    "match_score": 40
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 39.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama Lenda Foddie\\Lenda-Foodie-Puppy-Migas-de-caballa.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 61.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama Lenda Foddie\\Lenda-Foodie-Puppy-Migas-de-caballa.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy Maxi",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 61.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-MAXI-PUPPY-WEB.png",
+    "match_score": 60
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pollo Maxi",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 57.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-MAXI-CHICKEN-WEB.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pollo",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 17.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-CERDO-2KG.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pollo",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 33.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama  Lenda Wet Grain Free\\LENDA-POLLO-ZANAHORIAS-GRAIN FREE.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pollo",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 55.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama  Lenda Wet Grain Free\\LENDA-POLLO-ZANAHORIAS-GRAIN FREE.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Light",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-LIGHT-STERILIZED.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Light",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 34.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-LIGHT-STERILIZED.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Light",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 58.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-LIGHT-STERILIZED.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Cordero",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-CERDO-2KG.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Cordero",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 35.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-CORDERO.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Cordero",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 59.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-CORDERO.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Salmon",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-SALMON-2KG.png",
+    "match_score": 40
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Salmon",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 35.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-SALMON-2KG.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Salmon",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 59.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-SALMON-2KG.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Puppy First Bites",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-MINI-2KG.png",
+    "match_score": 40
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Meat & Fish",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-MINI-2KG.png",
+    "match_score": 40
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Meat & Fish",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 39.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-MINI-MEATFISH-WEB.png",
+    "match_score": 40
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Atlantic Blue Fish",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-MINI-ATLANTIC-BLUE-FISH-WEB.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Light & Sterilized",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-LIGHT-STERILIZED.png",
+    "match_score": 90
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Hypo Skin & Coat GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 22.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-MINI-2KG.png",
+    "match_score": 40
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Hypo Skin & Coat GF",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 43.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-MINI-HYPOALLERGENIC.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Atún GF",
+    "mascota": "Perro",
+    "weight": "3",
+    "pvp": 26.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Lomo-negro-de-atun-con-gambas.png",
+    "match_score": 10
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Atún GF",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 69.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Lomo-negro-de-atun-con-gambas.png",
+    "match_score": 10
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pavo GF",
+    "mascota": "Perro",
+    "weight": "3",
+    "pvp": 26.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-PAVO-2KG.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pavo GF",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 69.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-PAVO-2KG.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Sensitive GF",
+    "mascota": "Perro",
+    "weight": "3",
+    "pvp": 26.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-GATO-SENSITIVE-STERILIZED.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Sensitive GF",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 76.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-GATO-SENSITIVE-STERILIZED.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Senior Mobility LG",
+    "mascota": "Perro",
+    "weight": "3",
+    "pvp": 25.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-SENIOR-STERILIZED.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Senior Mobility LG",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 44.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-SENIOR-STERILIZED.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Senior Mobility LG",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 69.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-SENIOR-STERILIZED.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lata de Buey",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 3.6,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama  Lenda Wet Grain Free\\LENDA-BUEY-GUISANTES-GRAIN FREE.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lata de Conejo",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 3.6,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama  Lenda Wet Grain Free\\LENDA-CONEJO-ZANAHORIAS-GRAIN FREE.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lata de Pollo",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 3.6,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama  Lenda Wet Grain Free\\LENDA-POLLO-ZANAHORIAS-GRAIN FREE.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lata de Merluza",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 5.5,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Merluza-natural.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Migas Merluza (Cachorros)",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 3.2,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama Lenda Foddie\\Lenda-Foodie-Puppy-Migas-de-merluza.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Migas de caballa (Cachorros)",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 2.8,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama Lenda Foddie\\Lenda-Foodie-Puppy-Migas-de-caballa.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mordiscos Atlánticos",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Lomo-negro-de-atun-con-gambas.png",
+    "match_score": 10
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Brandada Merluza",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Merluza-natural.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Estofado salvaje",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama Lenda Foddie\\Foodie-Estofado-Salvaje.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puchero Cochinillo",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama Lenda Foddie\\Foodie-Puchero-de-Cochinillo.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Cazuela Silvestre",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama Lenda Foddie\\Foodie-Cazuela-Silvestre.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Meloso Lechón",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Lomo-negro-de-atun-con-gambas.png",
+    "match_score": 10
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pavo Provenzal",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama Lenda Foddie\\Foodie-Pavo-Provenzal.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Tapenade Granjero",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama Lenda Foddie\\Foodie-Tapenade-Granjero.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Atún",
+    "mascota": "Perro",
+    "weight": "250ml",
+    "pvp": 10.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Lomo-negro-de-atun-con-gambas.png",
+    "match_score": 10
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Rabo de Toro",
+    "mascota": "Perro",
+    "weight": "15cm",
+    "pvp": 3.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Snack\\Rabo-Toro.jpg",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavour (Pollo)",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 12.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-CERDO-2KG.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavour (Pollo)",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 33.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama  Lenda Wet Grain Free\\LENDA-POLLO-ZANAHORIAS-GRAIN FREE.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavour (Pollo)",
+    "mascota": "Perro",
+    "weight": "15",
+    "pvp": 47.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Urban\\LENDA-URBAN-FARM-FLAVOUR-15KG.png",
+    "match_score": 40
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Marine Flavour\n(Pescado Azul)",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 13.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-PURE-FISH-2KG.png",
+    "match_score": 45
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Marine Flavour\n(Pescado Azul)",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 36.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Urban\\LENDA-URBAN-MARINE-FLAVOUR-15KG.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Marine Flavour\n(Pescado Azul)",
+    "mascota": "Perro",
+    "weight": "15",
+    "pvp": 51.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Urban\\LENDA-URBAN-MARINE-FLAVOUR-15KG.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Meadow Taste (Cordero)",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 14.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-CERDO-2KG.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Meadow Taste (Cordero)",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 36.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Urban\\LENDA-URBAN-MEADOW-TASTE-15KG.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Meadow Taste (Cordero)",
+    "mascota": "Perro",
+    "weight": "15",
+    "pvp": 51.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Urban\\LENDA-URBAN-MEADOW-TASTE-15KG.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavoured Diet (Pollo)",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 13.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-CERDO-2KG.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavoured Diet (Pollo)",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 33.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Urban\\LENDA-URBAN-FLAVOURED-DIET-15KG.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavoured Diet (Pollo)",
+    "mascota": "Perro",
+    "weight": "15",
+    "pvp": 49.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Urban\\LENDA-URBAN-FLAVOURED-DIET-15KG.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy (Pollo)",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 15.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-PUPPY-2KG.png",
+    "match_score": 40
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy (Pollo)",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 40.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación humeda\\Gama  Lenda Wet Grain Free\\LENDA-POLLO-ZANAHORIAS-GRAIN FREE.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Country Meat",
+    "mascota": "Perro",
+    "weight": "20",
+    "pvp": 59.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-BASE-DAILY-FOOD-20KG.jpg",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Meat & Fish",
+    "mascota": "Perro",
+    "weight": "20",
+    "pvp": 60.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-BASE-DAILY-FOOD-20KG.jpg",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Performance (Alta Energía)",
+    "mascota": "Perro",
+    "weight": "20",
+    "pvp": 62.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-BASE-DAILY-FOOD-20KG.jpg",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy",
+    "mascota": "Perro",
+    "weight": "20",
+    "pvp": 69.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-BASE-DAILY-FOOD-20KG.jpg",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Indoor & Sterilized",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 15.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Grain Free Gatos\\LENDA-STERILIZED.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Indoor & Sterilized",
+    "mascota": "Perro",
+    "weight": "7",
+    "pvp": 43.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Grain Free Gatos\\LENDA-STERILIZED.png",
+    "match_score": 50
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Farm Poultry GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 19.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-FARM-POULTRY.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Farm Poultry GF",
+    "mascota": "Perro",
+    "weight": "7",
+    "pvp": 54.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-FARM-POULTRY.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Light & Sterilized GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 19.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-LIGHT-STERILIZED.png",
+    "match_score": 90
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Light & Sterilized GF",
+    "mascota": "Perro",
+    "weight": "7",
+    "pvp": 54.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-LIGHT-STERILIZED.png",
+    "match_score": 90
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Senior & Sterilized GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 19.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-SENIOR-STERILIZED.png",
+    "match_score": 90
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Senior & Sterilized GF",
+    "mascota": "Perro",
+    "weight": "7",
+    "pvp": 54.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-SENIOR-STERILIZED.png",
+    "match_score": 90
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Sensitive & Sterilized GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 19.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-GATO-SENSITIVE-STERILIZED.png",
+    "match_score": 60
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Kitten Poultry & Fish GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 19.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-KITTEN-POULTRYFISH.png",
+    "match_score": 40
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Merluza al Natural",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 3.2,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Merluza-natural.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Troncos de Caballa",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 2.7,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Troncos-de-caballa-en-trozos.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Merluza y Lomo Atún",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 3.2,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Merluza-y-lomo-negro-de-atun.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lomo Atún y Gambas",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 2.7,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Lomo-negro-de-atun-con-gambas.png",
+    "match_score": 30
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Aves de Corral con Atún",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 2.8,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-FARM-POULTRY.png",
+    "match_score": 25
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Aves de Corral con Calabaza",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 2.8,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Lenda Gatos Original Sin Cereales\\LENDA-CAT-FARM-POULTRY.png",
+    "match_score": 25
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pollo con Buey y Arándanos",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 2.8,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Lomo-negro-de-atun-con-gambas.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Cerdo con Pavo y Arándanos",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 3.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación humeda\\Gama Lenda Foodie Gatos\\Lenda-Foodie-gato-Lomo-negro-de-atun-con-gambas.png",
+    "match_score": 20
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lenda SuperPEPA",
+    "mascota": "Perro",
+    "weight": "20",
+    "pvp": 54.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Lenda\\LENDA-BASE-DAILY-FOOD-20KG.jpg",
+    "match_score": 40
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet RENAL & OXALATE",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 22.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-RENAL-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet RENAL & OXALATE",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-RENAL-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet DIABETIC",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 22.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-CAT-DIABETIC-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet DIABETIC",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 74.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-CAT-DIABETIC-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet ALLERGENIC SOLUTION",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-CERDO-2KG.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet ALLERGENIC SOLUTION",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-DOG-ALLERGENIC-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet URINARY & STRUVITE",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-CAT-STRUVITE-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet URINARY & STRUVITE",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 75.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-CAT-STRUVITE-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet GASTRO & ATOPIC",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-GASTRO-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet GASTRO & ATOPIC",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-GASTRO-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet SLIMMING & STERILIZED",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 22.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-CAT-SLIMMINGSTERILIZED-WEB.png",
+    "match_score": 70
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet SLIMMING & STERILIZED",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-CAT-SLIMMINGSTERILIZED-WEB.png",
+    "match_score": 70
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet MOBILITY & JOINTS",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 24.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-DOG-MOBILITY-WEB.png",
+    "match_score": 60
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet MOBILITY & JOINTS",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-DOG-MOBILITY-WEB.png",
+    "match_score": 60
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet CARDIAC",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-CAT-CARDIAC-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet CARDIAC",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 74.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-CAT-CARDIAC-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet HEPATIC",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 24.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-CAT-HEPATIC-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet HEPATIC",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 75.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Gatos\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-CAT-HEPATIC-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet LEISHMANIASIS",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-CERDO-2KG.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet LEISHMANIASIS",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 75.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-DOG-LEISHMANIASIS-WEB.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet PANCREATIC",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Grain Free\\LENDA-CERDO-2KG.png",
+    "match_score": 30
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet PANCREATIC",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95,
+    "best_image": "C:\\Users\\truji\\OneDrive\\PERSONAL\\Imágenes\\Fotos productos\\Lenda\\Perros\\Alimentación seca\\Gama Veterinaria\\LENDA-VET-DOG-PANCREATIC-WEB.png",
+    "match_score": 30
+  }
+]

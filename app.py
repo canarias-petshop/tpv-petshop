@@ -435,9 +435,9 @@ if "seccion_principal_key" not in st.session_state:
 if st.session_state.seccion_principal_key not in nombres_pestanas:
     st.session_state.seccion_principal_key = nombres_pestanas[0]
 
-with st.sidebar:
-    st.markdown("### 🧭 Menú TPV")
-    seccion_principal = st.radio("Navegación:", nombres_pestanas, key="seccion_principal_key")
+st.markdown("### 🧭 Navegación TPV")
+seccion_principal = st.selectbox("Ir a la sección:", nombres_pestanas, key="seccion_principal_key", label_visibility="collapsed")
+st.markdown("---")
 
 if st.session_state.rol == "Admin":
     st.markdown("<p style='text-align: right; color: gray; font-size: 12px;'>Versión: 1.0.1 (Fix Estadísticas)</p>", unsafe_allow_html=True)

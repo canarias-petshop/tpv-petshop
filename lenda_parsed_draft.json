@@ -1,0 +1,758 @@
+[
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 39.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 61.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy Maxi",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 61.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pollo Maxi",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 57.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pollo",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 17.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pollo",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 33.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pollo",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 55.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Light",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Light",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 34.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Light",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 58.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Cordero",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Cordero",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 35.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Cordero",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 59.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Salmon",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Salmon",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 35.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Salmon",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 59.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Puppy First Bites",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Meat & Fish",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Meat & Fish",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 39.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Atlantic Blue Fish",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Light & Sterilized",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 18.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Hypo Skin & Coat GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 22.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mini Hypo Skin & Coat GF",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 43.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Atún GF",
+    "mascota": "Perro",
+    "weight": "3",
+    "pvp": 26.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Atún GF",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 69.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pavo GF",
+    "mascota": "Perro",
+    "weight": "3",
+    "pvp": 26.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pavo GF",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 69.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Sensitive GF",
+    "mascota": "Perro",
+    "weight": "3",
+    "pvp": 26.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Sensitive GF",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 76.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Senior Mobility LG",
+    "mascota": "Perro",
+    "weight": "3",
+    "pvp": 25.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Senior Mobility LG",
+    "mascota": "Perro",
+    "weight": "6",
+    "pvp": 44.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Senior Mobility LG",
+    "mascota": "Perro",
+    "weight": "12",
+    "pvp": 69.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lata de Buey",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 3.6
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lata de Conejo",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 3.6
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lata de Pollo",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 3.6
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lata de Merluza",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 5.5
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Migas Merluza (Cachorros)",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 3.2
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Migas de caballa (Cachorros)",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 2.8
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Mordiscos Atlánticos",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Brandada Merluza",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Estofado salvaje",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puchero Cochinillo",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Cazuela Silvestre",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Meloso Lechón",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pavo Provenzal",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Tapenade Granjero",
+    "mascota": "Perro",
+    "weight": "0,38",
+    "pvp": 4.5
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Atún",
+    "mascota": "Perro",
+    "weight": "250ml",
+    "pvp": 10.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Rabo de Toro",
+    "mascota": "Perro",
+    "weight": "15cm",
+    "pvp": 3.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavour (Pollo)",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 12.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavour (Pollo)",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 33.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavour (Pollo)",
+    "mascota": "Perro",
+    "weight": "15",
+    "pvp": 47.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Marine Flavour\n(Pescado Azul)",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 13.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Marine Flavour\n(Pescado Azul)",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 36.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Marine Flavour\n(Pescado Azul)",
+    "mascota": "Perro",
+    "weight": "15",
+    "pvp": 51.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Meadow Taste (Cordero)",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 14.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Meadow Taste (Cordero)",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 36.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Meadow Taste (Cordero)",
+    "mascota": "Perro",
+    "weight": "15",
+    "pvp": 51.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavoured Diet (Pollo)",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 13.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavoured Diet (Pollo)",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 33.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Flavoured Diet (Pollo)",
+    "mascota": "Perro",
+    "weight": "15",
+    "pvp": 49.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy (Pollo)",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 15.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy (Pollo)",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 40.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Country Meat",
+    "mascota": "Perro",
+    "weight": "20",
+    "pvp": 59.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Meat & Fish",
+    "mascota": "Perro",
+    "weight": "20",
+    "pvp": 60.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Performance (Alta Energía)",
+    "mascota": "Perro",
+    "weight": "20",
+    "pvp": 62.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Puppy",
+    "mascota": "Perro",
+    "weight": "20",
+    "pvp": 69.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Indoor & Sterilized",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 15.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Indoor & Sterilized",
+    "mascota": "Perro",
+    "weight": "7",
+    "pvp": 43.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Farm Poultry GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 19.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Farm Poultry GF",
+    "mascota": "Perro",
+    "weight": "7",
+    "pvp": 54.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Light & Sterilized GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 19.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Light & Sterilized GF",
+    "mascota": "Perro",
+    "weight": "7",
+    "pvp": 54.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Senior & Sterilized GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 19.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Senior & Sterilized GF",
+    "mascota": "Perro",
+    "weight": "7",
+    "pvp": 54.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Sensitive & Sterilized GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 19.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Kitten Poultry & Fish GF",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 19.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Merluza al Natural",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 3.2
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Troncos de Caballa",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 2.7
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Merluza y Lomo Atún",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 3.2
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lomo Atún y Gambas",
+    "mascota": "Perro",
+    "weight": "0,12",
+    "pvp": 2.7
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Aves de Corral con Atún",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 2.8
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Aves de Corral con Calabaza",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 2.8
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Pollo con Buey y Arándanos",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 2.8
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Cerdo con Pavo y Arándanos",
+    "mascota": "Perro",
+    "weight": "0,4",
+    "pvp": 3.95
+  },
+  {
+    "source": "Tienda",
+    "name": "Lenda Lenda SuperPEPA",
+    "mascota": "Perro",
+    "weight": "20",
+    "pvp": 54.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet RENAL & OXALATE",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 22.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet RENAL & OXALATE",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet DIABETIC",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 22.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet DIABETIC",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 74.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet ALLERGENIC SOLUTION",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet ALLERGENIC SOLUTION",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet URINARY & STRUVITE",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet URINARY & STRUVITE",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 75.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet GASTRO & ATOPIC",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet GASTRO & ATOPIC",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet SLIMMING & STERILIZED",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 22.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet SLIMMING & STERILIZED",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet MOBILITY & JOINTS",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 24.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet MOBILITY & JOINTS",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet CARDIAC",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet CARDIAC",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 74.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet HEPATIC",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 24.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet HEPATIC",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 75.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet LEISHMANIASIS",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet LEISHMANIASIS",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 75.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet PANCREATIC",
+    "mascota": "Perro",
+    "weight": "2",
+    "pvp": 25.95
+  },
+  {
+    "source": "Vet",
+    "name": "Lenda Vet PANCREATIC",
+    "mascota": "Perro",
+    "weight": "10",
+    "pvp": 80.95
+  }
+]

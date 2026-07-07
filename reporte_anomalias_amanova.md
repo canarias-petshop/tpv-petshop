@@ -1,0 +1,108 @@
+# Reporte de Anomalías AMANOVA (Fase 1: Fotos y Categorías)
+
+## 1. Discrepancias de Categorización
+- **Producto:** AMANOVA Adult Cat Exquisite Chicken & Quinoa 1,5Kg
+  - **Foto emparejada:** amanova-puppy-mini-exquisite-chicken---quinoa-2kg perro.jpg
+  - **Conflicto:** DB: Gato / Alimentación | FOTO: Perro / Seco
+- **Producto:** AMANOVA Wet Adult Beef & Chicken Pouch 300Gr Nº01 12Ud (Caja 12 Ud)
+  - **Foto emparejada:** amanova-wet-adult-beef-chicken-85gr-n14-12ud gato.jpg
+  - **Conflicto:** DB: Perro / Alimento Húmedo | FOTO: Gato / Húmedo
+- **Producto:** AMANOVA Adult Cat Fish Delicacy & Quinoa 1,5Kg
+  - **Foto emparejada:** amanova-adult-mature-fish-delicacy---quinoa-10kg perro.jpg
+  - **Conflicto:** DB: Gato / Alimentación | FOTO: Perro / Seco
+
+## 2. Productos en DB sin foto asociada
+- AMANOVA Sterilised Cat Delicious Lamb & Quinoa 300Gr
+- AMANOVA Wet Adult Turkey Delight Pouch 300Gr Nº07 (Unidad)
+- AMANOVA Adult Mini Obesity Turkey Delight 800gr
+- AMANOVA Wet Adult Exquis Chicken Pouch 300Gr Nº03 (Unidad)
+- AMANOVA Adult Obesity Turkey Delight & Quinoa 2Kg
+- AMANOVA Wet Adult Iberian Pork Pouch 300Gr Nº04 (Unidad)
+- AMANOVA Wet Adult Irresitib Beef Pouch 300Gr Nº02 12Ud (Caja 12 Ud)
+- AMANOVA Wet Adult Lamb&Calabaza Pouch 100Gr Nº15 (Unidad)
+- AMANOVA Adult Sensitive Salmon Deluxe & Calabaza 2Kg
+- AMANOVA Wet Adult Turkey Delight Pouch 100Gr Nº07 12Ud (Caja 12 Ud)
+- AMANOVA Mini Mature Fish Delicacy 7Kg
+- AMANOVA Sterilised Cat Salmon Deluxe & Quinoa 300Gr
+- AMANOVA Wet Adult Iberian Pork Pouch 300Gr Nº04 12Ud (Caja 12 Ud)
+- AMANOVA Stick Dental Small & Mini 110Gr (Unidad)
+- AMANOVA Wet Adult Irresitib Beef Pouch 100Gr Nº02 (Unidad)
+- AMANOVA Adult Exigent Iberian Pork & Calabaza 10Kg
+- AMANOVA Wet Adult Exquis Chicken Pouch 300Gr Nº03 12Ud (Caja 12 Ud)
+- AMANOVA Adult Exigent Iberian Pork & Calabaza 2Kg
+- AMANOVA Sterilised Cat Fish Delicacy & Calabaza 300Gr
+- AMANOVA Sterilised Cat Fish Delicacy & Calabaza 1,5Kg
+- AMANOVA Stick Dental Medium & Large 10X180Gr (Caja 10 Ud)
+- AMANOVA Wet Adult Lamb&Calabaza Pouch 300Gr Nº15 (Unidad)
+- AMANOVA Adult Cat Salmon Deluxe & Quinoa 1,5Kg
+- AMANOVA Adult Cat Turkey Delight & Calabaza 4Kg
+- Amanova Creamy Treat Savory Chicken 15gr 6ud (Unidad)
+- AMANOVA Adult Digestive Divine Rabbit & Calabaza 2Kg
+- AMANOVA Puppy Digestive Divine Rabbit & Calabaza 7Kg
+- AMANOVA Wet Adult Irresitib Beef Pouch 100Gr Nº02 12Ud (Caja 12 Ud)
+- AMANOVA Wet Adult Lamb&Calabaza Pouch 100Gr Nº15 12Ud (Caja 12 Ud)
+- AMANOVA Adult White Hair 7Kg
+- AMANOVA Sterilised Cat Exquisite Chicken & Quinoa 1,5K
+- AMANOVA Wet Adult Salmon&Turkey Pouch 100Gr Nº06 12Ud (Caja 12 Ud)
+- AMANOVA Puppy Sensitive Salmon Deluxe & Calabaza 2Kg
+- AMANOVA Puppy Sensitive Salmon Deluxe & Calabaza 7Kg
+- AMANOVA Wet Adult Salmon&Turkey Pouch 300Gr Nº06 12Ud (Caja 12 Ud)
+- AMANOVA Wet Cat Steril Lamb&Sardi Pouch 85Gr Nº13 12Ud (Caja 12 Ud)
+- AMANOVA Wet Cat Beef & Chicken Pouch 85Gr Nº14 (Unidad)
+- AMANOVA Wet Puppy Exquis Chicken Pouch 100Gr Nº08 (Unidad)
+- AMANOVA Adult Cat Delicious Lamb & Calabaza 4Kg
+- AMANOVA Adult Cat Divine Rabbit & Calabaza 1,5Kg
+- AMANOVA Puppy Mini Exquisite Chicken & Quinoa 2Kg
+- AMANOVA Wet Cat Salmon & Turkey Pouch 85Gr Nº11 (Unidad)
+- AMANOVA Puppy Mini Exquisite Chicken & Quinoa 500Gr
+- AMANOVA Wet Cat Steril. Fish&Turk Pouch 85Gr Nº12 12Ud (Caja 12 Ud)
+- AMANOVA Wet Cat Tuna & Algas Jelly 70Gr Nº13 24Ud (Caja 24 Ud)
+- AMANOVA Wet Cat Beef & Chicken Pouch 85Gr Nº14 12Ud (Caja 12 Ud)
+- AMANOVA Wet Adult Turkey Delight Pouch 100Gr Nº07 (Unidad)
+- AMANOVA Wet Cat Tuna & Algas Jelly 70Gr Nº13 (Unidad)
+- AMANOVA Wet Adult Lamb & Pork Pouch 100Gr Nº05 (Unidad)
+- AMANOVA Wet Puppy Exquis Chicken Pouch 300Gr Nº08 (Unidad)
+- AMANOVA Wet Adult Salmon&Turkey Pouch 300Gr Nº06 (Unidad)
+- AMANOVA Wet Puppy Exquis Chicken Pouch 300Gr Nº08 12Ud (Caja 12 Ud)
+- AMANOVA Wet Cat Chicken & Gambas Jelly 70Gr Nº06 24Ud (Caja 24 Ud)
+- AMANOVA Wet Adult Beef & Chicken Pouch 300Gr Nº01 (Unidad)
+- AMANOVA Wet Cat Chicken & Tuna Broth 70Gr Nº05 (Unidad)
+- AMANOVA Wet Adult Iberian Pork Pouch 100Gr Nº04 12Ud (Caja 12 Ud)
+- AMANOVA Adult White Hair 2Kg
+- AMANOVA Kitten Exquisite Chicken & Quinoa 300Gr
+- AMANOVA Adult Sensitive Salmon Deluxe & Calabaza 10Kg
+- AMANOVA Adult Mature Fish Delicacy & Quinoa 10Kg
+- AMANOVA Wet Adult Lamb&Calabaza Pouch 300Gr Nº15 12Ud (Caja 12 Ud)
+- Amanova Creamy Treat Ocean Blend 15gr 6ud (Unidad)
+- AMANOVA Adult Exigent Venison Supreme 10Kg
+- AMANOVA Puppy Large Exquisite Chicken & Quinoa 12Kg
+- AMANOVA Adult Medium Exquisite Chicken & Quinoa 12Kg
+- AMANOVA Adult Mini Digest Divine Rabbit 800Gr
+- AMANOVA Adult Mini Digestive Divi Rabbit&Calabaza 7Kg
+- AMANOVA Adult Mini Exigent Iberian Pork 800Gr
+- AMANOVA Sterilised Cat Exquisite Chicken & Quinoa 300G
+- AMANOVA Adult Mini Exquisite Chicken & Quinoa 7Kg
+- AMANOVA Adult Mini Sensitive Delicious Lamb 800Gr
+- Amanova Creamy Treat Savory Chicken 15gr 20x6ud (Caja 20 Ud)
+- Amanova Creamy Treat Seaside Roast 15gr 20x6ud (Caja 20 Ud)
+- AMANOVA Adult Mobility Fish Delicacy & Quinoa 2Kg
+- AMANOVA Wet Kitten Chicken & Fish Pouch 85Gr Nº09 (Unidad)
+- AMANOVA Adult Obesity Turkey Delight & Quinoa 10Kg
+- AMANOVA Adult Sensitive Delicious Lamb & Calabaza 2Kg
+- AMANOVA Sterilised Cat Salmon Deluxe & Quinoa 1,5Kg
+- AMANOVA Sterilised Cat Salmon Deluxe & Quinoa 6Kg
+- AMANOVA Wet Kitten Chicken & Fish Pouch 85Gr Nº09 12Ud (Caja 12 Ud)
+- AMANOVA Mini Mature Fish Delicacy 500Gr
+- AMANOVA Wet Adult Beef & Chicken Pouch 100Gr Nº01 12Ud (Caja 12 Ud)
+- AMANOVA Wet Puppy Exquis Chicken Pouch 100Gr Nº08 12Ud (Caja 12 Ud)
+- AMANOVA Adult Mature Fish Delicacy & Quinoa 2Kg
+- AMANOVA Adult Sensitive Delicious Lamb & Calabaza 10Kg
+- AMANOVA Wet Adult Lamb & Pork Pouch 100Gr Nº05 12Ud (Caja 12 Ud)
+- AMANOVA Adult Cat Exquisite Chicken & Quinoa 6Kg
+- AMANOVA Adult Mini Sensitive Salmon Deluxe&Calab 800Gr
+- Amanova Creamy Treat Seaside Roast 15gr 6ud (Unidad)
+- Amanova Creamy Treat Garden Delight 15gr 6ud (Unidad)
+
+## 3. Fotos en local sin producto en DB (Fotos Huérfanas)
+- Gato/Húmedo/amanova-wet-cat-tuna---quinoa-broth-70gr-n-08-24uds gato.jpg
+- Gato/Húmedo/amanova-wet-cat-tuna-surimi-broth-70gr-n18-24ud gato.jpg
