@@ -210,9 +210,10 @@ def render_pestana_estadisticas(client):
         balance_neto = total_ventas - gastos_totales
 
         st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
-        sub_salud, sub_estad = st.tabs(["💰 1. Salud Financiera", "📊 2. Estadísticas Comerciales y Operativas"])
+        # BUGFIX: Streamlit tiene un bug grave con pestañas anidadas que se actualizan dinámicamente, lo cambiamos a st.radio
+        seccion_estad = st.radio("Sección:", ["💰 1. Salud Financiera", "📊 2. Estadísticas Comerciales y Operativas"], horizontal=True, label_visibility="collapsed")
         
-        with sub_salud:
+        if seccion_estad == "💰 1. Salud Financiera":
             st.markdown(f"#### 💰 Balance Financiero")
             
             col_m1, col_m2, col_m3, col_m4 = st.columns(4)
@@ -290,7 +291,7 @@ def render_pestana_estadisticas(client):
                     else:
                         st.info("No hay facturas variables en este periodo.")
                     
-        with sub_estad:
+        elif seccion_estad == "📊 2. Estadísticas Comerciales y Operativas":
             def limpiar_producto(n):
 
                 n = str(n)
