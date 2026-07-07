@@ -272,107 +272,133 @@ bloqueo = None
 if st.session_state.get('rol') != "Admin":
     bloqueo = comprobar_fichajes_pendientes()
 
-if bloqueo:
-    if bloqueo['tipo'] == "ENTRADA":
-        st.error(f"### 🚨 Control de Presencia: Falta Fichaje")
-        st.warning(f"El turno de **{bloqueo['empleado']}** comenzaba a las **{bloqueo['hora'].strftime('%H:%M')}** y no consta su entrada en el sistema.")
-        c1, c2 = st.columns(2)
-        with c1:
-            with st.form("f_in"):
-                st.write(f"**✔️ Fichar Ahora ({bloqueo['empleado']})**")
-                pin_in = st.text_input("Tu PIN de 4 dígitos", type="password", max_chars=4)
-                if st.form_submit_button("Registrar Entrada", type="primary", use_container_width=True):
-                    if pin_in == bloqueo['pin']:
-                        ahora_dt = datetime.now(ZoneInfo("Atlantic/Canary"))
-                        ahora_iso = ahora_dt.isoformat()
-                        
-                        # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
-                        res_ult = client.table("personal_fichajes").select("*").eq("empleado_id", bloqueo['emp_id']).eq("fecha", bloqueo['hora'].date().isoformat()).order("id", desc=True).limit(1).execute()
-                        if res_ult.data:
-                            bloquear_fichaje = False
-                            m_diff = 0
-                            str_h = res_ult.data[0].get('hora_salida') or res_ult.data[0].get('hora_entrada')
-                            if str_h:
-                                try:
-                                    h_ult = datetime.fromisoformat(str_h)
-                                    if h_ult.tzinfo is None: h_ult = h_ult.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
-                                    else: h_ult = h_ult.astimezone(ZoneInfo("Atlantic/Canary"))
-                                    m_diff = int((ahora_dt - h_ult).total_seconds() / 60)
-                                    bloquear_fichaje = m_diff < 30
-                                except Exception:
-                                    bloquear_fichaje = False
-                                    m_diff = 0
-                                    
-                            if bloquear_fichaje:
-                                st.error(f"⏳ Bloqueo temporal anti-errores. El usuario ya fichó hace {m_diff} minuto(s).")
-                                st.stop()
-                                
-                        res_last = client.table("personal_fichajes").select("hash_actual").order("id", desc=True).limit(1).execute()
-                        hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
-                        data_to_hash = f"FICHAJE|IN|{bloqueo['emp_id']}|{ahora_iso}|{hash_anterior}"
-                        hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
-                        client.table("personal_fichajes").insert({"empleado_id": bloqueo['emp_id'], "fecha": bloqueo['hora'].date().isoformat(), "hora_entrada": ahora_iso, "hash_anterior": hash_anterior, "hash_actual": hash_actual}).execute()
-                        st.session_state.alertas_fichaje_ignoradas.append(bloqueo['id'])
-                        st.success("Entrada registrada."); time.sleep(1); st.rerun()
-                    else: st.error("PIN incorrecto.")
-        with c2:
-            with st.form("f_in_skip"):
-                st.write("**⏭️ Desbloquear Sistema (Compañeros)**")
-                st.selectbox("Motivo del retraso/ausencia", ["Aún no ha llegado (Retraso)", "No viene hoy (Baja/Permiso)", "Fichará luego"])
-                if st.form_submit_button("Saltar este aviso", use_container_width=True):
-                    st.session_state.alertas_fichaje_ignoradas.append(bloqueo['id']); st.rerun()
-    else:
-        st.warning(f"### 🔔 Recordatorio de Salida")
-        st.info(f"El turno de **{bloqueo['empleado']}** finaliza a las **{bloqueo['hora'].strftime('%H:%M')}**. Por favor, no olvides registrar tu salida.")
-        c1, c2 = st.columns(2)
-        with c1:
-            with st.form("f_out"):
-                st.write(f"**✔️ Fichar Salida ({bloqueo['empleado']})**")
-                pin_out = st.text_input("Tu PIN de 4 dígitos", type="password", max_chars=4)
-                if st.form_submit_button("Registrar Salida", type="primary", use_container_width=True):
-                    if pin_out == bloqueo['pin']:
-                        ahora_dt = datetime.now(ZoneInfo("Atlantic/Canary"))
-                        ahora_iso = ahora_dt.isoformat()
-                        
-                        # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
-                        res_ult = client.table("personal_fichajes").select("*").eq("empleado_id", bloqueo['emp_id']).eq("fecha", bloqueo['hora'].date().isoformat()).order("id", desc=True).limit(1).execute()
-                        if res_ult.data:
-                            bloquear_fichaje = False
-                            m_diff = 0
-                            str_h = res_ult.data[0].get('hora_salida') or res_ult.data[0].get('hora_entrada')
-                            if str_h:
-                                try:
-                                    h_ult = datetime.fromisoformat(str_h)
-                                    if h_ult.tzinfo is None: h_ult = h_ult.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
-                                    else: h_ult = h_ult.astimezone(ZoneInfo("Atlantic/Canary"))
-                                    m_diff = int((ahora_dt - h_ult).total_seconds() / 60)
-                                    bloquear_fichaje = m_diff < 30
-                                except Exception:
-                                    bloquear_fichaje = False
-                                    m_diff = 0
-                                    
-                            if bloquear_fichaje:
-                                st.error(f"⏳ Bloqueo temporal anti-errores. El usuario ya fichó hace {m_diff} minuto(s).")
-                                st.stop()
-                                
-                        f_abierto = bloqueo['f_abierto']
-                        h_ent = datetime.fromisoformat(f_abierto['hora_entrada'])
-                        if h_ent.tzinfo is None: h_ent = h_ent.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
-                        minutos = int((ahora_dt - h_ent).total_seconds() / 60)
-                        res_last = client.table("personal_fichajes").select("hash_anterior").eq("id", f_abierto['id']).execute()
-                        hash_ant = res_last.data[0].get("hash_anterior", "") if res_last.data else ""
-                        data_to_hash = f"FICHAJE|OUT|{bloqueo['emp_id']}|{f_abierto['hora_entrada']}|{ahora_iso}|{hash_ant}"
-                        hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
-                        client.table("personal_fichajes").update({"hora_salida": ahora_iso, "minutos_trabajados": minutos, "hash_actual": hash_actual}).eq("id", f_abierto['id']).execute()
-                        st.session_state.alertas_fichaje_ignoradas.append(bloqueo['id'])
-                        st.success("Salida registrada."); time.sleep(1); st.rerun()
-                    else: st.error("PIN incorrecto.")
-        with c2:
-            with st.form("f_out_skip"):
-                st.write("**⏭️ Posponer Aviso**")
-                st.selectbox("Motivo", ["Sigue atendiendo clientes", "Saldrá más tarde", "Limpiando tienda"])
-                if st.form_submit_button("Posponer aviso", use_container_width=True):
-                    st.session_state.alertas_fichaje_ignoradas.append(bloqueo['id']); st.rerun()
+    # --- LÓGICA DE ALERTAS INTEGRADAS ---
+    # 1. Pedidos Web
+    pedidos_web = []
+    try:
+        res_pedidos = client.table("encargos_clientes").select("id").eq("origen", "Web").eq("estado", "Recibido").execute()
+        pedidos_web = res_pedidos.data if res_pedidos.data else []
+    except: pass
+    
+    # 2. Proveedores
+    alertas_provs = []
+    try:
+        from proveedores import fetch_proveedores, get_alertas_manuales
+        res_provs = fetch_proveedores(client)
+        if res_provs.data:
+            alertas_provs = get_alertas_manuales(res_provs.data)["urgentes"]
+    except: pass
+    
+    num_alertas = (1 if bloqueo else 0) + (1 if pedidos_web else 0) + (1 if alertas_provs else 0)
+    
+    if num_alertas > 0:
+        with st.expander(f"🔔 CENTRO DE NOTIFICACIONES: Tienes {num_alertas} alerta(s) pendiente(s) (Despliega para ver y solucionar)", expanded=False):
+            if bloqueo:
+                if bloqueo['tipo'] == "ENTRADA":
+                    st.error(f"### 🚨 Control de Presencia: Falta Fichaje")
+                    st.warning(f"El turno de **{bloqueo['empleado']}** comenzaba a las **{bloqueo['hora'].strftime('%H:%M')}** y no consta su entrada en el sistema.")
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        with st.form("f_in"):
+                            st.write(f"**✔️ Fichar Ahora ({bloqueo['empleado']})**")
+                            pin_in = st.text_input("Tu PIN de 4 dígitos", type="password", max_chars=4)
+                            if st.form_submit_button("Registrar Entrada", type="primary", use_container_width=True):
+                                if pin_in == bloqueo['pin']:
+                                    ahora_dt = datetime.now(ZoneInfo("Atlantic/Canary"))
+                                    ahora_iso = ahora_dt.isoformat()
+
+                                    # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
+                                    res_ult = client.table("personal_fichajes").select("*").eq("empleado_id", bloqueo['emp_id']).eq("fecha", bloqueo['hora'].date().isoformat()).order("id", desc=True).limit(1).execute()
+                                    if res_ult.data:
+                                        bloquear_fichaje = False
+                                        m_diff = 0
+                                        str_h = res_ult.data[0].get('hora_salida') or res_ult.data[0].get('hora_entrada')
+                                        if str_h:
+                                            try:
+                                                h_ult = datetime.fromisoformat(str_h)
+                                                if h_ult.tzinfo is None: h_ult = h_ult.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
+                                                else: h_ult = h_ult.astimezone(ZoneInfo("Atlantic/Canary"))
+                                                m_diff = int((ahora_dt - h_ult).total_seconds() / 60)
+                                                bloquear_fichaje = m_diff < 30
+                                            except Exception:
+                                                bloquear_fichaje = False
+                                                m_diff = 0
+
+                                        if bloquear_fichaje:
+                                            st.error(f"⏳ Bloqueo temporal anti-errores. El usuario ya fichó hace {m_diff} minuto(s).")
+                                            st.stop()
+
+                                    res_last = client.table("personal_fichajes").select("hash_actual").order("id", desc=True).limit(1).execute()
+                                    hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
+                                    data_to_hash = f"FICHAJE|IN|{bloqueo['emp_id']}|{ahora_iso}|{hash_anterior}"
+                                    hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
+                                    client.table("personal_fichajes").insert({"empleado_id": bloqueo['emp_id'], "fecha": bloqueo['hora'].date().isoformat(), "hora_entrada": ahora_iso, "hash_anterior": hash_anterior, "hash_actual": hash_actual}).execute()
+                                    st.session_state.alertas_fichaje_ignoradas.append(bloqueo['id'])
+                                    st.success("Entrada registrada."); time.sleep(1); st.rerun()
+                                else: st.error("PIN incorrecto.")
+                    with c2:
+                        with st.form("f_in_skip"):
+                            st.write("**⏭️ Desbloquear Sistema (Compañeros)**")
+                            st.selectbox("Motivo del retraso/ausencia", ["Aún no ha llegado (Retraso)", "No viene hoy (Baja/Permiso)", "Fichará luego"])
+                            if st.form_submit_button("Saltar este aviso", use_container_width=True):
+                                st.session_state.alertas_fichaje_ignoradas.append(bloqueo['id']); st.rerun()
+                else:
+                    st.warning(f"### 🔔 Recordatorio de Salida")
+                    st.info(f"El turno de **{bloqueo['empleado']}** finaliza a las **{bloqueo['hora'].strftime('%H:%M')}**. Por favor, no olvides registrar tu salida.")
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        with st.form("f_out"):
+                            st.write(f"**✔️ Fichar Salida ({bloqueo['empleado']})**")
+                            pin_out = st.text_input("Tu PIN de 4 dígitos", type="password", max_chars=4)
+                            if st.form_submit_button("Registrar Salida", type="primary", use_container_width=True):
+                                if pin_out == bloqueo['pin']:
+                                    ahora_dt = datetime.now(ZoneInfo("Atlantic/Canary"))
+                                    ahora_iso = ahora_dt.isoformat()
+
+                                    # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
+                                    res_ult = client.table("personal_fichajes").select("*").eq("empleado_id", bloqueo['emp_id']).eq("fecha", bloqueo['hora'].date().isoformat()).order("id", desc=True).limit(1).execute()
+                                    if res_ult.data:
+                                        bloquear_fichaje = False
+                                        m_diff = 0
+                                        str_h = res_ult.data[0].get('hora_salida') or res_ult.data[0].get('hora_entrada')
+                                        if str_h:
+                                            try:
+                                                h_ult = datetime.fromisoformat(str_h)
+                                                if h_ult.tzinfo is None: h_ult = h_ult.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
+                                                else: h_ult = h_ult.astimezone(ZoneInfo("Atlantic/Canary"))
+                                                m_diff = int((ahora_dt - h_ult).total_seconds() / 60)
+                                                bloquear_fichaje = m_diff < 30
+                                            except Exception:
+                                                bloquear_fichaje = False
+                                                m_diff = 0
+
+                                        if bloquear_fichaje:
+                                            st.error(f"⏳ Bloqueo temporal anti-errores. El usuario ya fichó hace {m_diff} minuto(s).")
+                                            st.stop()
+
+                                    f_abierto = bloqueo['f_abierto']
+                                    h_ent = datetime.fromisoformat(f_abierto['hora_entrada'])
+                                    if h_ent.tzinfo is None: h_ent = h_ent.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
+                                    minutos = int((ahora_dt - h_ent).total_seconds() / 60)
+                                    res_last = client.table("personal_fichajes").select("hash_anterior").eq("id", f_abierto['id']).execute()
+                                    hash_ant = res_last.data[0].get("hash_anterior", "") if res_last.data else ""
+                                    data_to_hash = f"FICHAJE|OUT|{bloqueo['emp_id']}|{f_abierto['hora_entrada']}|{ahora_iso}|{hash_ant}"
+                                    hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
+                                    client.table("personal_fichajes").update({"hora_salida": ahora_iso, "minutos_trabajados": minutos, "hash_actual": hash_actual}).eq("id", f_abierto['id']).execute()
+                                    st.session_state.alertas_fichaje_ignoradas.append(bloqueo['id'])
+                                    st.success("Salida registrada."); time.sleep(1); st.rerun()
+                                else: st.error("PIN incorrecto.")
+                    with c2:
+                        with st.form("f_out_skip"):
+                            st.write("**⏭️ Posponer Aviso**")
+                            st.selectbox("Motivo", ["Sigue atendiendo clientes", "Saldrá más tarde", "Limpiando tienda"])
+                            if st.form_submit_button("Posponer aviso", use_container_width=True):
+                                st.session_state.alertas_fichaje_ignoradas.append(bloqueo['id']); st.rerun()
+            if pedidos_web:
+                st.error(f"🔴 **¡ATENCIÓN! Tienes {len(pedidos_web)} pedido(s) web nuevo(s) sin revisar.** Ve a la pestaña 'Clientes' -> 'Encargos' para gestionarlo(s).")
+            if alertas_provs:
+                nombres_provs = ", ".join([a['proveedor'] for a in alertas_provs])
+                st.warning(f"⚠️ **ALERTA DE PROVEEDORES:** Tienes {len(alertas_provs)} pedido(s) urgente(s) pendiente(s) de realizar ({nombres_provs}). Ve a 'Proveedores y Pedidos' para registrarlo(s).")
     st.markdown("---")
 
 # --- CABECERA COMPACTA ---
@@ -388,26 +414,6 @@ with c_rol:
         st.session_state.acceso_concedido = False
         st.session_state.rol = None
         st.rerun()
-
-# --- ALERTA GLOBAL DE PEDIDOS WEB ---
-try:
-    res_pedidos = client.table("encargos_clientes").select("id").eq("origen", "Web").eq("estado", "Recibido").execute()
-    if res_pedidos.data and len(res_pedidos.data) > 0:
-        st.error(f"🚨 **¡ATENCIÓN! Tienes {len(res_pedidos.data)} pedido(s) web nuevo(s) sin revisar.** Ve a la pestaña 'Clientes' -> 'Encargos' para gestionarlo(s).")
-except:
-    pass
-
-# --- ALERTA GLOBAL DE PEDIDOS MANUALES A PROVEEDORES ---
-try:
-    from proveedores import fetch_proveedores, get_alertas_manuales
-    res_provs = fetch_proveedores(client)
-    if res_provs.data:
-        alertas_pendientes = get_alertas_manuales(res_provs.data)["urgentes"]
-        if alertas_pendientes:
-            nombres_provs = ", ".join([a['proveedor'] for a in alertas_pendientes])
-            st.warning(f"⏰ **ALERTA DE PROVEEDORES:** Tienes {len(alertas_pendientes)} pedido(s) urgente(s) pendiente(s) de realizar ({nombres_provs}). Ve a 'Proveedores y Pedidos' para registrarlo(s).")
-except:
-    pass
 
 # --- DEFINICIÓN DINÁMICA DE PESTAÑAS SEGÚN ROL ---
 if st.session_state.rol == "Admin":
