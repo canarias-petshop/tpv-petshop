@@ -78,8 +78,8 @@ def render_pestana_estadisticas(client):
                 label_prev = "vs Día Ant."
                 factor_fijos = 1.0 / 30.416
             elif tipo_periodo == "Mensual":
-                mes_sel = st.selectbox("Mes", range(1, 13), format_func=lambda x: meses[x-1], index=hoy.month-1)
-                anio_sel = st.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+                mes_sel = st.selectbox("Mes", range(1, 13), format_func=lambda x: meses[x-1], index=hoy.month-1, key="mes_mensual")
+                anio_sel = st.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024, key="anio_mensual")
                 fecha_ini_dt = date(anio_sel, mes_sel, 1)
                 if mes_sel == 12: fecha_fin_dt = date(anio_sel+1, 1, 1)
                 else: fecha_fin_dt = date(anio_sel, mes_sel+1, 1)
@@ -88,7 +88,7 @@ def render_pestana_estadisticas(client):
                 label_prev = "vs Mes Ant."
                 factor_fijos = 1.0
             elif tipo_periodo == "Semanal":
-                sem_ref = st.date_input("Semana del:", value=hoy - timedelta(days=hoy.weekday()))
+                sem_ref = st.date_input("Semana del:", value=hoy - timedelta(days=hoy.weekday()), key="sem_semanal")
                 if isinstance(sem_ref, tuple):
                     sem_ref = sem_ref[0] if sem_ref else hoy
                 if not sem_ref:
@@ -100,8 +100,8 @@ def render_pestana_estadisticas(client):
                 label_prev = "vs Sem Ant."
                 factor_fijos = 7.0 / 30.416
             elif tipo_periodo == "Trimestral":
-                trim_sel = st.selectbox("Trimestre", [1, 2, 3, 4], format_func=lambda x: f"T{x}")
-                anio_sel = st.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+                trim_sel = st.selectbox("Trimestre", [1, 2, 3, 4], format_func=lambda x: f"T{x}", key="trim_trimestral")
+                anio_sel = st.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024, key="anio_trimestral")
                 mes_ini = (trim_sel - 1) * 3 + 1
                 fecha_ini_dt = date(anio_sel, mes_ini, 1)
                 mes_fin = mes_ini + 3
@@ -115,8 +115,8 @@ def render_pestana_estadisticas(client):
                 label_prev = "vs Trim Ant."
                 factor_fijos = 3.0
             elif tipo_periodo == "Semestral":
-                semestre = st.selectbox("Semestre", [1, 2], format_func=lambda x: "S1 (Ene-Jun)" if x == 1 else "S2 (Jul-Dic)")
-                anio_sel = st.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+                semestre = st.selectbox("Semestre", [1, 2], format_func=lambda x: "S1 (Ene-Jun)" if x == 1 else "S2 (Jul-Dic)", key="semestre_semestral")
+                anio_sel = st.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024, key="anio_semestral")
                 if semestre == 1:
                     fecha_ini_dt = date(anio_sel, 1, 1)
                     fecha_fin_dt = date(anio_sel, 7, 1)
@@ -129,7 +129,7 @@ def render_pestana_estadisticas(client):
                 label_prev = "vs Semestre Ant."
                 factor_fijos = 6.0
             elif tipo_periodo == "Anual":
-                anio_sel = st.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024)
+                anio_sel = st.selectbox("Año", range(2024, hoy.year + 2), index=hoy.year - 2024, key="anio_anual")
                 fecha_ini_dt = date(anio_sel, 1, 1)
                 fecha_fin_dt = date(anio_sel + 1, 1, 1)
                 fecha_ini_prev_dt = date(anio_sel - 1, 1, 1)
@@ -137,7 +137,7 @@ def render_pestana_estadisticas(client):
                 label_prev = "vs Año Ant."
                 factor_fijos = 12.0
             else: # Personalizado
-                rango = st.date_input("Selecciona rango:", [hoy - timedelta(days=30), hoy])
+                rango = st.date_input("Selecciona rango:", [hoy - timedelta(days=30), hoy], key="rango_personalizado")
                 if isinstance(rango, tuple) and len(rango) == 2:
                     fecha_ini_dt, fecha_fin_dt_raw = rango
                     fecha_fin_dt = fecha_fin_dt_raw + timedelta(days=1)
@@ -249,7 +249,6 @@ def render_pestana_estadisticas(client):
             
                 with col_g1:
                     st.markdown("**📊 Evolución de Ingresos en el Periodo**")
-                
                     if not df_v.empty:
                         delta_days = (fecha_fin_dt - fecha_ini_dt).days
                     
@@ -268,6 +267,7 @@ def render_pestana_estadisticas(client):
                         st.area_chart(ventas_evo, color="#005275", height=280)
                     else:
                         st.info("Aún no hay ventas registradas en este periodo.")
+                        st.area_chart(pd.DataFrame({"total": []}), color="#005275", height=150)
                     
                 with col_g2:
                     c_tit2, c_sel2 = st.columns([1, 1.2])
@@ -283,6 +283,7 @@ def render_pestana_estadisticas(client):
                             st.bar_chart(df_gastos_pie, color="#d32f2f", height=280)
                         else:
                             st.info("No hay gastos registrados.")
+                            st.bar_chart(pd.DataFrame({"Importe": []}), color="#d32f2f", height=150)
                     else:
                         if not df_c.empty:
                             df_c['Categoria'] = df_c['tipo'].apply(lambda x: str(x).split(" | ")[0] if " | " in str(x) else "Otros")
@@ -290,6 +291,7 @@ def render_pestana_estadisticas(client):
                             st.bar_chart(gastos_cat, color="#e57373", height=280)
                         else:
                             st.info("No hay facturas variables en este periodo.")
+                            st.bar_chart(pd.DataFrame({"total": []}), color="#e57373", height=150)
                     
             elif seccion_estad == "📊 2. Estadísticas Comerciales y Operativas":
                 def limpiar_producto(n):
