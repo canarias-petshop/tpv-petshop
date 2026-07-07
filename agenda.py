@@ -477,8 +477,8 @@ def render_pestana_agenda(client):
                 citas_formateadas = []
                 hoy_fecha = pd.Timestamp.now('Atlantic/Canary').date()
                 for c in res_citas.data:
-                    mascota_info = c.get('mascotas', {})
-                    cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
+                    mascota_info = c.get('mascotas') or {}
+                    cliente_info = mascota_info.get('clientes') or {}
                     dur = c.get('duracion_minutos') if c.get('duracion_minutos') is not None else 60
                     
                     dt_obj = pd.to_datetime(c['fecha_hora'])
@@ -1253,8 +1253,8 @@ def render_pestana_agenda(client):
         res_canc_data = get_canc_ag_cached(client, st.session_state.get('db_version', 0))
         if res_canc_data:
             for c in res_canc_data:
-                mascota_info = c.get('mascotas', {})
-                cliente_info = mascota_info.get('clientes', {}) if mascota_info else {}
+                mascota_info = c.get('mascotas') or {}
+                cliente_info = mascota_info.get('clientes') or {}
                 dt_obj = pd.to_datetime(c['fecha_hora'])
                 _, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
 
