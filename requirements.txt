@@ -3,3 +3,4 @@ supabase
 postgrest
 xlsxwriter
 google-generativeai
+openpyxl
