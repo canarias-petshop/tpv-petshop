@@ -105,6 +105,8 @@ def limpiar_cache_crm():
     get_masc_crm.clear()
 
 def render_pestana_crm(client):
+    if 'crm_toast' in st.session_state:
+        st.toast(st.session_state.pop('crm_toast'), icon="✅")
     if 'llave_crm_cli' not in st.session_state: st.session_state.llave_crm_cli = 0
     if 'llave_crm_masc' not in st.session_state: st.session_state.llave_crm_masc = 0
     if 'llave_crm_enc' not in st.session_state: st.session_state.llave_crm_enc = 0
@@ -500,6 +502,18 @@ def render_pestana_crm(client):
                     
                     for _, row in ed_cli_clean.iterrows():
                         if pd.notna(row['id']):
+                            orig_match = df_cli_vista[df_cli_vista['id'] == row['id']]
+                            if not orig_match.empty:
+                                orig_row = orig_match.iloc[0]
+                                cambiado = False
+                                for col in ['nombre_dueno', 'telefono', 'email', 'fecha_nacimiento', 'direccion', 'RGPD', 'Puntos', 'Domicilio']:
+                                    if col in row and col in orig_row:
+                                        if str(row.get(col, '')).strip() != str(orig_row.get(col, '')).strip():
+                                            cambiado = True
+                                            break
+                                if not cambiado:
+                                    continue
+                                    
                             datos_update = {
                                 "nombre_dueno": str(row['nombre_dueno']), "telefono": str(row['telefono']),
                                 "nombre_dueno_2": str(row.get('nombre_dueno_2', '')), "telefono_2": str(row.get('telefono_2', '')),
@@ -515,7 +529,7 @@ def render_pestana_crm(client):
                             client.table("clientes").update(datos_update).eq("id", row['id']).execute()
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     limpiar_cache_crm()
-                    st.success("Directorio de clientes actualizado."); time.sleep(0.5); st.rerun()
+                    st.session_state["crm_toast"] = "Directorio de clientes actualizado."; time.sleep(0.5); st.rerun()
                     
                 st.markdown("---")
                 
@@ -743,6 +757,15 @@ def render_pestana_crm(client):
                             orig_match = df_m_vista[df_m_vista['id'] == row['id']]
                             if not orig_match.empty:
                                 orig_ru = orig_match.iloc[0]
+                                cambiado = False
+                                for col in ['nombre', 'especie', 'sexo', 'raza', 'peso', 'fecha_nacimiento', 'observaciones', 'Dueño', 'Edad']:
+                                    if col in row and col in orig_ru:
+                                        if str(row.get(col, '')).strip() != str(orig_ru.get(col, '')).strip():
+                                            cambiado = True
+                                            break
+                                if not cambiado:
+                                    continue
+
                                 if str(row.get('Edad', '')) != str(orig_ru.get('Edad', '')) and str(row.get('fecha_nacimiento', '')) == str(orig_ru.get('fecha_nacimiento', '')):
                                     nueva_fecha_m = aproximar_fecha_desde_edad(row.get('Edad', ''), nueva_fecha_m)
 
@@ -796,7 +819,9 @@ def render_pestana_crm(client):
 
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     limpiar_cache_crm()
-                    st.success("Fichas de mascotas y dueños actualizados y unificados correctamente."); time.sleep(1); st.rerun()
+                    st.session_state["crm_toast"] = "Fichas de mascotas y dueños actualizados y unificados correctamente."
+                    time.sleep(1)
+                    st.rerun()
                     
                 st.markdown("---")
                 
