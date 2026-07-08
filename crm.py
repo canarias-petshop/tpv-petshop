@@ -1199,6 +1199,9 @@ def render_pestana_crm(client):
                                             nuevo_est = str(r['estado'])
                                             viejo_est = str(orig_row['estado'])
                                             nuevas_notas = str(r.get('notas', '')).strip()
+                                            nuevo_nombre = str(r.get('nombre_cliente', '')).strip()
+                                            nuevo_tel = str(r.get('telefono', '')).strip()
+                                            nuevo_det = str(r.get('detalle_pedido', '')).strip()
                                             
                                             # Inyectar etiqueta de aviso
                                             if nuevo_est == 'Recibido y Avisado' and viejo_est != 'Recibido y Avisado':
@@ -1207,7 +1210,11 @@ def render_pestana_crm(client):
                                                     etiqueta = f"[Aviso: {hoy_str}]"
                                                     nuevas_notas = f"{nuevas_notas} {etiqueta}".strip()
                                             
-                                            if nuevo_est != viejo_est or nuevas_notas != str(orig_row['notas']).strip():
+                                            if (nuevo_est != viejo_est or 
+                                                nuevas_notas != str(orig_row.get('notas', '')).strip() or
+                                                nuevo_nombre != str(orig_row.get('nombre_cliente', '')).strip() or
+                                                nuevo_tel != str(orig_row.get('telefono', '')).strip() or
+                                                nuevo_det != str(orig_row.get('detalle_pedido', '')).strip()):
                                                 import json
                                                 import hashlib
                                                 
@@ -1307,7 +1314,11 @@ def render_pestana_crm(client):
                                                             
                                                 if not errores:
                                                     client.table("encargos_clientes").update({
-                                                        "estado": nuevo_est, "notas": nuevas_notas
+                                                        "estado": nuevo_est, 
+                                                        "notas": nuevas_notas,
+                                                        "nombre_cliente": nuevo_nombre,
+                                                        "telefono": nuevo_tel,
+                                                        "detalle_pedido": nuevo_det
                                                     }).eq("id", r['id']).execute()
                                                     cambios_realizados += 1
                                                 
