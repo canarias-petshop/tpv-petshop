@@ -321,8 +321,8 @@ def render_pestana_inventario(client):
                         column_config={
                             "id": None, "categoria": None, "categoria_filt": None,
                             "sku": "SKU", "codigo_barras": "Barras", "nombre": "Descripción",
-                            "familia": st.column_config.SelectboxColumn("Categoría", options=["", "Alimentación húmeda", "Alimentación seca", "Snack", "Accesorios", "Higiene", "Paseo", "Juguetes", "Descanso", "Farmacia/Cuidados", "Otros"]),
-                            "subcategoria": st.column_config.SelectboxColumn("Subcategoría", options=["", "Pienso Seco", "Pienso Húmedo", "Semi-húmedo", "Snacks", "Collares/Arneses", "Champús", "Medicamentos", "Juguetes", "Otros"]),
+                            "familia": st.column_config.SelectboxColumn("Categoría", options=["", "Alimentación", "Accesorios", "Higiene", "Paseo", "Juguetes", "Descanso", "Farmacia/Cuidados", "Otros"]),
+                            "subcategoria": st.column_config.SelectboxColumn("Subcategoría", options=["", "Alimento Seco", "Alimento Húmedo", "Alimento Semihúmedo", "Snack", "Collares", "Arneses", "Champú", "Medicamento", "Juguetes", "Otros"]),
                             "gama": st.column_config.SelectboxColumn("Gama", options=["", "Grain free", "Low grain", "Wet line", "Atlantic Pet Special Bully", "Classic Supreme", "Classic Supreme gato", "Premium Receta gato", "Premium Receta", "Super Premium Receta", "Super Premium Receta grain free", "Ultra Premium Receta grain free", "Author", "Care", "Classic", "Hipoalergénico", "Just", "Prime", "Ultra"]),
                             "mascota": st.column_config.SelectboxColumn("Mascota", options=["", "Perro", "Gato", "Roedor", "Aves", "Reptiles", "Universal"]),
                             "edad": st.column_config.SelectboxColumn("Edad", options=["", "Adulto", "Cachorro/Kitten", "Senior", "Todas las edades"]),
