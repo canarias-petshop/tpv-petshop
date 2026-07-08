@@ -266,6 +266,21 @@ def render_pestana_inventario(client):
                     st.divider()
 
                     st.markdown("#### 📦 Inventario de Productos")
+                    
+                    # --- NUEVO: Exportar a Excel ---
+                    with st.expander("📥 Exportar Inventario a Excel"):
+                        st.write("Descarga un archivo .xlsx con todos los productos actuales. Ideal para revisar qué columnas están vacías (sabor, tamaño, mascota...) y rellenarlas en lote en el futuro.")
+                        import io
+                        buffer = io.BytesIO()
+                        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                            df_solo_productos.to_excel(writer, index=False, sheet_name='Productos')
+                        st.download_button(
+                            label="📥 Hacer clic para guardar archivo .xlsx",
+                            data=buffer.getvalue(),
+                            file_name="Inventario_Petshop.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True
+                        )
 
                     with st.expander("🤖 Auto-Categorizar con IA (Experimental)"):
                         st.write("Esta herramienta utiliza Gemini para rellenar automáticamente las categorías faltantes basándose en el nombre del producto.")
