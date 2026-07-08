@@ -1091,7 +1091,7 @@ def render_pestana_crm(client):
                                 column_config={
                                     "id": None, "origen": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
                                     "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
-                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Avisado sin stock", "Aviso de recogida en el local", "Aviso de servicio a domicilio", "Aviso de recogida local con enlace de pago", "Aviso de servicio a domicilio con enlace de pago", "Confirmado (Domicilio)", "Confirmado (Recogida local)", "Confirmado con reparto a domicilio", "Confirmado con recogida local", "Cancelado", "Pendiente"]),
+                                    "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Avisado sin stock", "Aviso de recogida local con enlace de pago", "Aviso de servicio a domicilio con enlace de pago", "Confirmado con reparto a domicilio", "Confirmado con recogida local", "Entregado", "Cancelado"]),
                                     "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
                                 },
                                 num_rows="dynamic"
