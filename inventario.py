@@ -127,7 +127,7 @@ LISTA DE PRODUCTOS:
 def render_pestana_inventario(client):
     st.markdown("<h3 style='margin-top: -15px;'>📦 Gestión de Inventario y Servicios</h3>", unsafe_allow_html=True)
     if st.session_state.pop("inventario_saved", False):
-        st.success("✅ Los cambios se han guardado correctamente.")
+        st.toast("✅ Los cambios se han guardado correctamente.", icon="✅")
     
     col_f, col_t = st.columns([1.2, 2.5], gap="large")
     
@@ -359,6 +359,22 @@ def render_pestana_inventario(client):
 
                         for i, row in edit_p.iterrows():
                             if pd.notna(row['id']):
+                                orig_match = df_solo_productos[df_solo_productos['id'] == row['id']]
+                                if not orig_match.empty:
+                                    orig_row = orig_match.iloc[0]
+                                    cambiado = False
+                                    for col in ['sku', 'nombre', 'precio_pvp', 'igic_tipo', 'precio_base', 'stock_actual', 'stock_minimo', 'cantidad_reponer', 'fecha_caducidad', 'Proveedor']:
+                                        if col in row and col in orig_row:
+                                            v1 = str(row[col]).strip()
+                                            v2 = str(orig_row[col]).strip()
+                                            if v1 == 'nan': v1 = ''
+                                            if v2 == 'nan': v2 = ''
+                                            if v1 != v2:
+                                                cambiado = True
+                                                break
+                                    if not cambiado:
+                                        continue
+                                        
                                 datos = row.to_dict()
                                 prov_nombre = datos.get('Proveedor', '---')
                                 
@@ -450,6 +466,24 @@ def render_pestana_inventario(client):
 
                         for i, row in edit_s.iterrows():
                             if pd.notna(row['id']):
+                                orig_match = df_solo_servicios[df_solo_servicios['id'] == row['id']]
+                                if not orig_match.empty:
+                                    orig_row = orig_match.iloc[0]
+                                    cambiado = False
+                                    for col in ['sku', 'nombre', 'precio_pvp', 'igic_tipo']:
+                                        if col in row and col in orig_row:
+                                            v1 = str(row[col]).strip()
+                                            v2 = str(orig_row[col]).strip()
+                                            if v1 == 'nan': v1 = ''
+                                            if v2 == 'nan': v2 = ''
+                                            if float(row.get('precio_pvp', 0)) != float(orig_row.get('precio_pvp', 0)) or float(row.get('igic_tipo', 0)) != float(orig_row.get('igic_tipo', 0)):
+                                                cambiado = True
+                                            if v1 != v2:
+                                                cambiado = True
+                                                break
+                                    if not cambiado:
+                                        continue
+                                        
                                 nuevo_pvp = float(row['precio_pvp'])
                                 nuevo_igic = float(row['igic_tipo'])
                                 nueva_base = nuevo_pvp / (1 + (nuevo_igic / 100))
