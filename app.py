@@ -76,6 +76,9 @@ st.markdown("""
             padding-top: 10px !important;
             padding-bottom: 10px !important;
         }
+
+        /* 9. Zoom Global TPV para ajustar la aplicación a la pantalla de la caja */
+        html { zoom: 0.90; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -146,6 +149,14 @@ components.html("""
                     });
                 }
             });
+            
+            // Protección contra teclado emergente en el menú de navegación
+            const navInputs = doc.querySelectorAll('div[data-testid="stSelectbox"] input');
+            if (navInputs.length > 0 && !navInputs[0].hasAttribute('nav-protected')) {
+                // El primer selectbox de la página siempre es el menú de navegación principal
+                navInputs[0].setAttribute('readonly', 'readonly');
+                navInputs[0].setAttribute('nav-protected', 'true');
+            }
     }
     const observer = new MutationObserver(disableAuto);
     observer.observe(doc.body, { childList: true, subtree: true });

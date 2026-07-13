@@ -11,7 +11,20 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
 
 ---
 
-## 🆕 Últimos Cambios (5-6 de Julio de 2026)
+## 🆕 Últimos Cambios (7-13 de Julio de 2026)
+
+### Sincronización TPV ↔ Web (Perfiles y Encargos)
+- **Solución "Ficha en revisión"**: Se corrigió un bloqueo crítico en la web que ocurría cuando existían múltiples clientes físicos vinculados al mismo `auth_user_id` en Supabase. Ahora la API selecciona automáticamente la ficha más reciente (`.order('created_at').limit(1).single()`).
+- **Limpieza de Vinculaciones Antiguas**: La API de `link/route.ts` ahora desvincula automáticamente las fichas antiguas y duplicadas al establecer un nuevo enlace, previniendo cuelgues futuros.
+- **Edición de Perfil en la Web**: Implementado un nuevo endpoint (`api/user/update/route.ts`) y un formulario en la pestaña *Mi Cuenta* (`mi-cuenta/page.tsx`) que permite a los usuarios modificar su teléfono, nombre y dirección desde la web, reflejándose al instante en el CRM del TPV.
+- **Edición Segura de Encargos en TPV (`crm.py`)**: Corregido un grave error lógico (conflicto de tipos `str` vs `int`) que causaba la eliminación accidental de *todos* los encargos al pulsar "Guardar Cambios". Ahora las modificaciones se guardan con total seguridad.
+- **Auto-sincronización Telefónica**: Si se edita el teléfono de un cliente directamente en un encargo del TPV, el sistema detecta el cambio y actualiza el teléfono maestro en la tabla central `clientes` automáticamente.
+
+### Infraestructura y Estabilidad
+- **Revisión de Cuotas de Supabase**: Se verificó una alerta preventiva de límites de uso de Supabase ("Grace period over"). Se comprobó empíricamente mediante los informes de facturación que el uso de la Base de Datos está en parámetros óptimos (7% de tamaño máximo, <1% de ancho de banda). La alerta se originó por el consumo del código antiguo no optimizado; las recientes integraciones de caché han mitigado el problema.
+- **(Pendiente) Congelador de Memoria Global**: Se ha diseñado teóricamente un "Escudo de Memoria" para evitar que Streamlit borre el progreso (como el recuento de caja o la creación de citas) al cambiar de sección con el menú desplegable. El diseño se basa en interceptar y volcar `st.session_state` al inicio de `app.py`. A la espera de ser testeado tras revisar las pantallas afectadas.
+
+## 🆕 Cambios Anteriores (5-6 de Julio de 2026)
 
 ### Limpieza y Deduplicación de Datos
 - **Deduplicación de Proveedores**: Consolidados de 22 a 18 proveedores, eliminando duplicados por variaciones ortográficas (mayúsculas/minúsculas, espacios extra, tildes). Se migraron las relaciones de `productos_proveedores` y `compras` antes de eliminar los duplicados.

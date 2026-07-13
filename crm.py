@@ -1203,16 +1203,20 @@ def render_pestana_crm(client):
                                 cambios_realizados = 0
                                 
                                 # 1. Borrar encargos eliminados en la tabla (solo de la sección actual)
-                                ids_actuales = ed_e['id'].dropna().tolist()
+                                ids_actuales = [str(i) for i in ed_e['id'].dropna().tolist()]
                                 if "Encargos de Tienda" in seccion_encargos:
-                                    ids_originales_seccion = df_tnd['id'].tolist()
+                                    ids_originales_seccion = [str(i) for i in df_tnd['id'].tolist()]
+                                    df_orig_sec = df_tnd
                                 else:
-                                    ids_originales_seccion = df_web['id'].tolist()
+                                    ids_originales_seccion = [str(i) for i in df_web['id'].tolist()]
+                                    df_orig_sec = df_web
                                 
                                 ids_a_borrar = [i for i in ids_originales_seccion if i not in ids_actuales]
                                 
                                 for id_del in ids_a_borrar:
-                                    client.table("encargos_clientes").delete().eq("id", id_del).execute()
+                                    # Tenemos que volver a buscar el ID original porque supabase lo espera numérico
+                                    real_id = df_orig_sec[df_orig_sec['id'].astype(str) == id_del]['id'].iloc[0]
+                                    client.table("encargos_clientes").delete().eq("id", real_id).execute()
                                     cambios_realizados += 1
                                     
                                 # 2. Actualizar encargos existentes
@@ -1345,6 +1349,13 @@ def render_pestana_crm(client):
                                                         "telefono": nuevo_tel,
                                                         "detalle_pedido": nuevo_det
                                                     }).eq("id", r['id']).execute()
+                                                    
+                                                    if nuevo_tel != str(orig_row.get('telefono', '')).strip():
+                                                        try:
+                                                            client.table("clientes").update({"telefono": nuevo_tel}).ilike("nombre_dueno", nuevo_nombre).execute()
+                                                        except Exception:
+                                                            pass
+                                                            
                                                     cambios_realizados += 1
                                                 
                                 if cambios_realizados > 0:
