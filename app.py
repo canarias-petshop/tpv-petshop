@@ -76,9 +76,6 @@ st.markdown("""
             padding-top: 10px !important;
             padding-bottom: 10px !important;
         }
-
-        /* 9. Zoom Global TPV para ajustar la aplicación a la pantalla de la caja */
-        html { zoom: 0.90; }
     </style>
     """, unsafe_allow_html=True)
 
