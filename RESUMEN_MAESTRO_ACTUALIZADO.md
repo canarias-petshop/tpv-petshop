@@ -11,7 +11,20 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
 
 ---
 
-## 🆕 Últimos Cambios (7-13 de Julio de 2026)
+## 🆕 Últimos Cambios (14 de Julio de 2026)
+
+### Integración de IA para Composición de Productos
+- **Script Autoadministrado (`generar_composiciones_ai.py`)**: Desarrollado un motor de IA usando Gemini que escanea el catálogo, busca las composiciones de los productos en internet y las inyecta en formato HTML estilizado dentro de Supabase.
+- **Deduplicación Inteligente**: El motor detecta productos idénticos que sólo varían en peso (ej. "Saco 2kg" vs "Saco 10kg") para hacer una única llamada a la IA, ahorrando tiempo y peticiones, copiando la misma composición a todos.
+- **UI en la Web (`ClientCatalog.tsx`)**: Implementado un botón "ℹ️ Ver Composición" en las tarjetas de la tienda online que despliega un popup (Modal) estilizado para que los clientes lean los ingredientes y características nutricionales del producto.
+
+### Resolución de Bugs (TPV Tablet)
+- **Bloqueador de Teclado Optimizado (`app.py`)**: Se reescribió la protección contra el teclado táctil molesto en la navegación. Pasó de usar un `MutationObserver` agresivo (que cortaba los toques en la pantalla e impedía pulsar casillas como la de Puntos) a un `setInterval` pasivo y silencioso. Ahora las casillas táctiles de descuento de puntos y envío a domicilio reaccionan a la primera sin perder estado (se les añadió su identificador interno `key` estable).
+
+---
+
+## 🆕 Cambios Anteriores (7-13 de Julio de 2026)
+
 
 ### Sincronización TPV ↔ Web (Perfiles y Encargos)
 - **Solución "Ficha en revisión"**: Se corrigió un bloqueo crítico en la web que ocurría cuando existían múltiples clientes físicos vinculados al mismo `auth_user_id` en Supabase. Ahora la API selecciona automáticamente la ficha más reciente (`.order('created_at').limit(1).single()`).
