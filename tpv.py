@@ -694,7 +694,8 @@ def render_pestana_tpv(client):
                             puntos_a_usar = min(puntos_disp, max_puntos_permitidos)
                             eur_a_descontar = puntos_a_usar * 0.50
                             if puntos_a_usar > 0:
-                                if st.checkbox(f"💳 Canjear {puntos_a_usar} puntos por -{eur_a_descontar:.2f}€ (Límite 50%)", value=False):
+                                checkbox_key = f"chk_puntos_{cli_info.get('id', '0')}_{st.session_state.llave_busqueda_tpv}"
+                                if st.checkbox(f"💳 Canjear {puntos_a_usar} puntos por -{eur_a_descontar:.2f}€ (Límite 50%)", key=checkbox_key):
                                     desc_puntos_eur = eur_a_descontar
                                     puntos_a_descontar = puntos_a_usar
                 

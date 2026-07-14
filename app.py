@@ -84,7 +84,7 @@ components.html("""
 <script>
     const doc = window.parent.document;
     function disableAuto() {
-        const inputs = doc.querySelectorAll('input, textarea');
+        const inputs = doc.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]), textarea');
         inputs.forEach(input => {
             if (input.getAttribute('data-autofill-blocked') !== 'true') {
                 // Bloqueo agresivo de autocompletado y gestores de contraseñas
@@ -148,12 +148,14 @@ components.html("""
             });
             
             // Protección contra teclado emergente en el menú de navegación
-            const navInputs = doc.querySelectorAll('div[data-testid="stSelectbox"] input');
-            if (navInputs.length > 0 && !navInputs[0].hasAttribute('nav-protected')) {
-                // El primer selectbox de la página siempre es el menú de navegación principal
-                navInputs[0].setAttribute('readonly', 'readonly');
-                navInputs[0].setAttribute('nav-protected', 'true');
-            }
+            const allSelects = doc.querySelectorAll('div[data-testid="stSelectbox"] input');
+            allSelects.forEach(input => {
+                const label = input.getAttribute('aria-label');
+                if (label && label.includes('Ir a la secci') && !input.hasAttribute('nav-protected')) {
+                    input.setAttribute('readonly', 'readonly');
+                    input.setAttribute('nav-protected', 'true');
+                }
+            });
     }
     const observer = new MutationObserver(disableAuto);
     observer.observe(doc.body, { childList: true, subtree: true });
