@@ -659,7 +659,7 @@ def render_pestana_tpv(client):
                 st.session_state.cliente_cobro_tpv = cliente_fidelidad
                 
                 st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
-                enviar_domicilio_check = st.checkbox("🚚 Enviar pedido a Domicilio")
+                enviar_domicilio_check = st.checkbox("🚚 Enviar pedido a Domicilio", key=f"chk_domicilio_{st.session_state.llave_busqueda_tpv}")
                 enviar_domicilio = False
                 dir_entrega = ""
                 

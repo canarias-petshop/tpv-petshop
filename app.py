@@ -76,6 +76,22 @@ st.markdown("""
             padding-top: 10px !important;
             padding-bottom: 10px !important;
         }
+
+        /* 9. FIX: Checkboxes (Puntos, Domicilio) más fáciles de clicar en pantallas táctiles */
+        div[data-testid="stCheckbox"] label {
+            position: relative !important;
+            cursor: pointer !important;
+        }
+        div[data-testid="stCheckbox"] input[type="checkbox"] {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            opacity: 0 !important;
+            z-index: 999 !important;
+            cursor: pointer !important;
+        }
     </style>
     """, unsafe_allow_html=True)
 
