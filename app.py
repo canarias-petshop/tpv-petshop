@@ -76,22 +76,6 @@ st.markdown("""
             padding-top: 10px !important;
             padding-bottom: 10px !important;
         }
-
-        /* 9. FIX: Checkboxes (Puntos, Domicilio) más fáciles de clicar en pantallas táctiles */
-        div[data-testid="stCheckbox"] label {
-            position: relative !important;
-            cursor: pointer !important;
-        }
-        div[data-testid="stCheckbox"] input[type="checkbox"] {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            opacity: 0 !important;
-            z-index: 999 !important;
-            cursor: pointer !important;
-        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -173,9 +157,11 @@ components.html("""
                 }
             });
     }
-    const observer = new MutationObserver(disableAuto);
-    observer.observe(doc.body, { childList: true, subtree: true });
-    disableAuto();
+    
+    // En lugar de MutationObserver (que sobrecarga la tablet al tocar la pantalla), 
+    // usamos un intervalo suave cada 1.5s para no interrumpir los eventos táctiles
+    setInterval(disableAuto, 1500);
+    setTimeout(disableAuto, 100);
 </script>
 """, height=0)
 
