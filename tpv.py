@@ -671,46 +671,48 @@ def render_pestana_tpv(client):
                 with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli, index=idx_cli)
                 st.session_state.cliente_cobro_tpv = cliente_fidelidad
                 
-                st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
-                enviar_domicilio_check = st.checkbox("🚚 Enviar pedido a Domicilio", key=f"chk_domicilio_{st.session_state.llave_busqueda_tpv}")
-                enviar_domicilio = False
-                dir_entrega = ""
-                
-                if enviar_domicilio_check:
-                    if "Ninguno" in cliente_fidelidad:
-                        st.warning("⚠️ Selecciona un cliente arriba ('Asociar Cliente') para poder enviarlo a domicilio.")
-                    else:
-                        enviar_domicilio = True
-                        cli_data_dom = mapa_clientes_tpv.get(cliente_fidelidad, {})
-                        dir_entrega = st.text_input("📍 Dirección de Entrega (Editable):", value=cli_data_dom.get('direccion', ''))
-                
                 desc_g_val = float(desc_g or 0.0)
                 total_f = sub_antes * (1 - desc_g_val / 100)
                 
-                # --- LÓGICA DE CANJEO DE PUNTOS ---
-                desc_puntos_eur = 0.0
-                puntos_a_descontar = 0
-                if "Ninguno" not in cliente_fidelidad:
-                    cli_info = mapa_clientes_tpv.get(cliente_fidelidad, {})
-                    cli_check_nombre = cli_info.get('nombre_dueno', '')
+                # --- OPCIONES EXTRA: DOMICILIO Y PUNTOS (AISLADAS PARA TÁCTIL) ---
+                st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
+                with st.container(border=True):
+                    st.markdown("<p style='margin-bottom: 5px; font-weight: 600; color: #555;'>✨ Opciones de Venta</p>", unsafe_allow_html=True)
                     
-                    res_deuda_cli = fetch_deuda_cli_tpv(client, cli_check_nombre)
-                    tiene_deuda = True if res_deuda_cli.data else False
-                    
-                    puntos_disp = int(cli_info.get('puntos') or 0)
-                    if puntos_disp > 0:
-                        if tiene_deuda:
-                            st.error(f"⛔ **{cli_check_nombre}** tiene pagos pendientes. No puede canjear puntos hasta saldar su deuda.")
+                    enviar_domicilio = False
+                    dir_entrega = ""
+                    enviar_domicilio_check = st.toggle("🚚 Enviar pedido a Domicilio", key=f"tgl_domicilio_{st.session_state.llave_busqueda_tpv}")
+                    if enviar_domicilio_check:
+                        if "Ninguno" in cliente_fidelidad:
+                            st.warning("⚠️ Selecciona un cliente arriba para poder enviarlo a domicilio.")
                         else:
-                            max_descuento_eur = total_f * 0.50
-                            max_puntos_permitidos = int(max_descuento_eur / 0.50)
-                            puntos_a_usar = min(puntos_disp, max_puntos_permitidos)
-                            eur_a_descontar = puntos_a_usar * 0.50
-                            if puntos_a_usar > 0:
-                                checkbox_key = f"chk_puntos_{cli_info.get('id', '0')}_{st.session_state.llave_busqueda_tpv}"
-                                if st.checkbox(f"💳 Canjear {puntos_a_usar} puntos por -{eur_a_descontar:.2f}€ (Límite 50%)", key=checkbox_key):
-                                    desc_puntos_eur = eur_a_descontar
-                                    puntos_a_descontar = puntos_a_usar
+                            enviar_domicilio = True
+                            cli_data_dom = mapa_clientes_tpv.get(cliente_fidelidad, {})
+                            dir_entrega = st.text_input("📍 Dirección de Entrega:", value=cli_data_dom.get('direccion', ''))
+                    
+                    desc_puntos_eur = 0.0
+                    puntos_a_descontar = 0
+                    if "Ninguno" not in cliente_fidelidad:
+                        cli_info = mapa_clientes_tpv.get(cliente_fidelidad, {})
+                        cli_check_nombre = cli_info.get('nombre_dueno', '')
+                        
+                        res_deuda_cli = fetch_deuda_cli_tpv(client, cli_check_nombre)
+                        tiene_deuda = True if res_deuda_cli.data else False
+                        
+                        puntos_disp = int(cli_info.get('puntos') or 0)
+                        if puntos_disp > 0:
+                            if tiene_deuda:
+                                st.error(f"⛔ El cliente tiene pagos pendientes. No puede canjear puntos.")
+                            else:
+                                max_descuento_eur = total_f * 0.50
+                                max_puntos_permitidos = int(max_descuento_eur / 0.50)
+                                puntos_a_usar = min(puntos_disp, max_puntos_permitidos)
+                                eur_a_descontar = puntos_a_usar * 0.50
+                                if puntos_a_usar > 0:
+                                    tgl_key = f"tgl_puntos_{cli_info.get('id', '0')}_{st.session_state.llave_busqueda_tpv}"
+                                    if st.toggle(f"💳 Canjear {puntos_a_usar} puntos por -{eur_a_descontar:.2f}€", key=tgl_key):
+                                        desc_puntos_eur = eur_a_descontar
+                                        puntos_a_descontar = puntos_a_usar
                 
                 total_f = total_f - desc_puntos_eur
                 if total_f < 0: total_f = 0.0
