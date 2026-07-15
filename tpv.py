@@ -668,17 +668,21 @@ def render_pestana_tpv(client):
                             idx_cli = i
                             break
                 
-                c_desc, c_fid = st.columns(2)
-                with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0.0, max_value=100.0, value=None, step=0.01, format="%.2f")
-                with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli, index=idx_cli)
-                st.session_state.cliente_cobro_tpv = cliente_fidelidad
+                # --- SOLUCIÓN ZONA MUERTA: Alterar el orden visual sin romper lógica ---
+                opciones_placeholder = st.empty()
+                desc_fid_placeholder = st.empty()
+                
+                with desc_fid_placeholder.container():
+                    c_desc, c_fid = st.columns(2)
+                    with c_desc: desc_g = st.number_input("🎁 Descuento Global (%)", min_value=0.0, max_value=100.0, value=None, step=0.01, format="%.2f")
+                    with c_fid: cliente_fidelidad = st.selectbox("🌟 Asociar Cliente (Puntos)", opc_cli, index=idx_cli)
+                    st.session_state.cliente_cobro_tpv = cliente_fidelidad
                 
                 desc_g_val = float(desc_g or 0.0)
                 total_f = sub_antes * (1 - desc_g_val / 100)
                 
                 # --- OPCIONES EXTRA: DOMICILIO Y PUNTOS (AISLADAS PARA TÁCTIL) ---
-                st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
-                with st.container(border=True):
+                with opciones_placeholder.container(border=True):
                     st.markdown("<p style='margin-bottom: 5px; font-weight: 600; color: #555;'>✨ Opciones de Venta</p>", unsafe_allow_html=True)
                     
                     enviar_domicilio = False
