@@ -616,7 +616,7 @@ def render_pestana_tpv(client):
                         "Desc. %": st.column_config.NumberColumn("Desc. %", min_value=0.0, max_value=100.0, format="%.2f%%", step=0.01),
                         "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True, step=0.01),
                     },
-                    hide_index=True, use_container_width=True, num_rows="dynamic", key="ed_car_ticket"
+                    hide_index=True, use_container_width=True, num_rows="dynamic", height=250, key="ed_car_ticket"
                 )
                 
                 if not edited_df.equals(df_car):
