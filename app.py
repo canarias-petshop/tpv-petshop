@@ -76,95 +76,16 @@ st.markdown("""
             padding-top: 10px !important;
             padding-bottom: 10px !important;
         }
+
+        /* 9. FIX: Evitar que los iframes invisibles (como el inyector JS) bloqueen el táctil */
+        iframe[height="0"] {
+            pointer-events: none !important;
+            visibility: hidden !important;
+        }
     </style>
     """, unsafe_allow_html=True)
 
-# --- JS GLOBAL PARA DESACTIVAR EL AUTOCORRECTOR EN TABLETS ---
-components.html("""
-<script>
-    const doc = window.parent.document;
-    function disableAuto() {
-        // Seleccionamos estrictamente solo los inputs de texto/números (Ignorando checkboxes por completo)
-        const inputs = doc.querySelectorAll('div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, div[data-testid="stDateInput"] input, div[data-testid="stTimeInput"] input, textarea');
-        inputs.forEach(input => {
-            if (input.getAttribute('data-autofill-blocked') !== 'true') {
-                // Bloqueo agresivo de autocompletado y gestores de contraseñas
-                input.setAttribute('autocomplete', 'off-random-string');
-                input.setAttribute('data-lpignore', 'true');
-                input.setAttribute('data-form-type', 'other');
-                input.setAttribute('data-1p-ignore', 'true');
-                input.setAttribute('data-bwignore', 'true');
-                input.setAttribute('autocorrect', 'off');
-                input.setAttribute('autocapitalize', 'off');
-                input.setAttribute('spellcheck', 'false');
-                
-                // Truco para evitar que las contraseñas se autocompleten al cargar la página
-                if (input.type === 'password' && !input.hasAttribute('readonly-trick')) {
-                    input.setAttribute('readonly', 'readonly');
-                    input.addEventListener('focus', function() { this.removeAttribute('readonly'); });
-                    input.addEventListener('blur', function() { if (this.value === '') this.setAttribute('readonly', 'readonly'); });
-                    input.setAttribute('readonly-trick', 'true');
-                }
 
-                if (!input.hasAttribute('data-autoselect')) {
-                    if (input.type !== 'time' && input.type !== 'date') {
-                        input.addEventListener('focus', function() { try { this.select(); } catch(e){} });
-                    }
-                    input.setAttribute('data-autoselect', 'true');
-                }
-                
-                input.setAttribute('data-autofill-blocked', 'true');
-            }
-        });
-            
-            // Protección Global contra Doble Clic en Botones
-            const buttons = doc.querySelectorAll('button');
-            buttons.forEach(btn => {
-                if (!btn.hasAttribute('data-dblclick-prot')) {
-                    btn.setAttribute('data-dblclick-prot', 'true');
-                    btn.addEventListener('click', function() {
-                        if (this.getAttribute('data-baseweb') === 'tab') return;
-                        
-                        const text = this.innerText.toUpperCase();
-                        const isAction = text.includes('GUARDAR') || text.includes('COBRAR') || 
-                                         text.includes('REGISTRAR') || text.includes('CONFIRMAR') || 
-                                         text.includes('EMITIR') || text.includes('AÑADIR') || 
-                                         text.includes('FINALIZAR') || text.includes('ARCHIVAR') || 
-                                         text.includes('ABRIR') || text.includes('CERRAR') ||
-                                         text.includes('CREAR');
-                                         
-                        if (isAction || this.getAttribute('type') === 'submit' || this.getAttribute('kind') === 'primary') {
-                            setTimeout(() => {
-                                this.style.pointerEvents = 'none';
-                                this.style.opacity = '0.5';
-                            }, 20);
-                            
-                            setTimeout(() => {
-                                this.style.pointerEvents = 'auto';
-                                this.style.opacity = '1';
-                            }, 4000);
-                        }
-                    });
-                }
-            });
-            
-            // Protección contra teclado emergente en el menú de navegación
-            const allSelects = doc.querySelectorAll('div[data-testid="stSelectbox"] input');
-            allSelects.forEach(input => {
-                const label = input.getAttribute('aria-label');
-                if (label && label.includes('Ir a la secci') && !input.hasAttribute('nav-protected')) {
-                    input.setAttribute('readonly', 'readonly');
-                    input.setAttribute('nav-protected', 'true');
-                }
-            });
-    }
-    
-    // En lugar de MutationObserver (que sobrecarga la tablet al tocar la pantalla), 
-    // usamos un intervalo suave cada 1.5s para no interrumpir los eventos táctiles
-    setInterval(disableAuto, 1500);
-    setTimeout(disableAuto, 100);
-</script>
-""", height=0)
 
 # --- 2. MEMORIA DE LA SESIÓN ---
 if 'carrito' not in st.session_state: st.session_state['carrito'] = []
@@ -486,3 +407,88 @@ else:
     elif seccion_principal == nombres_pestanas[8]: render_pestana_personal(client)
     elif seccion_principal == nombres_pestanas[9]: render_pestana_tareas(client)
     elif seccion_principal == nombres_pestanas[10]: render_pestana_manual()
+
+# --- JS GLOBAL PARA DESACTIVAR EL AUTOCORRECTOR EN TABLETS ---
+# (Se inyecta al final para evitar que el iframe invisible cubra botones táctiles arriba)
+components.html("""
+<script>
+    const doc = window.parent.document;
+    function disableAuto() {
+        // Seleccionamos estrictamente solo los inputs de texto/números
+        const inputs = doc.querySelectorAll('div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, div[data-testid="stDateInput"] input, div[data-testid="stTimeInput"] input, textarea');
+        inputs.forEach(input => {
+            if (input.getAttribute('data-autofill-blocked') !== 'true') {
+                input.setAttribute('autocomplete', 'off-random-string');
+                input.setAttribute('data-lpignore', 'true');
+                input.setAttribute('data-form-type', 'other');
+                input.setAttribute('data-1p-ignore', 'true');
+                input.setAttribute('data-bwignore', 'true');
+                input.setAttribute('autocorrect', 'off');
+                input.setAttribute('autocapitalize', 'off');
+                input.setAttribute('spellcheck', 'false');
+                
+                if (input.type === 'password' && !input.hasAttribute('readonly-trick')) {
+                    input.setAttribute('readonly', 'readonly');
+                    input.addEventListener('focus', function() { this.removeAttribute('readonly'); });
+                    input.addEventListener('blur', function() { if (this.value === '') this.setAttribute('readonly', 'readonly'); });
+                    input.setAttribute('readonly-trick', 'true');
+                }
+
+                if (!input.hasAttribute('data-autoselect')) {
+                    if (input.type !== 'time' && input.type !== 'date') {
+                        input.addEventListener('focus', function() { try { this.select(); } catch(e){} });
+                    }
+                    input.setAttribute('data-autoselect', 'true');
+                }
+                
+                input.setAttribute('data-autofill-blocked', 'true');
+            }
+        });
+            
+        // Protección Global contra Doble Clic en Botones
+        const buttons = doc.querySelectorAll('button');
+        buttons.forEach(btn => {
+            if (!btn.hasAttribute('data-dblclick-prot')) {
+                btn.setAttribute('data-dblclick-prot', 'true');
+                btn.addEventListener('click', function() {
+                    if (this.getAttribute('data-baseweb') === 'tab') return;
+                    
+                    const text = this.innerText.toUpperCase();
+                    const isAction = text.includes('GUARDAR') || text.includes('COBRAR') || 
+                                     text.includes('REGISTRAR') || text.includes('CONFIRMAR') || 
+                                     text.includes('EMITIR') || text.includes('AÑADIR') || 
+                                     text.includes('FINALIZAR') || text.includes('ARCHIVAR') || 
+                                     text.includes('ABRIR') || text.includes('CERRAR') ||
+                                     text.includes('CREAR');
+                                     
+                    if (isAction || this.getAttribute('type') === 'submit' || this.getAttribute('kind') === 'primary') {
+                        setTimeout(() => {
+                            this.style.pointerEvents = 'none';
+                            this.style.opacity = '0.5';
+                        }, 20);
+                        
+                        setTimeout(() => {
+                            this.style.pointerEvents = 'auto';
+                            this.style.opacity = '1';
+                        }, 4000);
+                    }
+                });
+            }
+        });
+        
+        // Protección contra teclado emergente en el menú de navegación
+        const allSelects = doc.querySelectorAll('div[data-testid="stSelectbox"] input');
+        allSelects.forEach(input => {
+            const label = input.getAttribute('aria-label');
+            if (label && label.includes('Ir a la secci') && !input.hasAttribute('nav-protected')) {
+                input.setAttribute('readonly', 'readonly');
+                input.setAttribute('nav-protected', 'true');
+            }
+        });
+    }
+    
+    // Intervalo suave para no interrumpir tacto
+    setInterval(disableAuto, 1500);
+    setTimeout(disableAuto, 100);
+</script>
+""", height=0)
