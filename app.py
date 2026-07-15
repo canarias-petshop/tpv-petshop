@@ -76,23 +76,6 @@ st.markdown("""
             padding-top: 10px !important;
             padding-bottom: 10px !important;
         }
-
-        /* 9. FIX: Checkboxes (Puntos y Envío) táctiles en Tablets */
-        div[data-testid="stCheckbox"] {
-            pointer-events: auto !important;
-            touch-action: manipulation !important;
-            opacity: 1 !important;
-        }
-        label[data-baseweb="checkbox"] {
-            cursor: pointer !important;
-            -webkit-tap-highlight-color: transparent !important;
-            touch-action: manipulation !important;
-        }
-        /* Ampliar ligeramente el área táctil del cuadradito para el dedo */
-        label[data-baseweb="checkbox"] div[data-testid="stCheckbox"] {
-            transform: scale(1.1);
-            transform-origin: left center;
-        }
     </style>
     """, unsafe_allow_html=True)
 
