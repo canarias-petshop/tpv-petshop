@@ -109,10 +109,23 @@ def render_pestana_tpv(client):
         df_inv = pd.DataFrame(all_inv) if all_inv else pd.DataFrame()
         
         st.markdown("<p style='margin: 0; font-weight: bold; font-size: 13px;'>🔍 Buscar producto o servicio</p>", unsafe_allow_html=True)
+        
+        # Filtro inteligente previo (permite palabras separadas y desordenadas)
+        filtro_previo = st.text_input("Filtro previo", placeholder="Filtro inteligente (ej: royal hypo)...", label_visibility="collapsed", key=f"txt_b_{st.session_state.llave_busqueda_tpv}")
+        
         if not df_inv.empty:
+            if filtro_previo:
+                terminos = filtro_previo.lower().split()
+                mascara = pd.Series([True] * len(df_inv), index=df_inv.index)
+                for t in terminos:
+                    mascara &= df_inv['nombre'].str.lower().str.contains(t, na=False, regex=False)
+                df_inv = df_inv[mascara]
+                
             opciones = df_inv.apply(lambda x: f"{x['nombre']} | {x['precio_pvp']}€ (Stock: {x['stock_actual']})", axis=1).tolist()
-            prod_sel = st.selectbox("s1", opciones, index=None, placeholder="Escribe para buscar...", label_visibility="collapsed", key=f"sb_n_{st.session_state.llave_busqueda_tpv}")
-            if prod_sel:
+            if not opciones and filtro_previo:
+                opciones = ["No se encontraron resultados"]
+            prod_sel = st.selectbox("s1", opciones, index=None, placeholder="Selecciona el producto o servicio...", label_visibility="collapsed", key=f"sb_n_{st.session_state.llave_busqueda_tpv}")
+            if prod_sel and prod_sel != "No se encontraron resultados":
                 nombre_sel = prod_sel.split(" | ")[0]
                 fila_p = df_inv[df_inv['nombre'] == nombre_sel].iloc[0]
                 

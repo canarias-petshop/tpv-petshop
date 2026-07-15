@@ -319,10 +319,12 @@ def render_pestana_inventario(client):
                         ord_inv = st.selectbox("↕️ Ordenar por:", ["Nombre (A-Z)", "SKU", "Mayor Stock", "Menor Stock", "Mayor Precio"], key="ord_inv_p")
 
                     if b_inv:
-                        df_solo_productos = df_solo_productos[
-                            df_solo_productos['nombre'].str.lower().str.contains(b_inv, na=False) |
-                            df_solo_productos['sku'].str.lower().str.contains(b_inv, na=False)
-                        ]
+                        terminos = b_inv.split()
+                        mascara = pd.Series([True] * len(df_solo_productos), index=df_solo_productos.index)
+                        for t in terminos:
+                            mascara &= (df_solo_productos['nombre'].str.lower().str.contains(t, na=False, regex=False) |
+                                        df_solo_productos['sku'].str.lower().str.contains(t, na=False, regex=False))
+                        df_solo_productos = df_solo_productos[mascara]
 
                     if ord_inv == "Nombre (A-Z)": df_solo_productos = df_solo_productos.sort_values(by="nombre")
                     elif ord_inv == "SKU": df_solo_productos = df_solo_productos.sort_values(by="sku")
@@ -435,10 +437,12 @@ def render_pestana_inventario(client):
                         ord_serv = st.selectbox("↕️ Ordenar por:", ["Nombre (A-Z)", "Código", "Mayor Precio", "Menor Precio"], key="ord_inv_s")
 
                     if b_serv:
-                        df_solo_servicios = df_solo_servicios[
-                            df_solo_servicios['nombre'].str.lower().str.contains(b_serv, na=False) |
-                            df_solo_servicios['sku'].str.lower().str.contains(b_serv, na=False)
-                        ]
+                        terminos = b_serv.split()
+                        mascara = pd.Series([True] * len(df_solo_servicios), index=df_solo_servicios.index)
+                        for t in terminos:
+                            mascara &= (df_solo_servicios['nombre'].str.lower().str.contains(t, na=False, regex=False) |
+                                        df_solo_servicios['sku'].str.lower().str.contains(t, na=False, regex=False))
+                        df_solo_servicios = df_solo_servicios[mascara]
 
                     if ord_serv == "Nombre (A-Z)": df_solo_servicios = df_solo_servicios.sort_values(by="nombre")
                     elif ord_serv == "Código": df_solo_servicios = df_solo_servicios.sort_values(by="sku")
