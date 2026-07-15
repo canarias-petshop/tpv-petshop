@@ -76,6 +76,13 @@ st.markdown("""
             padding-top: 10px !important;
             padding-bottom: 10px !important;
         }
+
+        /* 9. FIX: Evitar que los iframes invisibles (como el inyector JS) bloqueen el táctil */
+        iframe[height="0"] {
+            pointer-events: none !important;
+            position: absolute !important;
+            z-index: -9999 !important;
+        }
     </style>
     """, unsafe_allow_html=True)
 
