@@ -606,6 +606,8 @@ def render_pestana_tpv(client):
                     
                 df_car = pd.DataFrame(st.session_state.carrito)
 
+                altura_tabla = int(min(350, max(100, 42 + (len(df_car) * 36))))
+
                 edited_df = st.data_editor(
                     df_car,
                     column_order=("Cantidad", "Producto", "Precio", "Desc. %", "Subtotal"),
@@ -616,7 +618,7 @@ def render_pestana_tpv(client):
                         "Desc. %": st.column_config.NumberColumn("Desc. %", min_value=0.0, max_value=100.0, format="%.2f%%", step=0.01),
                         "Subtotal": st.column_config.NumberColumn("Total", format="%.2f", disabled=True, step=0.01),
                     },
-                    hide_index=True, use_container_width=True, num_rows="dynamic", height=250, key="ed_car_ticket"
+                    hide_index=True, use_container_width=True, num_rows="dynamic", height=altura_tabla, key="ed_car_ticket"
                 )
                 
                 if not edited_df.equals(df_car):
