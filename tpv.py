@@ -683,14 +683,28 @@ def render_pestana_tpv(client):
                 
                 # --- OPCIONES EXTRA: DOMICILIO Y PUNTOS (AISLADAS PARA TÁCTIL) ---
                 with opciones_placeholder.container(border=True):
-                    st.markdown("<p style='margin-bottom: 5px; font-weight: 600; color: #555;'>✨ Opciones de Venta</p>", unsafe_allow_html=True)
+                    st.markdown("<p style='margin-bottom: 5px; font-weight: 600; color: #555;'>✨ Opciones de Venta (Tocar para activar/desactivar)</p>", unsafe_allow_html=True)
                     
                     enviar_domicilio = False
                     dir_entrega = ""
-                    enviar_domicilio_check = st.toggle("🚚 Enviar pedido a Domicilio", key=f"tgl_domicilio_{st.session_state.llave_busqueda_tpv}")
+                    
+                    # Estado del botón Domicilio
+                    estado_dom_key = f"estado_dom_{st.session_state.llave_busqueda_tpv}"
+                    if estado_dom_key not in st.session_state:
+                        st.session_state[estado_dom_key] = False
+                    
+                    texto_btn_dom = "✅ Envío a Domicilio (ACTIVADO)" if st.session_state[estado_dom_key] else "⬜ Activar Envío a Domicilio"
+                    tipo_btn_dom = "primary" if st.session_state[estado_dom_key] else "secondary"
+                    
+                    if st.button(texto_btn_dom, type=tipo_btn_dom, use_container_width=True, key=f"btn_dom_{st.session_state.llave_busqueda_tpv}"):
+                        st.session_state[estado_dom_key] = not st.session_state[estado_dom_key]
+                        st.rerun()
+                        
+                    enviar_domicilio_check = st.session_state[estado_dom_key]
+                    
                     if enviar_domicilio_check:
                         if "Ninguno" in cliente_fidelidad:
-                            st.warning("⚠️ Selecciona un cliente arriba para poder enviarlo a domicilio.")
+                            st.warning("⚠️ Selecciona un cliente debajo para poder enviarlo a domicilio.")
                         else:
                             enviar_domicilio = True
                             cli_data_dom = mapa_clientes_tpv.get(cliente_fidelidad, {})
@@ -715,8 +729,18 @@ def render_pestana_tpv(client):
                                 puntos_a_usar = min(puntos_disp, max_puntos_permitidos)
                                 eur_a_descontar = puntos_a_usar * 0.50
                                 if puntos_a_usar > 0:
-                                    tgl_key = f"tgl_puntos_{cli_info.get('id', '0')}_{st.session_state.llave_busqueda_tpv}"
-                                    if st.toggle(f"💳 Canjear {puntos_a_usar} puntos por -{eur_a_descontar:.2f}€", key=tgl_key):
+                                    estado_ptos_key = f"estado_ptos_{cli_info.get('id', '0')}_{st.session_state.llave_busqueda_tpv}"
+                                    if estado_ptos_key not in st.session_state:
+                                        st.session_state[estado_ptos_key] = False
+                                    
+                                    texto_btn_ptos = f"✅ Puntos Aplicados (-{eur_a_descontar:.2f}€)" if st.session_state[estado_ptos_key] else f"💳 Canjear {puntos_a_usar} puntos por -{eur_a_descontar:.2f}€"
+                                    tipo_btn_ptos = "primary" if st.session_state[estado_ptos_key] else "secondary"
+                                    
+                                    if st.button(texto_btn_ptos, type=tipo_btn_ptos, use_container_width=True, key=f"btn_ptos_{st.session_state.llave_busqueda_tpv}"):
+                                        st.session_state[estado_ptos_key] = not st.session_state[estado_ptos_key]
+                                        st.rerun()
+                                    
+                                    if st.session_state[estado_ptos_key]:
                                         desc_puntos_eur = eur_a_descontar
                                         puntos_a_descontar = puntos_a_usar
                 
