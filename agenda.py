@@ -309,15 +309,18 @@ def render_pestana_agenda(client):
                 # Inyectar bloqueos parciales como citas falsas para que el buscador los esquive
                 for b in bloqueos_parciales:
                     emp_af = b.get('empleado_afectado', '')
-                    dt_ini = pd.to_datetime(f"{fecha_c} {b.get('hora_inicio')}")
-                    dt_fin = pd.to_datetime(f"{fecha_c} {b.get('hora_fin')}")
-                    duracion_mins = int((dt_fin - dt_ini).total_seconds() / 60)
-                    
-                    if emp_af == 'Todas':
-                        for e in empleados_lista:
-                            citas_dia.append({'fecha_hora': f"{fecha_c}T{b.get('hora_inicio')}:00", 'duracion_minutos': duracion_mins, 'servicio': f"BLOQUEO ({e})"})
-                    else:
-                        citas_dia.append({'fecha_hora': f"{fecha_c}T{b.get('hora_inicio')}:00", 'duracion_minutos': duracion_mins, 'servicio': f"BLOQUEO ({emp_af})"})
+                    try:
+                        dt_ini = pd.to_datetime(f"{fecha_c} {b.get('hora_inicio')}")
+                        dt_fin = pd.to_datetime(f"{fecha_c} {b.get('hora_fin')}")
+                        duracion_mins = int((dt_fin - dt_ini).total_seconds() / 60)
+                        
+                        if emp_af == 'Todas':
+                            for e in empleados_lista:
+                                citas_dia.append({'fecha_hora': dt_ini, 'duracion_minutos': duracion_mins, 'servicio': f"BLOQUEO ({e})"})
+                        else:
+                            citas_dia.append({'fecha_hora': dt_ini, 'duracion_minutos': duracion_mins, 'servicio': f"BLOQUEO ({emp_af})"})
+                    except Exception:
+                        pass
 
                 for emp_nombre in empleados_a_revisar:
                     turno_str = turnos_dict.get(emp_nombre, "")
