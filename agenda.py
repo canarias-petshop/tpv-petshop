@@ -278,7 +278,22 @@ def render_pestana_agenda(client):
                 if res_turnos_data:
                     for t in res_turnos_data:
                         if t.get('personal_empleados'): turnos_dict[t['personal_empleados']['nombre']] = t['turno'].lower()
-                            
+                
+                # --- APLICAR BLOQUEOS Y AUSENCIAS ---
+                res_bloqueos = get_bloqueos_ag_cached(client, st.session_state.get('db_version', 0), str(fecha_c), str(fecha_c))
+                bloqueos_parciales = []
+                if res_bloqueos:
+                    for b in res_bloqueos:
+                        if b.get('bloquea_agenda'):
+                            emp_af = b.get('empleado_afectado', '')
+                            if b.get('hora_inicio') == '00:00' and b.get('hora_fin') == '23:59':
+                                if emp_af == 'Todas':
+                                    for e in empleados_lista: turnos_dict[e] = "vacaciones"
+                                else:
+                                    turnos_dict[emp_af] = "vacaciones"
+                            else:
+                                bloqueos_parciales.append(b)
+
                 empleados_a_revisar = [f_emp] if f_emp != "Cualquiera" else empleados_lista
                 huecos_obj = []
                 
@@ -291,6 +306,19 @@ def render_pestana_agenda(client):
                             if dt_c.date() == fecha_c: citas_dia.append(c)
                         except: pass
                 
+                # Inyectar bloqueos parciales como citas falsas para que el buscador los esquive
+                for b in bloqueos_parciales:
+                    emp_af = b.get('empleado_afectado', '')
+                    dt_ini = pd.to_datetime(f"{fecha_c} {b.get('hora_inicio')}")
+                    dt_fin = pd.to_datetime(f"{fecha_c} {b.get('hora_fin')}")
+                    duracion_mins = int((dt_fin - dt_ini).total_seconds() / 60)
+                    
+                    if emp_af == 'Todas':
+                        for e in empleados_lista:
+                            citas_dia.append({'fecha_hora': f"{fecha_c}T{b.get('hora_inicio')}:00", 'duracion_minutos': duracion_mins, 'servicio': f"BLOQUEO ({e})"})
+                    else:
+                        citas_dia.append({'fecha_hora': f"{fecha_c}T{b.get('hora_inicio')}:00", 'duracion_minutos': duracion_mins, 'servicio': f"BLOQUEO ({emp_af})"})
+
                 for emp_nombre in empleados_a_revisar:
                     turno_str = turnos_dict.get(emp_nombre, "")
                     if not turno_str or "libre" in turno_str or "vacaciones" in turno_str: continue

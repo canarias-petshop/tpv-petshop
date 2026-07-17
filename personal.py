@@ -95,6 +95,16 @@ def render_pestana_personal(client: SyncPostgrestClient):
                         hoy = ahora_dt.date().isoformat()
                         ahora = ahora_dt.isoformat()
                         
+                        # --- BLOQUEO POR VACACIONES / EXCEPCIONES ---
+                        res_bl = get_agenda_bloqueos_futuros(client, hoy)
+                        if res_bl.data:
+                            for b in res_bl.data:
+                                if b['fecha'] == hoy and b.get('bloquea_agenda'):
+                                    emp_af = b.get('empleado_afectado', '')
+                                    if (emp_af == 'Todas' or emp_af == emp_sel['nombre']) and b.get('hora_inicio') == '00:00' and b.get('hora_fin') == '23:59':
+                                        st.error(f"⛔ **Acceso Denegado:** No puedes fichar hoy porque estás marcado/a con una excepción de día completo ({b.get('titulo')}).")
+                                        st.stop()
+                        
                         # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
                         res_ultimo = get_ultimo_fichaje(client, emp_sel['id'], hoy)
                         if res_ultimo.data:

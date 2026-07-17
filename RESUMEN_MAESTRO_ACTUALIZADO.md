@@ -186,24 +186,23 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
 
 ---
 
-## 🚀 Planificación para la Próxima Sesión (Siguientes Pasos)
+## 🚀 Planificación a Medio y Largo Plazo (Fase de Maduración)
 
-**Hito 1: Escaparate Web, Marketing y Responsive Design**
-- **Adaptación Móvil (Responsive)**: Escribir las reglas CSS (Media Queries) para que la web se vea perfecta en teléfonos y tablets (menú hamburguesa, apilar grid de productos, reducir fuentes del Hero).
-- **Banners Rotativos**: Implementar el plan de anuncios rotativos (`PromoBanner.tsx`) en la cabecera del catálogo y en la página de inicio, anunciando: 10% primera compra, 10% en cajas enteras de pouch, sistema de puntos, y portes gratis >130€.
+Tras haber completado gran parte de los hitos operativos iniciales (Diseño Responsive, Banners Web, Alarmas de Encargos, Tareas/Notas de personal, Filtros UX y Pasarela de Pago Virtual TPV), el proyecto entra en una nueva fase orientada a la independencia, la fiabilidad legal y la futura comercialización del software:
 
-**Hito 2: Gestión de Web y Delivery (Workflow Avanzado)**
-- **Alertas de Antigüedad**: Implementar un sistema visual que alerte cuando un "Pedido Web" lleve más de 2 días atascado sin enviarse o recogerse.
-- **Gestión de Estados y Cancelaciones**: Implementar el estado final "Recibido y Avisado" para los encargos locales, junto con la lógica de cancelación y borrado seguro.
+**Hito 1: Independencia de Infraestructura (Entorno Local)**
+- **Servidor Local en Tienda**: Abandonar la dependencia exclusiva de Supabase en la nube para la operativa diaria.
+- **Base de Datos Propia**: Montar y configurar PostgreSQL (u otra solución) en un ordenador/servidor físico en la tienda, logrando que el TPV funcione en una red local de forma rápida y autónoma, manteniendo sincronización secundaria con la web.
 
-**Hito 3: Agenda y Periodicidad**
-- Avanzar en el sistema de recurrencia y repetición de tareas (diario/semanal/mensual) dentro de la agenda o calendario.
+**Hito 2: Cumplimiento Legal (VeriFactu) y Contabilidad**
+- **Integración VeriFactu**: Finalizar y pulir el sistema de generación de hash y envío de facturas para cumplir con la normativa de la Agencia Tributaria. (Nota: existe código base antiguo que debe ser reactivado y validado).
+- **Módulo de Contabilidad**: Consolidar y cerrar los procesos pendientes del módulo contable del TPV.
 
-**Hito 4: UX Web y Filtros Finales**
-- **Sincronización Web Avanzada**: Modificar la interfaz web para mostrar las opciones secundarias conectadas de forma reactiva, permitiendo una experiencia de compra fluida.
-- **Ajustes Estéticos**: Rediseñar la zona del pie de página y botones de WhatsApp web.
+**Hito 3: Estabilidad y Testing (Preparación Comercial)**
+- **Pruebas Automatizadas (Tests)**: Desarrollar baterías de pruebas (unitarias y de integración) para asegurar la solidez del programa, garantizando que futuras modificaciones no rompan los flujos de caja o inventario. Fundamental para dar un buen soporte si el software se comercializa.
 
-**Hito 5: Integraciones Futuras (A medio plazo)**
-- **Nuevas Marcas**: Cuando se integre Royal Canin o cualquier otra marca, se deberá usar **estrictamente** el "Diccionario Maestro" para encajarla mediante scripts de importación (la web lo asimilará instantáneamente).
-- **Pasarela de Pago (Stripe)**: Configurar la pasarela para aceptar cobros directos online.
-- **Módulos Adicionales**: Ampliación hacia categorías de accesorios o reservas directas de peluquería en la tienda online.
+**Hito 4: Documentación de Software mediante IA**
+- **Listado de Especificaciones**: Auditar el código actual completo y redactar un documento maestro técnico ("Software Requirements Specification") separando de forma estricta el ecosistema TPV y el ecosistema Web. 
+
+**Hito 5: Refactorización y Optimización (Fase 2)**
+- **Código Limpio**: Con el respaldo de los tests y las especificaciones, reestructurar el código existente para eliminar deuda técnica, optimizar consultas, mejorar el rendimiento global y aplicar prácticas modernas.
