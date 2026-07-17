@@ -11,15 +11,19 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
 
 ---
 
-## 🆕 Últimos Cambios (14 de Julio de 2026)
+## 🆕 Últimos Cambios (14-17 de Julio de 2026)
 
 ### Integración de IA para Composición de Productos
 - **Script Autoadministrado (`generar_composiciones_ai.py`)**: Desarrollado un motor de IA usando Gemini que escanea el catálogo, busca las composiciones de los productos en internet y las inyecta en formato HTML estilizado dentro de Supabase.
 - **Deduplicación Inteligente**: El motor detecta productos idénticos que sólo varían en peso (ej. "Saco 2kg" vs "Saco 10kg") para hacer una única llamada a la IA, ahorrando tiempo y peticiones, copiando la misma composición a todos.
 - **UI en la Web (`ClientCatalog.tsx`)**: Implementado un botón "ℹ️ Ver Composición" en las tarjetas de la tienda online que despliega un popup (Modal) estilizado para que los clientes lean los ingredientes y características nutricionales del producto.
 
-### Resolución de Bugs (TPV Tablet)
-- **Bloqueador de Teclado Optimizado (`app.py`)**: Se reescribió la protección contra el teclado táctil molesto en la navegación. Pasó de usar un `MutationObserver` agresivo (que cortaba los toques en la pantalla e impedía pulsar casillas como la de Puntos) a un `setInterval` pasivo y silencioso. Ahora las casillas táctiles de descuento de puntos y envío a domicilio reaccionan a la primera sin perder estado (se les añadió su identificador interno `key` estable).
+### Mejoras de Búsqueda
+- **Buscador Inteligente Multi-palabra**: Se actualizaron los buscadores del TPV (productos y servicios) para que soporten búsqueda libre. Ahora el usuario puede escribir palabras desordenadas y en minúsculas (ej. "hypoallergenic royal canin") y el sistema dividirá el texto buscando las coincidencias sin importar el orden ni las mayúsculas.
+
+### Resolución Definitiva de Bugs (TPV Tablet)
+- **Transformación de Interruptores a Botones Nativos (`tpv.py`)**: Se documentó y resolvió una incompatibilidad estructural entre el bloqueador de teclado táctil (Javascript en `app.py`) y los componentes de interruptor (`st.toggle` / `st.checkbox`) en navegadores de tablet (Chrome/Safari), los cuales generaban una "zona muerta". La solución definitiva fue erradicar los interruptores y reemplazarlos por **Botones Interactivos con Memoria de Estado** en `st.session_state`. Ahora, funciones críticas como "Envío a Domicilio" y "Canjear Puntos" utilizan la sólida API de botones de Streamlit, garantizando un 100% de respuesta táctil en Android/iOS.
+- **Altura Dinámica de Tablas**: Se solucionó un cuelgue fatal (`ResizeObserver`) en Streamlit Cloud provocado por iframes superpuestos al calcular matemáticamente y en vivo la altura del carrito de la compra en función del número de artículos (`len(df_car)`), eliminando márgenes invisibles.
 
 ---
 
