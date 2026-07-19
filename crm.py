@@ -1399,6 +1399,12 @@ def render_pestana_crm(client):
                                 if cambios_realizados > 0:
                                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                     limpiar_cache_crm()
+                                    try:
+                                        from historial import limpiar_cache_historial
+                                        from contabilidad import limpiar_cache_contabilidad
+                                        limpiar_cache_historial()
+                                        limpiar_cache_contabilidad()
+                                    except Exception: pass
                                     st.success(f"Se han actualizado {cambios_realizados} encargo(s).")
                                     time.sleep(0.8)
                                     st.rerun()
