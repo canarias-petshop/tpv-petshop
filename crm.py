@@ -5,6 +5,7 @@ from datetime import date
 import urllib.parse
 import base64
 import streamlit.components.v1 as components
+from core_crm import crear_cliente, crear_mascota, actualizar_cliente, anonimizar_cliente, crear_encargo, agendar_cita
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_empleados_crm(_client):
@@ -174,20 +175,17 @@ def render_pestana_crm(client):
 
             if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
                 if c_nom:
-                    res_cli = client.table("clientes").insert({
-                        "nombre_dueno": c_nom, "telefono": c_tel, "nombre_dueno_2": c_nom2, "telefono_2": c_tel2,
-                        "email": c_ema, "metodo_contacto": c_cont, 
-                        "fecha_nacimiento": str(c_nac) if c_nac else "", "rgpd_consent": c_rgpd, "puntos": 0,
-                        "direccion": c_dir, "servicio_domicilio": c_domicilio
-                    }).execute()
+                    nuevo_cli = crear_cliente(
+                        client, c_nom, c_tel, c_nom2, c_tel2, c_ema, c_cont, 
+                        str(c_nac) if c_nac else "", c_rgpd, c_dir, c_domicilio
+                    )
 
-                    if res_cli.data and m_nom:
-                        cli_id = res_cli.data[0]['id']
+                    if nuevo_cli and m_nom:
                         final_obs = f"[Pref: {m_pref}] {m_obs}".strip() if m_pref != "Cualquiera" else m_obs
-                        client.table("mascotas").insert({
-                            "cliente_id": cli_id, "nombre": m_nom, "especie": m_esp, "sexo": m_sexo,
-                            "raza": m_raz, "peso": m_peso, "observaciones": final_obs, "fecha_nacimiento": str(m_nac) if m_nac else ""
-                        }).execute()
+                        crear_mascota(
+                            client, nuevo_cli['id'], m_nom, m_esp, m_sexo, m_raz, m_peso, 
+                            final_obs, str(m_nac) if m_nac else ""
+                        )
 
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.session_state.llave_crm_cli += 1
@@ -399,10 +397,12 @@ def render_pestana_crm(client):
                         else:
                             servicio_final = f"[ESTADO: Pendiente] {servicio_final}"
                             
-                        client.table("citas").insert({
-                            "mascotas_id": m_id, "fecha_hora": f"{f_fecha} {hora_final_str}", 
-                            "servicio": servicio_final, "duracion_minutos": int(f_dur)
-                        }).execute()
+                        agendar_cita(
+                            client, m_id, str(f_fecha), hora_final_str, 
+                            f_serv, int(f_dur), emp_final, 
+                            solapa_manual, motivo_final if solapa_manual else "", 
+                            fianza_pagada
+                        )
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         limpiar_cache_crm()
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
@@ -569,12 +569,7 @@ def render_pestana_crm(client):
 
                     with col_ficha2:
                         if st.button("🗑️ Anonimizar Cliente (RGPD)", help="Borra los datos personales manteniendo el historial de ventas", type="secondary", key=f"anon_cli_{c_id}"):
-                            client.table("clientes").update({
-                                "nombre_dueno": "Cliente Borrado",
-                                "telefono": "",
-                                "email": "",
-                                "rgpd_consent": False
-                            }).eq("id", c_id).execute()
+                            anonimizar_cliente(client, c_id)
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             limpiar_cache_crm()
                             st.success("Cliente anonimizado con éxito según la ley de protección de datos."); time.sleep(1.5); st.rerun()
@@ -866,11 +861,7 @@ def render_pestana_crm(client):
                             
                         if final_cli and e_prod:
                             try:
-                                client.table("encargos_clientes").insert({
-                                    "nombre_cliente": final_cli, "telefono": final_tel, 
-                                    "detalle_pedido": f"{e_cant}x {e_prod}",
-                                    "notas": e_obs, "estado": "Pendiente", "origen": "Tienda"
-                                }).execute()
+                                crear_encargo(client, final_cli, final_tel, e_prod, e_cant, e_obs)
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 st.session_state.llave_crm_enc += 1
                                 limpiar_cache_crm()

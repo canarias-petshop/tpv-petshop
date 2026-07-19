@@ -19,11 +19,20 @@
   - `[x]` Volcar la estructura de Supabase a la base de datos de Docker.
   - `[x]` Ejecutar tests locales (`pytest`) y comprobar que pasan en verde.
 - `[/]` **Fase 4: Suite de Pruebas (QA) y Refactorización**
-  - `[/]` **Sprint 4A: Núcleo (Core) y Caja**
+  - `[x]` **Sprint 4A: Núcleo (Core) y Caja**
     - `[x]` Crear rama de Git `sprint-4a-core`.
-    - [x] Refactorizar `personal.py` y crear tests.
-    - [x] Refactorizar `caja.py`: Extraída la lógica.
-    - [x] **DEBUG/STABILITY:** Corregir inconsistencias de `ValueError` en `personal.py` durante la ejecución de tests (en curso).
-    - [x] **DEBUG:** Corregir lógica de comparación de tiempos (anti-spam) en `personal.py` para asegurar que los tests de integración pasen consistentemente.
-    - [x] Ejecutar `pytest` y asegurar >80% de cobertura (actualmente en 67% con lógica UI excluida).
-    - [x] Hacer `git commit` y `git push`. de este sprint.
+    - `[x]` Refactorizar `personal.py` y crear tests.
+    - `[x]` Refactorizar `caja.py`: Extraída la lógica.
+    - `[x]` **DEBUG/STABILITY:** Corregir inconsistencias de `ValueError` en `personal.py` durante la ejecución de tests (en curso).
+    - `[x]` **DEBUG:** Corregir lógica de comparación de tiempos (anti-spam) en `personal.py` para asegurar que los tests de integración pasen consistentemente.
+    - `[x]` Ejecutar `pytest` y asegurar >80% de cobertura (actualmente en 67% con lógica UI excluida).
+    - `[x]` Hacer `git commit` y `git push`. de este sprint.
+  - `[x]` **Sprint 4B: CRM e Inventario + Dashboard QA**
+    - `[x]` Crear rama de Git `sprint-4b-crm-inventario`.
+    - `[x]` Dashboard QA: Vista interactiva en Streamlit para tests unitarios.
+    - `[x]` Refactorizar `crm.py` extrayendo lógica de negocio.
+    - `[x]` Crear `tests/test_crm.py` con cobertura > 80%.
+    - `[x]` Refactorizar `inventario.py` extrayendo lógica de negocio.
+    - `[x]` Crear `tests/test_inventario.py` con cobertura > 80%.
+    - `[x]` Ejecutar `pytest` y asegurar que la cobertura de la lógica de negocio extraída sea > 80%.
+    - `[x]` Hacer `git commit` y `git push` de este sprint.

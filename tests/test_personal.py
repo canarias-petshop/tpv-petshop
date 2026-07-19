@@ -11,7 +11,7 @@ import time
 @pytest.fixture(scope="module")
 def db_client():
     """Fixture que provee el cliente de BD configurado para tests (Docker)."""
-    api_url = "http://localhost:3000"
+    api_url = os.getenv("API_URL", "http://localhost:3000")
     secret = "super-secret-jwt-token-with-at-least-32-characters-long"
     payload = {
         "role": "admin",

@@ -4,3 +4,7 @@ postgrest
 xlsxwriter
 google-generativeai
 openpyxl
+pytest
+pytest-cov
+pytest-json-report
+pytz

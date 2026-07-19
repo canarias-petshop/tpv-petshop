@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import time
+from core_inventario import crear_producto, crear_servicio, traspasar_stock, actualizar_producto, eliminar_producto
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_proveedores(_client):
@@ -175,19 +176,13 @@ def render_pestana_inventario(client):
                 
                 if nombre and sku:
                     if cat_item == "Servicio":
-                        p_base_calc = pvp_val / (1 + (igic_tipo / 100))
+                        crear_servicio(client, nombre, sku, pvp_val, igic_tipo)
                     else:
-                        p_base_calc = p_base_val
-
-                    res_ins = client.table("productos").insert({
-                        "nombre": nombre, "sku": sku, "codigo_barras": cod_barras, "categoria": cat_item,
-                        "familia": "Generico", "marca": "Generico", "precio_base": p_base_calc, "igic_tipo": igic_tipo, 
-                        "precio_pvp": pvp_val, "stock_actual": stck_val, "stock_minimo": s_min if cat_item == "Producto" else 0,
-                        "cantidad_reponer": c_rep if cat_item == "Producto" else 0
-                    }).execute()
-                    if cat_item == "Producto" and res_ins.data and provs_sel:
-                        rels = [{"producto_id": res_ins.data[0]['id'], "proveedor_id": dict_proveedores[p], "precio_coste": p_base_calc} for p in provs_sel]
-                        client.table("productos_proveedores").insert(rels).execute()
+                        proveedores_ids = [dict_proveedores[p] for p in provs_sel] if provs_sel else []
+                        crear_producto(
+                            client, nombre, sku, cod_barras, p_base_val, igic_tipo, 
+                            pvp_val, stck_val, s_min, c_rep, proveedores_ids
+                        )
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.success("Guardado correctamente"); time.sleep(0.5); limpiar_cache_inventario(); st.rerun()
 
@@ -246,15 +241,8 @@ def render_pestana_inventario(client):
                         if st.button("🔄 Confirmar Traspaso de Stock", use_container_width=True):
                             if id_caja and id_unidad:
                                 try:
-                                    caja_data = df_solo_productos[df_solo_productos['id'] == id_caja[0]].iloc[0]
-                                    unidad_data = df_solo_productos[df_solo_productos['id'] == id_unidad[0]].iloc[0]
-                                    
-                                    nuevo_stock_caja = int(float(caja_data.get('stock_actual', 0))) - int(cant_cajas)
-                                    nuevo_stock_unidad = int(float(unidad_data.get('stock_actual', 0))) + int(cant_cajas * uds_por_caja)
-                                    
-                                    client.table("productos").update({"stock_actual": nuevo_stock_caja}).eq("id", id_caja[0]).execute()
-                                    client.table("productos").update({"stock_actual": nuevo_stock_unidad}).eq("id", id_unidad[0]).execute()
-                                    st.success(f"✅ Traspaso exitoso: Restado {cant_cajas} a [{caja_data['nombre']}]. Sumado {cant_cajas * uds_por_caja} a [{unidad_data['nombre']}].")
+                                    res_tras = traspasar_stock(client, id_caja[0], id_unidad[0], cant_cajas, uds_por_caja)
+                                    st.success(f"✅ Traspaso exitoso: Restado {cant_cajas} a [{res_tras['caja_nombre']}]. Sumado {cant_cajas * uds_por_caja} a [{res_tras['unidad_nombre']}].")
                                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                     limpiar_cache_inventario()
                                     time.sleep(2)
@@ -370,7 +358,7 @@ def render_pestana_inventario(client):
                         errores = []
                         for id_del in ids_a_borrar:
                             try:
-                                client.table("productos").delete().eq("id", id_del).execute()
+                                elim_res = eliminar_producto(client, id_del)
                             except Exception as e:
                                 errores.append(f"Error al borrar producto: {e}")
 
@@ -406,13 +394,8 @@ def render_pestana_inventario(client):
                                     datos['fecha_caducidad'] = str(datos['fecha_caducidad'])
                                     
                                 try:
-                                    client.table("productos").update(datos).eq("id", row['id']).execute()
-                                    
-                                    client.table("productos_proveedores").delete().eq("producto_id", row['id']).execute()
-                                    if prov_nombre != "---" and prov_nombre in dict_proveedores:
-                                        client.table("productos_proveedores").insert({
-                                            "producto_id": row['id'], "proveedor_id": dict_proveedores[prov_nombre], "precio_coste": float(datos.get('precio_base', 0.0))
-                                        }).execute()
+                                    prov_id_val = dict_proveedores.get(prov_nombre) if prov_nombre != "---" else None
+                                    actualizar_producto(client, row['id'], datos, prov_id_val, float(datos.get('precio_base', 0.0)))
                                 except Exception as e:
                                     errores.append(f"Error en '{row['nombre']}': {e}")
                                 
@@ -479,7 +462,7 @@ def render_pestana_inventario(client):
                         errores_s = []
                         for id_del in ids_s_a_borrar:
                             try:
-                                client.table("productos").delete().eq("id", id_del).execute()
+                                elim_res = eliminar_producto(client, id_del)
                             except Exception as e:
                                 errores_s.append(f"Error al borrar servicio: {e}")
 
