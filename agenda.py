@@ -4,6 +4,12 @@ from datetime import date, timedelta
 import time
 import urllib.parse
 import calendar
+from core_agenda import calcular_huecos_libres, verificar_solape_manual
+import pandas as pd
+from datetime import date, timedelta
+import time
+import urllib.parse
+import calendar
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_masc_ag_cached(_client, v):
@@ -294,9 +300,6 @@ def render_pestana_agenda(client):
                             else:
                                 bloqueos_parciales.append(b)
 
-                empleados_a_revisar = [f_emp] if f_emp != "Cualquiera" else empleados_lista
-                huecos_obj = []
-                
                 citas_dia = []
                 if res_citas.data:
                     for c in res_citas.data:
@@ -306,64 +309,19 @@ def render_pestana_agenda(client):
                             if dt_c.date() == fecha_c: citas_dia.append(c)
                         except: pass
                 
-                # Inyectar bloqueos parciales como citas falsas para que el buscador los esquive
-                for b in bloqueos_parciales:
-                    emp_af = b.get('empleado_afectado', '')
-                    try:
-                        dt_ini = pd.to_datetime(f"{fecha_c} {b.get('hora_inicio')}")
-                        dt_fin = pd.to_datetime(f"{fecha_c} {b.get('hora_fin')}")
-                        duracion_mins = int((dt_fin - dt_ini).total_seconds() / 60)
-                        
-                        if emp_af == 'Todas':
-                            for e in empleados_lista:
-                                citas_dia.append({'fecha_hora': dt_ini, 'duracion_minutos': duracion_mins, 'servicio': f"BLOQUEO ({e})"})
-                        else:
-                            citas_dia.append({'fecha_hora': dt_ini, 'duracion_minutos': duracion_mins, 'servicio': f"BLOQUEO ({emp_af})"})
-                    except Exception:
-                        pass
-
-                for emp_nombre in empleados_a_revisar:
-                    turno_str = turnos_dict.get(emp_nombre, "")
-                    if not turno_str or "libre" in turno_str or "vacaciones" in turno_str: continue
-                        
-                    import re
-                    times = re.findall(r'(\d{1,2}:\d{2})', turno_str)
-                    if len(times) >= 2:
-                        h_ini = pd.to_datetime(f"{fecha_c} {times[0]}")
-                        h_fin = pd.to_datetime(f"{fecha_c} {times[1]}")
-                    else:
-                        if fecha_c.weekday() < 5: # Lunes a Viernes
-                            h_ini = pd.to_datetime(f"{fecha_c} 09:00")
-                            h_fin = pd.to_datetime(f"{fecha_c} 21:00")
-                        else: # Sábados y Domingos
-                            h_ini = pd.to_datetime(f"{fecha_c} 10:00")
-                            h_fin = pd.to_datetime(f"{fecha_c} 14:00")
-                        
-                    for h in range(0, 24):
-                        for m in range(0, 60, 5):
-                            dt_ini = pd.to_datetime(f"{fecha_c} {h:02d}:{m:02d}")
-                            if dt_ini < h_ini: continue
-                            dt_fin = dt_ini + pd.Timedelta(minutes=duracion_c)
-                            if dt_fin > h_fin: continue
-                            
-                            solapa = False
-                            for c in citas_dia:
-                                if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Anulada]" in c.get('servicio', '') or "[ESTADO: Cambio" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
-                                c_ini = pd.to_datetime(c['fecha_hora'])
-                                if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
-                                c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
-                                if dt_ini < c_fin and dt_fin > c_ini:
-                                    s = c.get('servicio', '')
-                                    assigned_e = None
-                                    for e in empleados_lista:
-                                        if f"({e})" in s: assigned_e = e; break
-                                    if assigned_e == emp_nombre or assigned_e is None:
-                                        solapa = True; break
-                            if not solapa: huecos_obj.append({"dt": dt_ini, "hora": f"{h:02d}:{m:02d}", "emp": emp_nombre})
+                empleados_a_revisar = [f_emp] if f_emp != "Cualquiera" else empleados_lista
                 
-                huecos_obj.sort(key=lambda x: x["dt"])
-                huecos_formateados = [f"{x['hora']} (Con {x['emp']})" for x in huecos_obj]
-                huecos_formateados.append("Asignación Manual")
+                # --- LLAMADA A CORE_AGENDA ---
+                from core_agenda import calcular_huecos_libres, verificar_solape_manual
+                huecos_obj, huecos_formateados, citas_virtuales = calcular_huecos_libres(
+                    fecha_c=fecha_c,
+                    citas_dia=citas_dia,
+                    bloqueos_parciales=bloqueos_parciales,
+                    empleados_a_revisar=empleados_a_revisar,
+                    empleados_lista=empleados_lista,
+                    turnos_dict=turnos_dict,
+                    duracion_c=duracion_c
+                )
                 
                 if len(huecos_formateados) == 1: st.warning("No hay huecos disponibles en el cuadrante.")
                 f_hora_sel = st.selectbox("Hora recomendada:", huecos_formateados, key=f"ag_hsel_{st.session_state.llave_agenda_cita}")
@@ -377,24 +335,15 @@ def render_pestana_agenda(client):
                     hora_manual = st.time_input("Hora de Inicio *", key=f"ag_hman_{st.session_state.llave_agenda_cita}")
                     if hora_manual:
                         dt_ini_man = pd.to_datetime(f"{fecha_c} {hora_manual.strftime('%H:%M')}")
-                        dt_fin_man = dt_ini_man + pd.Timedelta(minutes=duracion_c)
-                        for c in citas_dia:
-                            if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Anulada]" in c.get('servicio', '') or "[ESTADO: Cambio" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
-                            c_ini = pd.to_datetime(c['fecha_hora'])
-                            if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
-                            c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
-                            if dt_ini_man < c_fin and dt_fin_man > c_ini:
-                                s = c.get('servicio', '')
-                                assigned_e = None
-                                for e in empleados_lista:
-                                    if f"({e})" in s: assigned_e = e; break
-                                if f_emp != "Cualquiera":
-                                    if assigned_e == f_emp or assigned_e is None: solapa_manual = True; break
-                                else:
-                                    solapa_manual = True; break
-                        
+                        solapa_manual, motivo_solape = verificar_solape_manual(
+                            dt_ini_man=dt_ini_man,
+                            duracion_c=duracion_c,
+                            citas_virtuales=citas_virtuales,
+                            empleados_lista=empleados_lista,
+                            turnos_dict=turnos_dict,
+                            emp_deseado=f_emp
+                        )
                         if solapa_manual:
-                            st.warning("⚠️ La hora seleccionada ya está ocupada o hay citas sin asignar en esa franja.")
                             motivo_solape = st.selectbox("Motivo para forzar la cita: *", ["", "Tenemos otro peluquero disponible", "Se va a ayudar con la peluquería", "Se puede hacer a la vez", "Otro motivo"], key=f"ag_msol_{st.session_state.llave_agenda_cita}")
                             if motivo_solape == "Otro motivo":
                                 motivo_extra = st.text_input("Especificar otro motivo: *", key=f"ag_mext_{st.session_state.llave_agenda_cita}")

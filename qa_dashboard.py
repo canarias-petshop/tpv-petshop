@@ -15,7 +15,7 @@ def render_pestana_qa():
                 env = os.environ.copy()
                 env["API_URL"] = "http://animalarium-api:3000"
                 result = subprocess.run(
-                    ["pytest", "tests/", "--cov=core_crm", "--cov=core_inventario", "--cov=core_tpv", "--cov=core_facturacion", "--cov=personal", "--cov=caja", "--cov=caja_acciones", "--cov-report=term"],
+                    ["pytest", "tests/", "--cov=core_crm", "--cov=core_inventario", "--cov=core_tpv", "--cov=core_facturacion", "--cov=core_agenda", "--cov=core_historial", "--cov=personal", "--cov=caja", "--cov=caja_acciones", "--cov-report=term"],
                     capture_output=True,
                     text=True,
                     check=False,

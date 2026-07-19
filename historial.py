@@ -424,66 +424,32 @@ def render_pestana_historial(client):
                                 with c_btn2: btn_vale = st.button("🎁 Crear Vale", type="primary", use_container_width=True)
                                 
                             if btn_abono or btn_vale:
-                                # Lógica de devolución (la que ya tenías)
-                                for p in prods:
-                                    if not p.get('Manual', False) and 'id' in p:
-                                        if str(p['id']).startswith('cita_'):
-                                            continue
-                                        try:
-                                            res_p = fetch_producto_stock_h(client, p['id'])
-                                            if res_p.data:
-                                                client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] + p['Cantidad']}).eq("id", p['id']).execute()
-                                        except Exception:
-                                            pass
+                                from core_historial import procesar_devolucion
+                                vale_info = procesar_devolucion(
+                                    client=client,
+                                    tk_id=t_id,
+                                    t_info=t_info,
+                                    prods=prods,
+                                    btn_abono=btn_abono,
+                                    btn_vale=btn_vale,
+                                    sel_metodo_abono=sel_metodo_abono,
+                                    bancos_abono=bancos_abono,
+                                    total_final_calculado=total_final_calculado
+                                )
                                 
-                                # Revertir puntos si era cliente VIP
-                                cliente_vip = str(t_info.get('cliente_vip_nombre', ''))
-                                if cliente_vip and cliente_vip != "nan" and cliente_vip != "None":
-                                    res_cli = fetch_cliente_puntos_h(client, cliente_vip)
-                                    if res_cli.data:
-                                        cli_id = res_cli.data[0]['id']
-                                        p_ganados = int(t_info.get('puntos_ganados', 0))
-                                        p_usados = int(t_info.get('puntos_usados', 0))
-                                        nuevo_saldo = max(0, res_cli.data[0].get('puntos', 0) - p_ganados + p_usados)
-                                        client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cli_id).execute()
-                                        
-                                client.table("ventas_historial").update({"estado": "DEVUELTO"}).eq("id", int(t_id)).execute()
-                                
-                                if btn_abono:
-                                    if "Efectivo" in sel_metodo_abono:
-                                        res_caja_ab = fetch_caja_abierta_id_h(client)
-                                        if res_caja_ab.data:
-                                            client.table("movimientos_caja").insert({
-                                                "id_caja": res_caja_ab.data[0]['id'],
-                                                "tipo": "Retirada",
-                                                "cantidad": total_final_calculado,
-                                                "motivo": f"Devolución en efectivo Ticket #{t_id}"
-                                            }).execute()
-                                    elif "Tarjeta" in sel_metodo_abono:
-                                        nombre_banco = sel_metodo_abono.replace("💳 Tarjeta (", "").replace(")", "")
-                                        banco = next((b for b in bancos_abono if b['nombre_banco'] == nombre_banco), None)
-                                        if banco:
-                                            client.table("cuentas_bancarias").update({
-                                                "saldo_actual": banco['saldo_actual'] - total_final_calculado
-                                            }).eq("id", banco['id']).execute()
-                                
-                                if btn_vale:
-                                    codigo_vale = "VALE-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                                if btn_vale and vale_info:
+                                    st.session_state.vale_generado = vale_info
+                                elif not btn_vale:
                                     try:
-                                        client.table("vales_tienda").insert({
-                                            "codigo_vale": codigo_vale,
-                                            "saldo_inicial": total_final_calculado,
-                                            "saldo_actual": total_final_calculado,
-                                            "id_ticket_origen": int(t_id),
-                                            "notas": f"Generado por devolución de ticket #{t_id}"
-                                        }).execute()
-                                    except: pass
-                                    st.session_state.vale_generado = {"fecha": pd.Timestamp.now('Atlantic/Canary').strftime("%d/%m/%Y %H:%M"), "valor": total_final_calculado, "codigo": codigo_vale}
-                                else:
+                                        now_str = pd.Timestamp.now('Atlantic/Canary').strftime("%d/%m/%Y %H:%M")
+                                    except:
+                                        now_str = pd.Timestamp.now('UTC').strftime("%d/%m/%Y %H:%M")
+                                        
                                     st.session_state.devolucion_actual = {
-                                        "fecha": pd.Timestamp.now('Atlantic/Canary').strftime("%d/%m/%Y %H:%M"), "productos": prods,
+                                        "fecha": now_str, "productos": prods,
                                         "total": total_final_calculado, "metodo": sel_metodo_abono, "ticket_original_id": t_id
                                     }
+                                    
                                 limpiar_cache_historial()
                                 st.rerun()
                                 
