@@ -109,12 +109,16 @@ def render_pestana_qa(client=None):
             client.table("ventas_historial").insert({
                 "created_at": datetime.now().isoformat(),
                 "total": 50.0,
+                "pagado": 50.0,
+                "pendiente": 0.0,
                 "metodo_pago": "Web (WooCommerce)",
-                "estado": "Completada",
+                "estado": "Completado",
                 "productos": json.dumps(ticket_falso),
                 "cliente_deuda": "Usuario Web Prueba",
-                "cliente_id": cli_id,
                 "descuento_global": 0.0,
+                "pago_efectivo": 0.0,
+                "pago_tarjeta": 50.0,
+                "pago_bizum": 0.0,
                 "hash_seguridad": "WEB_MOCK_HASH_" + str(uuid.uuid4())
             }).execute()
             
