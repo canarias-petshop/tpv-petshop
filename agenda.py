@@ -74,44 +74,51 @@ def get_masc_info_cached(_client, v, mid):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_alertas_m_ag_cached(_client, v):
-    _all = []
-    _off = 0
-    while True:
-        _r = _client.table("mascotas").select("id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, metodo_contacto)").range(_off, _off + 999).execute()
-        if _r.data:
-            _all.extend(_r.data)
-            if len(_r.data) < 1000: break
-            _off += 1000
-        else: break
-    return _all
+    return get_masc_ag_cached(_client, v)
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_manana_ag_cached(_client, v, m_ini, m_fin):
-    return _client.table("citas").select("id, fecha_hora, servicio, observaciones, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto, direccion, servicio_domicilio))").gte("fecha_hora", m_ini).lte("fecha_hora", m_fin).execute().data
+    citas = _client.table("citas").select("*").gte("fecha_hora", m_ini).lte("fecha_hora", m_fin).execute().data or []
+    mascotas = get_masc_ag_cached(_client, v)
+    m_dict = {m['id']: m for m in mascotas if 'id' in m}
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
+    return citas
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_futuras_ag_cached(_client, v, h_str):
-    return _client.table("citas").select("mascotas_id, servicio").gte("fecha_hora", h_str).execute().data
+    return _client.table("citas").select("mascotas_id, servicio").gte("fecha_hora", h_str).execute().data or []
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_canc_ag_cached(_client, v):
-    return _client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%,servicio.ilike.%[ESTADO: Anulada]%").order("fecha_hora", desc=True).limit(200).execute().data
+    citas = _client.table("citas").select("*").or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%,servicio.ilike.%[ESTADO: Anulada]%").order("fecha_hora", desc=True).limit(200).execute().data or []
+    mascotas = get_masc_ag_cached(_client, v)
+    m_dict = {m['id']: m for m in mascotas if 'id' in m}
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
+    return citas
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_sin_hist_ag_cached(_client, v, h_str):
-    return _client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", h_str).or_("servicio.ilike.%[ESTADO: Confirmada]%,servicio.ilike.%[ESTADO: Asistió]%,servicio.ilike.%[ESTADO: Pendiente]%").execute().data
+    citas = _client.table("citas").select("*").lt("fecha_hora", h_str).or_("servicio.ilike.%[ESTADO: Confirmada]%,servicio.ilike.%[ESTADO: Asistió]%,servicio.ilike.%[ESTADO: Pendiente]%").execute().data or []
+    mascotas = get_masc_ag_cached(_client, v)
+    m_dict = {m['id']: m for m in mascotas if 'id' in m}
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
+    return citas
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_turnos_ag_cached(_client, v, f_ini, f_fin):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("personal_cuadrantes").select("fecha, turno, personal_empleados(nombre)").gte("fecha", f_ini).lte("fecha", f_fin).range(_off, _off + 999).execute()
+        _r = _client.table("personal_cuadrantes").select("*").gte("fecha", f_ini).lte("fecha", f_fin).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
             _off += 1000
         else: break
+    empleados = get_empleados_ag_cached(_client, v)
+    emp_dict = {e['id']: e for e in empleados if 'id' in e}
+    for t in _all:
+        t['personal_empleados'] = emp_dict.get(t.get('empleado_id'))
     return _all
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -141,11 +148,19 @@ def get_masc_obs_hist_cached(_client, v, m_id):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_turnos_dia_ag_cached(_client, v, fecha_c):
-    return _client.table("personal_cuadrantes").select("empleado_id, turno, personal_empleados(nombre)").eq("fecha", str(fecha_c)).execute().data
+    turnos = _client.table("personal_cuadrantes").select("*").eq("fecha", str(fecha_c)).execute().data or []
+    empleados = get_empleados_ag_cached(_client, v)
+    emp_dict = {e['id']: e for e in empleados if 'id' in e}
+    for t in turnos: t['personal_empleados'] = emp_dict.get(t.get('empleado_id'))
+    return turnos
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_citas_mes_ag_cached(_client, v, f_ini_mes, f_fin_mes):
-    return _client.table("citas").select("fecha_hora, servicio, mascotas(nombre, raza, clientes(nombre_dueno, telefono))").gte("fecha_hora", f"{f_ini_mes}T00:00:00").lte("fecha_hora", f"{f_fin_mes}T23:59:59").execute().data
+    citas = _client.table("citas").select("*").gte("fecha_hora", f"{f_ini_mes}T00:00:00").lte("fecha_hora", f"{f_fin_mes}T23:59:59").execute().data or []
+    mascotas = get_masc_ag_cached(_client, v)
+    m_dict = {m['id']: m for m in mascotas if 'id' in m}
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
+    return citas
 
 def limpiar_cache_agenda():
     get_masc_ag_cached.clear()
