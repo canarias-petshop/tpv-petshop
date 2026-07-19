@@ -61,8 +61,8 @@ def render_pestana_marketing(client):
                         with c_m2:
                             st.metric("Progreso", f"{obj['valor_actual']} / {obj['meta_cuantitativa']}")
                         with c_m3:
-                            progreso_pct = (obj['valor_actual'] / obj['meta_cuantitativa']) if obj['meta_cuantitativa'] > 0 else 0
-                            progreso_pct = min(progreso_pct, 1.0)
+                            from core_marketing import calcular_progreso_objetivo
+                            progreso_pct = calcular_progreso_objetivo(obj['valor_actual'], obj['meta_cuantitativa'])
                             st.progress(progreso_pct)
                             
                         with st.expander("⚙️ Actualizar Resultados", expanded=False):
@@ -88,13 +88,16 @@ def render_pestana_marketing(client):
         try:
             res_alert = client.table("marketing_plan").select("fecha_planificada").order("fecha_planificada", desc=True).limit(1).execute()
             if res_alert.data:
-                ultima_fecha = pd.to_datetime(res_alert.data[0]['fecha_planificada']).date()
-                dias_restantes = (ultima_fecha - date.today()).days
+                ultima_fecha_str = res_alert.data[0]['fecha_planificada']
                 
-                if 0 <= dias_restantes <= 30:
-                    st.error(f"🚨 **¡ALERTA DE CONTENIDO!** Tu plan de marketing programado se agota el **{ultima_fecha.strftime('%d/%m/%Y')}** (en {dias_restantes} días). ¡Pídele a tu asistente que te redacte y prepare la campaña de la siguiente temporada!")
-                elif 30 < dias_restantes <= 45:
-                    st.warning(f"⚠️ **Aviso de Temporada:** Tu plan de marketing actual abarca hasta el **{ultima_fecha.strftime('%d/%m/%Y')}**. Recuerda solicitar la redacción de la próxima tanda de publicaciones pronto para no quedarte sin contenido.")
+                from core_marketing import verificar_alertas_plan_marketing
+                alerta = verificar_alertas_plan_marketing(ultima_fecha_str)
+                
+                if alerta:
+                    if alerta["nivel"] == "error":
+                        st.error(alerta["mensaje"])
+                    elif alerta["nivel"] == "warning":
+                        st.warning(alerta["mensaje"])
         except Exception:
             pass
 
