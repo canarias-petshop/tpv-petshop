@@ -19,9 +19,17 @@ def fetch_servicios_crm(_client):
 def fetch_citas_dia_crm(_client, fecha_inicio_q, fecha_fin_q):
     return _client.table("citas").select("fecha_hora, duracion_minutos, servicio").gte("fecha_hora", fecha_inicio_q).lte("fecha_hora", fecha_fin_q).execute()
 
+class CRMResult: pass
+
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_turnos_dia_crm(_client, f_fecha_str):
-    return _client.table("personal_cuadrantes").select("empleado_id, turno, personal_empleados(nombre)").eq("fecha", f_fecha_str).execute()
+    turnos = _client.table("personal_cuadrantes").select("*").eq("fecha", f_fecha_str).execute().data or []
+    empleados = fetch_empleados_crm(_client).data or []
+    emp_dict = {e['id']: e for e in empleados}
+    for t in turnos: t['personal_empleados'] = emp_dict.get(t.get('empleado_id'))
+    res = CRMResult()
+    res.data = turnos
+    return res
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_encargos_crm(_client):
@@ -108,12 +116,25 @@ def get_masc_crm(_client):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").order("id", desc=True).range(_off, _off + 999).execute()
+        _r = _client.table("mascotas").select("*").order("id", desc=True).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
             _off += 1000
         else: break
+        
+    _c_all = []
+    _c_off = 0
+    while True:
+        _c_r = _client.table("clientes").select("id, nombre_dueno, telefono").range(_c_off, _c_off + 999).execute()
+        if _c_r.data:
+            _c_all.extend(_c_r.data)
+            if len(_c_r.data) < 1000: break
+            _c_off += 1000
+        else: break
+        
+    c_dict = {c['id']: c for c in _c_all}
+    for m in _all: m['clientes'] = c_dict.get(m.get('cliente_id'))
     return _all
 
 def limpiar_cache_crm():
