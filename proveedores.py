@@ -458,35 +458,15 @@ def render_pestana_proveedores(client):
                     if st.button("🚀 AUTO-DISTRIBUIR SELECCIONADOS A BORRADORES", type="primary", use_container_width=True):
                         prods_a_pedir_auto = ed_bajo_stock[ed_bajo_stock["Pedir"] == True]
                         if not prods_a_pedir_auto.empty:
-                            res_rels = fetch_productos_proveedores_rels(client)
-                            mapa_provs = {}
-                            if res_rels.data:
-                                for r in res_rels.data:
-                                    p_id = r['producto_id']
-                                    coste = float(r.get('precio_coste') or 0.0)
-                                    if p_id not in mapa_provs or coste < mapa_provs[p_id]['coste']:
-                                        mapa_provs[p_id] = {'prov_id': r['proveedor_id'], 'coste': coste}
-                            pedidos_a_crear = {}
-                            for _, row in prods_a_pedir_auto.iterrows():
-                                best_prov = mapa_provs.get(row['id'])
-                                if best_prov:
-                                    prov_id = best_prov['prov_id']
-                                    if prov_id not in pedidos_a_crear: pedidos_a_crear[prov_id] = []
-                                    pedidos_a_crear[prov_id].append({"Producto": row['nombre'], "Cantidad": int(row['cantidad_reponer'])})
-                            if pedidos_a_crear:
-                                for p_id, prods in pedidos_a_crear.items():
-                                    res_b = fetch_pedidos_proveedor_borrador(client, p_id)
-                                    if res_b.data:
-                                        draft_id = res_b.data[0]['id']
-                                        prods_act = res_b.data[0].get('productos', [])
-                                        nombres_act = [p.get('Producto') for p in prods_act]
-                                        for np in prods:
-                                            if np['Producto'] not in nombres_act: prods_act.append(np)
-                                        client.table("pedidos_proveedores").update({"productos": prods_act}).eq("id", draft_id).execute()
-                                    else:
-                                        client.table("pedidos_proveedores").insert({"proveedor_id": p_id, "estado": "Borrador", "productos": prods}).execute()
+                            from core_proveedores import auto_distribuir_borradores
+                            generados = auto_distribuir_borradores(client, prods_a_pedir_auto, fetch_productos_proveedores_rels, fetch_pedidos_proveedor_borrador)
+                            
+                            if generados:
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.success("✅ ¡Borradores generados con éxito! Revísalos abajo."); time.sleep(1.5); limpiar_cache_proveedores(); st.rerun()
+                                st.success("✅ ¡Borradores generados con éxito! Revísalos abajo.")
+                                time.sleep(1.5)
+                                limpiar_cache_proveedores()
+                                st.rerun()
                             else:
                                 st.error("❌ Ninguno de los productos seleccionados tiene un proveedor asociado.")
                         else:
