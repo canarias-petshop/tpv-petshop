@@ -202,7 +202,7 @@ def init_supabase() -> SyncPostgrestClient:
         if st.secrets.get("use_local_db", False):
             # Conexión al entorno Docker local
             api_url = "http://localhost:3000"
-            api_key = "super-secret-jwt-token-with-at-least-32-characters-long"
+            api_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3ODQ0NjY2NjYsImV4cCI6MTgxNjAwMjY2Nn0.KfCiWsMT8MQLtPMWnoJlBnmS_VsRGbKehAq4HmXtoQw"
         else:
             # Conexión a Supabase Producción
             raw_url = st.secrets['url'].strip().strip('"').strip("'").rstrip('/')
