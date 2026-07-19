@@ -102,7 +102,7 @@ def render_pestana_qa(client=None):
                 "puntos_usados": 0,
                 "descuento_primera_compra": 0.0,
                 "items": [{
-                    "id": "PROD_WEB_TEST",
+                    "id": str(uuid.uuid4()),
                     "nombre": "Saco Pienso Perro Falso Web",
                     "cantidad": 1,
                     "precio_unitario": 50.0,
