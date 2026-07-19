@@ -90,5 +90,4 @@ def render_pestana_bancos(client):
                     st.rerun()
                 else:
                     st.error(msg)
-                else: st.warning("Introduce una cantidad válida.")
     except Exception as e: st.error(f"Error al cargar módulo de transferencias: {e}")

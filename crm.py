@@ -70,12 +70,37 @@ def get_cli_crm(_client):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).range(_off, _off + 999).execute()
+        _r = _client.table("clientes").select("*").order("created_at", desc=True).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
             _off += 1000
         else: break
+        
+    try:
+        from collections import defaultdict
+        masc_dict = defaultdict(list)
+        m_all = []
+        m_off = 0
+        while True:
+            m_r = _client.table("mascotas").select("*").range(m_off, m_off + 999).execute()
+            if m_r.data:
+                m_all.extend(m_r.data)
+                if len(m_r.data) < 1000: break
+                m_off += 1000
+            else: break
+            
+        for m in m_all:
+            if 'cliente_id' in m:
+                masc_dict[m['cliente_id']].append(m)
+                
+        for cli in _all:
+            cli['mascotas'] = masc_dict.get(cli.get('id'), [])
+    except Exception as e:
+        # Fallback in case of error: initialize empty mascotas
+        for cli in _all:
+            cli['mascotas'] = []
+            
     return _all
 
 @st.cache_data(show_spinner=False, ttl=300)
