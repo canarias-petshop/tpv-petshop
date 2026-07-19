@@ -1369,9 +1369,10 @@ def render_pestana_crm(client):
                                                                     
                                                             # 4. Servicio a Domicilio
                                                             if "reparto a domicilio" in nuevo_est:
+                                                                detalle_final = f"{r['detalle_pedido']} \n(Pedido Web Confirmado - Pago: {meta['metodo_pago']})"
                                                                 client.table("pedidos_domicilio").insert({
                                                                     "nombre_cliente": r['nombre_cliente'], "telefono": r['telefono'], "direccion": meta['direccion'],
-                                                                    "detalle_pedido": r['detalle_pedido'], "estado": "Pendiente", "notas": f"Pedido Web Confirmado - Pago: {meta['metodo_pago']}"
+                                                                    "detalle_pedido": detalle_final, "estado": "Pendiente"
                                                                 }).execute()
                                                                 
                                                         except Exception as e:
