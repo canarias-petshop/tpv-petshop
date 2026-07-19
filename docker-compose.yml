@@ -12,6 +12,7 @@ services:
     restart: unless-stopped
     environment:
       - TZ=Atlantic/Canary  # Configura la zona horaria de Canarias para los fichajes y la agenda
+      - API_URL=http://animalarium-api:3000
 
   # Nueva base de datos local para el entorno de pruebas y futura produccion local
   db:

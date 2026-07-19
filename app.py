@@ -202,7 +202,8 @@ def init_supabase() -> SyncPostgrestClient:
     try:
         if st.secrets.get("use_local_db", False):
             # Conexión al entorno Docker local
-            api_url = "http://localhost:3000"
+            import os
+            api_url = os.getenv("API_URL", "http://localhost:3000")
             api_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYWRtaW4iLCJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc4NDQ3MTUyOCwiZXhwIjoxODE2MDA3NTI4fQ.JVdkbQovJjMJeN-mbU29N2Z6Pc90iki7wsF_g2D8wXw"
         else:
             # Conexión a Supabase Producción
