@@ -16,12 +16,31 @@ def get_masc_ag_cached(_client, v):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("mascotas").select("id, nombre, clientes(nombre_dueno, telefono)").range(_off, _off + 999).execute()
+        _r = _client.table("mascotas").select("*").range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
             _off += 1000
         else: break
+        
+    try:
+        c_all = []
+        c_off = 0
+        while True:
+            c_r = _client.table("clientes").select("*").range(c_off, c_off + 999).execute()
+            if c_r.data:
+                c_all.extend(c_r.data)
+                if len(c_r.data) < 1000: break
+                c_off += 1000
+            else: break
+            
+        cli_dict = {c['id']: c for c in c_all if 'id' in c}
+        for m in _all:
+            m['clientes'] = cli_dict.get(m.get('cliente_id'))
+    except Exception:
+        for m in _all:
+            m['clientes'] = None
+
     return _all
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -29,12 +48,24 @@ def get_citas_ag_cached(_client, v):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, especie, raza, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
+        _r = _client.table("citas").select("*").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
             _off += 1000
         else: break
+        
+    try:
+        masc_ag = get_masc_ag_cached(_client, v)
+        masc_dict = {m['id']: m for m in masc_ag if 'id' in m}
+        
+        for c in _all:
+            m_obj = masc_dict.get(c.get('mascotas_id'))
+            c['mascotas'] = m_obj if m_obj else None
+    except Exception:
+        for c in _all:
+            c['mascotas'] = None
+            
     return _all
 
 @st.cache_data(show_spinner=False, ttl=300)

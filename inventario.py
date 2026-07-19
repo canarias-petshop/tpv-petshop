@@ -13,12 +13,36 @@ def get_inv_full(_client):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("productos").select("*, productos_proveedores(proveedores(nombre_empresa))").order("nombre").range(_off, _off + 999).execute()
+        _r = _client.table("productos").select("*").order("nombre").range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
             _off += 1000
         else: break
+
+    try:
+        from collections import defaultdict
+        prov_dict = defaultdict(list)
+        p_all = []
+        p_off = 0
+        while True:
+            p_r = _client.table("productos_proveedores").select("*, proveedores(nombre_empresa)").range(p_off, p_off + 999).execute()
+            if p_r.data:
+                p_all.extend(p_r.data)
+                if len(p_r.data) < 1000: break
+                p_off += 1000
+            else: break
+            
+        for pp in p_all:
+            if 'producto_id' in pp:
+                prov_dict[pp['producto_id']].append(pp)
+                
+        for prod in _all:
+            prod['productos_proveedores'] = prov_dict.get(prod.get('id'), [])
+    except Exception as e:
+        for prod in _all:
+            prod['productos_proveedores'] = []
+
     return _all
 
 def limpiar_cache_inventario():
