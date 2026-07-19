@@ -58,10 +58,13 @@ def render_pestana_proyectos_eventos(client):
             p_actual = proyectos[idx]
             p_id = p_actual['id']
             
+            from core_proyectos import analizar_estado_proyecto
+            estado_salud = analizar_estado_proyecto(p_actual)
+            desviacion = estado_salud["desviacion"] if estado_salud else 0.0
+            
             c_m1, c_m2, c_m3 = st.columns(3)
             with c_m1: st.metric("Presupuesto Estimado", f"{p_actual['presupuesto_estimado']:.2f} €")
             with c_m2: 
-                desviacion = p_actual['presupuesto_estimado'] - p_actual['coste_real']
                 st.metric("Coste Real Acumulado", f"{p_actual['coste_real']:.2f} €", delta=f"{desviacion:.2f} € (Margen)", delta_color="normal" if desviacion >=0 else "inverse")
             with c_m3: 
                 f_i = pd.to_datetime(p_actual.get('fecha_inicio', '')).strftime('%d/%m/%Y') if p_actual.get('fecha_inicio') else '---'
