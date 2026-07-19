@@ -2,7 +2,7 @@ import streamlit as st
 import subprocess
 import re
 
-def render_pestana_qa():
+def render_pestana_qa(client=None):
     st.title("🧪 Dashboard Visual de QA (Pruebas Unitarias)")
     st.markdown("Ejecuta la suite de pruebas unitarias y comprueba la salud del código y la cobertura.")
     
@@ -54,3 +54,69 @@ def render_pestana_qa():
                 st.error("No se encuentra el comando `pytest`. Asegúrate de estar ejecutando Streamlit en el entorno virtual correcto donde está instalado pytest.")
             except Exception as e:
                 st.error(f"Error inesperado al ejecutar las pruebas: {str(e)}")
+
+    st.divider()
+    st.header("🌍 Simulador de Integración Web (WooCommerce)")
+    st.write("Usa este botón para simular la llegada de un pedido web. El sistema buscará o creará al cliente 'Usuario Web Prueba', le calculará los puntos según la configuración y registrará la venta en Contabilidad e Historial.")
+    
+    if st.button("🛒 Simular Pedido Web Falso (50€)", type="secondary"):
+        if client is None:
+            st.error("Cliente de base de datos no inyectado.")
+            return
+            
+        with st.spinner("Simulando webhook de WooCommerce..."):
+            import json
+            import uuid
+            from datetime import datetime
+            
+            # 1. Configuración de Puntos
+            cfg = client.table("configuracion_negocio").select("*").eq("id", 1).execute().data
+            eur_punto = 10.0
+            if cfg: eur_punto = float(cfg[0].get('euros_para_un_punto', 10.0))
+            if eur_punto <= 0: eur_punto = 10.0
+            
+            # 2. Cliente
+            telefono_web = "000000000"
+            res_cli = client.table("clientes").select("*").eq("telefono", telefono_web).execute()
+            if not res_cli.data:
+                client.table("clientes").insert({
+                    "nombre_dueno": "Usuario Web Prueba",
+                    "telefono": telefono_web,
+                    "email": "web@prueba.com",
+                    "puntos": 0
+                }).execute()
+                res_cli = client.table("clientes").select("*").eq("telefono", telefono_web).execute()
+            
+            cli_data = res_cli.data[0]
+            cli_id = cli_data['id']
+            ptos_antiguos = int(cli_data.get('puntos', 0))
+            
+            # 3. Puntos
+            puntos_ganados = int(50.0 // eur_punto)
+            nuevo_saldo = ptos_antiguos + puntos_ganados
+            client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cli_id).execute()
+            
+            # 4. Venta
+            ticket_falso = [{
+                "Producto": "Saco Pienso Perro Falso Web",
+                "Precio": 50.0,
+                "Cantidad": 1,
+                "Descuento": 0.0,
+                "Subtotal": 50.0,
+                "ID": "WEB123"
+            }]
+            
+            client.table("ventas_historial").insert({
+                "created_at": datetime.now().isoformat(),
+                "total": 50.0,
+                "metodo_pago": "Web (WooCommerce)",
+                "estado": "Completada",
+                "productos": json.dumps(ticket_falso),
+                "cliente_deuda": "Usuario Web Prueba",
+                "cliente_id": cli_id,
+                "descuento_global": 0.0,
+                "hash_seguridad": "WEB_MOCK_HASH_" + str(uuid.uuid4())
+            }).execute()
+            
+            st.success(f"✅ Pedido web registrado con éxito. El cliente ganó {puntos_ganados} puntos (Saldo actual: {nuevo_saldo}).")
+            st.info("Ve al CRM para ver al cliente 'Usuario Web Prueba' y a Contabilidad/Historial para ver la venta.")

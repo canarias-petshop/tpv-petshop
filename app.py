@@ -483,7 +483,7 @@ if st.session_state.rol == "Admin":
     elif seccion_principal == nombres_pestanas[15]: render_pestana_tareas(client)
     elif seccion_principal == nombres_pestanas[16]: render_pestana_configuracion(client)
     elif seccion_principal == nombres_pestanas[17]: render_pestana_manual()
-    elif seccion_principal == nombres_pestanas[18]: render_pestana_qa()
+    elif seccion_principal == nombres_pestanas[18]: render_pestana_qa(client)
 else:
     if seccion_principal == nombres_pestanas[0]: render_pestana_caja(client)
     elif seccion_principal == nombres_pestanas[1]: render_pestana_tpv(client)
