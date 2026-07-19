@@ -36,3 +36,11 @@
     - `[x]` Crear `tests/test_inventario.py` con cobertura > 80%.
     - `[x]` Ejecutar `pytest` y asegurar que la cobertura de la lógica de negocio extraída sea > 80%.
     - `[x]` Hacer `git commit` y `git push` de este sprint.
+  - `[x]` **Sprint 4C: TPV y Facturación (Ventas)**
+    - `[x]` Crear rama de Git `sprint-4c-ventas`.
+    - `[x]` Refactorizar `tpv.py` extrayendo lógica a `core_tpv.py`.
+    - `[x]` Crear `tests/test_tpv.py` y verificar tests.
+    - `[x]` Refactorizar `facturacion.py` extrayendo lógica a `core_facturacion.py`.
+    - `[x]` Crear `tests/test_facturacion.py` y verificar tests.
+    - `[x]` Ejecutar `pytest` general y asegurar >80% en los módulos core.
+    - `[ ]` Hacer `git commit` y `git push` de este sprint.

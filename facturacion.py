@@ -278,29 +278,31 @@ def render_pestana_facturacion(client):
                 if sel_c:
                     c_id = df_cli[df_cli['nombre_dueno'] == sel_c.split(" | ")[0]].iloc[0]['id']
                     
-                    # GENERACIÓN DE HASH (LEY ANTIFRAUDE / VERIFACTU)
-                    res_last_f = get_last_hash_fac(client)
-                    hash_ant_f = res_last_f.data[0].get("hash_actual", "") if res_last_f.data else ""
-                    data_to_hash_f = f"FACTURA|{datetime.now(ZoneInfo('Atlantic/Canary')).isoformat()}|{total_v_final:.2f}|{hash_ant_f}"
-                    hash_act_f = hashlib.sha256(data_to_hash_f.encode('utf-8')).hexdigest().upper()
-
-                    client.table("facturas").insert({
-                        "cliente_id": c_id, "total_neto": float(total_base_final), "total_igic": float(total_igic_final), "total_final": float(total_v_final),
-                        "descuento_global": float(desc_g_val), "forma_pago": f_pago, "fecha_vencimiento": str(f_vence), "productos": st.session_state.factura_v_temp,
-                        "hash_anterior": hash_ant_f, "hash_actual": hash_act_f
-                    }).execute()
-                    for i in st.session_state.factura_v_temp:
-                        if str(i.get('id', '0')) != '0' and str(i.get('id')) != 'None':
-                            if str(i['id']).startswith('cita_'):
-                                continue
-                            try:
-                                res = get_prod_stock_fac(client, i['id'])
-                                if res.data: client.table("productos").update({"stock_actual": res.data[0]['stock_actual'] - i['Cantidad']}).eq("id", i['id']).execute()
-                            except Exception:
-                                pass
-                    
-                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                    st.session_state.factura_v_temp = []; st.success("Factura guardada correctamente."); time.sleep(1); limpiar_cache_facturacion(); st.rerun()
+                    try:
+                        from core_facturacion import emitir_factura_cliente
+                        res_last_f = get_last_hash_fac(client)
+                        hash_ant_f = res_last_f.data[0].get("hash_actual", "") if res_last_f.data else ""
+                        
+                        emitir_factura_cliente(
+                            client=client,
+                            cliente_id=int(c_id),
+                            total_neto=float(total_base_final),
+                            total_igic=float(total_igic_final),
+                            total_final=float(total_v_final),
+                            descuento_global=float(desc_g_val),
+                            forma_pago=f_pago,
+                            fecha_vencimiento=str(f_vence),
+                            productos=st.session_state.factura_v_temp,
+                            hash_anterior=hash_ant_f
+                        )
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        st.session_state.factura_v_temp = []
+                        st.success("Factura guardada correctamente.")
+                        time.sleep(1)
+                        limpiar_cache_facturacion()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"🚨 Error al emitir factura: {e}")
                 else:
                     st.error("Debes seleccionar un cliente para emitir la factura.")
 
@@ -590,30 +592,27 @@ def render_pestana_facturacion(client):
                                 prefijo_doc = "Abono" if es_abono else "Factura"
                                 tipo_doc_completo = f"{prefijo_doc}: {num_fac}"
                                 
-                                # --- ESCUDO ANTI-DUPLICADOS Y FUSIÓN AUTOMÁTICA ---
-                                res_dup = get_compras_dup_fac(client, prov_id_final, tipo_doc_completo)
-                                
-                                if res_dup.data and num_fac != "S/N":
-                                    fac_dup = res_dup.data[0]
-                                    if fac_dup['estado'] == 'Borrador':
-                                        prods_ant = fac_dup.get('productos', [])
-                                        if not isinstance(prods_ant, list): prods_ant = []
-                                        prods_ant.extend(st.session_state.compra_temp)
-                                        
-                                        nuevo_tot = float(fac_dup['total']) + total_guardar_ia
-                                        nuevo_pen = float(fac_dup['pendiente']) + total_guardar_ia
-                                        
-                                        client.table("compras").update({"productos": prods_ant, "total": round(nuevo_tot, 2), "pendiente": round(nuevo_pen, 2)}).eq("id", fac_dup['id']).execute()
+                                # --- REFAC: core_facturacion ---
+                                try:
+                                    from core_facturacion import registrar_compra_borrador
+                                    res_compra = registrar_compra_borrador(
+                                        client=client,
+                                        proveedor_id=prov_id_final,
+                                        num_fac=num_fac,
+                                        es_abono=es_abono,
+                                        productos=st.session_state.compra_temp,
+                                        dto_pp=dto_pp_val,
+                                        fecha_fac=fecha_fac,
+                                        total=total_guardar_ia
+                                    )
+                                    if res_compra.get("fusionado"):
                                         msg_exito = f"🔄 ¡Página fusionada! La factura '{num_fac}' ya existía como borrador y se le han añadido estos artículos."
                                     else:
-                                        st.error(f"🚨 **¡ATENCIÓN!** El {prefijo_doc} '{num_fac}' ya existe y está archivado. Para evitar duplicar stock y gastos, no se han guardado estos datos.")
-                                        st.session_state.compra_temp = []
-                                        st.stop()
-                                else:
-                                    client.table("compras").insert({
-                                        "proveedor_id": prov_id_final, "total": round(total_guardar_ia, 2), "descuento_pp": dto_pp_val, "estado": "Borrador", "tipo": tipo_doc_completo, "fecha_vencimiento": fecha_fac, "fecha_factura": fecha_fac, "productos": st.session_state.compra_temp, "pagado": 0.0, "pendiente": round(total_guardar_ia, 2)
-                                    }).execute()
-                                    msg_exito = f"✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla."
+                                        msg_exito = f"✅ ¡Factura escaneada y guardada en BORRADOR! Ve a 'Archivo de Documentos' para validarla."
+                                except ValueError as ve:
+                                    st.error(f"🚨 **¡ATENCIÓN!** {ve}")
+                                    st.session_state.compra_temp = []
+                                    st.stop()
                                 
                                 st.session_state.compra_temp = []
                                 for key in ["fac_prov_n", "fac_prov_f", "ia_dto_pp", "sel_prov_ia_tmp"]:
@@ -1288,21 +1287,16 @@ def render_pestana_facturacion(client):
                             pago_exitoso = True
                             
                         if pago_exitoso:
+                            from core_facturacion import registrar_pago_deuda
                             for _, row in filas_pagar.iterrows():
                                 c_id = row['id']
                                 pago_hoy = float(row['A Pagar Hoy (€)'])
-                                
-                                actual_row = df_deudas[df_deudas['id'] == c_id].iloc[0]
-                                nuevo_pagado = float(actual_row['pagado']) + pago_hoy
-                                nuevo_pendiente = float(actual_row['pendiente']) - pago_hoy
-                                
-                                nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else "Pago Parcial"
-                                
-                                client.table("compras").update({
-                                    "estado": nuevo_estado,
-                                    "pagado": nuevo_pagado,
-                                    "pendiente": nuevo_pendiente
-                                }).eq("id", c_id).execute()
-                            st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!"); time.sleep(1.5); st.rerun()
+                                try:
+                                    registrar_pago_deuda(client, c_id, pago_hoy, cuenta_id=None)
+                                except ValueError as ve:
+                                    st.error(f"Error: {ve}")
+                            st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!")
+                            time.sleep(1.5)
+                            st.rerun()
         else:
             st.success("¡Genial! No tienes deudas a proveedores pendientes.")

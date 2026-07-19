@@ -900,113 +900,39 @@ def render_pestana_tpv(client):
 
                         carrito_limpio = json.loads(edited_df.to_json(orient='records'))
                         
-                        # --- FIX: Limpieza final por seguridad antes de guardar ---
-                        carrito_limpio = [item for item in carrito_limpio if item.get('Producto') and str(item.get('Producto')).strip() != '']
-                        if not carrito_limpio:
-                            st.warning("El carrito está vacío o contiene líneas no válidas.")
-                            st.stop()
-                        
                         try:
-                            # ASIGNACIÓN DE PUNTOS
-                            cliente_fidel_nombre = ""
-                            puntos_ganados = 0
-                            nuevo_saldo = 0
-                            cliente_email = ""
+                            from core_tpv import procesar_venta
+                            
+                            cliente_info = None
                             if "Ninguno" not in cliente_fidelidad:
                                 cliente_info = mapa_clientes_tpv.get(cliente_fidelidad, {})
-                                cliente_fidel_nombre = cliente_info.get('nombre_dueno', '')
-                                cliente_email = cliente_info.get('email', '')
-                                
-                                if pendiente == 0:
-                                    puntos_ganados = int(total_f // float(cfg.get('euros_para_un_punto', 10.0))) # Puntos configurables
-                                else:
-                                    puntos_ganados = 0 # ❌ No sumar puntos en el ticket si queda deuda
-                                    
-                                ptos_act = cliente_info.get('puntos') or 0
-                                nuevo_saldo = ptos_act - puntos_a_descontar + puntos_ganados
-                                client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cliente_info.get('id')).execute()
-                                
-                            # GENERACIÓN DE HASH (LEY ANTIFRAUDE / VERIFACTU)
+
                             res_last = fetch_last_hash_tpv(client)
                             hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
-                            data_to_hash = f"TICKET|{datetime.now().isoformat()}|{total_f:.2f}|{hash_anterior}"
-                            hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
 
-                            carrito_db = carrito_limpio.copy()
-                            metodo_final_log = str(metodo_log)
+                            ticket_info = procesar_venta(
+                                client=client,
+                                carrito=carrito_limpio,
+                                total_f=total_f,
+                                pagado_hoy=pagado_hoy,
+                                pendiente=pendiente,
+                                metodo_log=metodo_log,
+                                p_efectivo=p_efectivo,
+                                p_tarjeta=p_tarjeta,
+                                p_bizum=p_bizum,
+                                desc_g_val=desc_g_val,
+                                cliente_info=cliente_info,
+                                puntos_a_descontar=puntos_a_descontar,
+                                vale_aplicado=st.session_state.vale_aplicado,
+                                banco_sel_id=banco_sel_id,
+                                banco_sel_saldo=banco_sel_saldo,
+                                enviar_domicilio=enviar_domicilio,
+                                dir_entrega=dir_entrega,
+                                cfg=cfg,
+                                hash_anterior=hash_anterior
+                            )
                             
-                            if st.session_state.vale_aplicado and desc_vale_eur > 0:
-                                carrito_db.append({
-                                    "__meta__": True,
-                                    "vale_aplicado": st.session_state.vale_aplicado['codigo_vale'],
-                                    "desc_vale_eur": desc_vale_eur
-                                })
-                                if float(pagado_hoy) == 0:
-                                    metodo_final_log = f"Vale ({st.session_state.vale_aplicado['codigo_vale']})"
-                                else:
-                                    metodo_final_log += f" + Vale ({st.session_state.vale_aplicado['codigo_vale']})"
-
-                            # INSERCIÓN CON COLUMNAS EXACTAS CONTABLES
-                            res_venta = client.table("ventas_historial").insert({
-                                "total": float(total_f), "pagado": float(pagado_hoy), "pendiente": float(pendiente),
-                                "metodo_pago": metodo_final_log, "cliente_deuda": str(cliente_fidel_nombre) if pendiente > 0 else "",
-                                "descuento_global": float(desc_g_val), "productos": carrito_db, 
-                                "estado": "Completado" if pendiente == 0 else "Deuda",
-                                "pago_efectivo": float(p_efectivo),
-                                "pago_tarjeta": float(p_tarjeta),
-                                "pago_bizum": float(p_bizum),
-                                "cliente_vip_nombre": cliente_fidel_nombre,
-                                "puntos_ganados": puntos_ganados,
-                                "puntos_usados": puntos_a_descontar,
-                                "hash_anterior": hash_anterior,
-                                "hash_actual": hash_actual
-                            }).execute()
-                            
-                            ticket_num = res_venta.data[0]['id'] if res_venta.data else "S/N"
-                            
-                            if banco_sel_id and p_tarjeta > 0:
-                                client.table("cuentas_bancarias").update({"saldo_actual": float(banco_sel_saldo + p_tarjeta)}).eq("id", banco_sel_id).execute()
-                                
-                            if st.session_state.vale_aplicado and desc_vale_eur > 0:
-                                nuevo_saldo_vale = float(st.session_state.vale_aplicado['saldo_actual']) - desc_vale_eur
-                                client.table("vales_tienda").update({"saldo_actual": nuevo_saldo_vale}).eq("id", st.session_state.vale_aplicado['id']).execute()
-                                
-                            # --- CREACIÓN AUTOMÁTICA DE PEDIDO A DOMICILIO ---
-                            if enviar_domicilio and cliente_fidel_nombre:
-                                detalle_pedido = "\n".join([f"• {p['Cantidad']}x {p['Producto']}" for p in carrito_limpio])
-                                try:
-                                    client.table("pedidos_domicilio").insert({
-                                        "nombre_cliente": cliente_fidel_nombre,
-                                        "telefono": cliente_info.get('telefono', ''),
-                                        "direccion": dir_entrega,
-                                        "detalle_pedido": detalle_pedido,
-                                        "estado": "Pendiente"
-                                    }).execute()
-                                except Exception as e: pass
-                            
-                            for i in carrito_limpio:
-                                if not i.get('Manual', False) and 'id' in i:
-                                    if str(i['id']).startswith('cita_'):
-                                        continue
-                                    try:
-                                        res = fetch_producto_stock_tpv(client, i['id'])
-                                        if res.data:
-                                            n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
-                                            client.table("productos").update({"stock_actual": n_stock}).eq("id", i['id']).execute()
-                                    except Exception:
-                                        pass
-                            
-                            st.session_state.ticket_actual = {
-                                "id": ticket_num,
-                                "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                                "productos": carrito_limpio, "total": total_f, "metodo": metodo_log,
-                                "cliente_fidel": cliente_fidel_nombre, "puntos_ganados": puntos_ganados,
-                                "puntos_descontados": puntos_a_descontar, "nuevo_saldo": nuevo_saldo,
-                                "descuento_global": desc_g_val, "pendiente": pendiente,
-                                "vale_aplicado": st.session_state.vale_aplicado['codigo_vale'] if st.session_state.vale_aplicado else None,
-                                "desc_vale_eur": desc_vale_eur if st.session_state.vale_aplicado else 0.0,
-                                "email_cliente": cliente_email if "Ninguno" not in cliente_fidelidad else ""
-                            }
+                            st.session_state.ticket_actual = ticket_info
                             st.session_state.carrito = []
                             st.session_state.vale_aplicado = None
                             st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
