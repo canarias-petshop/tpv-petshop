@@ -6,19 +6,8 @@ def get_configuracion_negocio(_client):
     res = _client.table("configuracion_negocio").select("*").eq("id", 1).execute()
     if res.data:
         return res.data[0]
-    return {
-        'nombre_tienda': 'Animalarium',
-        'envio_gratis_a_partir_de': 110.00,
-        'coste_envio_cercania': 5.00,
-        'coste_envio_lejos': 10.00,
-        'euros_para_un_punto': 10.00,
-        'valor_punto_euros': 0.50,
-        'limite_descuento_puntos_porcentaje': 50.00,
-        'descuento_primera_compra_web_porcentaje': 10.00,
-        'descuento_cajas_completas_porcentaje': 7.00,
-        'descuento_retorno_tienda_porcentaje': 10.00,
-        'dias_maximos_retorno_tienda': 60
-    }
+    from core_configuracion import get_configuracion_negocio_default
+    return get_configuracion_negocio_default()
 
 def clear_configuracion_cache():
     get_configuracion_negocio.clear()
@@ -78,7 +67,7 @@ def render_pestana_configuracion(client):
         guardar = st.form_submit_button("💾 Guardar Configuración", type="primary", use_container_width=True)
         
         if guardar:
-            payload = {
+            payload_bruto = {
                 "nombre_tienda": nombre_tienda,
                 "envio_gratis_a_partir_de": envio_gratis,
                 "coste_envio_cercania": envio_cercania,
@@ -89,13 +78,19 @@ def render_pestana_configuracion(client):
                 "valor_punto_euros": valor_punto,
                 "limite_descuento_puntos_porcentaje": limite_puntos,
                 "descuento_retorno_tienda_porcentaje": dto_retorno,
-                "dias_maximos_retorno_tienda": dias_retorno,
-                "actualizado_en": pd.Timestamp.now(tz="Atlantic/Canary").isoformat()
+                "dias_maximos_retorno_tienda": dias_retorno
             }
-            try:
-                client.table("configuracion_negocio").update(payload).eq("id", 1).execute()
-                clear_configuracion_cache()
-                st.success("Configuración actualizada correctamente. Los cambios ya están activos en el TPV y la Web.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error al guardar: {e}")
+            
+            from core_configuracion import construir_payload_configuracion
+            payload = construir_payload_configuracion(payload_bruto, pd.Timestamp.now(tz="Atlantic/Canary").isoformat())
+            
+            if payload:
+                try:
+                    client.table("configuracion_negocio").update(payload).eq("id", 1).execute()
+                    clear_configuracion_cache()
+                    st.success("Configuración actualizada correctamente. Los cambios ya están activos en el TPV y la Web.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al guardar: {e}")
+            else:
+                st.error("Error al construir los datos de configuración.")
