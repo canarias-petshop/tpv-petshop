@@ -91,36 +91,38 @@ def render_pestana_qa(client=None):
             cli_id = cli_data['id']
             ptos_antiguos = int(cli_data.get('puntos', 0))
             
-            # 3. Puntos
+            # 3. Puntos NO SE DAN TODAVÍA. Se darán cuando se confirme.
             puntos_ganados = int(50.0 // eur_punto)
-            nuevo_saldo = ptos_antiguos + puntos_ganados
-            client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cli_id).execute()
             
-            # 4. Venta
-            ticket_falso = [{
-                "Producto": "Saco Pienso Perro Falso Web",
-                "Precio": 50.0,
-                "Cantidad": 1,
-                "Descuento": 0.0,
-                "Subtotal": 50.0,
-                "ID": "WEB123"
-            }]
+            # 4. Crear Encargo Web en lugar de Venta Directa
+            meta_payload = {
+                "total_final": 50.0,
+                "metodo_pago": "Tarjeta / Pago por Enlace",
+                "puntos_ganados": puntos_ganados,
+                "puntos_usados": 0,
+                "descuento_primera_compra": 0.0,
+                "items": [{
+                    "id": "PROD_WEB_TEST",
+                    "nombre": "Saco Pienso Perro Falso Web",
+                    "cantidad": 1,
+                    "precio_unitario": 50.0,
+                    "subtotal": 50.0
+                }],
+                "cliente_id": cli_id,
+                "direccion": "Calle Falsa 123"
+            }
             
-            client.table("ventas_historial").insert({
+            notas_meta = f"Pedido de prueba desde web.\n[---METADATA---]{json.dumps(meta_payload)}[---/METADATA---]"
+            
+            client.table("encargos_clientes").insert({
                 "created_at": datetime.now().isoformat(),
-                "total": 50.0,
-                "pagado": 50.0,
-                "pendiente": 0.0,
-                "metodo_pago": "Web (WooCommerce)",
-                "estado": "Completado",
-                "productos": json.dumps(ticket_falso),
-                "cliente_deuda": "Usuario Web Prueba",
-                "descuento_global": 0.0,
-                "pago_efectivo": 0.0,
-                "pago_tarjeta": 50.0,
-                "pago_bizum": 0.0,
-                "hash_seguridad": "WEB_MOCK_HASH_" + str(uuid.uuid4())
+                "nombre_cliente": "Usuario Web Prueba",
+                "telefono": telefono_web,
+                "detalle_pedido": "1x Saco Pienso Perro Falso Web",
+                "notas": notas_meta,
+                "estado": "Recibido",
+                "origen": "Web"
             }).execute()
             
-            st.success(f"✅ Pedido web registrado con éxito. El cliente ganó {puntos_ganados} puntos (Saldo actual: {nuevo_saldo}).")
-            st.info("Ve al CRM para ver al cliente 'Usuario Web Prueba' y a Contabilidad/Historial para ver la venta.")
+            st.success(f"✅ Pedido web registrado con éxito como ENCARGO.")
+            st.info("Ve al CRM > Encargos > Pestaña 'Pedidos Web' para gestionar el flujo.")
