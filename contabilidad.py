@@ -5,8 +5,21 @@ import io
 import time
 
 @st.cache_data(show_spinner=False, ttl=300)
+def _get_proveedores_dict(_client):
+    res = _client.table("proveedores").select("id, nombre_empresa, cif").execute()
+    return {p['id']: p for p in res.data} if res.data else {}
+
+@st.cache_data(show_spinner=False, ttl=300)
+def _get_clientes_dict_cont(_client):
+    res = _client.table("clientes").select("id, nombre_dueno, cif").execute()
+    return {c['id']: c for c in res.data} if res.data else {}
+
+@st.cache_data(show_spinner=False, ttl=300)
 def fetch_compras_pendientes(_client):
-    return _client.table("compras").select("*, proveedores(nombre_empresa)").eq("estado", "Pendiente").execute()
+    res = _client.table("compras").select("*").eq("estado", "Pendiente").execute()
+    prov_dict = _get_proveedores_dict(_client)
+    for c in (res.data or []): c['proveedores'] = prov_dict.get(c.get('proveedor_id'))
+    return res
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_gastos_recurrentes_activos(_client):
@@ -18,7 +31,10 @@ def fetch_compras_gastos_fijos(_client):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_compras_no_pagadas(_client):
-    return _client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
+    res = _client.table("compras").select("*").neq("estado", "Pagado").order("created_at").execute()
+    prov_dict = _get_proveedores_dict(_client)
+    for c in (res.data or []): c['proveedores'] = prov_dict.get(c.get('proveedor_id'))
+    return res
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_cuentas_bancarias(_client):
@@ -38,11 +54,13 @@ def fetch_compras_archivo(_client, f_ini_arc, f_fin_arc):
     limit = 1000
     offset = 0
     while True:
-        res = _client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini_arc}T00:00:00").lte("created_at", f"{f_fin_arc}T23:59:59").range(offset, offset + limit - 1).order("id", desc=True).execute()
+        res = _client.table("compras").select("*").gte("created_at", f"{f_ini_arc}T00:00:00").lte("created_at", f"{f_fin_arc}T23:59:59").range(offset, offset + limit - 1).order("id", desc=True).execute()
         if not res.data: break
         all_data.extend(res.data)
         if len(res.data) < limit: break
         offset += limit
+    prov_dict = _get_proveedores_dict(_client)
+    for c in all_data: c['proveedores'] = prov_dict.get(c.get('proveedor_id'))
     return PostgrestResult(all_data)
 
 def fetch_producto_stock(_client, p_id):
@@ -80,11 +98,13 @@ def fetch_facturas_informe(_client, fecha_inicio_q, fecha_fin_q):
     limit = 1000
     offset = 0
     while True:
-        res = _client.table("facturas").select("numero_factura, created_at, total_neto, total_igic, total_final, forma_pago, clientes(nombre_dueno, cif), productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).range(offset, offset + limit - 1).order("id").execute()
+        res = _client.table("facturas").select("numero_factura, created_at, total_neto, total_igic, total_final, forma_pago, cliente_id, productos, descuento_global").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).range(offset, offset + limit - 1).order("id").execute()
         if not res.data: break
         all_data.extend(res.data)
         if len(res.data) < limit: break
         offset += limit
+    cli_dict = _get_clientes_dict_cont(_client)
+    for f in all_data: f['clientes'] = cli_dict.get(f.get('cliente_id'))
     return PostgrestResult(all_data)
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -93,11 +113,13 @@ def fetch_compras_informe(_client, fecha_inicio_q, fecha_fin_q):
     limit = 1000
     offset = 0
     while True:
-        res = _client.table("compras").select("id, created_at, fecha_factura, tipo, total, estado, productos, proveedores(nombre_empresa, cif)").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).range(offset, offset + limit - 1).order("id").execute()
+        res = _client.table("compras").select("id, created_at, fecha_factura, tipo, total, estado, productos, proveedor_id").gte("created_at", fecha_inicio_q).lte("created_at", fecha_fin_q).range(offset, offset + limit - 1).order("id").execute()
         if not res.data: break
         all_data.extend(res.data)
         if len(res.data) < limit: break
         offset += limit
+    prov_dict = _get_proveedores_dict(_client)
+    for c in all_data: c['proveedores'] = prov_dict.get(c.get('proveedor_id'))
     return PostgrestResult(all_data)
 
 @st.cache_data(show_spinner=False, ttl=300)
