@@ -2,6 +2,12 @@ import streamlit as st
 import pandas as pd
 import time
 import streamlit.components.v1 as components
+from postgrest import SyncPostgrestClient
+
+def calcular_arqueo(fondo_actual, total_efectivo_ventas, ingresos_extra, retiradas, efectivo_final_declarado):
+    efectivo_teorico = fondo_actual + total_efectivo_ventas + ingresos_extra - retiradas
+    descuadre = efectivo_final_declarado - efectivo_teorico
+    return efectivo_teorico, descuadre
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_caja_abierta(_client):
@@ -15,9 +21,69 @@ def fetch_ultima_caja_cerrada(_client):
 def fetch_movimientos_caja(_client, id_caja):
     return _client.table("movimientos_caja").select("id, created_at, tipo, cantidad, motivo").eq("id_caja", id_caja).execute()
 
-@st.cache_data(show_spinner=False, ttl=300)
-def fetch_ventas_historial_desde(_client, fecha_ap_str):
-    return _client.table("ventas_historial").select("pago_efectivo, pago_tarjeta, pago_bizum, estado, metodo_pago").gte("created_at", fecha_ap_str).execute()
+@st.cache_data(show_spinner=False, ttl=30)
+def fetch_ventas_historial_desde(_client: SyncPostgrestClient, fecha_ap_str: str):
+    return _client.table("ventas_historial").select("*").gte("created_at", fecha_ap_str).execute()
+
+def abrir_caja(client: SyncPostgrestClient, fondo_inicial: float) -> None:
+    client.table("control_caja").insert({
+        "fondo_inicial": float(fondo_inicial), 
+        "estado": "Abierta"
+    }).execute()
+
+def registrar_movimiento_caja(client: SyncPostgrestClient, id_caja: str, tipo: str, cantidad: float, motivo: str) -> None:
+    client.table("movimientos_caja").insert({
+        "id_caja": id_caja, 
+        "tipo": tipo, 
+        "cantidad": float(cantidad), 
+        "motivo": motivo
+    }).execute()
+
+def cerrar_caja(client: SyncPostgrestClient, id_caja: str, fondo_actual: float, fecha_ap_str: str, efectivo_final: float) -> float:
+    """Cierra la caja, calcula el arqueo y el resumen de pagos, y devuelve el descuadre."""
+    res_movs = fetch_movimientos_caja(client, id_caja)
+    ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0.0
+    retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
+    
+    res_ventas = fetch_ventas_historial_desde(client, fecha_ap_str)
+    t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
+    tarjetas_por_banco = {}
+    
+    if res_ventas.data:
+        for v in res_ventas.data:
+            if v.get('estado') != 'DEVUELTO':
+                t_efe += float(v.get('pago_efectivo') or 0.0)
+                t_biz += float(v.get('pago_bizum') or 0.0)
+                val_tarjeta = float(v.get('pago_tarjeta') or 0.0)
+                t_tar += val_tarjeta
+                mp = v.get('metodo_pago', '')
+                
+                if val_tarjeta > 0:
+                    banco_nombre = "Desconocido"
+                    if mp.startswith("Tarjeta (") and mp.endswith(")"):
+                        banco_nombre = mp[9:-1]
+                    elif "Mixto" in mp and " - " in mp and "|B:" in mp:
+                        try: banco_nombre = mp.split(" - ")[1].split("|")[0]
+                        except: banco_nombre = "Desconocido"
+                    elif "Caixa" in mp: banco_nombre = "Caixa"
+                    elif "Caja Siete" in mp: banco_nombre = "Caja Siete"
+                        
+                    tarjetas_por_banco[banco_nombre] = tarjetas_por_banco.get(banco_nombre, 0.0) + val_tarjeta
+        
+    efectivo_teorico_en_caja, descuadre = calcular_arqueo(fondo_actual, t_efe, ingresos, retiradas, efectivo_final)
+    
+    resumen_json = {
+        "Efectivo": round(t_efe, 2), "Tarjeta": round(t_tar, 2), 
+        "Bizum": round(t_biz, 2), "Ingresos": round(ingresos, 2), "Retiradas": round(retiradas, 2)
+    }
+    for b, cant in tarjetas_por_banco.items():
+        resumen_json[f"Tarjeta {b}"] = round(cant, 2)
+    
+    client.table("control_caja").update({
+        "estado": "Cerrada", "total_contado": float(efectivo_final), "descuadre": float(descuadre), "resumen_pagos": resumen_json
+    }).eq("id", id_caja).execute()
+    
+    return descuadre
 
 def limpiar_cache_caja():
     fetch_caja_abierta.clear()
@@ -25,7 +91,7 @@ def limpiar_cache_caja():
     fetch_movimientos_caja.clear()
     fetch_ventas_historial_desde.clear()
 
-def render_pestana_caja(client):
+def render_pestana_caja(client):  # pragma: no cover
     try:
         res_caja = fetch_caja_abierta(client)
         caja_actual = res_caja.data[0] if res_caja.data else None
@@ -123,7 +189,7 @@ def render_pestana_caja(client):
                 st.session_state['last_caja_abrir'] = current_time
 
                 fondo_val = fondo_ini or 0.0
-                client.table("control_caja").insert({"fondo_inicial": float(fondo_val), "estado": "Abierta"}).execute()
+                abrir_caja(client, fondo_val)
                 limpiar_cache_caja()
                 st.success("¡Caja abierta!"); time.sleep(1); st.rerun()
     else:
@@ -160,7 +226,7 @@ def render_pestana_caja(client):
 
                     if motivo_mov and cant_mov is not None:
                         tipo_limpio = "Retirada" if "Retirada" in tipo_mov else "Ingreso"
-                        client.table("movimientos_caja").insert({"id_caja": id_caja, "tipo": tipo_limpio, "cantidad": float(cant_mov), "motivo": motivo_mov}).execute()
+                        registrar_movimiento_caja(client, id_caja, tipo_limpio, cant_mov, motivo_mov)
                         limpiar_cache_caja()
                         st.rerun()
             
@@ -212,47 +278,9 @@ def render_pestana_caja(client):
                     st.session_state['last_caja_cerrar'] = current_time
 
                     ef_val = efectivo_final if efectivo_final is not None else total_calc
-                    ingresos = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Ingreso') if res_movs.data else 0.0
-                    retiradas = sum(m['cantidad'] for m in res_movs.data if m['tipo'] == 'Retirada') if res_movs.data else 0.0
                     
-                    res_ventas = fetch_ventas_historial_desde(client, fecha_ap_str)
-                    t_efe = 0.0; t_tar = 0.0; t_biz = 0.0
-                    tarjetas_por_banco = {}
+                    descuadre = cerrar_caja(client, id_caja, fondo_actual, fecha_ap_str, ef_val)
                     
-                    if res_ventas.data:
-                        for v in res_ventas.data:
-                            if v.get('estado') != 'DEVUELTO':
-                                t_efe += float(v.get('pago_efectivo') or 0.0)
-                                t_biz += float(v.get('pago_bizum') or 0.0)
-                                val_tarjeta = float(v.get('pago_tarjeta') or 0.0)
-                                t_tar += val_tarjeta
-                                mp = v.get('metodo_pago', '')
-                                
-                                if val_tarjeta > 0:
-                                    banco_nombre = "Desconocido"
-                                    if mp.startswith("Tarjeta (") and mp.endswith(")"):
-                                        banco_nombre = mp[9:-1]
-                                    elif "Mixto" in mp and " - " in mp and "|B:" in mp:
-                                        try: banco_nombre = mp.split(" - ")[1].split("|")[0]
-                                        except: banco_nombre = "Desconocido"
-                                    elif "Caixa" in mp: banco_nombre = "Caixa"
-                                    elif "Caja Siete" in mp: banco_nombre = "Caja Siete"
-                                        
-                                    tarjetas_por_banco[banco_nombre] = tarjetas_por_banco.get(banco_nombre, 0.0) + val_tarjeta
-                        
-                    efectivo_teorico_en_caja = fondo_actual + t_efe + ingresos - retiradas
-                    descuadre = ef_val - efectivo_teorico_en_caja
-                    
-                    resumen_json = {
-                        "Efectivo": round(t_efe, 2), "Tarjeta": round(t_tar, 2), 
-                        "Bizum": round(t_biz, 2), "Ingresos": round(ingresos, 2), "Retiradas": round(retiradas, 2)
-                    }
-                    for b, cant in tarjetas_por_banco.items():
-                        resumen_json[f"Tarjeta {b}"] = round(cant, 2)
-                    
-                    client.table("control_caja").update({
-                        "estado": "Cerrada", "total_contado": float(ef_val), "descuadre": float(descuadre), "resumen_pagos": resumen_json
-                    }).eq("id", id_caja).execute()
                     limpiar_cache_caja()
                     st.success(f"Caja Cerrada. Descuadre: {descuadre:.2f}€")
                     time.sleep(1.5); st.rerun()

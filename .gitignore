@@ -6,3 +6,7 @@ __pycache__/
 # Ignorar fichas de clientes y Excels por privacidad
 fichas_a_importar/
 *.xlsx
+
+# Ignorar backups y archivos zip para no filtrar secretos
+*.zip
+Backups_Datos_Nube/

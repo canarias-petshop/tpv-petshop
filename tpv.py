@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 import streamlit.components.v1 as components
 import hashlib
+from configuracion import get_configuracion_negocio
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_caja_abierta_tpv(_client):
@@ -77,6 +78,8 @@ def limpiar_cache_tpv():
     fetch_producto_stock_tpv.clear()
 
 def render_pestana_tpv(client):
+    cfg = get_configuracion_negocio(client)
+    
     # --- COMPROBACIÓN DE SEGURIDAD: CAJA ABIERTA ---
     res_caja_abierta = fetch_caja_abierta_tpv(client)
     
@@ -326,17 +329,20 @@ def render_pestana_tpv(client):
                                         except: pass
                                 if fechas_previas:
                                     ult_visita = max(fechas_previas)
-                                    if (hoy_date - ult_visita).days <= 60:
+                                    dias_retorno = int(cfg.get('dias_maximos_retorno_tienda', 60))
+                                    if (hoy_date - ult_visita).days <= dias_retorno:
                                         aplica_desc = True
-                                        motivo_desc = "Visita < 2 meses"
+                                        motivo_desc = f"Visita <= {dias_retorno} días"
                                         
                             # REDISEÑO DEL BOTÓN
-                            precio_mostrar = precio_final * 0.90 if aplica_desc else precio_final
+                            dto_retorno_pct = float(cfg.get('descuento_retorno_tienda_porcentaje', 10.0))
+                            factor_desc = 1.0 - (dto_retorno_pct / 100.0)
+                            precio_mostrar = precio_final * factor_desc if aplica_desc else precio_final
                             btn_label = f"🐾 {masc['nombre']} ➔ ✂️ {s_clean} ({precio_mostrar:.2f}€)"
-                            if aplica_desc: btn_label += " 🎁 Dto 10%"
+                            if aplica_desc: btn_label += f" 🎁 Dto {dto_retorno_pct:.0f}%"
                             
                             if st.button(btn_label, use_container_width=True, key=f"btn_cita_{c['id']}_{st.session_state.llave_busqueda_tpv}"):
-                                desc_pct = 10.0 if aplica_desc else 0.0
+                                desc_pct = dto_retorno_pct if aplica_desc else 0.0
                                 nombre_linea = f"{s_clean} ({masc['nombre']})"
                                     
                                 st.session_state.carrito.append({
@@ -404,7 +410,7 @@ def render_pestana_tpv(client):
                 cuerpo_email += f"🌟 CLIENTE VIP: {t['cliente_fidel']}\n"
                 cuerpo_email += f"Puntos ganados hoy: +{t['puntos_ganados']}\n"
                 cuerpo_email += f"Saldo actual: {t.get('nuevo_saldo', 0)} puntos\n"
-                cuerpo_email += "INFO VIP: Ganas 1 pto por cada 10€ de compra. (1 pto = 0.50€ dto)\n"
+                cuerpo_email += f"INFO VIP: Ganas 1 pto por cada {cfg.get('euros_para_un_punto', 10.0):.2f}€ de compra. (1 pto = {cfg.get('valor_punto_euros', 0.50):.2f}€ dto)\n"
                 cuerpo_email += "================================\n"
                 
             cuerpo_email += "\nPOLÍTICA DE DEVOLUCIÓN:\nPlazo de 14 días con ticket y embalaje original en perfecto estado.\n\n¡Gracias por su visita!"
@@ -481,7 +487,7 @@ def render_pestana_tpv(client):
             """
             
             if t.get('puntos_descontados', 0) > 0:
-                descuento_pts_eur = t['puntos_descontados'] * 0.50
+                descuento_pts_eur = t['puntos_descontados'] * float(cfg.get('valor_punto_euros', 0.50))
                 html_ticket += f"<div style='text-align: right; font-size: 22px;'><b>Canjeo Puntos (-{t['puntos_descontados']} pts): -{descuento_pts_eur:.2f}€</b></div>"
 
             desc_global = t.get('descuento_global', 0.0)
@@ -505,7 +511,7 @@ def render_pestana_tpv(client):
                 html_ticket += f"<div style='font-size:18px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {t['cliente_fidel']}</b>"
                 html_ticket += f"<br>Has ganado +{t['puntos_ganados']} puntos hoy!"
                 html_ticket += f"<br>Saldo actual disponible: {t.get('nuevo_saldo', 0)} puntos"
-                html_ticket += f"<br><span style='font-size:14px; color:#555;'>Ganas 1 pto por cada 10€ de compra. (1 pto = 0.50€ dto)</span></div>"
+                html_ticket += f"<br><span style='font-size:14px; color:#555;'>Ganas 1 pto por cada {cfg.get('euros_para_un_punto', 10.0):.2f}€ de compra. (1 pto = {cfg.get('valor_punto_euros', 0.50):.2f}€ dto)</span></div>"
 
             html_ticket += f"""
                     <div style="text-align: center; margin-top: 25px;">
@@ -724,10 +730,10 @@ def render_pestana_tpv(client):
                             if tiene_deuda:
                                 st.error(f"⛔ El cliente tiene pagos pendientes. No puede canjear puntos.")
                             else:
-                                max_descuento_eur = total_f * 0.50
-                                max_puntos_permitidos = int(max_descuento_eur / 0.50)
+                                max_descuento_eur = total_f * (float(cfg.get('limite_descuento_puntos_porcentaje', 50.0)) / 100.0)
+                                max_puntos_permitidos = int(max_descuento_eur / float(cfg.get('valor_punto_euros', 0.50)))
                                 puntos_a_usar = min(puntos_disp, max_puntos_permitidos)
-                                eur_a_descontar = puntos_a_usar * 0.50
+                                eur_a_descontar = puntos_a_usar * float(cfg.get('valor_punto_euros', 0.50))
                                 if puntos_a_usar > 0:
                                     estado_ptos_key = f"estado_ptos_{cli_info.get('id', '0')}_{st.session_state.llave_busqueda_tpv}"
                                     if estado_ptos_key not in st.session_state:
@@ -912,7 +918,7 @@ def render_pestana_tpv(client):
                                 cliente_email = cliente_info.get('email', '')
                                 
                                 if pendiente == 0:
-                                    puntos_ganados = int(total_f // 10) # 1 punto por cada 10€
+                                    puntos_ganados = int(total_f // float(cfg.get('euros_para_un_punto', 10.0))) # Puntos configurables
                                 else:
                                     puntos_ganados = 0 # ❌ No sumar puntos en el ticket si queda deuda
                                     

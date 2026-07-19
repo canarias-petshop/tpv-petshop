@@ -1,0 +1,11 @@
+[run]
+omit = 
+    .venv/*
+    tests/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def render_pestana_caja
+    def render_pestana_personal
+    if st.session_state.rol == "Admin":
