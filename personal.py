@@ -238,7 +238,7 @@ def render_pestana_personal(client: SyncPostgrestClient):
                 nuevo_pin = c2.text_input("PIN (4 dígitos)", max_chars=4)
                 if st.form_submit_button("Crear Empleado"):
                     if nuevo_nom and len(nuevo_pin) == 4:
-                        client.table("personal_empleados").insert({"nombre": nuevo_nom, "pin_fichaje": nuevo_pin}).execute()
+                        client.table("personal_empleados").insert({"nombre": nuevo_nom, "pin_fichaje": nuevo_pin, "activo": True}).execute()
                         st.success("Empleado creado")
                         limpiar_cache_personal()
                         st.rerun()
@@ -253,6 +253,8 @@ def render_pestana_personal(client: SyncPostgrestClient):
             st.info("Selecciona el rango de fechas. Edita los turnos haciendo **doble clic en las celdas**. Las tablas se dividen por semanas para mayor comodidad. Al terminar, pulsa 'Guardar Todo el Cuadrante'.")
             
             c_e1, c_e2 = st.columns(2)
+            from datetime import date, timedelta
+            hoy = date.today()
             with c_e1: f_ini_ed = st.date_input("Editor Desde:", value=hoy - timedelta(days=hoy.weekday()), key="e_ini")
             with c_e2: f_fin_ed = st.date_input("Editor Hasta:", value=f_ini_ed + timedelta(days=27), key="e_fin")
             
