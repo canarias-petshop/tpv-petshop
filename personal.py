@@ -245,8 +245,17 @@ def render_pestana_personal(client: SyncPostgrestClient):
                     else:
                         st.error("El nombre y un PIN de 4 dígitos son obligatorios.")
                         
-            st.markdown("Lista de empleados:")
-            st.dataframe(pd.DataFrame(empleados), hide_index=True)
+            st.markdown("Lista de empleados activos:")
+            for emp in empleados:
+                c1, c2, c3 = st.columns([3, 2, 2])
+                c1.write(f"👤 **{emp['nombre']}**")
+                c2.write(f"🔑 PIN: {emp['pin_fichaje']}")
+                if c3.button("❌ Desactivar", key=f"del_emp_{emp['id']}"):
+                    client.table("personal_empleados").update({"activo": False}).eq("id", emp['id']).execute()
+                    st.toast(f"Empleado {emp['nombre']} desactivado.")
+                    limpiar_cache_personal()
+                    time.sleep(0.5)
+                    st.rerun()
 
         elif seccion_admin == "Gestión de Cuadrante (Editable)":
             st.markdown("#### 🗓️ Editor Visual de Cuadrantes")
