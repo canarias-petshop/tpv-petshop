@@ -85,7 +85,7 @@ components.html("""
     const doc = window.parent.document;
     function disableAuto() {
         // Seleccionamos estrictamente solo los inputs de texto/números (Ignorando checkboxes por completo)
-        const inputs = doc.querySelectorAll('div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, div[data-testid="stDateInput"] input, div[data-testid="stTimeInput"] input, textarea');
+        const inputs = doc.querySelectorAll('div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, div[data-testid="stDateInput"] input, div[data-testid="stTimeInput"] input, div[data-testid="stSelectbox"] input, textarea');
         inputs.forEach(input => {
             if (input.getAttribute('data-autofill-blocked') !== 'true') {
                 // Bloqueo agresivo de autocompletado y gestores de contraseñas
