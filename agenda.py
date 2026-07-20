@@ -309,7 +309,7 @@ def render_pestana_agenda(client):
                         m_pref = re.search(r'\[Pref:\s*(.*?)\]', str(obs))
                         if m_pref: pref_actual = m_pref.group(1)
                         
-                        historial = res_m_info_data[0].get('historial_trabajos', [])
+                        historial = res_m_info_data[0].get('historial_trabajos') or []
                         duraciones = [t['Duración (min)'] for t in historial if isinstance(t, dict) and isinstance(t.get('Duración (min)'), (int, float))]
                         if duraciones: 
                             dur_media = int(sum(duraciones) / len(duraciones))
