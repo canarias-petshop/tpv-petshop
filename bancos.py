@@ -76,27 +76,18 @@ def render_pestana_bancos(client):
             with col_t3: cant_trans = st.number_input("Cantidad a transferir (€) *", min_value=0.01, step=0.01, value=None, format="%.2f", key=f"b_can_{st.session_state.llave_bancos_trans}")
             
             if st.form_submit_button("🚀 Realizar Transferencia", type="primary", use_container_width=True):
-                if cant_trans and ori_sel != des_sel:
-                    # 1. Procesar Origen
-                    if "Caja Fuerte" in ori_sel:
-                        res_caja = client.table("control_caja").select("*").eq("estado", "Abierta").execute()
-                        if res_caja.data:
-                            id_caja_abierta = res_caja.data[0]['id']
-                            client.table("movimientos_caja").insert({"id_caja": id_caja_abierta, "tipo": "Retirada", "cantidad": float(cant_trans), "motivo": f"Ingreso a banco: {des_sel.split(' (')[0]}"}).execute()
-                        else:
-                            st.warning("⚠️ La caja fuerte está cerrada. El dinero se sumará al banco, pero no se restará del arqueo actual porque no hay turno abierto.")
-                    else:
-                        nombre_banco_ori = ori_sel.split(" (")[0].replace("🏦 ", "")
-                        banco_ori = next((b for b in lista_bancos if b['nombre_banco'] == nombre_banco_ori), None)
-                        if banco_ori: client.table("cuentas_bancarias").update({"saldo_actual": banco_ori['saldo_actual'] - cant_trans}).eq("id", banco_ori['id']).execute()
-                    
-                    # 2. Procesar Destino
-                    nombre_banco_des = des_sel.split(" (")[0].replace("🏦 ", "")
-                    banco_des = next((b for b in lista_bancos if b['nombre_banco'] == nombre_banco_des), None)
-                    if banco_des: client.table("cuentas_bancarias").update({"saldo_actual": banco_des['saldo_actual'] + cant_trans}).eq("id", banco_des['id']).execute()
-                        
+                from core_bancos import realizar_transferencia_interna
+                ok, msg = realizar_transferencia_interna(client, ori_sel, des_sel, cant_trans, lista_bancos)
+                
+                if ok:
                     st.session_state.llave_bancos_trans += 1
-                    st.success(f"Transferencia de {cant_trans:.2f} € completada con éxito."); time.sleep(1.5); st.rerun()
-                elif ori_sel == des_sel: st.error("El origen y el destino no pueden ser el mismo.")
-                else: st.warning("Introduce una cantidad válida.")
+                    if "⚠️" in msg:
+                        st.warning(msg.split('\n')[0])
+                        st.success(msg.split('\n')[1])
+                    else:
+                        st.success(msg)
+                    time.sleep(1.5)
+                    st.rerun()
+                else:
+                    st.error(msg)
     except Exception as e: st.error(f"Error al cargar módulo de transferencias: {e}")

@@ -30,7 +30,17 @@ def fetch_personal_empleados_activos(_client):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_citas_roi(_client, fecha_ini, fecha_fin):
-    return _client.table("citas").select("fecha_hora, servicio, mascotas(id, historial_trabajos)").gte("fecha_hora", fecha_ini).lt("fecha_hora", fecha_fin).execute()
+    res = _client.table("citas").select("fecha_hora, servicio, mascotas_id").gte("fecha_hora", fecha_ini).lt("fecha_hora", fecha_fin).execute()
+    citas = res.data or []
+    if not citas: return res
+    masc_ids = list(set([c["mascotas_id"] for c in citas if c.get("mascotas_id")]))
+    if masc_ids:
+        res_m = _client.table("mascotas").select("id, historial_trabajos").in_("id", masc_ids).execute()
+        mascotas_dict = {m["id"]: m for m in (res_m.data or [])}
+        for c in citas:
+            c["mascotas"] = mascotas_dict.get(c.get("mascotas_id"))
+    res.data = citas
+    return res
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_citas_est(_client):
@@ -177,45 +187,32 @@ def render_pestana_estadisticas(client):
             if not df_v.empty and 'total' in df_v.columns:
                 df_v['total'] = pd.to_numeric(df_v['total'], errors='coerce').fillna(0.0)
             
-            df_v = df_v[df_v['estado'] != 'DEVUELTO'] if 'estado' in df_v.columns else df_v
-            if not df_v.empty:
-                total_ventas = df_v['total'].sum() if 'total' in df_v.columns else 0.0
-                num_operaciones = len(df_v)
-                ticket_medio = total_ventas / num_operaciones if num_operaciones > 0 else 0.0
-                if 'created_at' in df_v.columns:
-                    dt_v = pd.to_datetime(df_v['created_at'])
-                    if dt_v.dt.tz is None:
-                        dt_v = dt_v.dt.tz_localize('UTC')
-                    df_v['Fecha'] = dt_v.dt.tz_convert('Atlantic/Canary').dt.date
-            
+            if 'created_at' in df_v.columns:
+                dt_v = pd.to_datetime(df_v['created_at'])
+                if dt_v.dt.tz is None:
+                    dt_v = dt_v.dt.tz_localize('UTC')
+                df_v['Fecha'] = dt_v.dt.tz_convert('Atlantic/Canary').dt.date
+                
         # 2. GASTOS VARIABLES Y PROVEEDORES (Compras y Facturas del mes)
         res_compras = fetch_compras(client, fecha_ini, fecha_fin)
-        total_compras = 0.0
-        df_c = pd.DataFrame()
-        if res_compras.data:
-            df_c = pd.DataFrame(res_compras.data)
-            if not df_c.empty and 'total' in df_c.columns:
-                df_c['total'] = pd.to_numeric(df_c['total'], errors='coerce').fillna(0.0)
-                total_compras = df_c['total'].sum()
+        df_c = pd.DataFrame(res_compras.data) if res_compras.data else pd.DataFrame()
         
         # 3. GASTOS FIJOS (Estimación Proporcional al periodo)
         res_fijos = fetch_gastos_recurrentes(client)
-        total_fijos_mes = 0.0
-        if res_fijos.data:
-            for gf in res_fijos.data:
-                imp_raw = gf.get('importe_estimado', 0.0)
-                imp = float(imp_raw) if imp_raw is not None else 0.0
-                frec = gf.get('frecuencia', 'Mensual')
-                if frec == 'Bimestral': imp = imp / 2
-                elif frec == 'Trimestral': imp = imp / 3
-                elif frec == 'Anual': imp = imp / 12
-                total_fijos_mes += imp
-            
-        total_fijos_periodo = total_fijos_mes * factor_fijos
-            
-        # CÁLCULOS GLOBALES
-        gastos_totales = total_compras + total_fijos_periodo
-        balance_neto = total_ventas - gastos_totales
+        gastos_recurrentes_data = res_fijos.data if res_fijos.data else []
+        
+        from core_estadisticas import calcular_balance_financiero
+        res_fin = calcular_balance_financiero(df_v, df_c, gastos_recurrentes_data, factor_fijos)
+        
+        total_ventas = res_fin["total_ventas"]
+        num_operaciones = res_fin["num_operaciones"]
+        ticket_medio = res_fin["ticket_medio"]
+        total_compras = res_fin["total_compras"]
+        total_fijos_mes = res_fin["total_fijos_mes"]
+        total_fijos_periodo = res_fin["total_fijos_periodo"]
+        gastos_totales = res_fin["gastos_totales"]
+        balance_neto = res_fin["balance_neto"]
+        df_v = res_fin["df_v_filtrado"]
 
         st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
         # BUGFIX: Streamlit tiene un bug grave con pestañas anidadas que se actualizan dinámicamente, lo cambiamos a st.radio
@@ -378,55 +375,11 @@ def render_pestana_estadisticas(client):
 
             res_emp = fetch_personal_empleados_activos(client)
             empleados_lista = [str(e['nombre']).strip() for e in res_emp.data] if res_emp.data else []
-            rendimiento_empleados = {emp: {"Ingresos": 0.0, "Citas": 0} for emp in empleados_lista}
-
-            # Extraemos las citas del mes (que no estén canceladas)
             res_citas_roi = fetch_citas_roi(client, fecha_ini, fecha_fin)
-
-            if res_citas_roi.data:
-
-                for c in res_citas_roi.data:
-                    servicio_raw = c.get('servicio', '')
-                    if "[ESTADO: Cancelada]" in servicio_raw or "[ESTADO: Anulada]" in servicio_raw or "[ESTADO: No presentado]" in servicio_raw or "[ESTADO: Cambio" in servicio_raw: continue
-                
-                    # Averiguar a qué empleado pertenece la cita según la agenda
-                    emp_cita = None
-                    for e in empleados_lista:
-                        if f"({e})" in servicio_raw:
-                            emp_cita = e; break
-                
-                    if not emp_cita: continue # Si no tiene empleado asignado, la saltamos
-
-                    rendimiento_empleados[emp_cita]["Citas"] += 1
-
-                    try:
-                        dt_c_raw = pd.to_datetime(c['fecha_hora'])
-                        dt_c = dt_c_raw.date()
-                    
-                        masc = c.get('mascotas')
-                        if not isinstance(masc, dict): continue
-                    
-                        hist = masc.get('historial_trabajos')
-                        if isinstance(hist, list):
-                            # Buscamos en el historial una entrada con esa misma fecha
-                            for t in hist:
-                                try:
-                                    f_str = str(t.get('Fecha', ''))
-                                    if f_str:
-                                        dt_t = pd.to_datetime(f_str, format="%d/%m/%Y").date()
-                                        if dt_t == dt_c:
-                                            # ¡Match! Extraemos el dinero de esta sesión y se lo sumamos al empleado de la cita
-                                            imp_base = float(t.get('Precio con desc. (€)') or t.get('Precio Base (€)') or t.get('Importe (€)') or 0.0)
-                                            imp_extras = 0.0
-                                            if isinstance(t.get('Extras'), list):
-                                                imp_extras = sum(float(ext.get('Precio', 0.0)) for ext in t['Extras'] if isinstance(ext, dict))
-                                        
-                                            imp_total = imp_base + imp_extras
-                                            if imp_total > 0:
-                                                rendimiento_empleados[emp_cita]["Ingresos"] += imp_total
-                                            break # Ya encontramos el importe de este día, paramos de buscar en el historial
-                                except: pass
-                    except: pass
+            citas_data = res_citas_roi.data if res_citas_roi.data else []
+            
+            from core_estadisticas import calcular_roi_laboral
+            rendimiento_empleados = calcular_roi_laboral(citas_data, empleados_lista)
         
             if rendimiento_empleados:
                 lista_roi = [{"Empleado": emp, "Ingresos Generados (€)": data["Ingresos"], "Citas Realizadas": data["Citas"]} for emp, data in rendimiento_empleados.items() if data["Citas"] > 0 or data["Ingresos"] > 0]

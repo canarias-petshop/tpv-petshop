@@ -4,18 +4,43 @@ from datetime import date, timedelta
 import time
 import urllib.parse
 import calendar
+from core_agenda import calcular_huecos_libres, verificar_solape_manual
+import pandas as pd
+from datetime import date, timedelta
+import time
+import urllib.parse
+import calendar
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_masc_ag_cached(_client, v):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("mascotas").select("id, nombre, clientes(nombre_dueno, telefono)").range(_off, _off + 999).execute()
+        _r = _client.table("mascotas").select("*").range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
             _off += 1000
         else: break
+        
+    try:
+        c_all = []
+        c_off = 0
+        while True:
+            c_r = _client.table("clientes").select("*").range(c_off, c_off + 999).execute()
+            if c_r.data:
+                c_all.extend(c_r.data)
+                if len(c_r.data) < 1000: break
+                c_off += 1000
+            else: break
+            
+        cli_dict = {c['id']: c for c in c_all if 'id' in c}
+        for m in _all:
+            m['clientes'] = cli_dict.get(m.get('cliente_id'))
+    except Exception:
+        for m in _all:
+            m['clientes'] = None
+
     return _all
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -23,12 +48,24 @@ def get_citas_ag_cached(_client, v):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("citas").select("id, fecha_hora, servicio, duracion_minutos, observaciones, mascotas(id, nombre, especie, raza, clientes(nombre_dueno, telefono, direccion, servicio_domicilio))").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
+        _r = _client.table("citas").select("*").order("fecha_hora", desc=False).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
             _off += 1000
         else: break
+        
+    try:
+        masc_ag = get_masc_ag_cached(_client, v)
+        masc_dict = {m['id']: m for m in masc_ag if 'id' in m}
+        
+        for c in _all:
+            m_obj = masc_dict.get(c.get('mascotas_id'))
+            c['mascotas'] = m_obj if m_obj else None
+    except Exception:
+        for c in _all:
+            c['mascotas'] = None
+            
     return _all
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -37,44 +74,51 @@ def get_masc_info_cached(_client, v, mid):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_alertas_m_ag_cached(_client, v):
-    _all = []
-    _off = 0
-    while True:
-        _r = _client.table("mascotas").select("id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, metodo_contacto)").range(_off, _off + 999).execute()
-        if _r.data:
-            _all.extend(_r.data)
-            if len(_r.data) < 1000: break
-            _off += 1000
-        else: break
-    return _all
+    return get_masc_ag_cached(_client, v)
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_manana_ag_cached(_client, v, m_ini, m_fin):
-    return _client.table("citas").select("id, fecha_hora, servicio, observaciones, mascotas(nombre, clientes(nombre_dueno, telefono, metodo_contacto, direccion, servicio_domicilio))").gte("fecha_hora", m_ini).lte("fecha_hora", m_fin).execute().data
+    citas = _client.table("citas").select("*").gte("fecha_hora", m_ini).lte("fecha_hora", m_fin).execute().data or []
+    mascotas = get_masc_ag_cached(_client, v)
+    m_dict = {m['id']: m for m in mascotas if 'id' in m}
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
+    return citas
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_futuras_ag_cached(_client, v, h_str):
-    return _client.table("citas").select("mascotas_id, servicio").gte("fecha_hora", h_str).execute().data
+    return _client.table("citas").select("mascotas_id, servicio").gte("fecha_hora", h_str).execute().data or []
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_canc_ag_cached(_client, v):
-    return _client.table("citas").select("fecha_hora, servicio, mascotas(nombre, clientes(nombre_dueno, telefono))").or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%,servicio.ilike.%[ESTADO: Anulada]%").order("fecha_hora", desc=True).limit(200).execute().data
+    citas = _client.table("citas").select("*").or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%,servicio.ilike.%[ESTADO: Anulada]%").order("fecha_hora", desc=True).limit(200).execute().data or []
+    mascotas = get_masc_ag_cached(_client, v)
+    m_dict = {m['id']: m for m in mascotas if 'id' in m}
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
+    return citas
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_sin_hist_ag_cached(_client, v, h_str):
-    return _client.table("citas").select("fecha_hora, servicio, mascotas(id, nombre, historial_trabajos)").lt("fecha_hora", h_str).or_("servicio.ilike.%[ESTADO: Confirmada]%,servicio.ilike.%[ESTADO: Asistió]%,servicio.ilike.%[ESTADO: Pendiente]%").execute().data
+    citas = _client.table("citas").select("*").lt("fecha_hora", h_str).or_("servicio.ilike.%[ESTADO: Confirmada]%,servicio.ilike.%[ESTADO: Asistió]%,servicio.ilike.%[ESTADO: Pendiente]%").execute().data or []
+    mascotas = get_masc_ag_cached(_client, v)
+    m_dict = {m['id']: m for m in mascotas if 'id' in m}
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
+    return citas
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_turnos_ag_cached(_client, v, f_ini, f_fin):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("personal_cuadrantes").select("fecha, turno, personal_empleados(nombre)").gte("fecha", f_ini).lte("fecha", f_fin).range(_off, _off + 999).execute()
+        _r = _client.table("personal_cuadrantes").select("*").gte("fecha", f_ini).lte("fecha", f_fin).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
             _off += 1000
         else: break
+    empleados = get_empleados_ag_cached(_client, v)
+    emp_dict = {e['id']: e for e in empleados if 'id' in e}
+    for t in _all:
+        t['personal_empleados'] = emp_dict.get(t.get('empleado_id'))
     return _all
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -104,11 +148,19 @@ def get_masc_obs_hist_cached(_client, v, m_id):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_turnos_dia_ag_cached(_client, v, fecha_c):
-    return _client.table("personal_cuadrantes").select("empleado_id, turno, personal_empleados(nombre)").eq("fecha", str(fecha_c)).execute().data
+    turnos = _client.table("personal_cuadrantes").select("*").eq("fecha", str(fecha_c)).execute().data or []
+    empleados = get_empleados_ag_cached(_client, v)
+    emp_dict = {e['id']: e for e in empleados if 'id' in e}
+    for t in turnos: t['personal_empleados'] = emp_dict.get(t.get('empleado_id'))
+    return turnos
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_citas_mes_ag_cached(_client, v, f_ini_mes, f_fin_mes):
-    return _client.table("citas").select("fecha_hora, servicio, mascotas(nombre, raza, clientes(nombre_dueno, telefono))").gte("fecha_hora", f"{f_ini_mes}T00:00:00").lte("fecha_hora", f"{f_fin_mes}T23:59:59").execute().data
+    citas = _client.table("citas").select("*").gte("fecha_hora", f"{f_ini_mes}T00:00:00").lte("fecha_hora", f"{f_fin_mes}T23:59:59").execute().data or []
+    mascotas = get_masc_ag_cached(_client, v)
+    m_dict = {m['id']: m for m in mascotas if 'id' in m}
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
+    return citas
 
 def limpiar_cache_agenda():
     get_masc_ag_cached.clear()
@@ -257,7 +309,7 @@ def render_pestana_agenda(client):
                         m_pref = re.search(r'\[Pref:\s*(.*?)\]', str(obs))
                         if m_pref: pref_actual = m_pref.group(1)
                         
-                        historial = res_m_info_data[0].get('historial_trabajos', [])
+                        historial = res_m_info_data[0].get('historial_trabajos') or []
                         duraciones = [t['Duración (min)'] for t in historial if isinstance(t, dict) and isinstance(t.get('Duración (min)'), (int, float))]
                         if duraciones: 
                             dur_media = int(sum(duraciones) / len(duraciones))
@@ -294,9 +346,6 @@ def render_pestana_agenda(client):
                             else:
                                 bloqueos_parciales.append(b)
 
-                empleados_a_revisar = [f_emp] if f_emp != "Cualquiera" else empleados_lista
-                huecos_obj = []
-                
                 citas_dia = []
                 if res_citas.data:
                     for c in res_citas.data:
@@ -306,64 +355,19 @@ def render_pestana_agenda(client):
                             if dt_c.date() == fecha_c: citas_dia.append(c)
                         except: pass
                 
-                # Inyectar bloqueos parciales como citas falsas para que el buscador los esquive
-                for b in bloqueos_parciales:
-                    emp_af = b.get('empleado_afectado', '')
-                    try:
-                        dt_ini = pd.to_datetime(f"{fecha_c} {b.get('hora_inicio')}")
-                        dt_fin = pd.to_datetime(f"{fecha_c} {b.get('hora_fin')}")
-                        duracion_mins = int((dt_fin - dt_ini).total_seconds() / 60)
-                        
-                        if emp_af == 'Todas':
-                            for e in empleados_lista:
-                                citas_dia.append({'fecha_hora': dt_ini, 'duracion_minutos': duracion_mins, 'servicio': f"BLOQUEO ({e})"})
-                        else:
-                            citas_dia.append({'fecha_hora': dt_ini, 'duracion_minutos': duracion_mins, 'servicio': f"BLOQUEO ({emp_af})"})
-                    except Exception:
-                        pass
-
-                for emp_nombre in empleados_a_revisar:
-                    turno_str = turnos_dict.get(emp_nombre, "")
-                    if not turno_str or "libre" in turno_str or "vacaciones" in turno_str: continue
-                        
-                    import re
-                    times = re.findall(r'(\d{1,2}:\d{2})', turno_str)
-                    if len(times) >= 2:
-                        h_ini = pd.to_datetime(f"{fecha_c} {times[0]}")
-                        h_fin = pd.to_datetime(f"{fecha_c} {times[1]}")
-                    else:
-                        if fecha_c.weekday() < 5: # Lunes a Viernes
-                            h_ini = pd.to_datetime(f"{fecha_c} 09:00")
-                            h_fin = pd.to_datetime(f"{fecha_c} 21:00")
-                        else: # Sábados y Domingos
-                            h_ini = pd.to_datetime(f"{fecha_c} 10:00")
-                            h_fin = pd.to_datetime(f"{fecha_c} 14:00")
-                        
-                    for h in range(0, 24):
-                        for m in range(0, 60, 5):
-                            dt_ini = pd.to_datetime(f"{fecha_c} {h:02d}:{m:02d}")
-                            if dt_ini < h_ini: continue
-                            dt_fin = dt_ini + pd.Timedelta(minutes=duracion_c)
-                            if dt_fin > h_fin: continue
-                            
-                            solapa = False
-                            for c in citas_dia:
-                                if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Anulada]" in c.get('servicio', '') or "[ESTADO: Cambio" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
-                                c_ini = pd.to_datetime(c['fecha_hora'])
-                                if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
-                                c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
-                                if dt_ini < c_fin and dt_fin > c_ini:
-                                    s = c.get('servicio', '')
-                                    assigned_e = None
-                                    for e in empleados_lista:
-                                        if f"({e})" in s: assigned_e = e; break
-                                    if assigned_e == emp_nombre or assigned_e is None:
-                                        solapa = True; break
-                            if not solapa: huecos_obj.append({"dt": dt_ini, "hora": f"{h:02d}:{m:02d}", "emp": emp_nombre})
+                empleados_a_revisar = [f_emp] if f_emp != "Cualquiera" else empleados_lista
                 
-                huecos_obj.sort(key=lambda x: x["dt"])
-                huecos_formateados = [f"{x['hora']} (Con {x['emp']})" for x in huecos_obj]
-                huecos_formateados.append("Asignación Manual")
+                # --- LLAMADA A CORE_AGENDA ---
+                from core_agenda import calcular_huecos_libres, verificar_solape_manual
+                huecos_obj, huecos_formateados, citas_virtuales = calcular_huecos_libres(
+                    fecha_c=fecha_c,
+                    citas_dia=citas_dia,
+                    bloqueos_parciales=bloqueos_parciales,
+                    empleados_a_revisar=empleados_a_revisar,
+                    empleados_lista=empleados_lista,
+                    turnos_dict=turnos_dict,
+                    duracion_c=duracion_c
+                )
                 
                 if len(huecos_formateados) == 1: st.warning("No hay huecos disponibles en el cuadrante.")
                 f_hora_sel = st.selectbox("Hora recomendada:", huecos_formateados, key=f"ag_hsel_{st.session_state.llave_agenda_cita}")
@@ -377,24 +381,15 @@ def render_pestana_agenda(client):
                     hora_manual = st.time_input("Hora de Inicio *", key=f"ag_hman_{st.session_state.llave_agenda_cita}")
                     if hora_manual:
                         dt_ini_man = pd.to_datetime(f"{fecha_c} {hora_manual.strftime('%H:%M')}")
-                        dt_fin_man = dt_ini_man + pd.Timedelta(minutes=duracion_c)
-                        for c in citas_dia:
-                            if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Anulada]" in c.get('servicio', '') or "[ESTADO: Cambio" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
-                            c_ini = pd.to_datetime(c['fecha_hora'])
-                            if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
-                            c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
-                            if dt_ini_man < c_fin and dt_fin_man > c_ini:
-                                s = c.get('servicio', '')
-                                assigned_e = None
-                                for e in empleados_lista:
-                                    if f"({e})" in s: assigned_e = e; break
-                                if f_emp != "Cualquiera":
-                                    if assigned_e == f_emp or assigned_e is None: solapa_manual = True; break
-                                else:
-                                    solapa_manual = True; break
-                        
+                        solapa_manual, motivo_solape = verificar_solape_manual(
+                            dt_ini_man=dt_ini_man,
+                            duracion_c=duracion_c,
+                            citas_virtuales=citas_virtuales,
+                            empleados_lista=empleados_lista,
+                            turnos_dict=turnos_dict,
+                            emp_deseado=f_emp
+                        )
                         if solapa_manual:
-                            st.warning("⚠️ La hora seleccionada ya está ocupada o hay citas sin asignar en esa franja.")
                             motivo_solape = st.selectbox("Motivo para forzar la cita: *", ["", "Tenemos otro peluquero disponible", "Se va a ayudar con la peluquería", "Se puede hacer a la vez", "Otro motivo"], key=f"ag_msol_{st.session_state.llave_agenda_cita}")
                             if motivo_solape == "Otro motivo":
                                 motivo_extra = st.text_input("Especificar otro motivo: *", key=f"ag_mext_{st.session_state.llave_agenda_cita}")

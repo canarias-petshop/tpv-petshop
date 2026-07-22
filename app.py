@@ -26,6 +26,8 @@ from manual import render_pestana_manual
 from marketing import render_pestana_marketing
 from tareas import render_pestana_tareas
 from proyectos_eventos import render_pestana_proyectos_eventos
+from configuracion import render_pestana_configuracion
+from qa_dashboard import render_pestana_qa
 
 # --- 1. CONFIGURACIÓN Y ESTILO ---
 st.set_page_config(page_title="Animalarium TPV", layout="wide")
@@ -198,14 +200,20 @@ if not st.session_state.acceso_concedido:
 # --- 4. CONEXIÓN A SUPABASE ---
 def init_supabase() -> SyncPostgrestClient:
     try:
-        # Limpieza extrema por si se han colado espacios, comillas o rutas duplicadas en la nube
-        raw_url = st.secrets['url'].strip().strip('"').strip("'").rstrip('/')
-        if raw_url.endswith('/rest/v1'):
-            api_url = raw_url
+        if st.secrets.get("use_local_db", False):
+            # Conexión al entorno Docker local
+            import os
+            api_url = os.getenv("API_URL", "http://localhost:3000")
+            api_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYWRtaW4iLCJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc4NDQ3MTUyOCwiZXhwIjoxODE2MDA3NTI4fQ.JVdkbQovJjMJeN-mbU29N2Z6Pc90iki7wsF_g2D8wXw"
         else:
-            api_url = f"{raw_url}/rest/v1"
-            
-        api_key = st.secrets['key'].strip().strip('"').strip("'")
+            # Conexión a Supabase Producción
+            raw_url = st.secrets['url'].strip().strip('"').strip("'").rstrip('/')
+            if raw_url.endswith('/rest/v1'):
+                api_url = raw_url
+            else:
+                api_url = f"{raw_url}/rest/v1"
+                
+            api_key = st.secrets['key'].strip().strip('"').strip("'")
 
         cliente = SyncPostgrestClient(
             api_url, 
@@ -215,7 +223,7 @@ def init_supabase() -> SyncPostgrestClient:
         cliente.table("proveedores").select("id").limit(1).execute()
         return cliente
     except Exception as e:
-        st.error("🚨 **Error de Conexión a la Base de Datos**")
+        st.error("❌ **Error de Conexión a la Base de Datos**")
         if "relation" in str(e) and "does not exist" in str(e):
             st.error("🛠️ **Diagnóstico:** Tu app se conectó a Supabase, pero la tabla no existe. Parece que la base de datos está vacía.")
             st.info("💡 **Solución:** Entra en tu panel de Supabase, ve a 'SQL Editor' y ejecuta el código para crear las tablas del proyecto.")
@@ -435,7 +443,7 @@ if st.session_state.rol == "Admin":
         "💰 Control Caja", "🛒 Caja", "📜 Historial", "👥 Clientes", 
         "📦 Inventario", "🚚 Proveedores y Pedidos", "📅 Agenda", "📑 Facturación", 
         "🐶 Servicios Animalarium", "📊 Contabilidad", "🎯 Marketing y Ofertas", "🗓️ Proyectos y Eventos",
-        "📈 Estadísticas", "⏱️ Personal", "🏦 Bancos", "✅ Tareas", "📖 Ayuda"
+        "📈 Estadísticas", "⏱️ Personal", "🏦 Bancos", "✅ Tareas", "⚙️ Configuración", "📖 Ayuda", "🧪 Dashboard QA"
     ]
 else:
     nombres_pestanas = [
@@ -473,7 +481,9 @@ if st.session_state.rol == "Admin":
     elif seccion_principal == nombres_pestanas[13]: render_pestana_personal(client)
     elif seccion_principal == nombres_pestanas[14]: render_pestana_bancos(client)
     elif seccion_principal == nombres_pestanas[15]: render_pestana_tareas(client)
-    elif seccion_principal == nombres_pestanas[16]: render_pestana_manual()
+    elif seccion_principal == nombres_pestanas[16]: render_pestana_configuracion(client)
+    elif seccion_principal == nombres_pestanas[17]: render_pestana_manual()
+    elif seccion_principal == nombres_pestanas[18]: render_pestana_qa(client)
 else:
     if seccion_principal == nombres_pestanas[0]: render_pestana_caja(client)
     elif seccion_principal == nombres_pestanas[1]: render_pestana_tpv(client)

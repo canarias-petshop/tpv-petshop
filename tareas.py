@@ -5,69 +5,8 @@ from datetime import date, timedelta
 import calendar
 
 def generar_proyeccion_virtual(todas_tareas, fecha_inicio, fecha_fin):
-    if not todas_tareas: return []
-    import pandas as pd
-    df = pd.DataFrame(todas_tareas)
-    df['fecha_programada'] = pd.to_datetime(df['fecha_programada'])
-    
-    maestros = df.loc[df.groupby(['titulo', 'periodicidad'])['fecha_programada'].idxmin()].copy()
-    
-    df['fecha_str'] = df['fecha_programada'].dt.strftime('%Y-%m-%d')
-    reales_dict = {}
-    for _, r in df.iterrows():
-        key = (str(r['titulo']).strip(), str(r['periodicidad']).strip(), str(r['fecha_str']).strip())
-        reales_dict[key] = r.to_dict()
-        
-    proyectadas = []
-    start_dt = pd.to_datetime(fecha_inicio)
-    end_dt = pd.to_datetime(fecha_fin)
-    
-    for _, m in maestros.iterrows():
-        tit = str(m['titulo']).strip()
-        per = str(m['periodicidad']).strip()
-        f_base = m['fecha_programada']
-        notas = m.get('notas', '')
-        
-        if per in ["Puntual", "Por horas", "nan", "None", ""]:
-            continue
-            
-        curr = f_base
-        limite_seguridad = 0
-        while curr <= end_dt and limite_seguridad < 2000:
-            limite_seguridad += 1
-            curr_str = curr.strftime('%Y-%m-%d')
-            if curr >= start_dt:
-                key = (tit, per, curr_str)
-                if key in reales_dict:
-                    rd = reales_dict[key].copy()
-                    rd['es_virtual'] = False
-                    proyectadas.append(rd)
-                else:
-                    proyectadas.append({
-                        "id": f"v_{tit}_{curr_str}",
-                        "titulo": tit,
-                        "fecha_programada": curr_str,
-                        "periodicidad": per,
-                        "estado": "Pendiente ⏳",
-                        "notas": notas,
-                        "es_virtual": True
-                    })
-                    
-            if per == "Diario": curr += pd.DateOffset(days=1)
-            elif per == "Semanal": curr += pd.DateOffset(weeks=1)
-            elif per == "Mensual": curr += pd.DateOffset(months=1)
-            elif per == "Anual": curr += pd.DateOffset(years=1)
-            else: break
-            
-    for _, r in df.iterrows():
-        per = str(r['periodicidad']).strip()
-        if per in ["Puntual", "Por horas", "nan", "None", ""]:
-            if start_dt <= r['fecha_programada'] <= end_dt:
-                rd = r.to_dict()
-                rd['es_virtual'] = False
-                proyectadas.append(rd)
-                
-    return proyectadas
+    from core_tareas import generar_proyeccion_virtual as gpv
+    return gpv(todas_tareas, fecha_inicio, fecha_fin)
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_empleados_activos(_client):

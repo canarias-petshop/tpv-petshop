@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 import streamlit.components.v1 as components
 import hashlib
+from configuracion import get_configuracion_negocio
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_caja_abierta_tpv(_client):
@@ -25,7 +26,31 @@ def fetch_inv_tpv(_client):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_citas_hoy_tpv(_client, hoy_ini, hoy_fin):
-    return _client.table("citas").select("id, servicio, mascotas(id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, puntos))").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
+    res = _client.table("citas").select("id, servicio, mascotas_id").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
+    citas = res.data or []
+    if not citas: return res
+    masc_ids = list(set([c["mascotas_id"] for c in citas if c.get("mascotas_id")]))
+    if masc_ids:
+        res_m = _client.table("mascotas").select("id, nombre, historial_trabajos, clientes_id").in_("id", masc_ids).execute()
+        mascotas = res_m.data or []
+        cli_ids = list(set([m["clientes_id"] for m in mascotas if m.get("clientes_id")]))
+        clientes_dict = {}
+        if cli_ids:
+            res_c = _client.table("clientes").select("id, nombre_dueno, telefono, puntos").in_("id", cli_ids).execute()
+            clientes_dict = {c["id"]: c for c in (res_c.data or [])}
+        mascotas_dict = {}
+        for m in mascotas:
+            cli = clientes_dict.get(m.get("clientes_id"))
+            mascotas_dict[m["id"]] = {
+                "id": m["id"],
+                "nombre": m.get("nombre", ""),
+                "historial_trabajos": m.get("historial_trabajos", ""),
+                "clientes": cli
+            }
+        for c in citas:
+            c["mascotas"] = mascotas_dict.get(c.get("mascotas_id"))
+    res.data = citas
+    return res
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_empleados_tpv(_client):
@@ -65,18 +90,11 @@ def fetch_producto_stock_tpv(_client, prod_id):
     return _client.table("productos").select("stock_actual").eq("id", prod_id).execute()
 
 def limpiar_cache_tpv():
-    fetch_caja_abierta_tpv.clear()
-    fetch_inv_tpv.clear()
-    fetch_citas_hoy_tpv.clear()
-    fetch_empleados_tpv.clear()
-    fetch_clientes_puntos_tpv.clear()
-    fetch_deuda_cli_tpv.clear()
-    fetch_vale_tienda_tpv.clear()
-    fetch_cuentas_bancarias_tpv.clear()
-    fetch_last_hash_tpv.clear()
-    fetch_producto_stock_tpv.clear()
+    st.cache_data.clear()
 
 def render_pestana_tpv(client):
+    cfg = get_configuracion_negocio(client)
+    
     # --- COMPROBACIÓN DE SEGURIDAD: CAJA ABIERTA ---
     res_caja_abierta = fetch_caja_abierta_tpv(client)
     
@@ -326,17 +344,20 @@ def render_pestana_tpv(client):
                                         except: pass
                                 if fechas_previas:
                                     ult_visita = max(fechas_previas)
-                                    if (hoy_date - ult_visita).days <= 60:
+                                    dias_retorno = int(cfg.get('dias_maximos_retorno_tienda', 60))
+                                    if (hoy_date - ult_visita).days <= dias_retorno:
                                         aplica_desc = True
-                                        motivo_desc = "Visita < 2 meses"
+                                        motivo_desc = f"Visita <= {dias_retorno} días"
                                         
                             # REDISEÑO DEL BOTÓN
-                            precio_mostrar = precio_final * 0.90 if aplica_desc else precio_final
+                            dto_retorno_pct = float(cfg.get('descuento_retorno_tienda_porcentaje', 10.0))
+                            factor_desc = 1.0 - (dto_retorno_pct / 100.0)
+                            precio_mostrar = precio_final * factor_desc if aplica_desc else precio_final
                             btn_label = f"🐾 {masc['nombre']} ➔ ✂️ {s_clean} ({precio_mostrar:.2f}€)"
-                            if aplica_desc: btn_label += " 🎁 Dto 10%"
+                            if aplica_desc: btn_label += f" 🎁 Dto {dto_retorno_pct:.0f}%"
                             
                             if st.button(btn_label, use_container_width=True, key=f"btn_cita_{c['id']}_{st.session_state.llave_busqueda_tpv}"):
-                                desc_pct = 10.0 if aplica_desc else 0.0
+                                desc_pct = dto_retorno_pct if aplica_desc else 0.0
                                 nombre_linea = f"{s_clean} ({masc['nombre']})"
                                     
                                 st.session_state.carrito.append({
@@ -404,7 +425,7 @@ def render_pestana_tpv(client):
                 cuerpo_email += f"🌟 CLIENTE VIP: {t['cliente_fidel']}\n"
                 cuerpo_email += f"Puntos ganados hoy: +{t['puntos_ganados']}\n"
                 cuerpo_email += f"Saldo actual: {t.get('nuevo_saldo', 0)} puntos\n"
-                cuerpo_email += "INFO VIP: Ganas 1 pto por cada 10€ de compra. (1 pto = 0.50€ dto)\n"
+                cuerpo_email += f"INFO VIP: Ganas 1 pto por cada {cfg.get('euros_para_un_punto', 10.0):.2f}€ de compra. (1 pto = {cfg.get('valor_punto_euros', 0.50):.2f}€ dto)\n"
                 cuerpo_email += "================================\n"
                 
             cuerpo_email += "\nPOLÍTICA DE DEVOLUCIÓN:\nPlazo de 14 días con ticket y embalaje original en perfecto estado.\n\n¡Gracias por su visita!"
@@ -481,7 +502,7 @@ def render_pestana_tpv(client):
             """
             
             if t.get('puntos_descontados', 0) > 0:
-                descuento_pts_eur = t['puntos_descontados'] * 0.50
+                descuento_pts_eur = t['puntos_descontados'] * float(cfg.get('valor_punto_euros', 0.50))
                 html_ticket += f"<div style='text-align: right; font-size: 22px;'><b>Canjeo Puntos (-{t['puntos_descontados']} pts): -{descuento_pts_eur:.2f}€</b></div>"
 
             desc_global = t.get('descuento_global', 0.0)
@@ -505,7 +526,7 @@ def render_pestana_tpv(client):
                 html_ticket += f"<div style='font-size:18px; text-align:center; margin-top:15px; border: 1px solid #000; padding: 5px;'><b>🌟 CLIENTE VIP: {t['cliente_fidel']}</b>"
                 html_ticket += f"<br>Has ganado +{t['puntos_ganados']} puntos hoy!"
                 html_ticket += f"<br>Saldo actual disponible: {t.get('nuevo_saldo', 0)} puntos"
-                html_ticket += f"<br><span style='font-size:14px; color:#555;'>Ganas 1 pto por cada 10€ de compra. (1 pto = 0.50€ dto)</span></div>"
+                html_ticket += f"<br><span style='font-size:14px; color:#555;'>Ganas 1 pto por cada {cfg.get('euros_para_un_punto', 10.0):.2f}€ de compra. (1 pto = {cfg.get('valor_punto_euros', 0.50):.2f}€ dto)</span></div>"
 
             html_ticket += f"""
                     <div style="text-align: center; margin-top: 25px;">
@@ -724,10 +745,10 @@ def render_pestana_tpv(client):
                             if tiene_deuda:
                                 st.error(f"⛔ El cliente tiene pagos pendientes. No puede canjear puntos.")
                             else:
-                                max_descuento_eur = total_f * 0.50
-                                max_puntos_permitidos = int(max_descuento_eur / 0.50)
+                                max_descuento_eur = total_f * (float(cfg.get('limite_descuento_puntos_porcentaje', 50.0)) / 100.0)
+                                max_puntos_permitidos = int(max_descuento_eur / float(cfg.get('valor_punto_euros', 0.50)))
                                 puntos_a_usar = min(puntos_disp, max_puntos_permitidos)
-                                eur_a_descontar = puntos_a_usar * 0.50
+                                eur_a_descontar = puntos_a_usar * float(cfg.get('valor_punto_euros', 0.50))
                                 if puntos_a_usar > 0:
                                     estado_ptos_key = f"estado_ptos_{cli_info.get('id', '0')}_{st.session_state.llave_busqueda_tpv}"
                                     if estado_ptos_key not in st.session_state:
@@ -796,7 +817,19 @@ def render_pestana_tpv(client):
                 nombres_tarjetas = [f"Tarjeta ({b['nombre_banco']})" for b in lista_bancos] if lista_bancos else ["Tarjeta"]
                 
                 opciones_pago = ["Efectivo"] + nombres_tarjetas + ["Bizum", "Mixto"]
-                metodo = st.radio("p", opciones_pago, horizontal=True, label_visibility="collapsed", index=None)
+                
+                # --- PROTECCIÓN CONTRA st.rerun() ---
+                if "memoria_metodo" not in st.session_state:
+                    st.session_state.memoria_metodo = "Efectivo"
+                    
+                def backup_metodo():
+                    st.session_state.memoria_metodo = st.session_state.radio_metodo_tmp
+                    
+                idx_metodo = opciones_pago.index(st.session_state.memoria_metodo) if st.session_state.memoria_metodo in opciones_pago else 0
+                
+                metodo = st.radio("p", opciones_pago, index=idx_metodo, horizontal=True, label_visibility="collapsed", key="radio_metodo_tmp", on_change=backup_metodo)
+                st.session_state.memoria_metodo = metodo # Sincronización en cada pasada
+                
                 pagado_hoy = 0.0; pendiente = 0.0; metodo_log = metodo
                 p_efectivo = 0.0; p_tarjeta = 0.0; p_bizum = 0.0
 
@@ -835,11 +868,21 @@ def render_pestana_tpv(client):
                     p_b_val = float(p_b or 0.0)
                     
                     pagado_hoy = p_e_val + p_t_val + p_b_val
-                    p_efectivo = p_e_val; p_tarjeta = p_t_val; p_bizum = p_b_val
+                    cambio = pagado_hoy - total_f if pagado_hoy > total_f else 0.0
                     pendiente = total_f - pagado_hoy if pagado_hoy < total_f else 0.0
                     
-                    if p_tarjeta > 0 and lista_bancos:
-                        banco_sel_nombre = st.selectbox("🏦 Banco para parte en Tarjeta", [b['nombre_banco'] for b in lista_bancos])
+                    if cambio > 0:
+                        st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>CAMBIO AL CLIENTE</p><h3 style='margin:0; color:green;'>{cambio:.2f}€</h3>", unsafe_allow_html=True)
+                        p_efectivo = p_e_val - cambio
+                        pagado_hoy = total_f
+                    else:
+                        p_efectivo = p_e_val
+                        
+                    p_tarjeta = p_t_val
+                    p_bizum = p_b_val
+                    
+                    if lista_bancos:
+                        banco_sel_nombre = st.radio("🏦 ¿De qué datáfono es la tarjeta?", [b['nombre_banco'] for b in lista_bancos], horizontal=True, key=f"mix_bnc_{st.session_state.llave_busqueda_tpv}")
                         banco_info = next((b for b in lista_bancos if b['nombre_banco'] == banco_sel_nombre), None)
                         if banco_info:
                             banco_sel_id = banco_info['id']
@@ -883,7 +926,7 @@ def render_pestana_tpv(client):
                 c_cob, c_vac = st.columns([2, 1])
                 with c_cob:
                     bloqueo = (pendiente > 0 and "Ninguno" in cliente_fidelidad) or (metodo is None)
-                    if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
+                    if st.button("🛒 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
                         # --- PROTECCIÓN DOBLE CLIC BACKEND ---
                         import time
                         current_time = time.time()
@@ -894,117 +937,44 @@ def render_pestana_tpv(client):
 
                         carrito_limpio = json.loads(edited_df.to_json(orient='records'))
                         
-                        # --- FIX: Limpieza final por seguridad antes de guardar ---
-                        carrito_limpio = [item for item in carrito_limpio if item.get('Producto') and str(item.get('Producto')).strip() != '']
-                        if not carrito_limpio:
-                            st.warning("El carrito está vacío o contiene líneas no válidas.")
-                            st.stop()
-                        
                         try:
-                            # ASIGNACIÓN DE PUNTOS
-                            cliente_fidel_nombre = ""
-                            puntos_ganados = 0
-                            nuevo_saldo = 0
-                            cliente_email = ""
+                            from core_tpv import procesar_venta
+                            
+                            cliente_info = None
                             if "Ninguno" not in cliente_fidelidad:
                                 cliente_info = mapa_clientes_tpv.get(cliente_fidelidad, {})
-                                cliente_fidel_nombre = cliente_info.get('nombre_dueno', '')
-                                cliente_email = cliente_info.get('email', '')
-                                
-                                if pendiente == 0:
-                                    puntos_ganados = int(total_f // 10) # 1 punto por cada 10€
-                                else:
-                                    puntos_ganados = 0 # ❌ No sumar puntos en el ticket si queda deuda
-                                    
-                                ptos_act = cliente_info.get('puntos') or 0
-                                nuevo_saldo = ptos_act - puntos_a_descontar + puntos_ganados
-                                client.table("clientes").update({"puntos": nuevo_saldo}).eq("id", cliente_info.get('id')).execute()
-                                
-                            # GENERACIÓN DE HASH (LEY ANTIFRAUDE / VERIFACTU)
+
                             res_last = fetch_last_hash_tpv(client)
                             hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
-                            data_to_hash = f"TICKET|{datetime.now().isoformat()}|{total_f:.2f}|{hash_anterior}"
-                            hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
 
-                            carrito_db = carrito_limpio.copy()
-                            metodo_final_log = str(metodo_log)
+                            ticket_info = procesar_venta(
+                                client=client,
+                                carrito=carrito_limpio,
+                                total_f=total_f,
+                                pagado_hoy=pagado_hoy,
+                                pendiente=pendiente,
+                                metodo_log=metodo_log,
+                                p_efectivo=p_efectivo,
+                                p_tarjeta=p_tarjeta,
+                                p_bizum=p_bizum,
+                                desc_g_val=desc_g_val,
+                                cliente_info=cliente_info,
+                                puntos_a_descontar=puntos_a_descontar,
+                                vale_aplicado=st.session_state.vale_aplicado,
+                                banco_sel_id=banco_sel_id,
+                                banco_sel_saldo=banco_sel_saldo,
+                                enviar_domicilio=enviar_domicilio,
+                                dir_entrega=dir_entrega,
+                                cfg=cfg,
+                                hash_anterior=hash_anterior
+                            )
                             
-                            if st.session_state.vale_aplicado and desc_vale_eur > 0:
-                                carrito_db.append({
-                                    "__meta__": True,
-                                    "vale_aplicado": st.session_state.vale_aplicado['codigo_vale'],
-                                    "desc_vale_eur": desc_vale_eur
-                                })
-                                if float(pagado_hoy) == 0:
-                                    metodo_final_log = f"Vale ({st.session_state.vale_aplicado['codigo_vale']})"
-                                else:
-                                    metodo_final_log += f" + Vale ({st.session_state.vale_aplicado['codigo_vale']})"
-
-                            # INSERCIÓN CON COLUMNAS EXACTAS CONTABLES
-                            res_venta = client.table("ventas_historial").insert({
-                                "total": float(total_f), "pagado": float(pagado_hoy), "pendiente": float(pendiente),
-                                "metodo_pago": metodo_final_log, "cliente_deuda": str(cliente_fidel_nombre) if pendiente > 0 else "",
-                                "descuento_global": float(desc_g_val), "productos": carrito_db, 
-                                "estado": "Completado" if pendiente == 0 else "Deuda",
-                                "pago_efectivo": float(p_efectivo),
-                                "pago_tarjeta": float(p_tarjeta),
-                                "pago_bizum": float(p_bizum),
-                                "cliente_vip_nombre": cliente_fidel_nombre,
-                                "puntos_ganados": puntos_ganados,
-                                "puntos_usados": puntos_a_descontar,
-                                "hash_anterior": hash_anterior,
-                                "hash_actual": hash_actual
-                            }).execute()
-                            
-                            ticket_num = res_venta.data[0]['id'] if res_venta.data else "S/N"
-                            
-                            if banco_sel_id and p_tarjeta > 0:
-                                client.table("cuentas_bancarias").update({"saldo_actual": float(banco_sel_saldo + p_tarjeta)}).eq("id", banco_sel_id).execute()
-                                
-                            if st.session_state.vale_aplicado and desc_vale_eur > 0:
-                                nuevo_saldo_vale = float(st.session_state.vale_aplicado['saldo_actual']) - desc_vale_eur
-                                client.table("vales_tienda").update({"saldo_actual": nuevo_saldo_vale}).eq("id", st.session_state.vale_aplicado['id']).execute()
-                                
-                            # --- CREACIÓN AUTOMÁTICA DE PEDIDO A DOMICILIO ---
-                            if enviar_domicilio and cliente_fidel_nombre:
-                                detalle_pedido = "\n".join([f"• {p['Cantidad']}x {p['Producto']}" for p in carrito_limpio])
-                                try:
-                                    client.table("pedidos_domicilio").insert({
-                                        "nombre_cliente": cliente_fidel_nombre,
-                                        "telefono": cliente_info.get('telefono', ''),
-                                        "direccion": dir_entrega,
-                                        "detalle_pedido": detalle_pedido,
-                                        "estado": "Pendiente"
-                                    }).execute()
-                                except Exception as e: pass
-                            
-                            for i in carrito_limpio:
-                                if not i.get('Manual', False) and 'id' in i:
-                                    if str(i['id']).startswith('cita_'):
-                                        continue
-                                    try:
-                                        res = fetch_producto_stock_tpv(client, i['id'])
-                                        if res.data:
-                                            n_stock = int(res.data[0]['stock_actual']) - int(i['Cantidad'])
-                                            client.table("productos").update({"stock_actual": n_stock}).eq("id", i['id']).execute()
-                                    except Exception:
-                                        pass
-                            
-                            st.session_state.ticket_actual = {
-                                "id": ticket_num,
-                                "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                                "productos": carrito_limpio, "total": total_f, "metodo": metodo_log,
-                                "cliente_fidel": cliente_fidel_nombre, "puntos_ganados": puntos_ganados,
-                                "puntos_descontados": puntos_a_descontar, "nuevo_saldo": nuevo_saldo,
-                                "descuento_global": desc_g_val, "pendiente": pendiente,
-                                "vale_aplicado": st.session_state.vale_aplicado['codigo_vale'] if st.session_state.vale_aplicado else None,
-                                "desc_vale_eur": desc_vale_eur if st.session_state.vale_aplicado else 0.0,
-                                "email_cliente": cliente_email if "Ninguno" not in cliente_fidelidad else ""
-                            }
+                            st.session_state.ticket_actual = ticket_info
                             st.session_state.carrito = []
                             st.session_state.vale_aplicado = None
                             st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
                             st.session_state.llave_busqueda_tpv += 1
+                            st.session_state.memoria_metodo = "Efectivo"
                             limpiar_cache_tpv()
                             st.rerun()
                             
@@ -1017,6 +987,7 @@ def render_pestana_tpv(client):
                         st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
                         st.session_state.vale_aplicado = None
                         st.session_state.llave_busqueda_tpv += 1
+                        st.session_state.memoria_metodo = "Efectivo"
                         st.rerun()
             else:
                 st.markdown("<div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; color: #666; border: 1px solid #ddd;'>🛒 Carrito vacío.</div>", unsafe_allow_html=True)

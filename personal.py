@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import pytz
 from datetime import datetime, date, timedelta
 import time
 from postgrest import SyncPostgrestClient
@@ -42,6 +43,72 @@ def limpiar_cache_personal():
     get_cuadrantes_rango.clear()
     get_fichajes_totales.clear()
     get_agenda_bloqueos_futuros.clear()
+    st.cache_data.clear()
+
+def registrar_fichaje(client: SyncPostgrestClient, empleado_id: str, nombre_empleado: str, ahora_dt: datetime) -> tuple[bool, str]:
+    """Registra la entrada o salida de un empleado asegurando las reglas de negocio."""
+    tz_canarias = pytz.timezone('Atlantic/Canary')
+    hoy = ahora_dt.date().isoformat()
+    ahora = ahora_dt.isoformat()
+    
+    # 1. Anti-spam de 30 minutos
+    res_ultimo = get_ultimo_fichaje(client, empleado_id, hoy)
+    if res_ultimo.data:
+        ultimo = res_ultimo.data[0]
+        str_hora = ultimo.get('hora_salida') or ultimo.get('hora_entrada')
+        if str_hora:
+            hora_ultima = pd.to_datetime(str_hora)
+            if hora_ultima.tzinfo is None:
+                hora_ultima = hora_ultima.tz_localize(tz_canarias)
+            hora_ultima_utc = hora_ultima.tz_convert('UTC')
+            ahora_utc = pd.to_datetime(ahora_dt).tz_convert('UTC') if pd.to_datetime(ahora_dt).tzinfo else pd.to_datetime(ahora_dt).tz_localize('UTC')
+                
+            min_diff = int((ahora_utc - hora_ultima_utc).total_seconds() / 60)
+            if min_diff < 30:
+                return False, f"⏳ **Bloqueo Activo:** El usuario **{nombre_empleado}** ya fichó hace {min_diff} minuto(s). Espera {30 - min_diff} minutos más."
+                
+    # 2. Buscar si ya tiene una entrada sin salida hoy
+    fichajes_res = get_fichajes_sin_salida(client, empleado_id, hoy)
+    fichajes = fichajes_res.data
+    
+    if fichajes:
+        fichaje_id = fichajes[0]['id']
+        hora_entrada = pd.to_datetime(fichajes[0]['hora_entrada'])
+        if hora_entrada.tzinfo is None:
+            hora_entrada = hora_entrada.tz_localize(tz_canarias)
+        hora_entrada_utc = hora_entrada.tz_convert('UTC')
+        ahora_utc = pd.to_datetime(ahora_dt).tz_convert('UTC') if pd.to_datetime(ahora_dt).tzinfo else pd.to_datetime(ahora_dt).tz_localize('UTC')
+        minutos = int((ahora_utc - hora_entrada_utc).total_seconds() / 60)
+        
+        hash_anterior = fichajes[0].get('hash_anterior', '')
+        data_to_hash = f"FICHAJE|OUT|{empleado_id}|{fichajes[0]['hora_entrada']}|{ahora}|{hash_anterior}"
+        hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
+        
+        client.table("personal_fichajes").update({
+            "hora_salida": ahora,
+            "minutos_trabajados": minutos,
+            "hash_actual": hash_actual
+        }).eq("id", fichaje_id).execute()
+        
+        limpiar_cache_personal()
+        return True, f"✅ Salida registrada para {nombre_empleado} a las {ahora_dt.strftime('%H:%M')}"
+        
+    else:
+        res_last = get_ultimo_hash(client)
+        hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
+        data_to_hash = f"FICHAJE|IN|{empleado_id}|{ahora}|{hash_anterior}"
+        hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
+        
+        client.table("personal_fichajes").insert({
+            "empleado_id": empleado_id,
+            "fecha": hoy,
+            "hora_entrada": ahora,
+            "hash_anterior": hash_anterior,
+            "hash_actual": hash_actual
+        }).execute()
+        
+        limpiar_cache_personal()
+        return True, f"✅ Entrada registrada para {nombre_empleado} a las {ahora_dt.strftime('%H:%M')}"
 
 def render_pestana_personal(client: SyncPostgrestClient):
     st.header("⏱️ Control de Personal y Horarios")
@@ -64,7 +131,6 @@ def render_pestana_personal(client: SyncPostgrestClient):
         if d in variables: return variables[d]
         return ""
 
-    # 1. Cargar empleados activos
     try:
         empleados_res = get_empleados_activos(client)
         empleados = empleados_res.data
@@ -73,9 +139,8 @@ def render_pestana_personal(client: SyncPostgrestClient):
         empleados = []
 
     if not empleados:
-        st.warning("No hay empleados registrados. El administrador debe añadir personal primero.")
+        st.warning("No hay empleados registrados.")
     else:
-        # Fichaje Rápido
         with st.container(border=True):
             st.subheader("Registrar Fichaje")
             c1, c2, c3 = st.columns([2, 1, 1])
@@ -91,89 +156,25 @@ def render_pestana_personal(client: SyncPostgrestClient):
                 if st.button("Fichar Entrada/Salida", use_container_width=True, type="primary"):
                     if emp_sel and pin == emp_sel['pin_fichaje']:
                         tz_canarias = ZoneInfo("Atlantic/Canary")
-                        ahora_dt = datetime.now(tz_canarias)
-                        hoy = ahora_dt.date().isoformat()
-                        ahora = ahora_dt.isoformat()
-                        
-                        # --- BLOQUEO POR VACACIONES / EXCEPCIONES ---
-                        res_bl = get_agenda_bloqueos_futuros(client, hoy)
+                        ahoy = date.today().isoformat()
+                        res_bl = get_agenda_bloqueos_futuros(client, ahoy)
                         if res_bl.data:
                             for b in res_bl.data:
-                                if b['fecha'] == hoy and b.get('bloquea_agenda'):
+                                if b['fecha'] == ahoy and b.get('bloquea_agenda'):
                                     emp_af = b.get('empleado_afectado', '')
                                     if (emp_af == 'Todas' or emp_af == emp_sel['nombre']) and b.get('hora_inicio') == '00:00' and b.get('hora_fin') == '23:59':
                                         st.error(f"⛔ **Acceso Denegado:** No puedes fichar hoy porque estás marcado/a con una excepción de día completo ({b.get('titulo')}).")
                                         st.stop()
                         
-                        # --- BLOQUEO DE SEGURIDAD DE 30 MINUTOS ---
-                        res_ultimo = get_ultimo_fichaje(client, emp_sel['id'], hoy)
-                        if res_ultimo.data:
-                            ultimo = res_ultimo.data[0]
-                            str_hora = ultimo.get('hora_salida') or ultimo.get('hora_entrada')
-                            if str_hora:
-                                try:
-                                    hora_ultima = datetime.fromisoformat(str_hora)
-                                    if hora_ultima.tzinfo is None:
-                                        hora_ultima = hora_ultima.replace(tzinfo=tz_canarias)
-                                    else:
-                                        hora_ultima = hora_ultima.astimezone(tz_canarias)
-                                        
-                                    min_diff = int((ahora_dt - hora_ultima).total_seconds() / 60)
-                                    bloquear_fichaje = min_diff < 30
-                                except Exception: 
-                                    bloquear_fichaje = False
-                                    min_diff = 0
-                                    
-                            if bloquear_fichaje:
-                                st.error(f"⏳ **Bloqueo Activo:** El usuario **{nombre_sel}** ya fichó hace {min_diff} minuto(s). Por seguridad anti-errores, debes esperar {30 - min_diff} minutos más para volver a fichar con este usuario.")
-                                st.stop()
-                        
-                        # Buscar si ya tiene una entrada sin salida hoy
-                        fichajes_res = get_fichajes_sin_salida(client, emp_sel['id'], hoy)
-                        fichajes = fichajes_res.data
-                        
-                        if fichajes:
-                            # Fichar salida
-                            fichaje_id = fichajes[0]['id']
-                            hora_entrada = datetime.fromisoformat(fichajes[0]['hora_entrada'])
-                            if hora_entrada.tzinfo is None:
-                                hora_entrada = hora_entrada.replace(tzinfo=tz_canarias)
-                            minutos = int((ahora_dt - hora_entrada).total_seconds() / 60)
-                            
-                            # Generar hash de salida (Firma criptográfica inalterable)
-                            hash_anterior = fichajes[0].get('hash_anterior', '')
-                            data_to_hash = f"FICHAJE|OUT|{emp_sel['id']}|{fichajes[0]['hora_entrada']}|{ahora}|{hash_anterior}"
-                            hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
-                            
-                            client.table("personal_fichajes").update({
-                                "hora_salida": ahora,
-                                "minutos_trabajados": minutos,
-                                "hash_actual": hash_actual
-                            }).eq("id", fichaje_id).execute()
-                            st.success(f"Salida registrada para {nombre_sel} a las {ahora_dt.strftime('%H:%M')}")
+                        ahora_dt = datetime.now(tz_canarias)
+                        success, msg = registrar_fichaje(client, emp_sel['id'], nombre_sel, ahora_dt)
+                        if success:
+                            st.success(msg)
                             time.sleep(1)
-                            limpiar_cache_personal()
                             st.rerun()
                         else:
-                            # Fichar entrada
-                            # Obtener el último hash para continuar la cadena
-                            res_last = get_ultimo_hash(client)
-                            hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
-                            
-                            data_to_hash = f"FICHAJE|IN|{emp_sel['id']}|{ahora}|{hash_anterior}"
-                            hash_actual = hashlib.sha256(data_to_hash.encode('utf-8')).hexdigest().upper()
-                            
-                            client.table("personal_fichajes").insert({
-                                "empleado_id": emp_sel['id'],
-                                "fecha": hoy,
-                                "hora_entrada": ahora,
-                                "hash_anterior": hash_anterior,
-                                "hash_actual": hash_actual
-                            }).execute()
-                            st.success(f"Entrada registrada para {nombre_sel} a las {ahora_dt.strftime('%H:%M')}")
-                            time.sleep(1)
-                            limpiar_cache_personal()
-                            st.rerun()
+                            st.error(msg)
+                            st.stop()
                     else:
                         st.error("PIN incorrecto.")
 
@@ -237,21 +238,31 @@ def render_pestana_personal(client: SyncPostgrestClient):
                 nuevo_pin = c2.text_input("PIN (4 dígitos)", max_chars=4)
                 if st.form_submit_button("Crear Empleado"):
                     if nuevo_nom and len(nuevo_pin) == 4:
-                        client.table("personal_empleados").insert({"nombre": nuevo_nom, "pin_fichaje": nuevo_pin}).execute()
+                        client.table("personal_empleados").insert({"nombre": nuevo_nom, "pin_fichaje": nuevo_pin, "activo": True}).execute()
                         st.success("Empleado creado")
                         limpiar_cache_personal()
                         st.rerun()
                     else:
                         st.error("El nombre y un PIN de 4 dígitos son obligatorios.")
                         
-            st.markdown("Lista de empleados:")
-            st.dataframe(pd.DataFrame(empleados), hide_index=True)
+            st.markdown("Lista de empleados activos:")
+            for emp in empleados:
+                c1, c2, c3 = st.columns([3, 2, 2])
+                c1.write(f"👤 **{emp['nombre']}**")
+                c2.write(f"🔑 PIN: {emp['pin_fichaje']}")
+                if c3.button("❌ Desactivar", key=f"del_emp_{emp['id']}"):
+                    client.table("personal_empleados").update({"activo": False}).eq("id", emp['id']).execute()
+                    st.toast(f"Empleado {emp['nombre']} desactivado.")
+                    limpiar_cache_personal()
+                    time.sleep(0.5)
+                    st.rerun()
 
         elif seccion_admin == "Gestión de Cuadrante (Editable)":
             st.markdown("#### 🗓️ Editor Visual de Cuadrantes")
             st.info("Selecciona el rango de fechas. Edita los turnos haciendo **doble clic en las celdas**. Las tablas se dividen por semanas para mayor comodidad. Al terminar, pulsa 'Guardar Todo el Cuadrante'.")
             
             c_e1, c_e2 = st.columns(2)
+            hoy = date.today()
             with c_e1: f_ini_ed = st.date_input("Editor Desde:", value=hoy - timedelta(days=hoy.weekday()), key="e_ini")
             with c_e2: f_fin_ed = st.date_input("Editor Hasta:", value=f_ini_ed + timedelta(days=27), key="e_fin")
             

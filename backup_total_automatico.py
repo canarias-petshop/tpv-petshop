@@ -135,7 +135,25 @@ if res_enc.data:
 # 7. DESCARGAR CITAS DE PELUQUERÍA
 # ==========================================
 print("⏳ Descargando Citas...")
-res_citas = client.table("citas").select("*, mascotas(nombre, clientes(nombre_dueno, telefono))").execute()
+res_citas = client.table("citas").select("*").execute()
+citas = res_citas.data or []
+if citas:
+    masc_ids = list(set([c["mascota_id"] for c in citas if c.get("mascota_id")]))
+    if masc_ids:
+        res_m = client.table("mascotas").select("id, nombre, cliente_id").in_("id", masc_ids).execute()
+        mascotas = res_m.data or []
+        cli_ids = list(set([m["cliente_id"] for m in mascotas if m.get("cliente_id")]))
+        clientes_dict = {}
+        if cli_ids:
+            res_c = client.table("clientes").select("id, nombre_dueno, telefono").in_("id", cli_ids).execute()
+            clientes_dict = {c["id"]: c for c in (res_c.data or [])}
+        mascotas_dict = {}
+        for m in mascotas:
+            cli = clientes_dict.get(m.get("cliente_id"))
+            mascotas_dict[m["id"]] = {"nombre": m.get("nombre", ""), "clientes": cli}
+        for c in citas:
+            c["mascotas"] = mascotas_dict.get(c.get("mascota_id"))
+    res_citas.data = citas
 if res_citas.data:
     df_ci = pd.DataFrame(res_citas.data)
     df_ci.to_excel(os.path.join(carpeta_hoy, "7_Citas_Peluqueria.xlsx"), index=False)

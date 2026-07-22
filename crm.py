@@ -5,6 +5,7 @@ from datetime import date
 import urllib.parse
 import base64
 import streamlit.components.v1 as components
+from core_crm import crear_cliente, crear_mascota, actualizar_cliente, anonimizar_cliente, crear_encargo, agendar_cita
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_empleados_crm(_client):
@@ -18,9 +19,17 @@ def fetch_servicios_crm(_client):
 def fetch_citas_dia_crm(_client, fecha_inicio_q, fecha_fin_q):
     return _client.table("citas").select("fecha_hora, duracion_minutos, servicio").gte("fecha_hora", fecha_inicio_q).lte("fecha_hora", fecha_fin_q).execute()
 
+class CRMResult: pass
+
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_turnos_dia_crm(_client, f_fecha_str):
-    return _client.table("personal_cuadrantes").select("empleado_id, turno, personal_empleados(nombre)").eq("fecha", f_fecha_str).execute()
+    turnos = _client.table("personal_cuadrantes").select("*").eq("fecha", f_fecha_str).execute().data or []
+    empleados = fetch_empleados_crm(_client).data or []
+    emp_dict = {e['id']: e for e in empleados}
+    for t in turnos: t['personal_empleados'] = emp_dict.get(t.get('empleado_id'))
+    res = CRMResult()
+    res.data = turnos
+    return res
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_encargos_crm(_client):
@@ -69,12 +78,37 @@ def get_cli_crm(_client):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("clientes").select("*, mascotas(*)").order("created_at", desc=True).range(_off, _off + 999).execute()
+        _r = _client.table("clientes").select("*").order("created_at", desc=True).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
             _off += 1000
         else: break
+        
+    try:
+        from collections import defaultdict
+        masc_dict = defaultdict(list)
+        m_all = []
+        m_off = 0
+        while True:
+            m_r = _client.table("mascotas").select("*").range(m_off, m_off + 999).execute()
+            if m_r.data:
+                m_all.extend(m_r.data)
+                if len(m_r.data) < 1000: break
+                m_off += 1000
+            else: break
+            
+        for m in m_all:
+            if 'cliente_id' in m:
+                masc_dict[m['cliente_id']].append(m)
+                
+        for cli in _all:
+            cli['mascotas'] = masc_dict.get(cli.get('id'), [])
+    except Exception as e:
+        # Fallback in case of error: initialize empty mascotas
+        for cli in _all:
+            cli['mascotas'] = []
+            
     return _all
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -82,12 +116,25 @@ def get_masc_crm(_client):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("mascotas").select("*, clientes(nombre_dueno, telefono)").order("id", desc=True).range(_off, _off + 999).execute()
+        _r = _client.table("mascotas").select("*").order("id", desc=True).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
             _off += 1000
         else: break
+        
+    _c_all = []
+    _c_off = 0
+    while True:
+        _c_r = _client.table("clientes").select("id, nombre_dueno, telefono").range(_c_off, _c_off + 999).execute()
+        if _c_r.data:
+            _c_all.extend(_c_r.data)
+            if len(_c_r.data) < 1000: break
+            _c_off += 1000
+        else: break
+        
+    c_dict = {c['id']: c for c in _c_all}
+    for m in _all: m['clientes'] = c_dict.get(m.get('cliente_id'))
     return _all
 
 def limpiar_cache_crm():
@@ -174,20 +221,17 @@ def render_pestana_crm(client):
 
             if st.form_submit_button("💾 Guardar Ficha", type="primary", use_container_width=True):
                 if c_nom:
-                    res_cli = client.table("clientes").insert({
-                        "nombre_dueno": c_nom, "telefono": c_tel, "nombre_dueno_2": c_nom2, "telefono_2": c_tel2,
-                        "email": c_ema, "metodo_contacto": c_cont, 
-                        "fecha_nacimiento": str(c_nac) if c_nac else "", "rgpd_consent": c_rgpd, "puntos": 0,
-                        "direccion": c_dir, "servicio_domicilio": c_domicilio
-                    }).execute()
+                    nuevo_cli = crear_cliente(
+                        client, c_nom, c_tel, c_nom2, c_tel2, c_ema, c_cont, 
+                        str(c_nac) if c_nac else "", c_rgpd, c_dir, c_domicilio
+                    )
 
-                    if res_cli.data and m_nom:
-                        cli_id = res_cli.data[0]['id']
+                    if nuevo_cli and m_nom:
                         final_obs = f"[Pref: {m_pref}] {m_obs}".strip() if m_pref != "Cualquiera" else m_obs
-                        client.table("mascotas").insert({
-                            "cliente_id": cli_id, "nombre": m_nom, "especie": m_esp, "sexo": m_sexo,
-                            "raza": m_raz, "peso": m_peso, "observaciones": final_obs, "fecha_nacimiento": str(m_nac) if m_nac else ""
-                        }).execute()
+                        crear_mascota(
+                            client, nuevo_cli['id'], m_nom, m_esp, m_sexo, m_raz, m_peso, 
+                            final_obs, str(m_nac) if m_nac else ""
+                        )
 
                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                     st.session_state.llave_crm_cli += 1
@@ -399,10 +443,12 @@ def render_pestana_crm(client):
                         else:
                             servicio_final = f"[ESTADO: Pendiente] {servicio_final}"
                             
-                        client.table("citas").insert({
-                            "mascotas_id": m_id, "fecha_hora": f"{f_fecha} {hora_final_str}", 
-                            "servicio": servicio_final, "duracion_minutos": int(f_dur)
-                        }).execute()
+                        agendar_cita(
+                            client, m_id, str(f_fecha), hora_final_str, 
+                            f_serv, int(f_dur), emp_final, 
+                            solapa_manual, motivo_final if solapa_manual else "", 
+                            fianza_pagada
+                        )
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         limpiar_cache_crm()
                         st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
@@ -569,12 +615,7 @@ def render_pestana_crm(client):
 
                     with col_ficha2:
                         if st.button("🗑️ Anonimizar Cliente (RGPD)", help="Borra los datos personales manteniendo el historial de ventas", type="secondary", key=f"anon_cli_{c_id}"):
-                            client.table("clientes").update({
-                                "nombre_dueno": "Cliente Borrado",
-                                "telefono": "",
-                                "email": "",
-                                "rgpd_consent": False
-                            }).eq("id", c_id).execute()
+                            anonimizar_cliente(client, c_id)
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             limpiar_cache_crm()
                             st.success("Cliente anonimizado con éxito según la ley de protección de datos."); time.sleep(1.5); st.rerun()
@@ -599,14 +640,19 @@ def render_pestana_crm(client):
                             "nombre": "Nombre Mascota", "especie": "Especie", "sexo": "Sexo", "raza": "Raza", 
                             "peso": "Peso", "fecha_nacimiento": "F. Nacimiento", "observaciones": "Observaciones"
                         })
+                        cat_esp = pd.CategoricalDtype(categories=["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"], ordered=False)
+                        cat_sex = pd.CategoricalDtype(categories=["", "Macho", "Hembra"], ordered=False)
+                        df_mc_show['Especie'] = df_mc_show['Especie'].fillna('').astype(cat_esp)
+                        df_mc_show['Sexo'] = df_mc_show['Sexo'].fillna('').astype(cat_sex)
                         
                         df_mc_show.insert(0, "Ver Ficha", False)
                         st.markdown("💡 *Edita los datos directamente. Para eliminar, selecciona la fila y pulsa 'Supr'. Marca **'👁️ Ver Ficha'** para abrir el historial y agendar.*")
                         ed_mc = st.data_editor(
-                            df_mc_show, use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_mc_{c_id}_{st.session_state.get('db_version', 0)}",
+                            df_mc_show, use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_mc_{c_id}_{st.session_state.get('db_version', 0)}_v3",
                             column_config={
                                 "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
                                 "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista),
+                                "Especie": st.column_config.SelectboxColumn("Especie", options=["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"]),
                                 "Sexo": st.column_config.SelectboxColumn("Sexo", options=["", "Macho", "Hembra"]),
                                 "id": None, "Edad": st.column_config.TextColumn("Edad (Editable)", disabled=False, help="Escribe '5 años' o '6 meses' si no conoces la fecha exacta."), "Duración Media": st.column_config.TextColumn(disabled=True)
                             }
@@ -725,6 +771,10 @@ def render_pestana_crm(client):
                 df_m['observaciones'] = df_m['observaciones'].apply(strip_pref)
                 
                 df_m_vista = df_m[['id', 'cliente_id', 'nombre', 'Dueño', 'Teléfono', 'especie', 'sexo', 'raza', 'peso', 'fecha_nacimiento', 'Edad', 'Duración Media', 'Pref', 'observaciones']].copy()
+                cat_esp = pd.CategoricalDtype(categories=["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"], ordered=False)
+                cat_sex = pd.CategoricalDtype(categories=["", "Macho", "Hembra"], ordered=False)
+                df_m_vista['especie'] = df_m_vista['especie'].fillna('').astype(cat_esp)
+                df_m_vista['sexo'] = df_m_vista['sexo'].fillna('').astype(cat_sex)
                 
                 if b_masc:
                     df_m_vista = df_m_vista[df_m_vista['nombre'].str.lower().str.contains(b_masc, na=False)]
@@ -742,8 +792,8 @@ def render_pestana_crm(client):
                 
                 ed_m = st.data_editor(
                     df_m_vista,
-                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "cliente_id": None, "Dueño": st.column_config.TextColumn("Dueño (Editar)", disabled=False), "Teléfono": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn("Edad (Editable)", disabled=False, help="Escribe '5 años' o '6 meses' si no conoces la fecha exacta."), "nombre": "Mascota", "sexo": st.column_config.SelectboxColumn("Sexo", options=["", "Macho", "Hembra"]), "peso": "Peso", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
-                    use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_mascotas_{st.session_state.get('db_version', 0)}", height=400
+                    column_config={"Ver": st.column_config.CheckboxColumn("👁️ Ver", default=False), "id": None, "cliente_id": None, "Dueño": st.column_config.TextColumn("Dueño (Editar)", disabled=False), "Teléfono": st.column_config.TextColumn(disabled=True), "Edad": st.column_config.TextColumn("Edad (Editable)", disabled=False, help="Escribe '5 años' o '6 meses' si no conoces la fecha exacta."), "nombre": "Mascota", "especie": st.column_config.SelectboxColumn("Especie", options=["", "Perro", "Gato", "Ave", "Roedor", "Reptil", "Otro"]), "sexo": st.column_config.SelectboxColumn("Sexo", options=["", "Macho", "Hembra"]), "peso": "Peso", "fecha_nacimiento": "F. Nacimiento", "Pref": st.column_config.SelectboxColumn("Peluquero/a Pref.", options=["Cualquiera"] + empleados_lista), "observaciones": "Observaciones Generales", "Duración Media": st.column_config.TextColumn("T. Medio", disabled=True, help="Tiempo medio de servicio calculado del historial.")},
+                    use_container_width=True, hide_index=True, num_rows="dynamic", key=f"ed_mascotas_{st.session_state.get('db_version', 0)}_v3", height=400
                 )
                 if st.button("💾 Guardar Cambios en Mascotas", type="primary"):
                     ed_m_clean = ed_m.drop(columns=["Ver"])
@@ -866,11 +916,7 @@ def render_pestana_crm(client):
                             
                         if final_cli and e_prod:
                             try:
-                                client.table("encargos_clientes").insert({
-                                    "nombre_cliente": final_cli, "telefono": final_tel, 
-                                    "detalle_pedido": f"{e_cant}x {e_prod}",
-                                    "notas": e_obs, "estado": "Pendiente", "origen": "Tienda"
-                                }).execute()
+                                crear_encargo(client, final_cli, final_tel, e_prod, e_cant, e_obs)
                                 st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                 st.session_state.llave_crm_enc += 1
                                 limpiar_cache_crm()
@@ -1332,9 +1378,10 @@ def render_pestana_crm(client):
                                                                     
                                                             # 4. Servicio a Domicilio
                                                             if "reparto a domicilio" in nuevo_est:
+                                                                detalle_final = f"{r['detalle_pedido']} \n(Pedido Web Confirmado - Pago: {meta['metodo_pago']})"
                                                                 client.table("pedidos_domicilio").insert({
                                                                     "nombre_cliente": r['nombre_cliente'], "telefono": r['telefono'], "direccion": meta['direccion'],
-                                                                    "detalle_pedido": r['detalle_pedido'], "estado": "Pendiente", "notas": f"Pedido Web Confirmado - Pago: {meta['metodo_pago']}"
+                                                                    "detalle_pedido": detalle_final, "estado": "Pendiente"
                                                                 }).execute()
                                                                 
                                                         except Exception as e:
@@ -1361,6 +1408,12 @@ def render_pestana_crm(client):
                                 if cambios_realizados > 0:
                                     st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                     limpiar_cache_crm()
+                                    try:
+                                        from historial import limpiar_cache_historial
+                                        from contabilidad import limpiar_cache_contabilidad
+                                        limpiar_cache_historial()
+                                        limpiar_cache_contabilidad()
+                                    except Exception: pass
                                     st.success(f"Se han actualizado {cambios_realizados} encargo(s).")
                                     time.sleep(0.8)
                                     st.rerun()

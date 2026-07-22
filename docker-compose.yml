@@ -12,3 +12,35 @@ services:
     restart: unless-stopped
     environment:
       - TZ=Atlantic/Canary  # Configura la zona horaria de Canarias para los fichajes y la agenda
+      - API_URL=http://animalarium-api:3000
+
+  # Nueva base de datos local para el entorno de pruebas y futura produccion local
+  db:
+    image: postgres:15-alpine
+    container_name: animalarium-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin_password
+      POSTGRES_DB: tpv_test_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  postgrest:
+    image: postgrest/postgrest:latest
+    container_name: animalarium-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PGRST_DB_URI: postgres://admin:admin_password@db:5432/tpv_test_db
+      PGRST_DB_SCHEMA: public
+      PGRST_DB_ANON_ROLE: admin
+      PGRST_JWT_SECRET: "super-secret-jwt-token-with-at-least-32-characters-long"
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
