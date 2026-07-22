@@ -30,7 +30,17 @@ def fetch_personal_empleados_activos(_client):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_citas_roi(_client, fecha_ini, fecha_fin):
-    return _client.table("citas").select("fecha_hora, servicio, mascotas(id, historial_trabajos)").gte("fecha_hora", fecha_ini).lt("fecha_hora", fecha_fin).execute()
+    res = _client.table("citas").select("fecha_hora, servicio, mascotas_id").gte("fecha_hora", fecha_ini).lt("fecha_hora", fecha_fin).execute()
+    citas = res.data or []
+    if not citas: return res
+    masc_ids = list(set([c["mascotas_id"] for c in citas if c.get("mascotas_id")]))
+    if masc_ids:
+        res_m = _client.table("mascotas").select("id, historial_trabajos").in_("id", masc_ids).execute()
+        mascotas_dict = {m["id"]: m for m in (res_m.data or [])}
+        for c in citas:
+            c["mascotas"] = mascotas_dict.get(c.get("mascotas_id"))
+    res.data = citas
+    return res
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_citas_est(_client):

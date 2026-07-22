@@ -348,13 +348,16 @@ def render_pestana_historial(client):
                                 if p.get('Producto') and str(p.get('Producto')).strip() != "" and p.get('Subtotal') is not None:
                                     prods.append(p)
 
-                if prods:
+                if True:
                     df_prods = pd.DataFrame(prods)
-                    if 'Desc. %' not in df_prods.columns:
+                    if not df_prods.empty and 'Desc. %' not in df_prods.columns:
                         df_prods['Desc. %'] = df_prods.get('Desc %', 0.0)
                         
                     # 1. Tabla de productos en modo SOLO LECTURA
-                    st.dataframe(df_prods, use_container_width=True, hide_index=True)
+                    if not df_prods.empty:
+                        st.dataframe(df_prods, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Este ticket no tiene productos registrados (ej. pedido web simulado).")
                     
                     suma_articulos = df_prods['Subtotal'].sum() if 'Subtotal' in df_prods.columns else 0.0
 
@@ -628,8 +631,6 @@ def render_pestana_historial(client):
                         </body></html>
                         """
                         components.html(html_reprint, height=130, scrolling=False)
-                else:
-                    st.info("Este ticket no tiene productos registrados.")
             else:
                 st.info("👆 Marca la casilla '👁️ Ver' de un ticket arriba para editarlo.")
                 

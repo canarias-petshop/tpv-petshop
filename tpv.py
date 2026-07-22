@@ -26,7 +26,31 @@ def fetch_inv_tpv(_client):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_citas_hoy_tpv(_client, hoy_ini, hoy_fin):
-    return _client.table("citas").select("id, servicio, mascotas(id, nombre, historial_trabajos, clientes(nombre_dueno, telefono, puntos))").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
+    res = _client.table("citas").select("id, servicio, mascotas_id").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
+    citas = res.data or []
+    if not citas: return res
+    masc_ids = list(set([c["mascotas_id"] for c in citas if c.get("mascotas_id")]))
+    if masc_ids:
+        res_m = _client.table("mascotas").select("id, nombre, historial_trabajos, clientes_id").in_("id", masc_ids).execute()
+        mascotas = res_m.data or []
+        cli_ids = list(set([m["clientes_id"] for m in mascotas if m.get("clientes_id")]))
+        clientes_dict = {}
+        if cli_ids:
+            res_c = _client.table("clientes").select("id, nombre_dueno, telefono, puntos").in_("id", cli_ids).execute()
+            clientes_dict = {c["id"]: c for c in (res_c.data or [])}
+        mascotas_dict = {}
+        for m in mascotas:
+            cli = clientes_dict.get(m.get("clientes_id"))
+            mascotas_dict[m["id"]] = {
+                "id": m["id"],
+                "nombre": m.get("nombre", ""),
+                "historial_trabajos": m.get("historial_trabajos", ""),
+                "clientes": cli
+            }
+        for c in citas:
+            c["mascotas"] = mascotas_dict.get(c.get("mascotas_id"))
+    res.data = citas
+    return res
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_empleados_tpv(_client):
@@ -66,16 +90,7 @@ def fetch_producto_stock_tpv(_client, prod_id):
     return _client.table("productos").select("stock_actual").eq("id", prod_id).execute()
 
 def limpiar_cache_tpv():
-    fetch_caja_abierta_tpv.clear()
-    fetch_inv_tpv.clear()
-    fetch_citas_hoy_tpv.clear()
-    fetch_empleados_tpv.clear()
-    fetch_clientes_puntos_tpv.clear()
-    fetch_deuda_cli_tpv.clear()
-    fetch_vale_tienda_tpv.clear()
-    fetch_cuentas_bancarias_tpv.clear()
-    fetch_last_hash_tpv.clear()
-    fetch_producto_stock_tpv.clear()
+    st.cache_data.clear()
 
 def render_pestana_tpv(client):
     cfg = get_configuracion_negocio(client)
@@ -802,7 +817,19 @@ def render_pestana_tpv(client):
                 nombres_tarjetas = [f"Tarjeta ({b['nombre_banco']})" for b in lista_bancos] if lista_bancos else ["Tarjeta"]
                 
                 opciones_pago = ["Efectivo"] + nombres_tarjetas + ["Bizum", "Mixto"]
-                metodo = st.radio("p", opciones_pago, horizontal=True, label_visibility="collapsed", index=None)
+                
+                # --- PROTECCIÓN CONTRA st.rerun() ---
+                if "memoria_metodo" not in st.session_state:
+                    st.session_state.memoria_metodo = "Efectivo"
+                    
+                def backup_metodo():
+                    st.session_state.memoria_metodo = st.session_state.radio_metodo_tmp
+                    
+                idx_metodo = opciones_pago.index(st.session_state.memoria_metodo) if st.session_state.memoria_metodo in opciones_pago else 0
+                
+                metodo = st.radio("p", opciones_pago, index=idx_metodo, horizontal=True, label_visibility="collapsed", key="radio_metodo_tmp", on_change=backup_metodo)
+                st.session_state.memoria_metodo = metodo # Sincronización en cada pasada
+                
                 pagado_hoy = 0.0; pendiente = 0.0; metodo_log = metodo
                 p_efectivo = 0.0; p_tarjeta = 0.0; p_bizum = 0.0
 
@@ -841,11 +868,21 @@ def render_pestana_tpv(client):
                     p_b_val = float(p_b or 0.0)
                     
                     pagado_hoy = p_e_val + p_t_val + p_b_val
-                    p_efectivo = p_e_val; p_tarjeta = p_t_val; p_bizum = p_b_val
+                    cambio = pagado_hoy - total_f if pagado_hoy > total_f else 0.0
                     pendiente = total_f - pagado_hoy if pagado_hoy < total_f else 0.0
                     
-                    if p_tarjeta > 0 and lista_bancos:
-                        banco_sel_nombre = st.selectbox("🏦 Banco para parte en Tarjeta", [b['nombre_banco'] for b in lista_bancos])
+                    if cambio > 0:
+                        st.markdown(f"<p style='margin:0; font-size:11px; color:gray;'>CAMBIO AL CLIENTE</p><h3 style='margin:0; color:green;'>{cambio:.2f}€</h3>", unsafe_allow_html=True)
+                        p_efectivo = p_e_val - cambio
+                        pagado_hoy = total_f
+                    else:
+                        p_efectivo = p_e_val
+                        
+                    p_tarjeta = p_t_val
+                    p_bizum = p_b_val
+                    
+                    if lista_bancos:
+                        banco_sel_nombre = st.radio("🏦 ¿De qué datáfono es la tarjeta?", [b['nombre_banco'] for b in lista_bancos], horizontal=True, key=f"mix_bnc_{st.session_state.llave_busqueda_tpv}")
                         banco_info = next((b for b in lista_bancos if b['nombre_banco'] == banco_sel_nombre), None)
                         if banco_info:
                             banco_sel_id = banco_info['id']
@@ -889,7 +926,7 @@ def render_pestana_tpv(client):
                 c_cob, c_vac = st.columns([2, 1])
                 with c_cob:
                     bloqueo = (pendiente > 0 and "Ninguno" in cliente_fidelidad) or (metodo is None)
-                    if st.button("🧧 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
+                    if st.button("🛒 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
                         # --- PROTECCIÓN DOBLE CLIC BACKEND ---
                         import time
                         current_time = time.time()
@@ -937,6 +974,7 @@ def render_pestana_tpv(client):
                             st.session_state.vale_aplicado = None
                             st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
                             st.session_state.llave_busqueda_tpv += 1
+                            st.session_state.memoria_metodo = "Efectivo"
                             limpiar_cache_tpv()
                             st.rerun()
                             
@@ -949,6 +987,7 @@ def render_pestana_tpv(client):
                         st.session_state.cliente_cobro_tpv = "Ninguno (Venta Anónima)"
                         st.session_state.vale_aplicado = None
                         st.session_state.llave_busqueda_tpv += 1
+                        st.session_state.memoria_metodo = "Efectivo"
                         st.rerun()
             else:
                 st.markdown("<div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; color: #666; border: 1px solid #ddd;'>🛒 Carrito vacío.</div>", unsafe_allow_html=True)

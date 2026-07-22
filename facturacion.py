@@ -65,11 +65,19 @@ def get_prod_by_nombre_fac(_client, nombre):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_facturas_arch_fac(_client, f_ini, f_fin):
-    return _client.table("facturas").select("*, clientes(nombre_dueno)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
+    res = _client.table("facturas").select("*").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
+    res_cli = _client.table("clientes").select("id, nombre_dueno").execute()
+    cli_dict = {c['id']: c['nombre_dueno'] for c in res_cli.data}
+    for f in res.data: f['clientes'] = {'nombre_dueno': cli_dict.get(f.get('cliente_id'), 'Desconocido')}
+    return res
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_compras_arch_fac(_client, f_ini, f_fin, filtro):
-    return _client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").ilike("tipo", filtro).order("id", desc=True).execute()
+    res = _client.table("compras").select("*").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").ilike("tipo", filtro).order("id", desc=True).execute()
+    res_prov = _client.table("proveedores").select("id, nombre_empresa").execute()
+    prov_dict = {p['id']: p['nombre_empresa'] for p in res_prov.data}
+    for c in res.data: c['proveedores'] = {'nombre_empresa': prov_dict.get(c.get('proveedor_id'), 'Desconocido')}
+    return res
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_prod_prov_link_fac(_client, prod_id, prov_id):
@@ -77,7 +85,11 @@ def get_prod_prov_link_fac(_client, prod_id, prov_id):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_deudas_fac(_client):
-    return _client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
+    res = _client.table("compras").select("*").neq("estado", "Pagado").order("created_at").execute()
+    res_prov = _client.table("proveedores").select("id, nombre_empresa").execute()
+    prov_dict = {p['id']: p['nombre_empresa'] for p in res_prov.data}
+    for c in res.data: c['proveedores'] = {'nombre_empresa': prov_dict.get(c.get('proveedor_id'), 'Desconocido')}
+    return res
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_cuentas_fac(_client):
@@ -658,7 +670,11 @@ def render_pestana_facturacion(client):
         st.markdown("---")
         
         with st.expander("📥 Cargar desde Pedido a Proveedor (Automatización)", expanded=False):
-            res_pedidos_p = client.table("pedidos_proveedores").select("id, estado, proveedores(nombre_empresa)").in_("estado", ["Borrador", "Enviado"]).execute()
+            res_pedidos_p = client.table("pedidos_proveedores").select("id, estado, proveedor_id").in_("estado", ["Borrador", "Enviado"]).execute()
+            res_prov = client.table("proveedores").select("id, nombre_empresa").execute()
+            prov_dict = {p['id']: p['nombre_empresa'] for p in res_prov.data}
+            for p in res_pedidos_p.data: p['proveedores'] = {'nombre_empresa': prov_dict.get(p.get('proveedor_id'), 'Desconocido')}
+            
             if res_pedidos_p.data:
                 opc_ped = {f"Pedido #{p['id']} - {p['proveedores']['nombre_empresa']} ({p['estado']})": p['id'] for p in res_pedidos_p.data if p.get('proveedores')}
                 p_sel_str = st.selectbox("Selecciona un pedido pendiente:", [""] + list(opc_ped.keys()))
@@ -869,7 +885,7 @@ def render_pestana_facturacion(client):
 
         # --- ARCHIVO DE VENTAS ---
         if "Ventas" in tipo_doc:
-            res_fac = client.table("facturas").select("*, clientes(nombre_dueno)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").order("id", desc=True).execute()
+            res_fac = get_facturas_arch_fac(client, f_ini, f_fin)
             if res_fac.data:
                 df_fac = pd.DataFrame(res_fac.data)
                 df_fac['Cliente'] = df_fac['clientes'].apply(lambda x: x['nombre_dueno'] if x else '---')
@@ -940,7 +956,7 @@ def render_pestana_facturacion(client):
         else: 
             # Filtramos según si son facturas o abonos
             filtro = "Abono:%" if "Abonos" in tipo_doc else "Factura:%"
-            res_comp = client.table("compras").select("*, proveedores(nombre_empresa)").gte("created_at", f"{f_ini}T00:00:00").lte("created_at", f"{f_fin}T23:59:59").ilike("tipo", filtro).order("id", desc=True).execute()
+            res_comp = get_compras_arch_fac(client, f_ini, f_fin, filtro)
             
             datos_provs = res_comp.data or []
             if datos_provs:
@@ -1149,7 +1165,7 @@ def render_pestana_facturacion(client):
         st.info("💡 Aquí aparecen exclusivamente las facturas de **proveedores de mercancía** que no han sido marcadas como 'Pagado'.")
         
         # Buscar compras que no sean "Pagado"
-        res_deudas = client.table("compras").select("*, proveedores(nombre_empresa)").neq("estado", "Pagado").order("created_at").execute()
+        res_deudas = get_deudas_fac(client)
         
         # Filtro nativo en Python para evitar fallos de Pandas o SQL
         datos_filtrados = [d for d in (res_deudas.data or []) if "Factura:" in str(d.get('tipo', ''))]

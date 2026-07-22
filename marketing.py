@@ -15,15 +15,15 @@ def render_pestana_marketing(client):
         "🔄 Activas (Win-Back/Cumples)"
     ], horizontal=True, label_visibility="collapsed")
     
+    try:
+        res_obj = client.table("marketing_objetivos").select("*").order("created_at", desc=True).execute()
+        objetivos = res_obj.data if res_obj.data else []
+    except:
+        objetivos = []
+
     if seccion_marketing == "🎯 Objetivos y Resultados":
         st.markdown("#### 🎯 Panel de Control: Objetivos de Marketing")
         st.info("Define las metas claras de tus acciones publicitarias y mide su retorno (ROI).")
-        
-        try:
-            res_obj = client.table("marketing_objetivos").select("*").order("created_at", desc=True).execute()
-            objetivos = res_obj.data if res_obj.data else []
-        except:
-            objetivos = []
 
         col_obj1, col_obj2 = st.columns([1, 2])
         with col_obj1:
