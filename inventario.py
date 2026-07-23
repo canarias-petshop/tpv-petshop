@@ -396,8 +396,8 @@ def render_pestana_inventario(client):
                                         if col in row and col in orig_row:
                                             v1 = str(row[col]).strip()
                                             v2 = str(orig_row[col]).strip()
-                                            if v1 == 'nan': v1 = ''
-                                            if v2 == 'nan': v2 = ''
+                                            if v1 in ['nan', 'None', '<NA>', '']: v1 = ''
+                                            if v2 in ['nan', 'None', '<NA>', '']: v2 = ''
                                             if v1 != v2:
                                                 cambiado = True
                                                 break
