@@ -392,7 +392,7 @@ def render_pestana_inventario(client):
                                 if not orig_match.empty:
                                     orig_row = orig_match.iloc[0]
                                     cambiado = False
-                                    for col in ['sku', 'nombre', 'precio_pvp', 'igic_tipo', 'precio_base', 'stock_actual', 'stock_minimo', 'cantidad_reponer', 'fecha_caducidad', 'Proveedor']:
+                                    for col in ['sku', 'nombre', 'precio_pvp', 'igic_tipo', 'precio_base', 'stock_actual', 'stock_minimo', 'cantidad_reponer', 'fecha_caducidad', 'Proveedor', 'familia', 'subcategoria', 'gama', 'mascota', 'edad', 'tamano', 'necesidad_especial', 'sabor_principal', 'caracteristicas', 'marca']:
                                         if col in row and col in orig_row:
                                             v1 = str(row[col]).strip()
                                             v2 = str(orig_row[col]).strip()
