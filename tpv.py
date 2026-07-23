@@ -26,21 +26,21 @@ def fetch_inv_tpv(_client):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_citas_hoy_tpv(_client, hoy_ini, hoy_fin):
-    res = _client.table("citas").select("id, servicio, mascotas_id").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
+    res = _client.table("citas").select("id, servicio, mascota_id").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
     citas = res.data or []
     if not citas: return res
-    masc_ids = list(set([c["mascotas_id"] for c in citas if c.get("mascotas_id")]))
+    masc_ids = list(set([c["mascota_id"] for c in citas if c.get("mascota_id")]))
     if masc_ids:
-        res_m = _client.table("mascotas").select("id, nombre, historial_trabajos, clientes_id").in_("id", masc_ids).execute()
+        res_m = _client.table("mascotas").select("id, nombre, historial_trabajos, cliente_id").in_("id", masc_ids).execute()
         mascotas = res_m.data or []
-        cli_ids = list(set([m["clientes_id"] for m in mascotas if m.get("clientes_id")]))
+        cli_ids = list(set([m["cliente_id"] for m in mascotas if m.get("cliente_id")]))
         clientes_dict = {}
         if cli_ids:
             res_c = _client.table("clientes").select("id, nombre_dueno, telefono, puntos").in_("id", cli_ids).execute()
             clientes_dict = {c["id"]: c for c in (res_c.data or [])}
         mascotas_dict = {}
         for m in mascotas:
-            cli = clientes_dict.get(m.get("clientes_id"))
+            cli = clientes_dict.get(m.get("cliente_id"))
             mascotas_dict[m["id"]] = {
                 "id": m["id"],
                 "nombre": m.get("nombre", ""),
@@ -48,7 +48,7 @@ def fetch_citas_hoy_tpv(_client, hoy_ini, hoy_fin):
                 "clientes": cli
             }
         for c in citas:
-            c["mascotas"] = mascotas_dict.get(c.get("mascotas_id"))
+            c["mascotas"] = mascotas_dict.get(c.get("mascota_id"))
     res.data = citas
     return res
 
