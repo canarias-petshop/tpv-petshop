@@ -138,7 +138,7 @@ print("⏳ Descargando Citas...")
 res_citas = client.table("citas").select("*").execute()
 citas = res_citas.data or []
 if citas:
-    masc_ids = list(set([c["mascota_id"] for c in citas if c.get("mascota_id")]))
+    masc_ids = list(set([c["mascotas_id"] for c in citas if c.get("mascotas_id")]))
     if masc_ids:
         res_m = client.table("mascotas").select("id, nombre, cliente_id").in_("id", masc_ids).execute()
         mascotas = res_m.data or []
@@ -152,7 +152,7 @@ if citas:
             cli = clientes_dict.get(m.get("cliente_id"))
             mascotas_dict[m["id"]] = {"nombre": m.get("nombre", ""), "clientes": cli}
         for c in citas:
-            c["mascotas"] = mascotas_dict.get(c.get("mascota_id"))
+            c["mascotas"] = mascotas_dict.get(c.get("mascotas_id"))
     res_citas.data = citas
 if res_citas.data:
     df_ci = pd.DataFrame(res_citas.data)

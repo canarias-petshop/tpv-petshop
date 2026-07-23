@@ -28,8 +28,8 @@ def calcular_duracion_media(historial):
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_ficha_alerts_cached(_client, v, mid, hoy):
     try:
-        r1 = _client.table("citas").select("fecha_hora, servicio").eq("mascota_id", mid).lt("fecha_hora", hoy).or_("servicio.ilike.%[ESTADO: Confirmada]%,servicio.ilike.%[ESTADO: Asistió]%,servicio.ilike.%[ESTADO: Pendiente]%").execute().data
-        r2 = _client.table("citas").select("fecha_hora, servicio").eq("mascota_id", mid).or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%,servicio.ilike.%[ESTADO: Anulada]%,servicio.ilike.%[ESTADO: Cambio (mismo día)]%").execute().data
+        r1 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).lt("fecha_hora", hoy).or_("servicio.ilike.%[ESTADO: Confirmada]%,servicio.ilike.%[ESTADO: Asistió]%,servicio.ilike.%[ESTADO: Pendiente]%").execute().data
+        r2 = _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mid).or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%,servicio.ilike.%[ESTADO: Anulada]%,servicio.ilike.%[ESTADO: Cambio (mismo día)]%").execute().data
         return r1, r2
     except: return [], []
 
@@ -41,9 +41,9 @@ def fetch_igic_tipo_cached(_client, nombre):
         return []
 
 @st.cache_data(show_spinner=False, ttl=300)
-def fetch_citas_mascota_cached(_client, mascota_id):
+def fetch_citas_mascota_cached(_client, mascotas_id):
     try:
-        return _client.table("citas").select("fecha_hora, servicio").eq("mascota_id", mascota_id).execute().data
+        return _client.table("citas").select("fecha_hora, servicio").eq("mascotas_id", mascotas_id).execute().data
     except:
         return []
 

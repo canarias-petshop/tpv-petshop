@@ -60,7 +60,7 @@ def get_citas_ag_cached(_client, v):
         masc_dict = {m['id']: m for m in masc_ag if 'id' in m}
         
         for c in _all:
-            m_obj = masc_dict.get(c.get('mascota_id'))
+            m_obj = masc_dict.get(c.get('mascotas_id'))
             c['mascotas'] = m_obj if m_obj else None
     except Exception:
         for c in _all:
@@ -81,19 +81,19 @@ def get_manana_ag_cached(_client, v, m_ini, m_fin):
     citas = _client.table("citas").select("*").gte("fecha_hora", m_ini).lte("fecha_hora", m_fin).execute().data or []
     mascotas = get_masc_ag_cached(_client, v)
     m_dict = {m['id']: m for m in mascotas if 'id' in m}
-    for c in citas: c['mascotas'] = m_dict.get(c.get('mascota_id'))
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
     return citas
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_futuras_ag_cached(_client, v, h_str):
-    return _client.table("citas").select("mascota_id, servicio").gte("fecha_hora", h_str).execute().data or []
+    return _client.table("citas").select("mascotas_id, servicio").gte("fecha_hora", h_str).execute().data or []
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_canc_ag_cached(_client, v):
     citas = _client.table("citas").select("*").or_("servicio.ilike.%[ESTADO: Cancelada]%,servicio.ilike.%[ESTADO: No presentado]%,servicio.ilike.%[ESTADO: Anulada]%").order("fecha_hora", desc=True).limit(200).execute().data or []
     mascotas = get_masc_ag_cached(_client, v)
     m_dict = {m['id']: m for m in mascotas if 'id' in m}
-    for c in citas: c['mascotas'] = m_dict.get(c.get('mascota_id'))
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
     return citas
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -101,7 +101,7 @@ def get_sin_hist_ag_cached(_client, v, h_str):
     citas = _client.table("citas").select("*").lt("fecha_hora", h_str).or_("servicio.ilike.%[ESTADO: Confirmada]%,servicio.ilike.%[ESTADO: Asistió]%,servicio.ilike.%[ESTADO: Pendiente]%").execute().data or []
     mascotas = get_masc_ag_cached(_client, v)
     m_dict = {m['id']: m for m in mascotas if 'id' in m}
-    for c in citas: c['mascotas'] = m_dict.get(c.get('mascota_id'))
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
     return citas
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -159,7 +159,7 @@ def get_citas_mes_ag_cached(_client, v, f_ini_mes, f_fin_mes):
     citas = _client.table("citas").select("*").gte("fecha_hora", f"{f_ini_mes}T00:00:00").lte("fecha_hora", f"{f_fin_mes}T23:59:59").execute().data or []
     mascotas = get_masc_ag_cached(_client, v)
     m_dict = {m['id']: m for m in mascotas if 'id' in m}
-    for c in citas: c['mascotas'] = m_dict.get(c.get('mascota_id'))
+    for c in citas: c['mascotas'] = m_dict.get(c.get('mascotas_id'))
     return citas
 
 def limpiar_cache_agenda():
@@ -450,7 +450,7 @@ def render_pestana_agenda(client):
                             fecha_hora_str = f"{fecha_c} {hora_final_str}"
                             
                             client.table("citas").insert({
-                                "mascota_id": m_id_final, "fecha_hora": fecha_hora_str,
+                                "mascotas_id": m_id_final, "fecha_hora": fecha_hora_str,
                                 "servicio": servicio_final, "duracion_minutos": int(duracion_c),
                                 "observaciones": str(f_obs)
                             }).execute()
@@ -523,7 +523,7 @@ def render_pestana_agenda(client):
 
                     citas_formateadas.append({
                         "Ver Ficha": False,
-                        "mascota_id": mascota_info.get('id'),
+                        "mascotas_id": mascota_info.get('id'),
                         "Borrar": False,
                         "id": c['id'],
                         "Día": dt_obj.date(),
@@ -553,14 +553,14 @@ def render_pestana_agenda(client):
                     opciones_seguras_ag = servicios_lista + [s for s in servicios_en_agenda if s not in servicios_lista]
 
                     ed_citas = st.data_editor(
-                        df_citas[['Ver Ficha', 'Borrar', 'id', 'mascota_id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Observaciones', 'Mascota', 'Dueño', 'Teléfono', 'WhatsApp']],
+                        df_citas[['Ver Ficha', 'Borrar', 'id', 'mascotas_id', 'Día', 'Hora', 'Estado', 'Duración (min)', 'Peluquero/a', 'Servicio', 'Observaciones', 'Mascota', 'Dueño', 'Teléfono', 'WhatsApp']],
                         use_container_width=True, hide_index=True, num_rows="dynamic", key="ed_citas_ag", height=400,
                         column_order=["Ver Ficha", "Borrar", "Día", "Hora", "Estado", "Peluquero/a", "Mascota", "Servicio", "Observaciones", "Duración (min)", "Dueño", "Teléfono", "WhatsApp"],
                         column_config={
                             "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False),
                             "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False),
                             "id": None,
-                            "mascota_id": None,
+                            "mascotas_id": None,
                             "Día": st.column_config.DateColumn("Día", format="DD/MM/YYYY", width="small"),
                             "Hora": st.column_config.TimeColumn("Hora", format="HH:mm", width="small"),
                             "Estado": st.column_config.SelectboxColumn("🎨 Estado", options=[f"{EMOJIS_ESTADO.get(e, '')} {e}" for e in ESTADOS_CITA], required=True),
@@ -618,7 +618,7 @@ def render_pestana_agenda(client):
                     # LÓGICA VER FICHA
                     for _, row in ed_citas.iterrows():
                         if row.get('Ver Ficha', False):
-                            m_id = row['mascota_id']
+                            m_id = row['mascotas_id']
                             if pd.notna(m_id):
                                 res_m_data = get_masc_info_cached(client, st.session_state.get('db_version', 0), m_id)
                                 if res_m_data:
@@ -1230,7 +1230,7 @@ def render_pestana_agenda(client):
         if res_futuras_data:
             for c in res_futuras_data:
                 if "[ESTADO: Cancelada]" not in c.get("servicio", ""):
-                    mascotas_con_cita.add(c["mascota_id"])
+                    mascotas_con_cita.add(c["mascotas_id"])
         
         m_alertas_data = get_alertas_m_ag_cached(client, st.session_state.get('db_version', 0))
         
@@ -1330,7 +1330,7 @@ def render_pestana_agenda(client):
                         _, s_clean, assigned_e = parse_cita_estado(c.get('servicio', ''))
                         alertas.append({
                             "Ver Ficha": False,
-                            "mascota_id": masc.get('id'),
+                            "mascotas_id": masc.get('id'),
                             "Fecha Cita": dt_c.strftime("%d/%m/%Y"),
                             "Peluquero/a": assigned_e,
                             "Mascota": masc.get('nombre', 'Desconocida'),
@@ -1345,13 +1345,13 @@ def render_pestana_agenda(client):
                 df_alertas, 
                 use_container_width=True, hide_index=True,
                 column_config={
-                    "mascota_id": None, 
+                    "mascotas_id": None, 
                     "Ver Ficha": st.column_config.CheckboxColumn("👁️ Ver Ficha", default=False)
                 }
             )
             for _, row in ed_alertas.iterrows():
                 if row.get('Ver Ficha', False):
-                    m_id = row['mascota_id']
+                    m_id = row['mascotas_id']
                     if pd.notna(m_id):
                         res_m_data = get_masc_info_cached(client, st.session_state.get('db_version', 0), m_id)
                         if res_m_data:

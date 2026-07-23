@@ -81,11 +81,11 @@ def crear_encargo(client: SyncPostgrestClient, nombre_cliente: str, telefono: st
     }).execute()
     return res.data[0] if res.data else None
 
-def agendar_cita(client: SyncPostgrestClient, mascota_id: str, fecha_str: str, hora_str: str, 
+def agendar_cita(client: SyncPostgrestClient, mascotas_id: str, fecha_str: str, hora_str: str, 
                  servicio: str, duracion_minutos: int, peluquero: str = "", forzado: bool = False,
                  motivo_forzado: str = "", fianza_pagada: bool = False):
     """Agenda una cita para una mascota."""
-    if not mascota_id or not fecha_str or not hora_str:
+    if not mascotas_id or not fecha_str or not hora_str:
         raise ValueError("Faltan datos obligatorios para la cita.")
         
     servicio_final = f"{servicio} ({peluquero})" if peluquero else servicio
@@ -98,7 +98,7 @@ def agendar_cita(client: SyncPostgrestClient, mascota_id: str, fecha_str: str, h
         servicio_final = f"[ESTADO: Pendiente] {servicio_final}"
         
     res = client.table("citas").insert({
-        "mascota_id": mascota_id,
+        "mascotas_id": mascotas_id,
         "fecha_hora": f"{fecha_str} {hora_str}",
         "servicio": servicio_final,
         "duracion_minutos": int(duracion_minutos)

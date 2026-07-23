@@ -26,10 +26,10 @@ def fetch_inv_tpv(_client):
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_citas_hoy_tpv(_client, hoy_ini, hoy_fin):
-    res = _client.table("citas").select("id, servicio, mascota_id").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
+    res = _client.table("citas").select("id, servicio, mascotas_id").gte("fecha_hora", hoy_ini).lte("fecha_hora", hoy_fin).execute()
     citas = res.data or []
     if not citas: return res
-    masc_ids = list(set([c["mascota_id"] for c in citas if c.get("mascota_id")]))
+    masc_ids = list(set([c["mascotas_id"] for c in citas if c.get("mascotas_id")]))
     if masc_ids:
         res_m = _client.table("mascotas").select("id, nombre, historial_trabajos, cliente_id").in_("id", masc_ids).execute()
         mascotas = res_m.data or []
@@ -48,7 +48,7 @@ def fetch_citas_hoy_tpv(_client, hoy_ini, hoy_fin):
                 "clientes": cli
             }
         for c in citas:
-            c["mascotas"] = mascotas_dict.get(c.get("mascota_id"))
+            c["mascotas"] = mascotas_dict.get(c.get("mascotas_id"))
     res.data = citas
     return res
 
