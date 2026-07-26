@@ -114,6 +114,7 @@ def registrar_pago_deuda(client, compra_id: int, pago_eur: float, cuenta_id: int
     """
     Registra un pago sobre una deuda de compra a proveedor.
     """
+    pago_eur = round(float(pago_eur), 2)
     if pago_eur <= 0:
         raise ValueError("El importe del pago debe ser mayor a 0.")
         
@@ -122,21 +123,29 @@ def registrar_pago_deuda(client, compra_id: int, pago_eur: float, cuenta_id: int
         raise ValueError("Compra no encontrada.")
         
     compra = res_compra.data[0]
-    pendiente = float(compra['pendiente'])
-    pagado = float(compra['pagado'])
+    pendiente = round(float(compra['pendiente']), 2)
+    pagado = round(float(compra['pagado'] or 0), 2)
     
-    if pago_eur > pendiente:
-        raise ValueError(f"No puedes pagar {pago_eur}€ porque la deuda pendiente es de {pendiente}€.")
-        
-    nuevo_pagado = pagado + pago_eur
-    nuevo_pendiente = pendiente - pago_eur
-    nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else "Pendiente"
+    # Tolerancia de 0.5 céntimos para evitar rechazos por ruido de float
+    if pago_eur > pendiente + 0.005:
+        raise ValueError(f"No puedes pagar {pago_eur:.2f}€ porque la deuda pendiente es de {pendiente:.2f}€.")
+    
+    # Si el pago cubre el pendiente (o queda por debajo de 1 céntimo), liquidar exacto
+    if pago_eur >= pendiente - 0.005:
+        pago_eur = pendiente
+        nuevo_pagado = round(pagado + pendiente, 2)
+        nuevo_pendiente = 0.0
+        nuevo_estado = "Pagado"
+    else:
+        nuevo_pagado = round(pagado + pago_eur, 2)
+        nuevo_pendiente = round(pendiente - pago_eur, 2)
+        nuevo_estado = "Pendiente"
     
     # Restar de cuenta bancaria
     if cuenta_id:
         res_cuenta = client.table("cuentas_bancarias").select("saldo_actual").eq("id", cuenta_id).execute()
         if res_cuenta.data:
-            nuevo_saldo = float(res_cuenta.data[0]['saldo_actual']) - pago_eur
+            nuevo_saldo = round(float(res_cuenta.data[0]['saldo_actual']) - pago_eur, 2)
             client.table("cuentas_bancarias").update({"saldo_actual": nuevo_saldo}).eq("id", cuenta_id).execute()
             
     res_update = client.table("compras").update({

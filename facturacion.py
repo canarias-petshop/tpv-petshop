@@ -972,7 +972,8 @@ def render_pestana_facturacion(client):
                 df_vista.insert(0, "Ver", False)
                 
                 ed_comp = st.data_editor(
-                    df_vista, hide_index=True, use_container_width=True, key="ed_h_c", 
+                    df_vista, hide_index=True, use_container_width=True,
+                    key=f"ed_h_c_{st.session_state.get('db_version', 0)}",
                     column_config={
                         "Ver": st.column_config.CheckboxColumn("👁️ Ver"), 
                         "Borrar": st.column_config.CheckboxColumn("🗑️ Borrar"),
@@ -984,36 +985,50 @@ def render_pestana_facturacion(client):
                 # 1. SISTEMA DE BORRADO DIRECTO DESDE LA TABLA
                 filas_borrar_c = ed_comp[ed_comp["Borrar"] == True]
                 if not filas_borrar_c.empty:
-                    st.error(f"⚠️ Has marcado {len(filas_borrar_c)} compra(s) para eliminar. El stock de estos artículos se restará automáticamente de la tienda.")
+                    estados_borrar = []
+                    for _, row_b in filas_borrar_c.iterrows():
+                        est = str(df_comp[df_comp['id'] == row_b['id']].iloc[0].get('estado', ''))
+                        estados_borrar.append(est)
+                    hay_validados = any(e != 'Borrador' for e in estados_borrar)
+                    if hay_validados:
+                        st.error(f"⚠️ Has marcado {len(filas_borrar_c)} compra(s) para eliminar. Las que ya estaban validadas (no borrador) restarán stock del inventario.")
+                    else:
+                        st.warning(f"⚠️ Has marcado {len(filas_borrar_c)} borrador(es) para eliminar. Como aún no sumaron stock, solo se borrará el documento.")
                     if st.button("🚨 CONFIRMAR ELIMINACIÓN DE COMPRA(S)", type="primary", use_container_width=True):
+                        import uuid as _uuid_del
                         for idx, row in filas_borrar_c.iterrows():
                             c_id = row['id']
                             c_data = df_comp[df_comp['id'] == c_id].iloc[0]
-                            # Restar stock (corrección)
-                            prods_raw = c_data.get('productos', [])
-                            if not isinstance(prods_raw, list):
-                                prods_raw = []
-                            for p in prods_raw:
-                                p_id = p.get('id') if isinstance(p, dict) else None
-                                # Validar que sea un UUID válido antes de consultar
-                                is_uuid = False
-                                if p_id:
-                                    try:
-                                        import uuid
-                                        uuid.UUID(str(p_id))
-                                        is_uuid = True
-                                    except ValueError:
-                                        pass
-                                
-                                if is_uuid and str(p_id).strip() not in ["", "None", "0"]:
-                                    try:
-                                        res_p = client.table("productos").select("stock_actual").eq("id", p_id).execute()
-                                        if res_p.data:
-                                            client.table("productos").update({"stock_actual": res_p.data[0]['stock_actual'] - p['Cantidad']}).eq("id", p_id).execute()
-                                    except Exception:
-                                        pass
+                            estado_doc = str(c_data.get('estado', ''))
+                            # Solo deshacer stock si el documento ya había entrado en inventario (no Borrador)
+                            if estado_doc != 'Borrador':
+                                prods_raw = c_data.get('productos', [])
+                                if not isinstance(prods_raw, list):
+                                    prods_raw = []
+                                for p in prods_raw:
+                                    p_id = p.get('id') if isinstance(p, dict) else None
+                                    is_uuid = False
+                                    if p_id:
+                                        try:
+                                            _uuid_del.UUID(str(p_id))
+                                            is_uuid = True
+                                        except ValueError:
+                                            pass
+                                    if is_uuid and str(p_id).strip() not in ["", "None", "0"]:
+                                        try:
+                                            res_p = client.table("productos").select("stock_actual").eq("id", p_id).execute()
+                                            if res_p.data:
+                                                cant = int(float(p.get('Cantidad', 0) or 0))
+                                                stock_act = int(res_p.data[0]['stock_actual'] or 0)
+                                                client.table("productos").update({
+                                                    "stock_actual": stock_act - cant
+                                                }).eq("id", p_id).execute()
+                                        except Exception:
+                                            pass
                             # Eliminar registro
                             client.table("compras").delete().eq("id", c_id).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        limpiar_cache_facturacion()
                         st.success("Compra(s) eliminada(s) correctamente."); time.sleep(1); st.rerun()
 
                 st.markdown("---")
@@ -1023,6 +1038,8 @@ def render_pestana_facturacion(client):
                     filas_validas = ed_comp[ed_comp["Borrar"] == False]
                     for _, row in filas_validas.iterrows():
                         client.table("compras").update({"estado": str(row['estado']), "tipo": str(row['tipo'])}).eq("id", row['id']).execute()
+                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                    limpiar_cache_facturacion()
                     st.success("Cabeceras actualizadas."); time.sleep(0.5); st.rerun()
 
                 # 3. SISTEMA DE DESGLOSE
@@ -1078,7 +1095,7 @@ def render_pestana_facturacion(client):
                         
                         t_base = ed_pc['Base Neta'].sum()
                         t_igic = ed_pc['IGIC €'].sum()
-                        new_total = ed_pc['Total Línea'].sum() * (1 - dto_pp/100)
+                        new_total = round(float(ed_pc['Total Línea'].sum() * (1 - dto_pp/100)), 2)
                         
                         st.markdown(f"""
                         <div style="background-color: #fff5f5; padding: 15px; border-radius: 10px; border-left: 5px solid #d32f2f; text-align: right;">
@@ -1095,66 +1112,104 @@ def render_pestana_facturacion(client):
                     if str(c_data.get('estado', '')) == 'Borrador':
                         st.warning("⚠️ Este documento está en estado de BORRADOR. El stock aún no se ha actualizado.")
                         if st.button("🚀 VALIDAR DOCUMENTO Y ACTUALIZAR STOCK", type="primary", use_container_width=True):
+                            import uuid as _uuid
+                            errores_stock = []
                             for p in ed_pc.to_dict('records'):
-                                if str(p.get('id', '0')) != '0' and str(p.get('id')) != 'None':
-                                    res_p = client.table("productos").select("stock_actual").eq("id", p['id']).execute()
+                                p_id = p.get('id')
+                                try:
+                                    if p_id is None or (isinstance(p_id, float) and pd.isna(p_id)):
+                                        continue
+                                    p_id_str = str(p_id).strip()
+                                    if p_id_str in ["", "None", "0", "nan"]:
+                                        continue
+                                    _uuid.UUID(p_id_str)
+                                except (ValueError, AttributeError, TypeError):
+                                    continue
+
+                                try:
+                                    res_p = client.table("productos").select("stock_actual").eq("id", p_id_str).execute()
                                     if res_p.data:
-                                        cant_mod = -p.get('Cantidad', 1) if es_abono_archivo else p.get('Cantidad', 1)
+                                        cant_raw = p.get('Cantidad', 1)
+                                        try:
+                                            cant_mod = int(float(cant_raw or 1))
+                                        except (TypeError, ValueError):
+                                            cant_mod = 1
+                                        if es_abono_archivo:
+                                            cant_mod = -cant_mod
+                                        stock_act = int(res_p.data[0]['stock_actual'] or 0)
                                         client.table("productos").update({
-                                            "stock_actual": (res_p.data[0]['stock_actual'] or 0) + cant_mod
-                                        }).eq("id", p['id']).execute()
+                                            "stock_actual": stock_act + cant_mod
+                                        }).eq("id", p_id_str).execute()
                                         
                                         if not es_abono_archivo:
                                             # Se actualizan todos los datos clave que el usuario pudo haber corregido en el borrador
                                             upd_data = {
-                                                "precio_base": float(p.get('Base Ud', 0)), 
-                                                "precio_pvp": float(p.get('PVP (€)', 0.0))
+                                                "precio_base": float(p.get('Base Ud', 0) or 0), 
+                                                "precio_pvp": float(p.get('PVP (€)', 0.0) or 0.0)
                                             }
-                                            if p.get('Descripción'):
+                                            if p.get('Descripción') and not (isinstance(p.get('Descripción'), float) and pd.isna(p.get('Descripción'))):
                                                 upd_data["nombre"] = str(p.get('Descripción'))
-                                            if p.get('Ref/EAN'):
+                                            if p.get('Ref/EAN') and not (isinstance(p.get('Ref/EAN'), float) and pd.isna(p.get('Ref/EAN'))):
                                                 upd_data["codigo_barras"] = str(p.get('Ref/EAN'))
-                                            if p.get('IGIC %') is not None:
+                                            if p.get('IGIC %') is not None and not (isinstance(p.get('IGIC %'), float) and pd.isna(p.get('IGIC %'))):
                                                 upd_data["igic_tipo"] = float(p.get('IGIC %', 0))
                                                 
-                                            client.table("productos").update(upd_data).eq("id", p['id']).execute()
+                                            client.table("productos").update(upd_data).eq("id", p_id_str).execute()
                                         if not es_abono_archivo and c_data.get('proveedor_id'):
-                                            res_link = client.table("productos_proveedores").select("id").eq("producto_id", p['id']).eq("proveedor_id", c_data['proveedor_id']).execute()
+                                            res_link = client.table("productos_proveedores").select("id").eq("producto_id", p_id_str).eq("proveedor_id", c_data['proveedor_id']).execute()
                                             if not res_link.data:
-                                                client.table("productos_proveedores").insert({"producto_id": p['id'], "proveedor_id": c_data['proveedor_id'], "precio_coste": float(p.get('Base Ud', 0))}).execute()
+                                                client.table("productos_proveedores").insert({"producto_id": p_id_str, "proveedor_id": c_data['proveedor_id'], "precio_coste": float(p.get('Base Ud', 0) or 0)}).execute()
                                             else:
-                                                client.table("productos_proveedores").update({"precio_coste": float(p.get('Base Ud', 0))}).eq("producto_id", p['id']).eq("proveedor_id", c_data['proveedor_id']).execute()
+                                                client.table("productos_proveedores").update({"precio_coste": float(p.get('Base Ud', 0) or 0)}).eq("producto_id", p_id_str).eq("proveedor_id", c_data['proveedor_id']).execute()
+                                except Exception as e_stock:
+                                    errores_stock.append(str(e_stock))
                             
-                            nuevo_total_guardar = -abs(new_total) if es_abono_archivo else abs(new_total)
-                            pagado_actual = float(c_data.get('pagado') or 0.0)
+                            # El estado pasa a Recibido aunque falle algún producto (no dejar el doc en Borrador)
+                            nuevo_total_guardar = round(-abs(float(new_total)) if es_abono_archivo else abs(float(new_total)), 2)
+                            pagado_actual = round(float(c_data.get('pagado') or 0.0), 2)
                             if es_abono_archivo:
-                                nuevo_pendiente = nuevo_total_guardar - pagado_actual
+                                nuevo_pendiente = round(nuevo_total_guardar - pagado_actual, 2)
                                 nuevo_estado = "Pagado" if abs(nuevo_pendiente) <= 0.01 else "Recibido"
                             else:
-                                nuevo_pendiente = max(0.0, float(new_total) - pagado_actual)
+                                nuevo_pendiente = round(max(0.0, nuevo_total_guardar - pagado_actual), 2)
                                 nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else "Recibido"
+                            if abs(nuevo_pendiente) <= 0.01:
+                                nuevo_pendiente = 0.0
+                            
+                            prefijo_doc = "Abono" if es_abono_archivo else "Factura"
+                            tipo_actualizado = f"{prefijo_doc}: {str(n_fac_ed).strip()}" if str(n_fac_ed).strip() else str(c_data.get('tipo', ''))
                             
                             client.table("compras").update({
                                 "productos": json.loads(ed_pc.to_json(orient='records')), 
-                                "total": float(nuevo_total_guardar), "pendiente": nuevo_pendiente, 
+                                "total": float(nuevo_total_guardar), "pendiente": float(nuevo_pendiente), 
                                 "estado": nuevo_estado, "descuento_pp": float(dto_pp),
-                                "fecha_factura": str(f_fac_ed)
+                                "fecha_factura": str(f_fac_ed),
+                                "tipo": tipo_actualizado
                             }).eq("id", c_id).execute()
                             
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                            st.success("¡Documento validado y stock actualizado correctamente!"); time.sleep(1.5); st.rerun()
+                            limpiar_cache_facturacion()
+                            if errores_stock:
+                                st.warning(f"Documento pasado a '{nuevo_estado}', pero hubo avisos al actualizar stock en {len(errores_stock)} línea(s).")
+                            else:
+                                st.success(f"¡Documento validado! Estado: {nuevo_estado}. Stock actualizado.")
+                            time.sleep(1.5); st.rerun()
 
                     if st.button("💾 SINCRONIZAR CAMBIOS DE ESTA COMPRA"):
-                        nuevo_total_guardar = -abs(new_total) if es_abono_archivo else abs(new_total)
-                        pagado_actual = float(c_data.get('pagado') or 0.0)
+                        nuevo_total_guardar = round(-abs(float(new_total)) if es_abono_archivo else abs(float(new_total)), 2)
+                        pagado_actual = round(float(c_data.get('pagado') or 0.0), 2)
                         if es_abono_archivo:
-                            nuevo_pendiente = nuevo_total_guardar - pagado_actual
+                            nuevo_pendiente = round(nuevo_total_guardar - pagado_actual, 2)
                             nuevo_estado = "Pagado" if abs(nuevo_pendiente) <= 0.01 else str(c_data.get('estado', 'Pendiente'))
                         else:
-                            nuevo_pendiente = max(0.0, float(new_total) - pagado_actual)
+                            nuevo_pendiente = round(max(0.0, nuevo_total_guardar - pagado_actual), 2)
                             nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else str(c_data.get('estado', 'Pendiente'))
+                        if abs(nuevo_pendiente) <= 0.01:
+                            nuevo_pendiente = 0.0
                             
-                        client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(nuevo_total_guardar), "pendiente": nuevo_pendiente, "estado": nuevo_estado, "descuento_pp": float(dto_pp), "fecha_factura": str(f_fac_ed)}).eq("id", c_id).execute()
+                        client.table("compras").update({"productos": json.loads(ed_pc.to_json(orient='records')), "total": float(nuevo_total_guardar), "pendiente": float(nuevo_pendiente), "estado": nuevo_estado, "descuento_pp": float(dto_pp), "fecha_factura": str(f_fac_ed)}).eq("id", c_id).execute()
+                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                        limpiar_cache_facturacion()
                         st.success("Compra actualizada."); st.rerun()
 
     # ==========================================
@@ -1180,7 +1235,8 @@ def render_pestana_facturacion(client):
                 lambda r: float(r['total']) - r['pagado'] if 'pendiente' not in df_deudas.columns or pd.isna(r.get('pendiente')) else float(r.get('pendiente', 0.0)), 
                 axis=1
             )
-            df_deudas['pendiente'] = df_deudas['pendiente'].apply(lambda x: max(0.0, x))
+            df_deudas['pendiente'] = df_deudas['pendiente'].apply(lambda x: round(max(0.0, float(x)), 2))
+            df_deudas['total'] = pd.to_numeric(df_deudas['total'], errors='coerce').fillna(0.0).round(2)
             
             hoy_date = pd.Timestamp(date.today())
             
@@ -1249,11 +1305,14 @@ def render_pestana_facturacion(client):
             
             filas_pagar = ed_deudas[ed_deudas["A Pagar Hoy (€)"] > 0]
             if not filas_pagar.empty:
-                errores_exceso = filas_pagar[filas_pagar["A Pagar Hoy (€)"] > filas_pagar["pendiente"]]
+                # Comparar a 2 decimales para evitar falsos "exceso" por float (ej. 177.01)
+                pago_r = filas_pagar["A Pagar Hoy (€)"].astype(float).round(2)
+                pend_r = filas_pagar["pendiente"].astype(float).round(2)
+                errores_exceso = filas_pagar[(pago_r - pend_r) > 0.005]
                 if not errores_exceso.empty:
                     st.error("⚠️ Has introducido un importe a pagar superior a la deuda pendiente en alguna factura. Por favor, corrígelo antes de continuar.")
                 else:
-                    total_a_pagar = filas_pagar['A Pagar Hoy (€)'].sum()
+                    total_a_pagar = round(float(pago_r.sum()), 2)
                     st.markdown("---")
                     st.markdown(f"**Has indicado pagos para {len(filas_pagar)} factura(s) por un total de <span style='color: #005275; font-size: 1.2em;'>{total_a_pagar:.2f} €</span>**", unsafe_allow_html=True)
                     
@@ -1306,13 +1365,14 @@ def render_pestana_facturacion(client):
                             from core_facturacion import registrar_pago_deuda
                             for _, row in filas_pagar.iterrows():
                                 c_id = row['id']
-                                pago_hoy = float(row['A Pagar Hoy (€)'])
+                                pago_hoy = round(float(row['A Pagar Hoy (€)']), 2)
                                 try:
                                     registrar_pago_deuda(client, c_id, pago_hoy, cuenta_id=None)
                                 except ValueError as ve:
                                     st.error(f"Error: {ve}")
                             st.success(f"¡Pago de {total_a_pagar:.2f} € registrado correctamente!")
                             time.sleep(1.5)
+                            limpiar_cache_facturacion()
                             st.rerun()
         else:
             st.success("¡Genial! No tienes deudas a proveedores pendientes.")

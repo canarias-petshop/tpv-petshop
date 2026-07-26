@@ -4,22 +4,26 @@ import json
 def eliminar_documento_contabilidad(client, df_comp_arc, c_id, fetch_producto_stock):
     """
     Elimina un documento contable (compra, gasto, etc.).
-    Si es una factura de compra (mercancía), restaura (resta) el stock del inventario.
+    Si es una factura de compra ya validada (no borrador), restaura (resta) el stock del inventario.
     """
     try:
         c_data = df_comp_arc[df_comp_arc['id'] == c_id].iloc[0]
+        estado_doc = str(c_data.get('estado', ''))
         prods_raw = c_data.get('productos', [])
-        if isinstance(prods_raw, list):
+        # Los borradores nunca sumaron stock: no restar al borrar
+        if estado_doc != 'Borrador' and isinstance(prods_raw, list):
             for p in prods_raw:
                 p_id = p.get('id') if isinstance(p, dict) else None
-                if p_id and str(p_id).strip() not in ["", "None", "0"]:
+                if p_id and str(p_id).strip() not in ["", "None", "0", "nan"]:
                     try:
                         res_p = fetch_producto_stock(client, p_id)
                         if res_p and hasattr(res_p, 'data') and res_p.data:
+                            cant = int(float(p.get('Cantidad', 0) or 0))
+                            stock_act = int(res_p.data[0]['stock_actual'] or 0)
                             client.table("productos").update({
-                                "stock_actual": res_p.data[0]['stock_actual'] - p.get('Cantidad', 0)
+                                "stock_actual": stock_act - cant
                             }).eq("id", p_id).execute()
-                    except:
+                    except Exception:
                         pass
         client.table("compras").delete().eq("id", c_id).execute()
         return True

@@ -113,13 +113,23 @@ def test_registrar_pago_deuda(mock_supabase_client):
     res = registrar_pago_deuda(mock_supabase_client, compra_id=1, pago_eur=20.0, cuenta_id=None)
     assert res["id"] == 1
 
-def test_registrar_pago_deuda_exceso(mock_supabase_client):
+def test_registrar_pago_deuda_importe_exacto_centimos(mock_supabase_client):
+    """Pago exacto del pendiente no debe rechazarse por ruido de float."""
     mock_supabase_client.table().select().eq().execute().data = [
-        {"id": 1, "pagado": 10.0, "pendiente": 50.0, "total": 60.0}
+        {"id": 1, "pagado": 0.0, "pendiente": 177.01, "total": 177.01}
     ]
-    
+    res = registrar_pago_deuda(mock_supabase_client, compra_id=1, pago_eur=177.01, cuenta_id=None)
+    assert res["id"] == 1
+    update_payload = mock_supabase_client.table().update.call_args[0][0]
+    assert update_payload["estado"] == "Pagado"
+    assert update_payload["pendiente"] == 0.0
+
+def test_registrar_pago_deuda_exceso_real(mock_supabase_client):
+    mock_supabase_client.table().select().eq().execute().data = [
+        {"id": 1, "pagado": 0.0, "pendiente": 177.01, "total": 177.01}
+    ]
     with pytest.raises(ValueError, match="la deuda pendiente es"):
-        registrar_pago_deuda(mock_supabase_client, compra_id=1, pago_eur=100.0, cuenta_id=None)
+        registrar_pago_deuda(mock_supabase_client, compra_id=1, pago_eur=177.02, cuenta_id=None)
 
 def test_registrar_pago_deuda_negativo(mock_supabase_client):
     with pytest.raises(ValueError, match="mayor a 0"):

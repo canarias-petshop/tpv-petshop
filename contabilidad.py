@@ -418,7 +418,8 @@ def render_pestana_contabilidad(client):
                 lambda r: float(r['total']) - r['pagado'] if 'pendiente' not in df_deudas.columns or pd.isna(r.get('pendiente')) else float(r.get('pendiente', 0.0)), 
                 axis=1
             )
-            df_deudas['pendiente'] = df_deudas['pendiente'].apply(lambda x: max(0.0, x))
+            df_deudas['pendiente'] = df_deudas['pendiente'].apply(lambda x: round(max(0.0, float(x)), 2))
+            df_deudas['total'] = pd.to_numeric(df_deudas['total'], errors='coerce').fillna(0.0).round(2)
             
             hoy_date = pd.Timestamp.now('Atlantic/Canary').normalize().tz_localize(None)
             
@@ -457,11 +458,13 @@ def render_pestana_contabilidad(client):
             
             filas_pagar = ed_deudas[ed_deudas["A Pagar Hoy (€)"] > 0]
             if not filas_pagar.empty:
-                errores_exceso = filas_pagar[filas_pagar["A Pagar Hoy (€)"] > filas_pagar["pendiente"]]
+                pago_r = filas_pagar["A Pagar Hoy (€)"].astype(float).round(2)
+                pend_r = filas_pagar["pendiente"].astype(float).round(2)
+                errores_exceso = filas_pagar[(pago_r - pend_r) > 0.005]
                 if not errores_exceso.empty:
                     st.error("⚠️ Has introducido un importe a pagar superior a la deuda pendiente en algún gasto. Por favor, corrígelo antes de continuar.")
                 else:
-                    total_a_pagar = filas_pagar['A Pagar Hoy (€)'].sum()
+                    total_a_pagar = round(float(pago_r.sum()), 2)
                     st.markdown("---")
                     st.markdown(f"**Has indicado pagos para {len(filas_pagar)} gasto(s) por un total de <span style='color: #005275; font-size: 1.2em;'>{total_a_pagar:.2f} €</span>**", unsafe_allow_html=True)
                     
@@ -504,11 +507,18 @@ def render_pestana_contabilidad(client):
                         if pago_exitoso:
                             for _, row in filas_pagar.iterrows():
                                 c_id = row['id']
-                                pago_hoy = float(row['A Pagar Hoy (€)'])
+                                pago_hoy = round(float(row['A Pagar Hoy (€)']), 2)
                                 actual_row = df_deudas[df_deudas['id'] == c_id].iloc[0]
-                                nuevo_pagado = float(actual_row['pagado']) + pago_hoy
-                                nuevo_pendiente = float(actual_row['pendiente']) - pago_hoy
-                                nuevo_estado = "Pagado" if nuevo_pendiente <= 0.01 else "Pago Parcial"
+                                pend_act = round(float(actual_row['pendiente']), 2)
+                                pagado_act = round(float(actual_row['pagado']), 2)
+                                if pago_hoy >= pend_act - 0.005:
+                                    nuevo_pagado = round(pagado_act + pend_act, 2)
+                                    nuevo_pendiente = 0.0
+                                    nuevo_estado = "Pagado"
+                                else:
+                                    nuevo_pagado = round(pagado_act + pago_hoy, 2)
+                                    nuevo_pendiente = round(pend_act - pago_hoy, 2)
+                                    nuevo_estado = "Pago Parcial"
                                 client.table("compras").update({"estado": nuevo_estado, "pagado": nuevo_pagado, "pendiente": nuevo_pendiente}).eq("id", c_id).execute()
                             limpiar_cache_contabilidad()
                             st.session_state.llave_cont_pago += 1
