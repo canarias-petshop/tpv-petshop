@@ -6,6 +6,7 @@ import time
 from postgrest import SyncPostgrestClient
 from zoneinfo import ZoneInfo
 import hashlib
+import re
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_empleados_activos(_client: SyncPostgrestClient):
@@ -45,7 +46,132 @@ def limpiar_cache_personal():
     get_agenda_bloqueos_futuros.clear()
     st.cache_data.clear()
 
-def registrar_fichaje(client: SyncPostgrestClient, empleado_id: str, nombre_empleado: str, ahora_dt: datetime) -> tuple[bool, str]:
+def parsear_horas_turno(turno: str):
+    """Extrae hora inicio/fin del texto del cuadrante (ej. '09:00 - 15:00')."""
+    if not turno:
+        return None, None
+    t = str(turno).strip()
+    if not t or any(x in t.lower() for x in ("libre", "vacaciones", "off")):
+        return None, None
+    times = re.findall(r'(\d{1,2}:\d{2})', t)
+    if len(times) < 2:
+        return None, None
+    try:
+        h_ini = datetime.strptime(times[0], "%H:%M").time()
+        h_fin = datetime.strptime(times[1], "%H:%M").time()
+        return h_ini, h_fin
+    except ValueError:
+        return None, None
+
+def _fmt_duracion(minutos: int) -> str:
+    minutos = abs(int(minutos))
+    h, m = divmod(minutos, 60)
+    if h and m:
+        return f"{h} h {m} min"
+    if h:
+        return f"{h} h"
+    return f"{m} min"
+
+def info_turno_para_salida(client: SyncPostgrestClient, empleado_id: str, ahora_dt: datetime, hora_entrada_dt: datetime) -> dict:
+    """Consulta el cuadrante de hoy y calcula cuánto queda hasta la salida prevista."""
+    tz = ZoneInfo("Atlantic/Canary")
+    if ahora_dt.tzinfo is None:
+        ahora_dt = ahora_dt.replace(tzinfo=tz)
+    else:
+        ahora_dt = ahora_dt.astimezone(tz)
+    if hora_entrada_dt.tzinfo is None:
+        hora_entrada_dt = hora_entrada_dt.replace(tzinfo=tz)
+    else:
+        hora_entrada_dt = hora_entrada_dt.astimezone(tz)
+
+    hoy = ahora_dt.date().isoformat()
+    turno_txt = None
+    try:
+        res_c = client.table("personal_cuadrantes").select("turno").eq("empleado_id", empleado_id).eq("fecha", hoy).execute()
+        if res_c.data:
+            turno_txt = res_c.data[0].get("turno")
+    except Exception:
+        turno_txt = None
+
+    h_ini, h_fin = parsear_horas_turno(turno_txt or "")
+    minutos_trabajados = int((ahora_dt - hora_entrada_dt).total_seconds() / 60)
+
+    info = {
+        "turno": turno_txt,
+        "hora_entrada_str": hora_entrada_dt.strftime("%H:%M"),
+        "minutos_trabajados": minutos_trabajados,
+        "hora_fin_str": None,
+        "minutos_restantes": None,
+        "resumen_horario": "No hay turno planificado en el cuadrante para hoy.",
+    }
+
+    if h_fin:
+        fin_dt = datetime.combine(ahora_dt.date(), h_fin, tzinfo=tz)
+        # Si el turno cruza medianoche (raro), ajustar
+        if h_ini and h_fin <= h_ini:
+            fin_dt = fin_dt + timedelta(days=1)
+        resto = int((fin_dt - ahora_dt).total_seconds() / 60)
+        info["hora_fin_str"] = h_fin.strftime("%H:%M")
+        info["minutos_restantes"] = resto
+        if resto > 0:
+            info["resumen_horario"] = (
+                f"Según el cuadrante ({turno_txt}), te quedan **{_fmt_duracion(resto)}** "
+                f"para la salida prevista a las **{h_fin.strftime('%H:%M')}**."
+            )
+        elif resto == 0:
+            info["resumen_horario"] = (
+                f"Según el cuadrante ({turno_txt}), es justo la hora de salida (**{h_fin.strftime('%H:%M')}**)."
+            )
+        else:
+            info["resumen_horario"] = (
+                f"Según el cuadrante ({turno_txt}), la salida prevista era a las **{h_fin.strftime('%H:%M')}** "
+                f"(hace **{_fmt_duracion(resto)}**)."
+            )
+    return info
+
+def previsualizar_fichaje(client: SyncPostgrestClient, empleado_id: str, nombre_empleado: str, ahora_dt: datetime) -> dict:
+    """
+    Indica qué haría el siguiente fichaje sin registrarlo.
+    accion: 'bloqueo' | 'entrada' | 'salida'
+    """
+    tz_canarias = pytz.timezone('Atlantic/Canary')
+    hoy = ahora_dt.date().isoformat()
+
+    res_ultimo = get_ultimo_fichaje(client, empleado_id, hoy)
+    if res_ultimo.data:
+        ultimo = res_ultimo.data[0]
+        str_hora = ultimo.get('hora_salida') or ultimo.get('hora_entrada')
+        if str_hora:
+            hora_ultima = pd.to_datetime(str_hora)
+            if hora_ultima.tzinfo is None:
+                hora_ultima = hora_ultima.tz_localize(tz_canarias)
+            hora_ultima_utc = hora_ultima.tz_convert('UTC')
+            ahora_utc = pd.to_datetime(ahora_dt).tz_convert('UTC') if pd.to_datetime(ahora_dt).tzinfo else pd.to_datetime(ahora_dt).tz_localize('UTC')
+            min_diff = int((ahora_utc - hora_ultima_utc).total_seconds() / 60)
+            if min_diff < 30:
+                return {
+                    "accion": "bloqueo",
+                    "msg": f"⏳ **Bloqueo Activo:** El usuario **{nombre_empleado}** ya fichó hace {min_diff} minuto(s). Espera {30 - min_diff} minutos más."
+                }
+
+    fichajes_res = get_fichajes_sin_salida(client, empleado_id, hoy)
+    if fichajes_res.data:
+        f = fichajes_res.data[0]
+        hora_entrada = pd.to_datetime(f['hora_entrada'])
+        if hora_entrada.tzinfo is None:
+            hora_entrada = hora_entrada.tz_localize(tz_canarias)
+        turno_info = info_turno_para_salida(client, empleado_id, ahora_dt, hora_entrada.to_pydatetime())
+        return {
+            "accion": "salida",
+            "nombre": nombre_empleado,
+            "empleado_id": empleado_id,
+            "fichaje_id": f['id'],
+            **turno_info,
+        }
+
+    return {"accion": "entrada", "nombre": nombre_empleado, "empleado_id": empleado_id}
+
+def registrar_fichaje(client: SyncPostgrestClient, empleado_id: str, nombre_empleado: str, ahora_dt: datetime, accion_esperada=None) -> tuple:
     """Registra la entrada o salida de un empleado asegurando las reglas de negocio."""
     tz_canarias = pytz.timezone('Atlantic/Canary')
     hoy = ahora_dt.date().isoformat()
@@ -72,6 +198,8 @@ def registrar_fichaje(client: SyncPostgrestClient, empleado_id: str, nombre_empl
     fichajes = fichajes_res.data
     
     if fichajes:
+        if accion_esperada == "entrada":
+            return False, "Ya tenías una entrada abierta. Cancela y confirma si quieres registrar la salida."
         fichaje_id = fichajes[0]['id']
         hora_entrada = pd.to_datetime(fichajes[0]['hora_entrada'])
         if hora_entrada.tzinfo is None:
@@ -94,6 +222,8 @@ def registrar_fichaje(client: SyncPostgrestClient, empleado_id: str, nombre_empl
         return True, f"✅ Salida registrada para {nombre_empleado} a las {ahora_dt.strftime('%H:%M')}"
         
     else:
+        if accion_esperada == "salida":
+            return False, "No hay entrada abierta para registrar la salida. Si quieres fichar la entrada, vuelve a intentarlo."
         res_last = get_ultimo_hash(client)
         hash_anterior = res_last.data[0].get("hash_actual", "") if res_last.data else ""
         data_to_hash = f"FICHAJE|IN|{empleado_id}|{ahora}|{hash_anterior}"
@@ -143,40 +273,83 @@ def render_pestana_personal(client: SyncPostgrestClient):
     else:
         with st.container(border=True):
             st.subheader("Registrar Fichaje")
-            c1, c2, c3 = st.columns([2, 1, 1])
-            with c1:
-                emp_nombres = {e['nombre']: e for e in empleados}
-                nombre_sel = st.selectbox("Empleado", options=list(emp_nombres.keys()))
-                emp_sel = emp_nombres.get(nombre_sel)
-            with c2:
-                pin = st.text_input("PIN (4 dígitos)", type="password", max_chars=4)
-            with c3:
-                st.write("")
-                st.write("")
-                if st.button("Fichar Entrada/Salida", use_container_width=True, type="primary"):
-                    if emp_sel and pin == emp_sel['pin_fichaje']:
+
+            # Confirmación de SALIDA (evita fichar salida por error creyendo que no habían entrado)
+            pend = st.session_state.get("fichaje_confirm_salida")
+            if pend:
+                st.warning(f"### 🚪 Vas a fichar la **SALIDA** de **{pend['nombre']}**")
+                st.info(
+                    f"Ya tenías registrada la **entrada a las {pend['hora_entrada_str']}** "
+                    f"(llevas {_fmt_duracion(pend['minutos_trabajados'])} trabajadas).\n\n"
+                    f"{pend['resumen_horario']}"
+                )
+                st.caption("Si pensabas fichar la entrada porque creías que no habías fichado, cancela: ya estabas dentro.")
+                bc1, bc2 = st.columns(2)
+                with bc1:
+                    if st.button("✅ Sí, confirmo la SALIDA", type="primary", use_container_width=True, key="btn_confirm_salida"):
                         tz_canarias = ZoneInfo("Atlantic/Canary")
-                        ahoy = date.today().isoformat()
-                        res_bl = get_agenda_bloqueos_futuros(client, ahoy)
-                        if res_bl.data:
-                            for b in res_bl.data:
-                                if b['fecha'] == ahoy and b.get('bloquea_agenda'):
-                                    emp_af = b.get('empleado_afectado', '')
-                                    if (emp_af == 'Todas' or emp_af == emp_sel['nombre']) and b.get('hora_inicio') == '00:00' and b.get('hora_fin') == '23:59':
-                                        st.error(f"⛔ **Acceso Denegado:** No puedes fichar hoy porque estás marcado/a con una excepción de día completo ({b.get('titulo')}).")
-                                        st.stop()
-                        
                         ahora_dt = datetime.now(tz_canarias)
-                        success, msg = registrar_fichaje(client, emp_sel['id'], nombre_sel, ahora_dt)
+                        success, msg = registrar_fichaje(
+                            client, pend["empleado_id"], pend["nombre"], ahora_dt, accion_esperada="salida"
+                        )
+                        st.session_state.pop("fichaje_confirm_salida", None)
                         if success:
                             st.success(msg)
                             time.sleep(1)
                             st.rerun()
                         else:
                             st.error(msg)
-                            st.stop()
-                    else:
-                        st.error("PIN incorrecto.")
+                with bc2:
+                    if st.button("❌ No, cancelar", use_container_width=True, key="btn_cancel_salida"):
+                        st.session_state.pop("fichaje_confirm_salida", None)
+                        st.info("Salida no registrada. Sigues con la entrada abierta.")
+                        time.sleep(1.2)
+                        st.rerun()
+            else:
+                c1, c2, c3 = st.columns([2, 1, 1])
+                with c1:
+                    emp_nombres = {e['nombre']: e for e in empleados}
+                    nombre_sel = st.selectbox("Empleado", options=list(emp_nombres.keys()))
+                    emp_sel = emp_nombres.get(nombre_sel)
+                with c2:
+                    pin = st.text_input("PIN (4 dígitos)", type="password", max_chars=4)
+                with c3:
+                    st.write("")
+                    st.write("")
+                    if st.button("Fichar Entrada/Salida", use_container_width=True, type="primary"):
+                        if emp_sel and pin == emp_sel['pin_fichaje']:
+                            tz_canarias = ZoneInfo("Atlantic/Canary")
+                            ahoy = date.today().isoformat()
+                            res_bl = get_agenda_bloqueos_futuros(client, ahoy)
+                            if res_bl.data:
+                                for b in res_bl.data:
+                                    if b['fecha'] == ahoy and b.get('bloquea_agenda'):
+                                        emp_af = b.get('empleado_afectado', '')
+                                        if (emp_af == 'Todas' or emp_af == emp_sel['nombre']) and b.get('hora_inicio') == '00:00' and b.get('hora_fin') == '23:59':
+                                            st.error(f"⛔ **Acceso Denegado:** No puedes fichar hoy porque estás marcado/a con una excepción de día completo ({b.get('titulo')}).")
+                                            st.stop()
+                            
+                            ahora_dt = datetime.now(tz_canarias)
+                            prev = previsualizar_fichaje(client, emp_sel['id'], nombre_sel, ahora_dt)
+                            if prev["accion"] == "bloqueo":
+                                st.error(prev["msg"])
+                                st.stop()
+                            if prev["accion"] == "salida":
+                                st.session_state.fichaje_confirm_salida = prev
+                                st.rerun()
+                            # Entrada directa
+                            success, msg = registrar_fichaje(
+                                client, emp_sel['id'], nombre_sel, ahora_dt, accion_esperada="entrada"
+                            )
+                            if success:
+                                st.success(msg)
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error(msg)
+                                st.stop()
+                        else:
+                            st.error("PIN incorrecto.")
 
         # Visualizar Cuadrante Flexible (Para todos)
         st.subheader("📅 Cuadrante de Trabajo")

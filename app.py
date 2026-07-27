@@ -382,6 +382,13 @@ if num_alertas > 0:
             else:
                 st.warning(f"### 🔔 Recordatorio de Salida")
                 st.info(f"El turno de **{bloqueo['empleado']}** finaliza a las **{bloqueo['hora'].strftime('%H:%M')}**. Por favor, no olvides registrar tu salida.")
+                try:
+                    h_ent_av = datetime.fromisoformat(bloqueo['f_abierto']['hora_entrada'])
+                    if h_ent_av.tzinfo is None:
+                        h_ent_av = h_ent_av.replace(tzinfo=ZoneInfo("Atlantic/Canary"))
+                    st.caption(f"Entrada registrada a las **{h_ent_av.astimezone(ZoneInfo('Atlantic/Canary')).strftime('%H:%M')}**.")
+                except Exception:
+                    pass
                 c1, c2 = st.columns(2)
                 with c1:
                     with st.form("f_out"):

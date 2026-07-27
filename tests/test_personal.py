@@ -86,3 +86,12 @@ def test_registrar_fichaje_salida_y_spam(db_client):
     success_salida, msg_salida = registrar_fichaje(db_client, empleado_id, 'TestUser', ahora_mas)
     assert success_salida
 
+def test_parsear_horas_turno():
+    from personal import parsear_horas_turno, _fmt_duracion
+    assert parsear_horas_turno("09:00 - 15:00")[0].hour == 9
+    assert parsear_horas_turno("09:00 - 15:00")[1].hour == 15
+    assert parsear_horas_turno("Libre") == (None, None)
+    assert parsear_horas_turno("10:00 a 14:30")[1].minute == 30
+    assert _fmt_duracion(90) == "1 h 30 min"
+    assert _fmt_duracion(45) == "45 min"
+
