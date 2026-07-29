@@ -10,6 +10,11 @@ Este documento contiene la estrategia comercial de la tienda y el esqueleto de l
 - **Promociones Físicas:** Fomentar el cruce de ventas en tienda física (Up-selling) con regalos por volumen de compra.
 - **Eventos y Talleres (1x/mes):** Jornadas presenciales en fin de semana (bajo coste, ej. 15€ redimibles en productos) para fidelizar, enseñar mantenimiento básico y generar ventas cruzadas en la tienda.
 
+### ⏸️ Automatización de envíos (WhatsApp / Email) — aparcado
+- **29 jul 2026:** Se evaluó automatizar recordatorios de peluquería, mantenimiento, citas del día siguiente y campañas programables.
+- **Decisión actual:** seguir **manual** (Centro de Recordatorios del TPV). Más adelante se valorará si implantar todo, solo email de marketing, o nada.
+- Documento de decisión: `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
+
 ---
 
 ## 🤖 INSTRUCCIONES PARA LA IA (FUTURAS TEMPORADAS)

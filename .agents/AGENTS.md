@@ -10,6 +10,9 @@ Para conocer todas las reglas de negocio, la arquitectura y las tareas pendiente
 1. `docs_proyecto/Compendio_Maestro_Especificaciones.md` -> Contiene el ADN del proyecto, la arquitectura Supabase y las reglas de negocio puras.
 2. `docs_proyecto/estado_tareas.md` -> Contiene la lista de Sprints y qué está terminado (marcado con `[x]`) y qué falta por hacer.
 
+### Mensajería automática (WhatsApp / Email)
+**No implementar** salvo petición explícita del usuario. Hoy los recordatorios son **manuales** (1 clic). Decisión y opciones futuras: `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
+
 ## Flujo de Trabajo Obligatorio
 1. **Desarrollo Modular**: Trabaja siempre creando ramas nuevas para cada Sprint (por ejemplo, `sprint-4b-crm`).
 2. **Primero local, después producción**: Los cambios se desarrollan, prueban y validan **siempre en local / Docker** antes de subirlos a la rama principal (`main`) de producción. **Nunca** publiques a `main` sin que el usuario lo pida explícitamente tras la prueba local.

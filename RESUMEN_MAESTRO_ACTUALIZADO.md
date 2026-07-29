@@ -112,6 +112,7 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
 - **Reparto desde Caja (TPV)**: Automatizada la creación de Servicios a Domicilio desde el Cobro, rellenando automáticamente la dirección guardada del cliente al seleccionarlo.
 - **Centro de Recordatorios Inteligente**:
   - La tabla de confirmaciones del día siguiente ahora es editable en vivo y posee una columna independiente ("🔔 Aviso") que guarda en *observaciones* si se ha mandado el WhatsApp.
+  - **Envío = manual (1 clic a WhatsApp).** La automatización por API (WA Business / email / cron) está **aparcada** a la espera de decidir alcance; ver `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
 - **Optimización de Rendimiento (Caching)**: Aplicado el sistema de `Smart Caching` de Streamlit en todas las pantallas. La base de datos no se satura al cambiar de pestaña.
 - **Sincronización en Caliente (TPV ↔ CRM)**: Si al cobrar un usuario da de alta un cliente nuevo en el CRM, el selector de clientes de la Caja se refresca automáticamente *sin vaciar el carrito*.
 
@@ -232,3 +233,7 @@ Tras haber completado gran parte de los hitos operativos iniciales (Diseño Resp
 
 **Hito 5: Refactorización y Optimización (Fase 2)**
 - **Código Limpio**: Con el respaldo de los tests y las especificaciones, reestructurar el código existente para eliminar deuda técnica, optimizar consultas, mejorar el rendimiento global y aplicar prácticas modernas.
+
+**Hito 6 (aparcado): Mensajería automática**
+- Valorar en el futuro: seguir manual / solo email marketing / recordatorios WA por API / paquete completo.
+- **No es trabajo activo.** Detalle: `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.

@@ -20,6 +20,8 @@ Sirve como "mapa" inquebrantable antes de iniciar la refactorización (Fase 2) y
 - ✅ **[CÓDIGO]** **Recogida desde CRM**: El flujo **Agendar Cita Inteligente** de la ficha de mascota usa el mismo comportamiento (UI + cascada al guardar).
 - ✅ **[CÓDIGO]** **Cascada al guardar con recogida (`registrar_recogida_desde_cita`)**: Si la recogida está activa, la cita se guarda con estado `Servicio de recogida pendiente`, se inserta en `servicios_recogida` y se actualiza el cliente (`direccion` + `servicio_domicilio=true`), incluso si el cliente partía sin dirección ni flag activo.
 - ✅ **[CÓDIGO]** **Estados de recogida en directorio**: Existen `Servicio de recogida pendiente` y `Servicio de recogida confirmado` (el legado `Servicio de recogida` se migra al pendiente).
+- ✅ **[CÓDIGO]** **Recordatorios = envío manual**: Agenda → Centro de Recordatorios genera enlaces WhatsApp (`api.whatsapp.com`) y marca `[RECORDATORIO: Avisado]` en observaciones. No hay API de envío ni cron.
+- 🚀 **[NEGOCIO/FUTURO]** **Mensajería automática (WA / Email)**: Aparcado (29 jul 2026). El negocio puede seguir manual o decidir más adelante alcance parcial/total. Ver `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
 
 ## 2. Facturación y Contabilidad (`facturacion.py`, `caja.py`)
 - ✅ **[CÓDIGO]** **VeriFactu / Hashes**: El código (`facturacion.py`, lín. 281-290) calcula y guarda en la base de datos el `hash_anterior` y `hash_actual` para cada factura, cumpliendo la Ley Antifraude.

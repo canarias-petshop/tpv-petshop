@@ -44,3 +44,13 @@
     - `[x]` Crear `tests/test_facturacion.py` y verificar tests.
     - `[x]` Ejecutar `pytest` general y asegurar >80% en los módulos core.
     - `[ ]` Hacer `git commit` y `git push` de este sprint.
+
+---
+
+## Backlog aparcado (decisión de negocio, no sprint activo)
+
+- `[ ]` **Mensajería automática WhatsApp / Email** — **NO implementar por ahora** (29 jul 2026).
+  - Hoy el flujo **manual** (Agenda → Recordatorios → WA 1 clic) es suficiente.
+  - Pendiente decidir más adelante: seguir manual / solo email marketing / solo recordatorios WA / todo.
+  - Detalle y checklist: `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
+  - **No** abrir trabajo de API Meta/Twilio/SMTP hasta que el usuario lo pida explícitamente.
