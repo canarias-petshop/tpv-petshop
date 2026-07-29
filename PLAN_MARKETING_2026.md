@@ -54,7 +54,7 @@ Cuando el usuario solicite los textos para la siguiente temporada, DEBES seguir 
 - 2026-07-30 | 💬 WhatsApp | Aviso Ola Calor / Promo Juguetes
 
 ### ✅ TEMPORADAS 2–4: Agosto–Diciembre 2026 (H2 Canarias)
-*(ESTADO: Sembrado en **local y producción Supabase** el 29 jul 2026. Código UI en `main`. Textos listos para publicar.)*
+*(ESTADO: Sembrado local + prod 29 jul 2026. Verificado en TPV 30 jul: objetivos, ~750 €, especiales, canales. Código UI en `main`; redeploy Streamlit si aún no aparece TEXTO PARA PUBLICAR. Mayo–julio del calendario no se borraron.)*
 
 **Regenerar:**  
 `python scripts/seed_marketing_h2_2026_local.py` (local) · `python scripts/seed_marketing_h2_2026_local.py --prod` (Supabase)  
@@ -64,12 +64,13 @@ Cuando el usuario solicite los textos para la siguiente temporada, DEBES seguir 
 |-----|---------|
 | Ritmo IG | **~3 publicaciones/semana** (lun/mié/vie) — sostenible |
 | Textos | `contenido_detallado` completo; TPV → Plan Maestro → **TEXTO PARA PUBLICAR** |
-| Presupuesto | **150 €/mes:** IG/FB Ads ~70 · Google ~45 · Cartelería ~35 · WA **0** (manual) |
+| Presupuesto | **150 €/mes** (H2 ≈ **750 €**): IG/FB Ads ~70 · Google ~45 · Cartelería ~35 · WA **0** (manual) |
 | Fechas Ads | Ancla del **mes** (campaña activa todo el mes ≈ €/30 al día), no gasto de un solo día |
 | Objetivos | 7 metas; progreso **manual** en Objetivos y Resultados |
 | Talleres | **Sábado o domingo** + anuncios con previsión en el plan |
 | Innovate | Etiqueta opcional → `docs_proyecto/INICIATIVA_INNOVATE.md` |
 | Conteos prod | ~131 acciones plan · 7 objetivos · 5 talleres H2 |
+| UI nube | Si pone “Vista de Proyección de Campañas” → Reboot Streamlit Cloud |
 
 **Talleres H2:** 22 ago (sáb) higiene · 20 sep (dom) deslanado · 24 oct (sáb) pirotecnia · 22 nov (dom) SPA · 12 dic (sáb) fiesta navideña.
 

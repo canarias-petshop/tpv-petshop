@@ -84,12 +84,14 @@ Tu sistema TPV ahora es también el cerebro de tu Tienda Online (Next.js/Vercel)
 ---
 
 ## 8-bis. 🎯 Marketing (Plan Maestro, Objetivos, Ads)
-- **Plan Maestro:** Calendario de publicaciones (ago–dic 2026 en local). Arriba del todo: **TEXTO PARA PUBLICAR** — eliges mes y campaña y copias el texto entero (Instagram, cartel, WhatsApp o anuncio). La tabla solo lista títulos y presupuesto.
+- **Plan Maestro:** Calendario de publicaciones (ago–dic 2026). Arriba del todo: **TEXTO PARA PUBLICAR** — eliges mes y campaña y copias el texto entero (Instagram, cartel, WhatsApp o anuncio). Debajo: **Calendario (títulos y presupuesto)** (solo títulos, no el texto largo).
+- **Si no ves “TEXTO PARA PUBLICAR”** y aún pone “Vista de Proyección de Campañas”: la app en la nube no ha cargado el código nuevo → en Streamlit Cloud, **Reboot / Redeploy**, luego recarga forzada del navegador (`Ctrl+F5`). Los datos (objetivos, ~750 €, especiales) ya están en Supabase.
+- **Calendario mixto:** mayo–julio pueden ser campañas antiguas; el plan nuevo H2 empieza en **agosto**. Filtra por mes agosto o posterior al copiar textos.
 - **Ritmo redes:** ~3 posts Instagram por semana (no saturar). Talleres en **sábado o domingo**, anunciados con antelación.
-- **Presupuesto 150 €/mes:** ~70 Instagram/Facebook Ads + ~45 Google Ads + ~35 cartelería. WhatsApp = 0 € (manual). La fecha de la fila Ads es el **mes**, no “gastar todo en un día”: deja la campaña activa el mes con ~€/día.
+- **Presupuesto 150 €/mes** (ago–dic ≈ **750 €**): ~70 Instagram/Facebook Ads + ~45 Google Ads + ~35 cartelería. WhatsApp = 0 € (manual). La fecha de la fila Ads es el **mes**, no “gastar todo en un día”: deja la campaña activa el mes con ~€/día.
 - **Objetivos:** Metas numéricas (citas, clientes nuevos, etc.). Hoy se actualizan **a mano** en Objetivos y Resultados (progreso semanal/mensual). Automatizar KPIs = trabajo futuro.
-- **Detalle y siguiente paso (automatizar KPIs en local):** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`
-- **Estado:** plan H2 cargado en producción; se usa desde Marketing → Plan Maestro / Objetivos / Talleres.
+- **Detalle y siguiente paso:** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`
+- **Estado (30 jul 2026):** datos H2 en producción verificados; código UI en `main`. Uso: Marketing → Plan Maestro / Objetivos / Talleres.
 
 ---
 

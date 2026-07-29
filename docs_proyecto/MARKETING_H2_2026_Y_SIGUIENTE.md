@@ -1,13 +1,34 @@
 # Marketing H2 2026 + hoja de ruta (handoff)
 
-**Fecha:** 29 jul 2026  
+**Fecha:** 29–30 jul 2026  
 **Ámbito datos:** Sembrado en **local** y en **producción Supabase** (29 jul 2026, script `--prod`).  
-**Código:** en `main` (UI TEXTO PARA PUBLICAR, etc.).  
+**Código:** en `main` (UI **TEXTO PARA PUBLICAR** + calendario “títulos y presupuesto”).  
 **Script:** `scripts/seed_marketing_h2_2026_local.py`  
 - Local: `python scripts/seed_marketing_h2_2026_local.py`  
 - Prod: `python scripts/seed_marketing_h2_2026_local.py --prod`  
 
 Este documento cierra el trabajo de marketing de esta conversación y deja listo el contexto para **seguir en una conversación nueva** (automatización de KPIs en local primero).
+
+---
+
+## 0. Verificación en TPV producción (30 jul 2026)
+
+Comprobado en el TPV apuntando a Supabase prod:
+
+| Pieza | Estado |
+|-------|--------|
+| Objetivos (7 metas H2) | ✅ Coincide |
+| Presupuesto total H2 ~**750 €** | ✅ Coincide |
+| Campañas especiales | ✅ Coincide |
+| Gestión de canales / precios | ✅ Coincide |
+| Datos plan ago–dic (`contenido_detallado`) | ✅ En Supabase |
+| UI **TEXTO PARA PUBLICAR** + título calendario nuevo | ⚠️ En `main`; si el TPV nube aún muestra **“Vista de Proyección de Campañas”**, es **código viejo en Streamlit Cloud** → Reboot/Redeploy + `Ctrl+F5` |
+
+**Calendario / campañas antiguas:** la semilla **no borró** mayo–julio. Solo reemplazó desde `2026-08-01`. En la lista pueden mezclarse filas viejas (may–jul) + H2 (ago–dic). Para textos nuevos: filtrar mes **agosto o posterior** en TEXTO PARA PUBLICAR (cuando la UI nueva esté desplegada).
+
+**Señal de UI antigua vs nueva**
+- Antigua: “Vista de Proyección de Campañas” → falta redeploy.
+- Nueva: “TEXTO PARA PUBLICAR” arriba + “Calendario (títulos y presupuesto)” abajo.
 
 ---
 
@@ -110,8 +131,9 @@ UI: botón **“Sincronizar KPIs desde TPV”** en Objetivos, o cron nocturno so
 ## 5. Prompt sugerido para la siguiente conversación
 
 > Seguimos Animalarium TPV. Lee `.agents/AGENTS.md` y `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.  
-> El plan H2 ya está en **producción** y el código en `main`.  
-> Quiero trabajar en **local** la automatización de KPIs de objetivos (o checklist Meta/Google).  
+> Datos H2 en prod verificados (objetivos, 750 €, especiales, canales). Código UI en `main`.  
+> Si falta TEXTO PARA PUBLICAR en la nube: redeploy Streamlit Cloud.  
+> Quiero trabajar en **local** la automatización de KPIs (o checklist Meta/Google).  
 > No toques `main` hasta que lo pida.
 
 ---
@@ -121,3 +143,4 @@ UI: botón **“Sincronizar KPIs desde TPV”** en Objetivos, o cron nocturno so
 - WhatsApp Business API / email masivo (sigue aparcado).
 - Cumpleaños / win-back (“Próximamente”).
 - Re-sembrar producción sin petición (ya está cargado).
+- Borrar a mano mayo–julio del plan (opcional; no hace falta para usar H2).

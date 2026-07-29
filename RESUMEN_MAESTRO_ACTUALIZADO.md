@@ -238,8 +238,9 @@ Tras haber completado gran parte de los hitos operativos iniciales (Diseño Resp
 - Valorar en el futuro: seguir manual / solo email marketing / recordatorios WA por API / paquete completo.
 - **No es trabajo activo.** Detalle: `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
 
-**Hito 7: Plan marketing H2 2026 (cerrado 29 jul 2026)**
-- Plan ago–dic: textos copy/paste, ~3 IG/sem, 150 €/mes (IG Ads / Google / cartelería), talleres sáb/dom, objetivos manuales.
-- UI Plan Maestro con bloque **TEXTO PARA PUBLICAR**.
-- **Código en `main`** y **datos en local + producción Supabase** (~131 campañas, 7 objetivos, 5 talleres).
-- Continuación (automatizar KPIs): `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
+**Hito 7: Plan marketing H2 2026 (datos 29 jul; verificación TPV 30 jul 2026)**
+- Plan ago–dic: textos copy/paste, ~3 IG/sem, 150 €/mes ≈ 750 € H2 (IG Ads / Google / cartelería), talleres sáb/dom, objetivos manuales.
+- UI Plan Maestro: **TEXTO PARA PUBLICAR** + calendario de títulos (código en `main`).
+- **Datos verificados en prod:** objetivos, ~750 €, campañas especiales, canales. Mayo–julio del plan no se borraron.
+- Si Streamlit Cloud muestra UI antigua (“Vista de Proyección…”): Reboot/Redeploy.
+- Continuación (automatizar KPIs en local): `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.

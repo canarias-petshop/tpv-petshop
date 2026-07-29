@@ -15,7 +15,8 @@ Documentación obligatoria antes de cambios grandes:
 
 ### Marketing H2 2026 (ago–dic)
 Plan con textos copy/paste, objetivos manuales, 150 €/mes (IG Ads + Google + cartelería), talleres sáb/dom.  
-**Datos:** sembrados en local y en **producción** (29 jul 2026).  
+**Datos:** en local y producción (verificados 30 jul: objetivos, ~750 € H2, especiales, canales).  
+**Código UI:** en `main` (TEXTO PARA PUBLICAR). Si el TPV nube aún dice “Vista de Proyección de Campañas” → Reboot Streamlit Cloud. Mayo–julio del plan no se borraron.  
 → Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`  
 → Semilla: `scripts/seed_marketing_h2_2026_local.py` (`--prod` para Supabase)  
 → Innovate: `docs_proyecto/INICIATIVA_INNOVATE.md`  

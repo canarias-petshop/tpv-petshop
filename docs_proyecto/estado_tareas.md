@@ -55,11 +55,13 @@
   - Detalle y checklist: `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
   - **No** abrir trabajo de API Meta/Twilio/SMTP hasta que el usuario lo pida explícitamente.
 
-## Marketing H2 2026 (cerrado en prod + main)
+## Marketing H2 2026 (datos + código en main; UI nube = redeploy)
 
-- `[x]` **Plan marketing H2 2026 (ago–dic)** — 29 jul 2026.
-  - Código en `main` (UI **TEXTO PARA PUBLICAR**, fix talleres/embeds).
-  - Datos en **local y producción Supabase**: 131 campañas, 7 objetivos, 5 talleres; presupuesto 150 €/mes repartido; ~3 IG/sem; talleres sáb/dom.
+- `[x]` **Plan marketing H2 2026 (ago–dic)** — 29 jul 2026; verificación TPV 30 jul 2026.
+  - Código en `main` (UI **TEXTO PARA PUBLICAR** + “Calendario (títulos y presupuesto)”, fix talleres/embeds).
+  - Datos en **local y producción Supabase**: ~131 campañas H2, 7 objetivos, 5 talleres; ~750 € H2 (150 €/mes); ~3 IG/sem; talleres sáb/dom.
+  - **Verificado en prod:** objetivos, presupuesto ~750 €, campañas especiales, gestión de canales.
+  - **Pendiente operativo:** si Streamlit Cloud aún muestra “Vista de Proyección de Campañas”, hacer **Reboot/Redeploy** (datos ya están; falta código nuevo en la app nube). Mayo–julio del calendario no se borraron.
   - Script: `scripts/seed_marketing_h2_2026_local.py` (`--prod` para Supabase).
   - Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md` · `PLAN_MARKETING_2026.md` · `INICIATIVA_INNOVATE.md`
 - `[ ]` **Siguiente (automatización, preferible en local primero):** sincronizar KPIs de objetivos desde TPV; checklist operación Meta+Google del mes.
