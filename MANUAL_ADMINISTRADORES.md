@@ -83,6 +83,15 @@ Tu sistema TPV ahora es también el cerebro de tu Tienda Online (Next.js/Vercel)
 
 ---
 
+## 8-bis. 🎯 Marketing (Plan Maestro, Objetivos, Ads)
+- **Plan Maestro:** Calendario de publicaciones (ago–dic 2026 en local). Arriba del todo: **TEXTO PARA PUBLICAR** — eliges mes y campaña y copias el texto entero (Instagram, cartel, WhatsApp o anuncio). La tabla solo lista títulos y presupuesto.
+- **Ritmo redes:** ~3 posts Instagram por semana (no saturar). Talleres en **sábado o domingo**, anunciados con antelación.
+- **Presupuesto 150 €/mes:** ~70 Instagram/Facebook Ads + ~45 Google Ads + ~35 cartelería. WhatsApp = 0 € (manual). La fecha de la fila Ads es el **mes**, no “gastar todo en un día”: deja la campaña activa el mes con ~€/día.
+- **Objetivos:** Metas numéricas (citas, clientes nuevos, etc.). Hoy se actualizan **a mano** en Objetivos y Resultados (progreso semanal/mensual). Automatizar KPIs = trabajo futuro.
+- **Detalle y siguiente paso técnico:** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`
+
+---
+
 ## 9. 💾 Copias de Seguridad Automáticas (Backups)
 1. **Backup del Código (`crear_backup.bat`):** Empaqueta todo el programa en un archivo `.zip`.
 2. **Backup de los Datos (`descargar_todos_los_datos.bat`):** Descarga en la carpeta `Backups_Datos_Nube` todo tu directorio en bruto. 

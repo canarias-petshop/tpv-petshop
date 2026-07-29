@@ -1,25 +1,38 @@
 # Reglas del Proyecto Animalarium (TPV y Web)
 
 ## Estado Actual y Contexto
-Este es un proyecto doble (TPV en Streamlit y Web E-commerce). Hemos establecido una metodología de trabajo rigurosa basada en Sprints y testing. 
-Actualmente nos encontramos en la **Fase 4: Suite de Pruebas y Refactorización**. 
-El Sprint 4A (Núcleo y Personal) ya ha sido completado y subido a la rama `sprint-4a-core`.
+Este es un proyecto doble (TPV en Streamlit y Web E-commerce). Metodología: Sprints + testing + **primero local, después producción**.
 
-## Dónde encontrar la documentación
-Para conocer todas las reglas de negocio, la arquitectura y las tareas pendientes, DEBES leer obligatoriamente estos dos archivos antes de hacer grandes modificaciones:
-1. `docs_proyecto/Compendio_Maestro_Especificaciones.md` -> Contiene el ADN del proyecto, la arquitectura Supabase y las reglas de negocio puras.
-2. `docs_proyecto/estado_tareas.md` -> Contiene la lista de Sprints y qué está terminado (marcado con `[x]`) y qué falta por hacer.
+Documentación obligatoria antes de cambios grandes:
+1. `docs_proyecto/Compendio_Maestro_Especificaciones.md`
+2. `docs_proyecto/estado_tareas.md`
+
+## Decisiones y módulos recientes (leer si el tema aplica)
 
 ### Mensajería automática (WhatsApp / Email)
-**No implementar** salvo petición explícita del usuario. Hoy los recordatorios son **manuales** (1 clic). Decisión y opciones futuras: `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
+**No implementar** salvo petición explícita. Recordatorios = **manuales** (1 clic).  
+→ `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`
+
+### Marketing H2 2026 (ago–dic)
+Plan con textos copy/paste, objetivos manuales, 150 €/mes (IG Ads + Google + cartelería), talleres sáb/dom — sembrado en **BD local**.  
+**No** volcar a `main`/prod sin pedirlo.  
+→ Handoff completo: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`  
+→ Semilla: `scripts/seed_marketing_h2_2026_local.py`  
+→ Innovate (etiqueta): `docs_proyecto/INICIATIVA_INNOVATE.md`  
+→ Plan anual: `PLAN_MARKETING_2026.md`
+
+### Recogida a domicilio desde citas
+Agenda/CRM: control recogida + cascada `registrar_recogida_desde_cita` + rollback si falla (ya en `main` si se desplegó). Ver Compendio § Agenda.
 
 ## Flujo de Trabajo Obligatorio
-1. **Desarrollo Modular**: Trabaja siempre creando ramas nuevas para cada Sprint (por ejemplo, `sprint-4b-crm`).
-2. **Primero local, después producción**: Los cambios se desarrollan, prueban y validan **siempre en local / Docker** antes de subirlos a la rama principal (`main`) de producción. **Nunca** publiques a `main` sin que el usuario lo pida explícitamente tras la prueba local.
-3. **Guía de desarrollo**: Antes de cambios relevantes, consulta `RESUMEN_MAESTRO_ACTUALIZADO.md`, `docs_proyecto/Compendio_Maestro_Especificaciones.md` y `docs_proyecto/estado_tareas.md`, y actualiza esa documentación cuando se cierren comportamientos de negocio.
-4. **Testing Estricto**: Todo código refactorizado debe tener tests en la carpeta `tests/`. No des por finalizado un refactor si los tests no están en verde (con cobertura por encima del 80%).
-5. **No romper la DB**: Usamos Supabase y la conexión es a través de `postgrest.SyncPostgrestClient`. Respeta la estructura de tablas existente.
-6. **Respetar la UI**: Si usas `# pragma: no cover` en funciones exclusivas de Streamlit, está bien para no ensuciar la métrica de cobertura de la lógica de negocio pura.
+1. **Desarrollo Modular**: ramas por sprint/feature cuando aplique.
+2. **Primero local, después producción**: validar en Docker/local. **Nunca** `main` sin petición explícita del usuario tras prueba local.
+3. **Documentación**: actualizar Compendio / estado_tareas / Resumen Maestro / este AGENTS cuando se cierren comportamientos de negocio.
+4. **Testing**: `tests/` en verde para lógica core.
+5. **No romper la DB**: PostgREST + tablas existentes; FKs necesarias para embeds (`marketing_objetivos`, `eventos_asistentes`↔`clientes`, etc.).
+6. **UI Streamlit**: `# pragma: no cover` en pantallas puras UI si hace falta.
 
 ## Instrucción de inicio para agentes nuevos
-Si eres un nuevo agente uniéndote a esta conversación por primera vez, saluda al usuario, infórmale de que has leído automáticamente estas reglas en `.agents/AGENTS.md` y pregúntale si desea iniciar el **Sprint 4B (CRM e Inventario)** tal y como marca el archivo `estado_tareas.md`.
+Saluda, confirma que has leído `.agents/AGENTS.md`, y pregunta por la prioridad del usuario.  
+Si el tema es marketing / Ads / objetivos / talleres H2: lee primero `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.  
+No asumas Sprint 4B automáticamente si el usuario trae otra tarea.

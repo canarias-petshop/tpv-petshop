@@ -21,7 +21,15 @@ Sirve como "mapa" inquebrantable antes de iniciar la refactorización (Fase 2) y
 - ✅ **[CÓDIGO]** **Cascada al guardar con recogida (`registrar_recogida_desde_cita`)**: Si la recogida está activa, la cita se guarda con estado `Servicio de recogida pendiente`, se inserta en `servicios_recogida` y se actualiza el cliente (`direccion` + `servicio_domicilio=true`), incluso si el cliente partía sin dirección ni flag activo.
 - ✅ **[CÓDIGO]** **Estados de recogida en directorio**: Existen `Servicio de recogida pendiente` y `Servicio de recogida confirmado` (el legado `Servicio de recogida` se migra al pendiente).
 - ✅ **[CÓDIGO]** **Recordatorios = envío manual**: Agenda → Centro de Recordatorios genera enlaces WhatsApp (`api.whatsapp.com`) y marca `[RECORDATORIO: Avisado]` en observaciones. No hay API de envío ni cron.
-- 🚀 **[NEGOCIO/FUTURO]** **Mensajería automática (WA / Email)**: Aparcado (29 jul 2026). El negocio puede seguir manual o decidir más adelante alcance parcial/total. Ver `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
+- 🚀 **[NEGOCIO/FUTURO]** **Mensajería automática (WA / Email)**: Aparcado (29 jul 2026). Ver `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
+
+## 1-ter. Marketing (`marketing.py`, `core_marketing.py`, `proyectos_eventos.py`)
+- ✅ **[CÓDIGO]** **Objetivos y Resultados**: Tabla `marketing_objetivos` (título, KPI, meta, valor_actual, fechas, estado). Progreso = `valor_actual / meta` (`calcular_progreso_objetivo`). **Actualización manual** en UI (no hay sync automático desde citas/CRM/ventas).
+- ✅ **[CÓDIGO]** **Plan Maestro**: Tabla `marketing_plan` con canal, tema, `contenido_detallado` (texto para publicar), presupuesto/gasto, `tipo_campana`, `objetivo_id`. UI: bloque **TEXTO PARA PUBLICAR** (filtro mes + copiar/pegar) + calendario de títulos.
+- ✅ **[CÓDIGO / LOCAL]** **Plan H2 2026**: Semilla local ~3 IG/semana + talleres sáb/dom + 150 €/mes (IG Ads ~70 + Google ~45 + cartelería ~35; WA 0). Script `scripts/seed_marketing_h2_2026_local.py`. Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
+- ✅ **[CÓDIGO]** **Tipos de campaña**: Ordinaria / Evento-Feria / **Iniciativa Innovate** (solo etiqueta; ver `docs_proyecto/INICIATIVA_INNOVATE.md`).
+- ✅ **[CÓDIGO]** **Talleres**: `eventos_talleres` + `eventos_asistentes` (aforo, pagado). Horario de negocio: **sábado o domingo**.
+- 🚀 **[NEGOCIO/FUTURO]** **Automatizar KPIs / gasto Ads / cumpleaños-winback**: detallado en `MARKETING_H2_2026_Y_SIGUIENTE.md` §3. No implementar sin petición.
 
 ## 2. Facturación y Contabilidad (`facturacion.py`, `caja.py`)
 - ✅ **[CÓDIGO]** **VeriFactu / Hashes**: El código (`facturacion.py`, lín. 281-290) calcula y guarda en la base de datos el `hash_anterior` y `hash_actual` para cada factura, cumpliendo la Ley Antifraude.

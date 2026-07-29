@@ -54,3 +54,12 @@
   - Pendiente decidir más adelante: seguir manual / solo email marketing / solo recordatorios WA / todo.
   - Detalle y checklist: `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
   - **No** abrir trabajo de API Meta/Twilio/SMTP hasta que el usuario lo pida explícitamente.
+
+## Trabajo solo local (no `main` hasta petición)
+
+- `[x]` **Plan marketing H2 2026 (ago–dic)** — 29 jul 2026, **solo BD local** (actualizado mismo día: copy/paste, ritmo 3 IG/sem, presupuesto repartido, talleres sáb/dom, UI texto arriba).
+  - Objetivos **manuales**; Ads = sobre mensual (no gasto en un solo día).
+  - Script: `scripts/seed_marketing_h2_2026_local.py`
+  - **Handoff / automatización futura:** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`
+  - También: `PLAN_MARKETING_2026.md`, `docs_proyecto/INICIATIVA_INNOVATE.md`
+- `[ ]` **Siguiente (cuando se pida):** sincronizar KPIs de objetivos desde TPV; y/o checklist operación Meta+Google; y/o volcar plan a producción.

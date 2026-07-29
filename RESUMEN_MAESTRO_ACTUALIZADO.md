@@ -237,3 +237,9 @@ Tras haber completado gran parte de los hitos operativos iniciales (Diseño Resp
 **Hito 6 (aparcado): Mensajería automática**
 - Valorar en el futuro: seguir manual / solo email marketing / recordatorios WA por API / paquete completo.
 - **No es trabajo activo.** Detalle: `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
+
+**Hito 7 (local, 29 jul 2026): Plan marketing H2 + handoff**
+- Plan ago–dic en BD **local**: textos copy/paste, ~3 IG/sem, 150 €/mes repartidos (IG Ads / Google / cartelería), talleres sáb/dom, objetivos manuales.
+- UI Plan Maestro con bloque **TEXTO PARA PUBLICAR**.
+- Continuación / automatización KPIs-Ads: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
+- **No producción** hasta petición explícita.

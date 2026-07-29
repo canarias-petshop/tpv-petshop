@@ -62,6 +62,13 @@ Cualquier desarrollo de la V2 debe respetar escrupulosamente estas lógicas ya v
 - **Trazabilidad HR**: Todo fichaje genera un Hash `SHA-256`.
 - **Recogida desde Agenda**: En Nueva Cita debe poder activarse/desactivarse la recogida a domicilio con dirección visible. Si está activa al guardar: estado `Servicio de recogida pendiente`, alta en `servicios_recogida` y actualización de `clientes.direccion` + `clientes.servicio_domicilio`.
 
+### 2.6 Marketing (TPV actual → requisitos a preservar en V2)
+- Calendario `marketing_plan` con textos publicables (`contenido_detallado`) y presupuestos por canal.
+- Objetivos `marketing_objetivos` con KPI/meta/`valor_actual` (hoy manual; V2 puede sincronizar desde citas/CRM/ventas).
+- Presupuesto mensual repartible (Ads IG/Meta, Google, cartelería); WhatsApp operativo puede seguir siendo 0 € si es envío manual.
+- Talleres `eventos_talleres` en fin de semana (sáb o dom) + asistentes.
+- Referencia operativa H2 2026: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
+
 ---
 
 ## 3. Resolución de Problemas Arquitectónicos del Pasado

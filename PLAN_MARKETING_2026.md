@@ -53,46 +53,22 @@ Cuando el usuario solicite los textos para la siguiente temporada, DEBES seguir 
 - 2026-07-28 | 📱 Instagram | Post: NUNCA rapar perros doble capa
 - 2026-07-30 | 💬 WhatsApp | Aviso Ola Calor / Promo Juguetes
 
-### ⏳ TEMPORADA 2: Fin de Verano y Vuelta a la Rutina (Agosto - Septiembre)
-*(ESTADO: Pendiente de redacción de Copywriting)*
-- 2026-08-04 | 📱 Instagram | Reel: Alerta espigas tras paseos
-- 2026-08-07 | 📱 Instagram | Story: Reposición de piensos y dieta
-- 2026-08-12 | 📱 Instagram | Post: Síntomas y prevención de Leishmaniosis
-- 2026-08-17 | 📱 Instagram | Story: Truco rápido de cepillado en casa
-- 2026-08-21 | 🏬 Tienda | Semana de la higiene: Dto en champús para casa
-- 2026-08-25 | 📱 Instagram | Reel: Rutina de limpieza de oídos y ojos
-- 2026-08-28 | 💬 WhatsApp | Aviso Vuelta de vacaciones (Baño post-playa)
-- 2026-09-02 | 💰 Ads | Meta Ads: Promo Deslanado de otoño
-- 2026-09-04 | 📱 Instagram | Reel: Montañas de pelo (Satisfying deslanado)
-- 2026-09-09 | 📱 Instagram | Story: ¿Tu perro ha ganado peso en verano?
-- 2026-09-14 | 📱 Instagram | Post: Importancia de la rutina en perros
-- 2026-09-18 | 📱 Instagram | Reel: Eligiendo el cepillo correcto (Furminator vs Carda)
-- 2026-09-23 | 📱 Instagram | Story: Mostrando el rincón de chucherías naturales
-- 2026-09-28 | 📱 Instagram | Post: Ansiedad por separación (vuelta a la oficina)
+### ✅ TEMPORADAS 2–4: Agosto–Diciembre 2026 (H2 Canarias)
+*(ESTADO: Sembrado en **BD local** 29 jul 2026. Textos listos para publicar. No producción hasta pedirlo.)*
 
-### ⏳ TEMPORADA 3: Otoño y Halloween (Octubre)
-*(ESTADO: Pendiente de redacción de Copywriting)*
-- 2026-10-02 | 📱 Instagram | Post: Chubasqueros y ropa de otoño
-- 2026-10-06 | 📱 Instagram | Story: Votación del chubasquero más bonito
-- 2026-10-10 | 📱 Instagram | Reel: Secar bien después del paseo en lluvia
-- 2026-10-15 | 📱 Instagram | Story: Un día trabajando en la tienda
-- 2026-10-20 | 📱 Instagram | Post: Sorteo de Halloween (Fotos disfrazados)
-- 2026-10-26 | 💬 WhatsApp | Aviso frío: Abriendo agenda de pelu para igualar mantos
-- 2026-10-31 | 🏬 Tienda | Truco o Trato: Chuche gratis al venir a tienda
+**Regenerar en local:** `python scripts/seed_marketing_h2_2026_local.py`  
+**Handoff (uso diario + automatización futura):** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`
 
-### ⏳ TEMPORADA 4: Black Friday y Navidad (Noviembre - Diciembre)
-*(ESTADO: Pendiente de redacción de Copywriting)*
-- 2026-11-04 | 📱 Instagram | Reel: Protección de almohadillas con el frío
-- 2026-11-09 | 📱 Instagram | Story: Adelanto de ofertas Black Friday
-- 2026-11-13 | 📱 Instagram | Post: Suplementos para el sistema inmune en invierno
-- 2026-11-18 | 💬 WhatsApp | VIP Black Friday: Acceso anticipado a ofertas
-- 2026-11-23 | 💰 Ads | Meta Ads: Black Friday Week en toda la tienda
-- 2026-11-27 | 🏬 Tienda | Black Friday: Remate final de stock de camas y rascadores
-- 2026-11-30 | 📱 Instagram | Story: Gracias a todos por el éxito del Black Friday
-- 2026-12-02 | 📱 Instagram | Reel: Haul de juguetes y peluches navideños
-- 2026-12-04 | 💬 WhatsApp | Aviso: La agenda de Navidad se cierra
-- 2026-12-10 | 📱 Instagram | Story: Calendario de adviento (oferta flash del día)
-- 2026-12-15 | 📱 Instagram | Post: Ideas de regalos de Papá Noel para tu mascota
-- 2026-12-21 | 📱 Instagram | Reel: Perros guapísimos saliendo de la pelu para Nochebuena
-- 2026-12-28 | 📱 Instagram | Post: Pirotecnia. Cómo ayudarles a calmar la ansiedad en fin de año
-- 2026-12-31 | 📱 Instagram | Story: ¡Feliz Año Nuevo de parte de todo el equipo!
+| Qué | Detalle |
+|-----|---------|
+| Ritmo IG | **~3 publicaciones/semana** (lun/mié/vie) — sostenible |
+| Textos | `contenido_detallado` completo; TPV → Plan Maestro → **TEXTO PARA PUBLICAR** |
+| Presupuesto | **150 €/mes:** IG/FB Ads ~70 · Google ~45 · Cartelería ~35 · WA **0** (manual) |
+| Fechas Ads | Ancla del **mes** (campaña activa todo el mes ≈ €/30 al día), no gasto de un solo día |
+| Objetivos | 7 metas; progreso **manual** en Objetivos y Resultados |
+| Talleres | **Sábado o domingo** + anuncios con previsión en el plan |
+| Innovate | Etiqueta opcional → `docs_proyecto/INICIATIVA_INNOVATE.md` |
+
+**Talleres H2:** 22 ago (sáb) higiene · 20 sep (dom) deslanado · 24 oct (sáb) pirotecnia · 22 nov (dom) SPA · 12 dic (sáb) fiesta navideña.
+
+**Enfoque Canarias:** calor/playa/espigas, vuelta al cole, otoño norte Tenerife, Hispanidad, Halloween sin estrés, BF, cierre agenda Navidad, pirotecnia Nochevieja.

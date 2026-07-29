@@ -32,5 +32,5 @@ Cuando se retome, **decidir con el negocio** una de estas opciones (no asumir โ€
 ## Referencias
 
 - UI manual: `agenda.py` (Centro Recordatorios), `MANUAL_EMPLEADOS.md` ยง rutina matutina.
-- Plan canales: `PLAN_MARKETING_2026.md`.
+- Plan canales / H2: `PLAN_MARKETING_2026.md`, handoff marketing `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
 - Tareas: `docs_proyecto/estado_tareas.md` (backlog aparcado).

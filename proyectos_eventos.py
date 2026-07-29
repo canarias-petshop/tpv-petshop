@@ -467,7 +467,30 @@ def render_pestana_proyectos_eventos(client):
                     ev_sel_str = st.selectbox("Selecciona un evento para gestionar su aforo:", list(opciones_ev.keys()))
                     if ev_sel_str:
                         ev_id = opciones_ev[ev_sel_str]; ev_data = df_ev[df_ev['id'] == ev_id].iloc[0]
-                        res_asi = client.table("eventos_asistentes").select("id, pagado, clientes(nombre_dueno, telefono)").eq("evento_id", ev_id).execute()
+                        try:
+                            res_asi = client.table("eventos_asistentes").select("id, pagado, clientes(nombre_dueno, telefono)").eq("evento_id", ev_id).execute()
+                        except Exception:
+                            # Sin FK PostgREST no embebe clientes: cargar plano y enriquecer
+                            res_asi_plano = client.table("eventos_asistentes").select("id, pagado, cliente_id").eq("evento_id", ev_id).execute()
+                            cli_map = {}
+                            try:
+                                res_cli_all = client.table("clientes").select("id, nombre_dueno, telefono").execute()
+                                cli_map = {c["id"]: c for c in (res_cli_all.data or [])}
+                            except Exception:
+                                pass
+                            merged = []
+                            for a in (res_asi_plano.data or []):
+                                c = cli_map.get(a.get("cliente_id")) or {}
+                                merged.append({
+                                    "id": a["id"],
+                                    "pagado": a.get("pagado"),
+                                    "clientes": {
+                                        "nombre_dueno": c.get("nombre_dueno") or "(cliente)",
+                                        "telefono": c.get("telefono") or "",
+                                    },
+                                })
+                            class _R: pass
+                            res_asi = _R(); res_asi.data = merged
                         inscritos = len(res_asi.data) if res_asi.data else 0; plazas_libres = ev_data['plazas_totales'] - inscritos
                         st.markdown(f"**Aforo actual:** {inscritos} de {ev_data['plazas_totales']} plazas ocupadas. (<span style='color:green;'>{plazas_libres} libres</span>)", unsafe_allow_html=True)
                         st.progress(inscritos / ev_data['plazas_totales'] if ev_data['plazas_totales'] > 0 else 0)
@@ -484,9 +507,9 @@ def render_pestana_proyectos_eventos(client):
                                         client.table("eventos_asistentes").insert({"evento_id": ev_id, "cliente_id": dict_cli[cli_sel], "pagado": False}).execute()
                                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                                         st.success("Inscrito."); time.sleep(0.5); st.rerun()
-                                    except: st.error("Este cliente ya estaba inscrito.")
+                                    except Exception as e_ins: st.error(f"No se pudo inscribir: {e_ins}")
                         if res_asi.data:
-                            df_a = pd.DataFrame([{"id": a['id'], "Cliente": a['clientes']['nombre_dueno'], "Teléfono": a['clientes']['telefono'], "Reserva Pagada": a['pagado']} for a in res_asi.data])
+                            df_a = pd.DataFrame([{"id": a['id'], "Cliente": (a.get('clientes') or {}).get('nombre_dueno'), "Teléfono": (a.get('clientes') or {}).get('telefono'), "Reserva Pagada": a['pagado']} for a in res_asi.data])
                             df_a_vista = df_a.copy(); df_a_vista.insert(0, "Quitar", False)
                             ed_a = st.data_editor(df_a_vista, hide_index=True, use_container_width=True, column_config={"Quitar": st.column_config.CheckboxColumn("🗑️", width="small"), "Reserva Pagada": st.column_config.CheckboxColumn("💰 Reserva Pagada"), "id": None, "Cliente": st.column_config.TextColumn(disabled=True), "Teléfono": st.column_config.TextColumn(disabled=True)}, key=f"ed_asi_{ev_id}")
                             if st.button("💾 Guardar Cambios en la Lista de Asistentes", type="primary"):
@@ -496,4 +519,6 @@ def render_pestana_proyectos_eventos(client):
                                 st.success("Lista de asistentes actualizada"); time.sleep(0.5)
                                 st.rerun()
                 else: st.info("No hay eventos programados. Rellena el formulario de la izquierda para crear el primero.")
-            except Exception as e: st.info("🔧 Ejecuta el código SQL en Supabase para activar la función de Eventos.")
+            except Exception as e:
+                st.error(f"No se pudieron cargar los talleres/eventos: {e}")
+                st.caption("En local: comprueba animalarium-db/api. La tabla eventos_talleres debe existir.")

@@ -145,7 +145,11 @@ def render_pestana_marketing(client):
         
         with c_m2:
             try:
-                res_mkt = client.table("marketing_plan").select("*, marketing_objetivos(titulo)").order("fecha_planificada", desc=False).execute()
+                try:
+                    res_mkt = client.table("marketing_plan").select("*, marketing_objetivos(titulo)").order("fecha_planificada", desc=False).execute()
+                except Exception:
+                    # Sin FK PostgREST no puede embeber objetivos; cargar plan plano
+                    res_mkt = client.table("marketing_plan").select("*").order("fecha_planificada", desc=False).execute()
                 if res_mkt.data:
                     df_mkt = pd.DataFrame(res_mkt.data)
                     df_mkt['Fecha'] = pd.to_datetime(df_mkt['fecha_planificada'])
@@ -159,27 +163,76 @@ def render_pestana_marketing(client):
                     kpi2.metric("Gasto Real Ejecutado", f"{total_gastado:.2f} €")
                     kpi3.metric("Margen Libre", f"{(total_presupuesto - total_gastado):.2f} €", delta_color="normal" if total_presupuesto >= total_gastado else "inverse")
                     st.markdown("---")
-                    
                     # Agrupación inteligente por mes y año para crear bloques visuales
                     meses_es = {1:"Enero", 2:"Febrero", 3:"Marzo", 4:"Abril", 5:"Mayo", 6:"Junio", 7:"Julio", 8:"Agosto", 9:"Septiembre", 10:"Octubre", 11:"Noviembre", 12:"Diciembre"}
                     df_mkt['Mes Visual'] = df_mkt['Fecha'].apply(lambda x: f"{meses_es[x.month]} {x.year}")
                     df_mkt['Fecha_str'] = df_mkt['Fecha'].dt.strftime('%d/%m/%Y')
-                    
+
+                    # --- PRIMERO: texto completo (lo que necesitáis para publicar) ---
+                    st.markdown("##### 📋 TEXTO PARA PUBLICAR (copiar y pegar)")
+                    st.info(
+                        "Aquí está el **texto entero** de cada campaña. El calendario de abajo solo lista títulos y presupuesto."
+                    )
+
+                    meses_disp = []
+                    for m_name in ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]:
+                        for y in sorted({pd.to_datetime(r["fecha_planificada"]).year for r in res_mkt.data}):
+                            label = f"{m_name} {y}"
+                            if label in set(df_mkt["Mes Visual"].tolist()) and label not in meses_disp:
+                                meses_disp.append(label)
+                    mes_filtro = st.selectbox("1) Filtrar por mes", ["Todos"] + meses_disp, key="mkt_mes_filtro")
+                    datos_copy = res_mkt.data
+                    if mes_filtro != "Todos":
+                        datos_copy = [
+                            r for r in datos_copy
+                            if f"{meses_es[pd.to_datetime(r['fecha_planificada']).month]} {pd.to_datetime(r['fecha_planificada']).year}" == mes_filtro
+                        ]
+
+                    if not datos_copy:
+                        st.warning("No hay campañas en ese mes.")
+                    else:
+                        opciones_copy = {
+                            f"{pd.to_datetime(r['fecha_planificada']).strftime('%d/%m/%Y')} · {r.get('canal','')} · {r.get('tema','')}": r
+                            for r in datos_copy
+                        }
+                        sel_copy = st.selectbox(
+                            "2) Elige la campaña",
+                            list(opciones_copy.keys()),
+                            key="mkt_copy_sel",
+                        )
+                        fila_c = opciones_copy[sel_copy]
+                        obj_emb = fila_c.get('marketing_objetivos')
+                        obj_tit = obj_emb.get('titulo') if isinstance(obj_emb, dict) else '—'
+                        c_meta1, c_meta2, c_meta3 = st.columns(3)
+                        c_meta1.markdown(f"**Canal:** {fila_c.get('canal') or '—'}")
+                        c_meta2.markdown(f"**Presupuesto:** {float(fila_c.get('presupuesto') or 0):.2f} €")
+                        c_meta3.markdown(f"**Objetivo:** {obj_tit}")
+
+                        texto_pub = (fila_c.get("contenido_detallado") or "").strip()
+                        if not texto_pub:
+                            st.error("Esta campaña aún no tiene texto.")
+                        else:
+                            st.text_area(
+                                "3) Texto completo — Ctrl+A / Ctrl+C y pégalo donde toque",
+                                value=texto_pub,
+                                height=340,
+                                key=f"mkt_copy_body_{fila_c.get('id')}",
+                            )
+
+                    st.markdown("---")
+                    st.markdown("##### 🗺️ Calendario (títulos y presupuesto)")
                     df_vista_m = df_mkt[['id', 'Mes Visual', 'Fecha_str', 'canal', 'tema', 'presupuesto', 'gasto_real', 'estado']].copy()
                     if 'presupuesto' not in df_vista_m.columns: df_vista_m['presupuesto'] = 0.0
                     if 'gasto_real' not in df_vista_m.columns: df_vista_m['gasto_real'] = 0.0
-                    
                     df_vista_m.insert(0, "Borrar", False)
-                    
-                    st.markdown("##### 🗺️ Vista de Proyección de Campañas")
                     ed_mkt = st.data_editor(
-                        df_vista_m, hide_index=True, use_container_width=True, height=350,
+                        df_vista_m, hide_index=True, use_container_width=True, height=280,
                         column_config={
                             "Borrar": st.column_config.CheckboxColumn("🗑️"),
                             "Mes Visual": st.column_config.TextColumn("Temporada / Mes", disabled=True),
                             "Fecha_str": "Día",
                             "canal": "Medio / Soporte", 
-                            "tema": "Contenido",
+                            "tema": st.column_config.TextColumn("Título / idea", width="large"),
                             "presupuesto": st.column_config.NumberColumn("Presup. (€)", format="%.2f"),
                             "gasto_real": st.column_config.NumberColumn("Gasto (€)", format="%.2f"),
                             "estado": st.column_config.SelectboxColumn("Estado", options=["Idea / Planificado", "En Preparación", "Publicado / Terminado"]),
@@ -202,8 +255,9 @@ def render_pestana_marketing(client):
                         st.success("Plan actualizado."); time.sleep(0.5); st.rerun()
                 else:
                     st.info("El calendario de marketing está vacío. ¡Empieza a planificar tus campañas para adelantarte a las ventas!")
-            except:
-                st.info("🔧 Tabla 'marketing_plan' no encontrada. Créala en Supabase con el SQL proporcionado.")
+            except Exception as e_mkt:
+                st.error(f"No se pudo cargar el plan de marketing: {e_mkt}")
+                st.caption("Si usas Docker local, comprueba que animalarium-api/db estén arriba y que exista la tabla marketing_plan.")
                 
     elif seccion_marketing == "📢 Gestión por Canales":
         st.markdown("#### 📢 Análisis de Presupuesto por Canales y Soportes")
@@ -228,6 +282,13 @@ def render_pestana_marketing(client):
     elif seccion_marketing == "⭐ Campañas Especiales":
         st.markdown("#### 🚀 Gestión de Campañas Especiales (Ferias e Innovate)")
         st.info("Revisa las acciones de marketing que están vinculadas a grandes eventos o a la iniciativa Innovate.")
+        with st.expander("¿Qué es «Iniciativa Innovate»?", expanded=False):
+            st.markdown(
+                "Es solo una **etiqueta de tipo de campaña** en el TPV (no un módulo aparte). "
+                "En Canarias suele aludir a ayudas de **innovación/digitalización de pymes**. "
+                "Úsala para agrupar acciones que entren en un dossier (ROI de Ads, medición, etc.). "
+                "Detalle: `docs_proyecto/INICIATIVA_INNOVATE.md`."
+            )
         try:
             res_esp = client.table("marketing_plan").select("*").in_("tipo_campana", ["Campaña de Evento/Feria", "Iniciativa Innovate"]).order("fecha_planificada", desc=False).execute()
             if res_esp.data:
