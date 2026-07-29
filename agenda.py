@@ -508,11 +508,12 @@ def render_pestana_agenda(client):
                                 servicio_final = f"[ESTADO: {estado_cita}] {servicio_final}"
                             fecha_hora_str = f"{fecha_c} {hora_final_str}"
                             
-                            client.table("citas").insert({
+                            res_cita_ins = client.table("citas").insert({
                                 "mascotas_id": m_id_final, "fecha_hora": fecha_hora_str,
                                 "servicio": servicio_final, "duracion_minutos": int(duracion_c),
                                 "observaciones": str(f_obs)
                             }).execute()
+                            cita_creada = (res_cita_ins.data or [None])[0]
 
                             # Si hay recogida: crear servicio + actualizar ficha del cliente (vía helper robusto)
                             if recogida_esta_cita:
@@ -534,8 +535,18 @@ def render_pestana_agenda(client):
                                     except Exception:
                                         pass
                                 except Exception as e_reco:
-                                    st.error(f"⚠️ Cita guardada, pero falló la recogida/ficha del cliente: {e_reco}")
+                                    if cita_creada and cita_creada.get("id") is not None:
+                                        try:
+                                            client.table("citas").delete().eq("id", cita_creada["id"]).execute()
+                                        except Exception:
+                                            pass
+                                    st.error(f"⚠️ No se guardó la cita: falló la recogida/ficha del cliente ({e_reco}). Inténtalo de nuevo.")
                                     st.stop()
+
+                            # Limpiar estado de recogida (evita heredar en la siguiente ficha rápida / misma mascota)
+                            for k_clear in (key_reco_on, key_reco_dir, "ag_reco_on_nueva", "ag_reco_dir_nueva"):
+                                if k_clear:
+                                    st.session_state.pop(k_clear, None)
 
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.session_state.llave_agenda_cita += 1

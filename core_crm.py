@@ -173,17 +173,27 @@ def agendar_cita(client: SyncPostgrestClient, mascotas_id: str, fecha_str: str, 
         "duracion_minutos": int(duracion_minutos),
         "observaciones": str(observaciones or "")
     }).execute()
+    cita = res.data[0] if res.data else None
 
     if recogida:
-        registrar_recogida_desde_cita(
-            client=client,
-            mascota_id=mascotas_id,
-            fecha_str=fecha_str,
-            hora_str=hora_str,
-            direccion=direccion_recogida,
-            observaciones=observaciones,
-            servicio_nombre=servicio,
-            origen="CRM",
-        )
+        try:
+            registrar_recogida_desde_cita(
+                client=client,
+                mascota_id=mascotas_id,
+                fecha_str=fecha_str,
+                hora_str=hora_str,
+                direccion=direccion_recogida,
+                observaciones=observaciones,
+                servicio_nombre=servicio,
+                origen="CRM",
+            )
+        except Exception:
+            # Rollback: no dejar cita huérfana con estado de recogida si falló la cascada
+            if cita and cita.get("id") is not None:
+                try:
+                    client.table("citas").delete().eq("id", cita["id"]).execute()
+                except Exception:
+                    pass
+            raise
 
-    return res.data[0] if res.data else None
+    return cita

@@ -478,19 +478,33 @@ def render_pestana_crm(client):
 
                         recogida_activa = bool(st.session_state.get(key_reco_on, False))
                         dir_reco = str(st.session_state.get(key_reco_dir) or "").strip()
-                            
-                        agendar_cita(
-                            client, m_id, str(f_fecha), hora_final_str, 
-                            f_serv, int(f_dur), emp_final, 
-                            solapa_manual, motivo_final if solapa_manual else "", 
-                            fianza_pagada,
-                            recogida=recogida_activa,
-                            direccion_recogida=dir_reco,
-                            cliente_id=cliente_id_cita,
-                            nombre_cliente=cli_cita.get('nombre_dueno', ''),
-                            telefono=cli_cita.get('telefono', ''),
-                            nombre_mascota=m_nombre
-                        )
+                        try:
+                            agendar_cita(
+                                client, m_id, str(f_fecha), hora_final_str, 
+                                f_serv, int(f_dur), emp_final, 
+                                solapa_manual, motivo_final if solapa_manual else "", 
+                                fianza_pagada,
+                                recogida=recogida_activa,
+                                direccion_recogida=dir_reco,
+                                cliente_id=cliente_id_cita,
+                                nombre_cliente=cli_cita.get('nombre_dueno', ''),
+                                telefono=cli_cita.get('telefono', ''),
+                                nombre_mascota=m_nombre
+                            )
+                        except Exception as e_cita:
+                            st.error(f"⚠️ No se guardó la cita: {e_cita}")
+                            st.stop()
+
+                        if recogida_activa:
+                            try:
+                                from servicios_animalarium import limpiar_cache_servicios
+                                limpiar_cache_servicios()
+                            except Exception:
+                                pass
+
+                        st.session_state.pop(key_reco_on, None)
+                        st.session_state.pop(key_reco_dir, None)
+
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         limpiar_cache_crm()
                         if recogida_activa:
