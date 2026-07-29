@@ -22,6 +22,10 @@ Plan con textos copy/paste, objetivos manuales, 150 €/mes (IG Ads + Google + c
 → Innovate: `docs_proyecto/INICIATIVA_INNOVATE.md`  
 → Plan anual: `PLAN_MARKETING_2026.md`
 
+### Sync KPIs marketing (siguiente, solo local)
+Botón “Sincronizar KPIs desde TPV” + tests; sin prod/Ads/cron hasta pedirlo.  
+→ Plan: `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`
+
 ### Recogida a domicilio desde citas
 Agenda/CRM: control recogida + cascada `registrar_recogida_desde_cita` + rollback si falla (ya en `main` si se desplegó). Ver Compendio § Agenda.
 

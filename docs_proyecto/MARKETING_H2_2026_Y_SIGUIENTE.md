@@ -130,11 +130,11 @@ UI: botón **“Sincronizar KPIs desde TPV”** en Objetivos, o cron nocturno so
 
 ## 5. Prompt sugerido para la siguiente conversación
 
-> Seguimos Animalarium TPV. Lee `.agents/AGENTS.md` y `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.  
-> Datos H2 en prod verificados (objetivos, 750 €, especiales, canales). Código UI en `main`.  
-> Si falta TEXTO PARA PUBLICAR en la nube: redeploy Streamlit Cloud.  
-> Quiero trabajar en **local** la automatización de KPIs (o checklist Meta/Google).  
-> No toques `main` hasta que lo pida.
+> Seguimos Animalarium TPV. Lee `.agents/AGENTS.md` y **`docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`**.  
+> Contexto H2: este archivo (`MARKETING_H2_2026_Y_SIGUIENTE.md`).  
+> Datos H2 en prod verificados. Código UI en `main`.  
+> Quiero **implementar en local** la sync de KPIs (botón + tests). No toques `main`/prod hasta que lo pida tras prueba en `:8501`.  
+> Checklist Ads = después, no ahora.
 
 ---
 

@@ -66,3 +66,5 @@
   - Script: `scripts/seed_marketing_h2_2026_local.py` (`--prod` para Supabase).
   - Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md` · `PLAN_MARKETING_2026.md` · `INICIATIVA_INNOVATE.md`
 - `[ ]` **Siguiente (automatización, preferible en local primero):** sincronizar KPIs de objetivos desde TPV; checklist operación Meta+Google del mes.
+  - **Plan listo (aún no implementado):** `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md` — v1 = botón sync KPIs + tests en local; ROI omitido; sin prod/Ads.
+  - **Plan guardado para conversación nueva:** `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md` (v1 = botón sync KPIs + tests en local; sin prod/Ads).
