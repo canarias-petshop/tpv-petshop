@@ -33,7 +33,7 @@ services:
     container_name: animalarium-api
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       PGRST_DB_URI: postgres://admin:admin_password@db:5432/tpv_test_db
       PGRST_DB_SCHEMA: public

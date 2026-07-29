@@ -213,8 +213,10 @@ def render_pestana_agenda(client):
     all_mascotas = get_masc_ag_cached(client, st.session_state.get('db_version', 0))
 
     dict_mascotas = {}
+    mapa_mascotas_por_id = {}
     if all_mascotas:
         for m in all_mascotas:
+            mapa_mascotas_por_id[m['id']] = m
             dueno = m['clientes']['nombre_dueno'] if m.get('clientes') else "Desconocido"
             telefono = m['clientes']['telefono'] if m.get('clientes') and m['clientes'].get('telefono') else "Sin teléfono"
             dict_mascotas[f"🐾 {m['nombre']} (De: {dueno} - 📱 {telefono})"] = m['id']
@@ -296,8 +298,13 @@ def render_pestana_agenda(client):
                 pref_actual = "Cualquiera"
                 dur_media = 60
                 strikes = 0
+                cli_cita_info = {}
+                mascota_nombre_sel = ""
                 if mascota_sel:
                     m_id_sel = dict_mascotas[mascota_sel]
+                    m_obj = mapa_mascotas_por_id.get(m_id_sel) or {}
+                    cli_cita_info = m_obj.get('clientes') or {}
+                    mascota_nombre_sel = m_obj.get('nombre', '')
                     res_m_info_data = get_masc_obs_hist_cached(client, st.session_state.get('db_version', 0), m_id_sel)
                     if res_m_info_data:
                         obs = res_m_info_data[0].get('observaciones', '')
@@ -313,10 +320,55 @@ def render_pestana_agenda(client):
                         duraciones = [t['Duración (min)'] for t in historial if isinstance(t, dict) and isinstance(t.get('Duración (min)'), (int, float))]
                         if duraciones: 
                             dur_media = int(sum(duraciones) / len(duraciones))
-                            st.info(f"⏱️ **Info de la mascota:** Tiempo medio de {dur_media} min | Peluquero/a pref: {pref_actual}")
+                            info_mascota_txt = f"Tiempo medio **{dur_media} min** · Peluquero/a pref: **{pref_actual}**"
                         else:
-                            st.info(f"⏱️ **Info de la mascota:** Sin historial (60 min por defecto) | Peluquero/a pref: {pref_actual}")
-                        
+                            info_mascota_txt = f"Sin historial (**60 min** por defecto) · Peluquero/a pref: **{pref_actual}**"
+                        with st.expander(f"⏱️ Info mascota · {dur_media} min · Pref: {pref_actual}", expanded=False):
+                            st.caption(info_mascota_txt)
+                elif crear_rapido:
+                    mascota_nombre_sel = n_mascota
+                    cli_cita_info = {"nombre_dueno": n_cliente, "telefono": n_tel, "direccion": "", "servicio_domicilio": False}
+                
+                # --- RECOGIDA A DOMICILIO (por cita) ---
+                # Controles siempre visibles (compactos): evita fallos de estado al guardar
+                recogida_esta_cita = False
+                dir_recogida_cita = ""
+                key_reco_on = None
+                key_reco_dir = None
+                if mascota_sel or crear_rapido:
+                    id_ctx = str(dict_mascotas.get(mascota_sel, 'nueva')) if mascota_sel else 'nueva'
+                    key_reco_on = f"ag_reco_on_{id_ctx}"
+                    key_reco_dir = f"ag_reco_dir_{id_ctx}"
+                    if key_reco_on not in st.session_state:
+                        st.session_state[key_reco_on] = bool(cli_cita_info.get('servicio_domicilio', False))
+                    if key_reco_dir not in st.session_state:
+                        st.session_state[key_reco_dir] = str(cli_cita_info.get('direccion') or "")
+
+                    c_rec1, c_rec2 = st.columns([2.4, 1.1])
+                    with c_rec1:
+                        if st.session_state[key_reco_on]:
+                            st.caption("🚚 Recogida **ACTIVA** en esta cita")
+                        else:
+                            st.caption("🚚 Recogida off (activa si hay que ir a buscar)")
+                    with c_rec2:
+                        if st.session_state[key_reco_on]:
+                            if st.button("🚫 Desmarcar", use_container_width=True, key=f"btn_reco_off_{id_ctx}"):
+                                st.session_state[key_reco_on] = False
+                                st.rerun()
+                        else:
+                            if st.button("🚚 Activar", use_container_width=True, key=f"btn_reco_on_{id_ctx}"):
+                                st.session_state[key_reco_on] = True
+                                st.rerun()
+
+                    st.text_input(
+                        "📍 Dirección de recogida",
+                        key=key_reco_dir,
+                        placeholder="Calle, número, zona..."
+                    )
+
+                    recogida_esta_cita = bool(st.session_state.get(key_reco_on, False))
+                    dir_recogida_cita = str(st.session_state.get(key_reco_dir) or "").strip()
+                
                 fecha_c = st.date_input("Fecha *", value=pd.Timestamp.now('Atlantic/Canary').date(), key=f"ag_fec_{st.session_state.llave_agenda_cita}")
                 duracion_c = st.number_input("Duración estimada (minutos) *", min_value=5, max_value=300, value=dur_media, step=5, key=f"ag_dur_{st.session_state.llave_agenda_cita}")
                 
@@ -442,11 +494,18 @@ def render_pestana_agenda(client):
                             if solapa_manual:
                                 motivo_final = motivo_extra if motivo_solape == "Otro motivo" else motivo_solape
                                 servicio_final += f" [Forzado: {motivo_final}]"
-                                
+                            
+                            # Releer estado de recogida en el momento de guardar (evita desincronización)
+                            if key_reco_on:
+                                recogida_esta_cita = bool(st.session_state.get(key_reco_on, False))
+                            if key_reco_dir:
+                                dir_recogida_cita = str(st.session_state.get(key_reco_dir) or "").strip()
+
+                            estado_cita = "Servicio de recogida pendiente" if recogida_esta_cita else "Pendiente"
                             if fianza_pagada:
-                                servicio_final = f"[ESTADO: Pendiente] [💰 FIANZA PAGADA] {servicio_final}"
+                                servicio_final = f"[ESTADO: {estado_cita}] [💰 FIANZA PAGADA] {servicio_final}"
                             else:
-                                servicio_final = f"[ESTADO: Pendiente] {servicio_final}"
+                                servicio_final = f"[ESTADO: {estado_cita}] {servicio_final}"
                             fecha_hora_str = f"{fecha_c} {hora_final_str}"
                             
                             client.table("citas").insert({
@@ -454,9 +513,37 @@ def render_pestana_agenda(client):
                                 "servicio": servicio_final, "duracion_minutos": int(duracion_c),
                                 "observaciones": str(f_obs)
                             }).execute()
+
+                            # Si hay recogida: crear servicio + actualizar ficha del cliente (vía helper robusto)
+                            if recogida_esta_cita:
+                                try:
+                                    from core_crm import registrar_recogida_desde_cita
+                                    registrar_recogida_desde_cita(
+                                        client=client,
+                                        mascota_id=m_id_final,
+                                        fecha_str=str(fecha_c),
+                                        hora_str=hora_final_str,
+                                        direccion=dir_recogida_cita,
+                                        observaciones=str(f_obs or ""),
+                                        servicio_nombre=servicio_sel,
+                                        origen="agenda",
+                                    )
+                                    try:
+                                        from servicios_animalarium import limpiar_cache_servicios
+                                        limpiar_cache_servicios()
+                                    except Exception:
+                                        pass
+                                except Exception as e_reco:
+                                    st.error(f"⚠️ Cita guardada, pero falló la recogida/ficha del cliente: {e_reco}")
+                                    st.stop()
+
                             st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                             st.session_state.llave_agenda_cita += 1
-                            st.success("Cita agendada."); time.sleep(1); limpiar_cache_agenda(); st.rerun()
+                            if recogida_esta_cita:
+                                st.success("Cita agendada con recogida a domicilio (estado: Servicio de recogida pendiente).")
+                            else:
+                                st.success("Cita agendada.")
+                            time.sleep(1); limpiar_cache_agenda(); st.rerun()
 
         with c_agenda2:
             st.markdown("#### 🗓️ Directorio de Citas (Editable)")

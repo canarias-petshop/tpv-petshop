@@ -11,11 +11,22 @@ Sirve como "mapa" inquebrantable antes de iniciar la refactorización (Fase 2) y
 
 ## 1. Módulo Core y RRHH (`app.py`, `personal.py`)
 - ✅ **[CÓDIGO]** **Guardián de Fichajes**: Bloqueo estricto de 30 minutos entre el último fichaje y un nuevo intento (Anti-doble click y errores).
+- ✅ **[CÓDIGO]** **Confirmación de Salida con Contexto**: Si un empleado ya tiene una entrada abierta y vuelve a fichar tras el bloqueo anti-spam, el sistema no registra la salida sin más; primero muestra una confirmación indicando la **hora de entrada registrada** y el **tiempo restante o excedido** según el turno del cuadrante de ese día.
 - ✅ **[CÓDIGO]** **Trazabilidad (Hashing)**: Todo fichaje genera un hash inalterable `SHA-256`.
 - ⚠️ **[DISCREPANCIA]** **Ausencias/Vacaciones**: Aunque se pueden marcar vacaciones en el panel, el sistema *sigue ofreciendo huecos* de peluquería en la agenda para ese empleado. *Se debe arreglar en la Fase 2.*
 
+## 1-bis. Agenda y Recogida (`agenda.py`, `servicios_animalarium.py`)
+- ✅ **[CÓDIGO]** **Recogida desde Nueva Cita**: Al crear una cita se muestra un control compacto de recogida a domicilio con dirección (si existe) y botón activar/desactivar para esa cita.
+- ✅ **[CÓDIGO]** **Recogida desde CRM**: El flujo **Agendar Cita Inteligente** de la ficha de mascota usa el mismo comportamiento (UI + cascada al guardar).
+- ✅ **[CÓDIGO]** **Cascada al guardar con recogida (`registrar_recogida_desde_cita`)**: Si la recogida está activa, la cita se guarda con estado `Servicio de recogida pendiente`, se inserta en `servicios_recogida` y se actualiza el cliente (`direccion` + `servicio_domicilio=true`), incluso si el cliente partía sin dirección ni flag activo.
+- ✅ **[CÓDIGO]** **Estados de recogida en directorio**: Existen `Servicio de recogida pendiente` y `Servicio de recogida confirmado` (el legado `Servicio de recogida` se migra al pendiente).
+
 ## 2. Facturación y Contabilidad (`facturacion.py`, `caja.py`)
 - ✅ **[CÓDIGO]** **VeriFactu / Hashes**: El código (`facturacion.py`, lín. 281-290) calcula y guarda en la base de datos el `hash_anterior` y `hash_actual` para cada factura, cumpliendo la Ley Antifraude.
+- ✅ **[CÓDIGO]** **Borradores de Factura Recibida**: Las facturas recibidas procedentes de IA o carga manual pueden crear/enlazar artículos en inventario, pero **no actualizan stock** mientras estén en estado `Borrador`.
+- ✅ **[CÓDIGO]** **Validación de Compras**: Al validar una compra en borrador, el documento debe pasar a `Recibido` (o `Pagado` si ya no tiene pendiente), recalculando importes y aplicando la actualización real del stock en ese momento.
+- ✅ **[CÓDIGO]** **Borrado Seguro de Compras**: El borrado de documentos de compra solo revierte stock si el documento ya había sido validado. Borrar un borrador elimina el documento sin tocar existencias.
+- ✅ **[CÓDIGO]** **Pagos Pendientes con Redondeo Comercial**: La validación del importe a pagar trabaja a 2 decimales con tolerancia mínima frente a errores de coma flotante, permitiendo liquidar exactamente el pendiente sin exigir “un céntimo menos”.
 - 🚀 **[NEGOCIO/FUTURO]** **Facturas Rectificativas**: Falta programar la opción de hacer devoluciones, anular o generar abonos sin romper la cadena de hashes. 
 - 🚀 **[NEGOCIO/FUTURO]** **Contabilidad**: Módulo de contabilidad completa pospuesto para el futuro.
 

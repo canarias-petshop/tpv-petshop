@@ -376,6 +376,45 @@ def render_pestana_crm(client):
 
             if len(huecos_formateados) == 1:
                 st.error("🔴 No hay huecos disponibles para esta selección o están de descanso.")
+
+            # Datos del cliente para recogida (compatible con dict o Series)
+            try:
+                cliente_id_cita = m_data['cliente_id'] if 'cliente_id' in m_data else None
+            except Exception:
+                cliente_id_cita = m_data.get('cliente_id') if isinstance(m_data, dict) else None
+            cli_cita = {}
+            if cliente_id_cita and res_clientes.data:
+                cli_cita = next((c for c in res_clientes.data if c.get('id') == cliente_id_cita), {}) or {}
+            if not cli_cita and cliente_id_cita:
+                try:
+                    res_c_tmp = client.table("clientes").select("*").eq("id", cliente_id_cita).execute()
+                    cli_cita = (res_c_tmp.data or [{}])[0]
+                except Exception:
+                    cli_cita = {}
+
+            key_reco_on = f"crm_reco_on_{m_id}"
+            key_reco_dir = f"crm_reco_dir_{m_id}"
+            if key_reco_on not in st.session_state:
+                st.session_state[key_reco_on] = bool(cli_cita.get('servicio_domicilio', False))
+            if key_reco_dir not in st.session_state:
+                st.session_state[key_reco_dir] = str(cli_cita.get('direccion') or "")
+
+            c_rec1, c_rec2 = st.columns([2.4, 1.1])
+            with c_rec1:
+                if st.session_state[key_reco_on]:
+                    st.caption("🚚 Recogida **ACTIVA** en esta cita")
+                else:
+                    st.caption("🚚 Recogida off (activa si hay que ir a buscar)")
+            with c_rec2:
+                if st.session_state[key_reco_on]:
+                    if st.button("🚫 Desmarcar", use_container_width=True, key=f"crm_btn_reco_off_{prefix}_{m_id}"):
+                        st.session_state[key_reco_on] = False
+                        st.rerun()
+                else:
+                    if st.button("🚚 Activar", use_container_width=True, key=f"crm_btn_reco_on_{prefix}_{m_id}"):
+                        st.session_state[key_reco_on] = True
+                        st.rerun()
+            st.text_input("📍 Dirección de recogida", key=key_reco_dir, placeholder="Calle, número, zona...")
                 
             with st.form(f"form_cita_{prefix}_{m_id}", border=True):
                 fc_1, fc_2 = st.columns([1, 2])
@@ -432,26 +471,33 @@ def render_pestana_crm(client):
                         else:
                             hora_final_str = f_hora_sel.split(" (")[0]
                             emp_final = f_hora_sel.split("(Con ")[1].replace(")", "")
-                            
-                        servicio_final = f"{f_serv} ({emp_final})" if emp_final else f_serv
+                        
+                        motivo_final = ""
                         if solapa_manual:
                             motivo_final = motivo_extra if motivo_solape == "Otro motivo" else motivo_solape
-                            servicio_final += f" [Forzado: {motivo_final}]"
-                            
-                        if fianza_pagada:
-                            servicio_final = f"[ESTADO: Pendiente] [💰 FIANZA PAGADA] {servicio_final}"
-                        else:
-                            servicio_final = f"[ESTADO: Pendiente] {servicio_final}"
+
+                        recogida_activa = bool(st.session_state.get(key_reco_on, False))
+                        dir_reco = str(st.session_state.get(key_reco_dir) or "").strip()
                             
                         agendar_cita(
                             client, m_id, str(f_fecha), hora_final_str, 
                             f_serv, int(f_dur), emp_final, 
                             solapa_manual, motivo_final if solapa_manual else "", 
-                            fianza_pagada
+                            fianza_pagada,
+                            recogida=recogida_activa,
+                            direccion_recogida=dir_reco,
+                            cliente_id=cliente_id_cita,
+                            nombre_cliente=cli_cita.get('nombre_dueno', ''),
+                            telefono=cli_cita.get('telefono', ''),
+                            nombre_mascota=m_nombre
                         )
                         st.session_state.db_version = st.session_state.get('db_version', 0) + 1
                         limpiar_cache_crm()
-                        st.success("¡Cita reservada con éxito!"); time.sleep(1); st.rerun()
+                        if recogida_activa:
+                            st.success("¡Cita reservada con recogida a domicilio (Servicio de recogida pendiente)!")
+                        else:
+                            st.success("¡Cita reservada con éxito!")
+                        time.sleep(1); st.rerun()
 
         seccion_crm = st.radio("Sección CRM:", ["👤 Directorio de Clientes", "🐾 Mascotas", "🛍️ Encargos", "💸 Pagos Pendientes"], horizontal=True, label_visibility="collapsed")
         

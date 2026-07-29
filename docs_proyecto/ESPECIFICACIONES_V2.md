@@ -49,6 +49,7 @@ Cualquier desarrollo de la V2 debe respetar escrupulosamente estas lógicas ya v
   - Canjeo: 1 Punto = 0.50€ de descuento.
   - Límite de Canjeo: Máximo 50% del importe del ticket.
 - **Trazabilidad Fiscal (VeriFactu)**: Cada factura cerrada debe guardar `hash_anterior` y generar un nuevo `hash_actual` basado en SHA-256 inalterable.
+- **Pagos Pendientes Exactos**: Los importes pendientes deben validarse y liquidarse con redondeo a 2 decimales, evitando rechazos por ruido de coma flotante cuando el usuario paga exactamente el total visible.
 
 ### 2.4 Servicios vs Productos (Separación Crítica)
 - **Regla Estricta**: Las consultas de eliminación en masa o edición masiva **JAMÁS** deben tocar registros categorizados como "Servicios" (Peluquería, Clínica, Envío a domicilio).
@@ -56,7 +57,10 @@ Cualquier desarrollo de la V2 debe respetar escrupulosamente estas lógicas ya v
 
 ### 2.5 Agenda y Recursos Humanos (Fichajes)
 - **Antispam de Fichajes**: Bloqueo duro de 30 minutos entre el último fichaje y un nuevo intento para un mismo empleado.
+- **Confirmación de Salida**: Si ya existe una entrada abierta, el siguiente intento de fichaje tras el bloqueo no debe cerrar el turno de forma silenciosa; debe pedir confirmación explícita de salida.
+- **Contexto desde el Cuadrante**: En esa confirmación se debe mostrar la hora de entrada registrada y la hora prevista de salida/tiempo restante leído desde el turno del cuadrante del trabajador.
 - **Trazabilidad HR**: Todo fichaje genera un Hash `SHA-256`.
+- **Recogida desde Agenda**: En Nueva Cita debe poder activarse/desactivarse la recogida a domicilio con dirección visible. Si está activa al guardar: estado `Servicio de recogida pendiente`, alta en `servicios_recogida` y actualización de `clientes.direccion` + `clientes.servicio_domicilio`.
 
 ---
 

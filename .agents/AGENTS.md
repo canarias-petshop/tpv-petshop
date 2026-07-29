@@ -12,9 +12,11 @@ Para conocer todas las reglas de negocio, la arquitectura y las tareas pendiente
 
 ## Flujo de Trabajo Obligatorio
 1. **Desarrollo Modular**: Trabaja siempre creando ramas nuevas para cada Sprint (por ejemplo, `sprint-4b-crm`).
-2. **Testing Estricto**: Todo código refactorizado debe tener tests en la carpeta `tests/`. No des por finalizado un refactor si los tests no están en verde (con cobertura por encima del 80%).
-3. **No romper la DB**: Usamos Supabase y la conexión es a través de `postgrest.SyncPostgrestClient`. Respeta la estructura de tablas existente.
-4. **Respetar la UI**: Si usas `# pragma: no cover` en funciones exclusivas de Streamlit, está bien para no ensuciar la métrica de cobertura de la lógica de negocio pura.
+2. **Primero local, después producción**: Los cambios se desarrollan, prueban y validan **siempre en local / Docker** antes de subirlos a la rama principal (`main`) de producción. **Nunca** publiques a `main` sin que el usuario lo pida explícitamente tras la prueba local.
+3. **Guía de desarrollo**: Antes de cambios relevantes, consulta `RESUMEN_MAESTRO_ACTUALIZADO.md`, `docs_proyecto/Compendio_Maestro_Especificaciones.md` y `docs_proyecto/estado_tareas.md`, y actualiza esa documentación cuando se cierren comportamientos de negocio.
+4. **Testing Estricto**: Todo código refactorizado debe tener tests en la carpeta `tests/`. No des por finalizado un refactor si los tests no están en verde (con cobertura por encima del 80%).
+5. **No romper la DB**: Usamos Supabase y la conexión es a través de `postgrest.SyncPostgrestClient`. Respeta la estructura de tablas existente.
+6. **Respetar la UI**: Si usas `# pragma: no cover` en funciones exclusivas de Streamlit, está bien para no ensuciar la métrica de cobertura de la lógica de negocio pura.
 
 ## Instrucción de inicio para agentes nuevos
 Si eres un nuevo agente uniéndote a esta conversación por primera vez, saluda al usuario, infórmale de que has leído automáticamente estas reglas en `.agents/AGENTS.md` y pregúntale si desea iniciar el **Sprint 4B (CRM e Inventario)** tal y como marca el archivo `estado_tareas.md`.

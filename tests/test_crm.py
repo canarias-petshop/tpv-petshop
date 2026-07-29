@@ -6,7 +6,8 @@ import jwt
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from core_crm import (crear_cliente, crear_mascota, actualizar_cliente, 
-                      anonimizar_cliente, crear_encargo, agendar_cita)
+                      anonimizar_cliente, crear_encargo, agendar_cita,
+                      registrar_recogida_desde_cita)
 from postgrest import SyncPostgrestClient
 
 @pytest.fixture(scope="module")
@@ -89,6 +90,39 @@ def test_agendar_cita(db_client):
     assert "Ana" in cita['servicio']
     assert cita['duracion_minutos'] == 60
     assert "2026-07-20T10:00" in cita['fecha_hora']
+
+def test_agendar_cita_con_recogida_actualiza_cliente(db_client):
+    """Al agendar con recogida: estado pendiente de recogida, servicio creado y ficha actualizada."""
+    db_client.table("citas").delete().neq("id", 0).execute()
+    try:
+        db_client.table("servicios_recogida").delete().neq("id", 0).execute()
+    except Exception:
+        pass
+
+    cli = crear_cliente(db_client, "Sin Domicilio", "611111111", direccion="", servicio_domicilio=False)
+    masc = crear_mascota(db_client, cli['id'], "Rocky")
+
+    cita = agendar_cita(
+        db_client, masc['id'], "2026-07-21", "11:30",
+        "Peluquería", 45, peluquero="Lucia",
+        recogida=True, direccion_recogida="Calle Test 12, La Laguna",
+        cliente_id=cli['id'], nombre_cliente=cli['nombre_dueno'],
+        telefono=cli['telefono'], nombre_mascota=masc['nombre']
+    )
+    assert cita is not None
+    assert "Servicio de recogida pendiente" in cita['servicio']
+
+    cli_upd = db_client.table("clientes").select("direccion, servicio_domicilio").eq("id", cli['id']).execute().data[0]
+    assert cli_upd["servicio_domicilio"] is True
+    assert "Calle Test 12" in str(cli_upd.get("direccion") or "")
+
+    recos = db_client.table("servicios_recogida").select("*").eq("mascota", "Rocky").execute().data
+    assert recos, "Debe crearse el servicio de recogida"
+    assert "Calle Test 12" in str(recos[0].get("direccion") or "")
+
+def test_registrar_recogida_desde_cita_sin_mascota(db_client):
+    with pytest.raises(ValueError, match="Falta el ID de la mascota"):
+        registrar_recogida_desde_cita(db_client, "", "2026-07-21", "10:00")
 
 def test_errores_validacion(db_client):
     with pytest.raises(ValueError, match="El nombre del dueño es obligatorio"):

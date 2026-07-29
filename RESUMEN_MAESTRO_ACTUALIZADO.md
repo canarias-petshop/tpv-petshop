@@ -1,5 +1,5 @@
 # Resumen Maestro Actualizado - TPV y E-Commerce Animalarium
-**Fecha de última actualización**: 6 de Julio de 2026
+**Fecha de última actualización**: 29 de Julio de 2026
 
 Este documento centraliza todos los avances, arquitecturas y módulos del ecosistema completo de Animalarium (TPV Físico + Tienda Web). Es el punto de partida **obligatorio** para retomar el proyecto en futuras sesiones.
 
@@ -8,6 +8,32 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
 > Una cosa son los productos (piensos, accesorios) y otra muy distinta son los servicios (peluquería, clínica).
 > Si el usuario ordena eliminar o modificar una marca concreta o un grupo de artículos en el contexto de "productos", **JAMÁS** debes alterar los registros que pertenezcan a "servicios" (aunque compartan tabla en la base de datos o utilicen la marca 'Genérico' u otra para categorizarse).
 > **No asumas ni interpretes nada.** Verifica siempre si la acción puede afectar a los servicios antes de ejecutar un borrado masivo.
+
+---
+
+## 🆕 Últimos Cambios (27-29 de Julio de 2026)
+
+### Agenda / Recogida a Domicilio desde Nueva Cita
+- **Cuadro de recogida en el gestor de citas (`agenda.py`)**: Al seleccionar una mascota (o en alta rápida) aparece un control compacto de **Recogida a domicilio** con la dirección del cliente si ya existe y un botón Activar/Desmarcar **solo para esa cita**.
+- **Misma experiencia en CRM (`crm.py` / `core_crm.py`)**: El atajo **Agendar Cita Inteligente** de la ficha de mascota replica el mismo comportamiento.
+- **Helper robusto `registrar_recogida_desde_cita`**: Al guardar con recogida activa se consulta de nuevo mascota/cliente en BD, se inserta en `servicios_recogida` y se actualiza `clientes.direccion` + `servicio_domicilio=true`. Corrige el caso en el que el cliente no tenía aún dirección ni flag activo.
+- **UI compacta**: La info de tiempo medio/peluquero preferido va en expander plegado; la recogida queda en una línea con botones cortos.
+- **Al guardar con recogida activa**:
+  1. La cita entra al directorio con estado **`Servicio de recogida pendiente`**.
+  2. Se crea automáticamente el registro en **`servicios_recogida`**.
+  3. Se actualiza la ficha del cliente (dirección + recogida activa).
+- **Al desmarcar recogida en una cita**: no se crea servicio de recogida y la cita queda como `Pendiente` normal; no se apaga el flag permanente del cliente solo por desmarcar “esta vez”.
+- **Tests**: Añadidos/verificados tests de CRM (cita con recogida + actualización de ficha), facturación (pagos exactos) y personal (fichaje). Suite local: **todos en verde**.
+
+### Facturación de Compras y Pagos a Proveedores
+- **Validación fiable de borradores (`facturacion.py`)**: Corregido el flujo de *Facturas Recibidas* para que al pulsar **"Validar documento y actualizar stock"** el documento salga realmente de `Borrador` y pase a `Recibido` (o `Pagado` si ya no queda pendiente), limpiando además la caché visual para evitar que la tabla siguiera mostrando el estado antiguo.
+- **Separación correcta Borrador vs Stock**: Queda reforzada la regla de negocio de que una factura recibida en `Borrador` **puede crear o enlazar artículos**, pero **no suma stock** hasta la validación. Si se elimina un borrador, solo se borra el documento; el stock no se toca.
+- **Borrado seguro de compras/documentos**: Ajustada la eliminación de compras y documentos contables para que solo resten stock cuando el documento ya estaba validado (`Recibido`, `Pagado`, etc.). Los borradores ya no deshacen stock por error.
+- **Pagos pendientes con céntimos exactos**: Resuelto el bug de redondeo/`float` que impedía pagar importes exactos como `177,01 €`, obligando a introducir un céntimo menos. Ahora las comparaciones y liquidaciones se redondean a 2 decimales con tolerancia segura.
+
+### Recursos Humanos / Fichajes
+- **Confirmación inteligente de salida (`personal.py`)**: Mejorado el flujo de fichaje para que, si un trabajador ya tiene una entrada abierta y vuelve a introducir su PIN pasado el bloqueo de 30 minutos, el sistema **no fiche la salida directamente**. En su lugar muestra un aviso confirmando que va a registrar una salida.
+- **Lectura del cuadrante en tiempo real**: El aviso de salida informa de la **hora de entrada registrada**, del tiempo ya trabajado y de cuánto queda (o cuánto se ha pasado) respecto a la **hora prevista de salida según el cuadrante del trabajador**. Esto reduce los cierres accidentales de jornada por despiste.
 
 ---
 
