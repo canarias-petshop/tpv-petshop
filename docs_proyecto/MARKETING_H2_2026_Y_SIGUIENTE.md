@@ -11,7 +11,7 @@ Este documento cierra el trabajo de marketing de esta conversación y deja listo
 
 ---
 
-## 1. Qué hay hecho (local)
+## 1. Qué hay hecho (local + producción)
 
 ### Plan Maestro (`marketing_plan`)
 - ~**3 posts Instagram/semana** (lun / mié / vie), no diarios (ritmo sostenible).
@@ -19,6 +19,7 @@ Este documento cierra el trabajo de marketing de esta conversación y deja listo
 - UI Plan Maestro: bloque **TEXTO PARA PUBLICAR** arriba (filtro mes → campaña → cuadro de texto). La tabla solo muestra título/presupuesto.
 - Talleres intercalados con previsión (anuncios previos + día + recap).
 - Campañas especiales: tipo `Campaña de Evento/Feria` (talleres) e `Iniciativa Innovate` (etiqueta; ver `INICIATIVA_INNOVATE.md`).
+- **Producción (29 jul 2026):** ~131 filas H2 (`fecha_planificada >= 2026-08-01`); mayo–julio no se tocaron.
 
 ### Presupuesto 150 €/mes (ago–dic = 750 € H2)
 | Soporte | €/mes | Notas |
@@ -43,11 +44,11 @@ Las acciones del plan tienen `objetivo_id` para agrupar; **no cuentan solas** ci
 | 2026-11-22 | dom | Masajes / SPA en casa |
 | 2026-12-12 | sáb | Fiesta navideña y cuidado invernal |
 
-FK locales añadidas: `eventos_asistentes` → taller/cliente; `marketing_plan.objetivo_id` → objetivos (evita errores PGRST200 disfrazados de “falta SQL”).
+FK: en prod ya existían (`marketing_plan`→objetivos, `eventos_asistentes`→taller/cliente). En local se añadieron si faltaban.
 
-### Fixes UI / local
+### Fixes UI
 - Mensaje engañoso “tabla no encontrada / ejecuta SQL” sustituido por error real + fallback sin embed.
-- Talleres visibles en Proyectos y Eventos tras FK + fallback.
+- Talleres visibles en Proyectos y Eventos.
 
 ---
 
@@ -87,8 +88,8 @@ UI: botón **“Sincronizar KPIs desde TPV”** en Objetivos, o cron nocturno so
 ### D. Cumpleaños / Win-back
 - Pestañas “Próximamente” en Marketing. Reutilizar textos del plan cuando se active.
 
-### E. Volcar plan a producción
-- Solo con permiso explícito: semilla contra Supabase prod o export SQL; alinear FKs en prod.
+### E. Regenerar / reseeding
+- Local o prod con el script (`--prod`). Solo reemplaza H2 (ago+); no borra mayo–julio.
 
 ---
 
@@ -99,7 +100,7 @@ UI: botón **“Sincronizar KPIs desde TPV”** en Objetivos, o cron nocturno so
 | `marketing.py` | UI Objetivos, Plan Maestro (copy), Canales, Especiales |
 | `core_marketing.py` | Progreso % + alerta fin de plan |
 | `proyectos_eventos.py` | Talleres + asistentes |
-| `scripts/seed_marketing_h2_2026_local.py` | Semilla H2 local |
+| `scripts/seed_marketing_h2_2026_local.py` | Semilla H2 local / `--prod` |
 | `PLAN_MARKETING_2026.md` | Estrategia anual + estado H2 |
 | `docs_proyecto/INICIATIVA_INNOVATE.md` | Qué es la etiqueta Innovate |
 | `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md` | WA/Email auto aparcado |
@@ -108,14 +109,15 @@ UI: botón **“Sincronizar KPIs desde TPV”** en Objetivos, o cron nocturno so
 
 ## 5. Prompt sugerido para la siguiente conversación
 
-> Seguimos Animalarium TPV en **local**. Lee `.agents/AGENTS.md` y `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.  
-> Quiero [elegir: automatizar KPIs de objetivos / checklist Meta+Google del mes / subir plan H2 a main / otra cosa].  
+> Seguimos Animalarium TPV. Lee `.agents/AGENTS.md` y `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.  
+> El plan H2 ya está en **producción** y el código en `main`.  
+> Quiero trabajar en **local** la automatización de KPIs de objetivos (o checklist Meta/Google).  
 > No toques `main` hasta que lo pida.
 
 ---
 
-## 6. Fuera de alcance de esta entrega
+## 6. Fuera de alcance inmediato
 
-- Push a `main` / producción del plan marketing (salvo petición).
-- Implementación de sincronización automática de objetivos.
-- WhatsApp Business API / email masivo.
+- WhatsApp Business API / email masivo (sigue aparcado).
+- Cumpleaños / win-back (“Próximamente”).
+- Re-sembrar producción sin petición (ya está cargado).

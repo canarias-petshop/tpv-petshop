@@ -26,10 +26,10 @@ Sirve como "mapa" inquebrantable antes de iniciar la refactorización (Fase 2) y
 ## 1-ter. Marketing (`marketing.py`, `core_marketing.py`, `proyectos_eventos.py`)
 - ✅ **[CÓDIGO]** **Objetivos y Resultados**: Tabla `marketing_objetivos` (título, KPI, meta, valor_actual, fechas, estado). Progreso = `valor_actual / meta` (`calcular_progreso_objetivo`). **Actualización manual** en UI (no hay sync automático desde citas/CRM/ventas).
 - ✅ **[CÓDIGO]** **Plan Maestro**: Tabla `marketing_plan` con canal, tema, `contenido_detallado` (texto para publicar), presupuesto/gasto, `tipo_campana`, `objetivo_id`. UI: bloque **TEXTO PARA PUBLICAR** (filtro mes + copiar/pegar) + calendario de títulos.
-- ✅ **[CÓDIGO / LOCAL]** **Plan H2 2026**: Semilla local ~3 IG/semana + talleres sáb/dom + 150 €/mes (IG Ads ~70 + Google ~45 + cartelería ~35; WA 0). Script `scripts/seed_marketing_h2_2026_local.py`. Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
+- ✅ **[CÓDIGO / DATOS]** **Plan H2 2026**: ~3 IG/semana + talleres sáb/dom + 150 €/mes (IG Ads ~70 + Google ~45 + cartelería ~35; WA 0). Textos en `contenido_detallado`. Semilla `scripts/seed_marketing_h2_2026_local.py` (`--prod`). **Cargado en local y producción** (29 jul 2026). Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
 - ✅ **[CÓDIGO]** **Tipos de campaña**: Ordinaria / Evento-Feria / **Iniciativa Innovate** (solo etiqueta; ver `docs_proyecto/INICIATIVA_INNOVATE.md`).
 - ✅ **[CÓDIGO]** **Talleres**: `eventos_talleres` + `eventos_asistentes` (aforo, pagado). Horario de negocio: **sábado o domingo**.
-- 🚀 **[NEGOCIO/FUTURO]** **Automatizar KPIs / gasto Ads / cumpleaños-winback**: detallado en `MARKETING_H2_2026_Y_SIGUIENTE.md` §3. No implementar sin petición.
+- 🚀 **[NEGOCIO/FUTURO]** **Automatizar KPIs / gasto Ads / cumpleaños-winback**: detallado en `MARKETING_H2_2026_Y_SIGUIENTE.md` §3. Preferible desarrollar en local. No implementar sin petición.
 
 ## 2. Facturación y Contabilidad (`facturacion.py`, `caja.py`)
 - ✅ **[CÓDIGO]** **VeriFactu / Hashes**: El código (`facturacion.py`, lín. 281-290) calcula y guarda en la base de datos el `hash_anterior` y `hash_actual` para cada factura, cumpliendo la Ley Antifraude.

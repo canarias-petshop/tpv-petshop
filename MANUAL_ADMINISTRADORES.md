@@ -88,7 +88,8 @@ Tu sistema TPV ahora es también el cerebro de tu Tienda Online (Next.js/Vercel)
 - **Ritmo redes:** ~3 posts Instagram por semana (no saturar). Talleres en **sábado o domingo**, anunciados con antelación.
 - **Presupuesto 150 €/mes:** ~70 Instagram/Facebook Ads + ~45 Google Ads + ~35 cartelería. WhatsApp = 0 € (manual). La fecha de la fila Ads es el **mes**, no “gastar todo en un día”: deja la campaña activa el mes con ~€/día.
 - **Objetivos:** Metas numéricas (citas, clientes nuevos, etc.). Hoy se actualizan **a mano** en Objetivos y Resultados (progreso semanal/mensual). Automatizar KPIs = trabajo futuro.
-- **Detalle y siguiente paso técnico:** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`
+- **Detalle y siguiente paso (automatizar KPIs en local):** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`
+- **Estado:** plan H2 cargado en producción; se usa desde Marketing → Plan Maestro / Objetivos / Talleres.
 
 ---
 

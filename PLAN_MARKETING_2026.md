@@ -54,10 +54,11 @@ Cuando el usuario solicite los textos para la siguiente temporada, DEBES seguir 
 - 2026-07-30 | 💬 WhatsApp | Aviso Ola Calor / Promo Juguetes
 
 ### ✅ TEMPORADAS 2–4: Agosto–Diciembre 2026 (H2 Canarias)
-*(ESTADO: Sembrado en **BD local** 29 jul 2026. Textos listos para publicar. No producción hasta pedirlo.)*
+*(ESTADO: Sembrado en **local y producción Supabase** el 29 jul 2026. Código UI en `main`. Textos listos para publicar.)*
 
-**Regenerar en local:** `python scripts/seed_marketing_h2_2026_local.py`  
-**Handoff (uso diario + automatización futura):** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`
+**Regenerar:**  
+`python scripts/seed_marketing_h2_2026_local.py` (local) · `python scripts/seed_marketing_h2_2026_local.py --prod` (Supabase)  
+**Handoff:** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`
 
 | Qué | Detalle |
 |-----|---------|
@@ -68,6 +69,7 @@ Cuando el usuario solicite los textos para la siguiente temporada, DEBES seguir 
 | Objetivos | 7 metas; progreso **manual** en Objetivos y Resultados |
 | Talleres | **Sábado o domingo** + anuncios con previsión en el plan |
 | Innovate | Etiqueta opcional → `docs_proyecto/INICIATIVA_INNOVATE.md` |
+| Conteos prod | ~131 acciones plan · 7 objetivos · 5 talleres H2 |
 
 **Talleres H2:** 22 ago (sáb) higiene · 20 sep (dom) deslanado · 24 oct (sáb) pirotecnia · 22 nov (dom) SPA · 12 dic (sáb) fiesta navideña.
 
