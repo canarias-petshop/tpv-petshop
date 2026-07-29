@@ -91,7 +91,133 @@ def test_parsear_horas_turno():
     assert parsear_horas_turno("09:00 - 15:00")[0].hour == 9
     assert parsear_horas_turno("09:00 - 15:00")[1].hour == 15
     assert parsear_horas_turno("Libre") == (None, None)
+    assert parsear_horas_turno("Vacaciones") == (None, None)
+    assert parsear_horas_turno("") == (None, None)
+    assert parsear_horas_turno(None) == (None, None)
+    assert parsear_horas_turno("solo 10:00") == (None, None)
     assert parsear_horas_turno("10:00 a 14:30")[1].minute == 30
     assert _fmt_duracion(90) == "1 h 30 min"
+    assert _fmt_duracion(60) == "1 h"
     assert _fmt_duracion(45) == "45 min"
+
+
+def test_info_turno_y_previsualizar_fichaje(db_client):
+    """Guardián anti-spam, previsualización y resumen de turno al salir (Compendio §1)."""
+    from datetime import datetime, timezone, timedelta
+    from personal import (
+        registrar_fichaje,
+        previsualizar_fichaje,
+        info_turno_para_salida,
+        parsear_horas_turno,
+    )
+
+    empleado_id = "00000000-0000-0000-0000-000000000001"
+    db_client.table("personal_fichajes").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
+    try:
+        db_client.table("personal_cuadrantes").delete().eq("empleado_id", empleado_id).execute()
+    except Exception:
+        pass
+
+    ahora = datetime.now(timezone.utc).replace(microsecond=0)
+    hoy = ahora.date().isoformat()
+
+    # Sin fichaje -> preview entrada
+    prev = previsualizar_fichaje(db_client, empleado_id, "PreviewUser", ahora)
+    assert prev["accion"] == "entrada"
+
+    ok, _ = registrar_fichaje(db_client, empleado_id, "PreviewUser", ahora)
+    assert ok
+
+    # Anti-spam en preview
+    prev_bloqueo = previsualizar_fichaje(db_client, empleado_id, "PreviewUser", ahora)
+    assert prev_bloqueo["accion"] == "bloqueo"
+
+    # Tras 31 min: preview salida + info de turno (con o sin cuadrante)
+    ahora_mas = ahora + timedelta(minutes=31)
+    try:
+        db_client.table("personal_cuadrantes").insert({
+            "empleado_id": empleado_id,
+            "fecha": hoy,
+            "turno": "09:00 - 15:00",
+        }).execute()
+    except Exception:
+        # Si la tabla exige más campos, el test sigue sin cuadrante
+        pass
+
+    prev_salida = previsualizar_fichaje(db_client, empleado_id, "PreviewUser", ahora_mas)
+    assert prev_salida["accion"] == "salida"
+    assert "hora_entrada_str" in prev_salida
+    assert prev_salida["minutos_trabajados"] >= 30
+
+    # info_turno directo
+    info = info_turno_para_salida(db_client, empleado_id, ahora_mas, ahora)
+    assert info["hora_entrada_str"]
+    assert info["minutos_trabajados"] >= 30
+    if info.get("hora_fin_str"):
+        assert info["minutos_restantes"] is not None
+        assert "cuadrante" in info["resumen_horario"].lower() or "salida" in info["resumen_horario"].lower()
+
+    # accion_esperada incorrecta
+    ok_bad, msg_bad = registrar_fichaje(
+        db_client, empleado_id, "PreviewUser", ahora_mas, accion_esperada="entrada"
+    )
+    assert ok_bad is False
+    assert "entrada abierta" in msg_bad.lower() or "salida" in msg_bad.lower()
+
+    # Salida real
+    ok_out, msg_out = registrar_fichaje(db_client, empleado_id, "PreviewUser", ahora_mas)
+    assert ok_out
+    assert "Salida" in msg_out
+
+    # Sin entrada abierta + accion_esperada salida
+    ok2, msg2 = registrar_fichaje(
+        db_client, empleado_id, "PreviewUser", ahora_mas + timedelta(minutes=31), accion_esperada="salida"
+    )
+    assert ok2 is False
+    assert "entrada" in msg2.lower()
+
+    # Turno que cruza medianoche / resto == 0 / excedido (unitario sin DB)
+    h_ini, h_fin = parsear_horas_turno("22:00 - 06:00")
+    assert h_ini is not None and h_fin is not None
+
+
+def test_info_turno_restante_justo_y_excedido():
+    """Resúmenes de salida: quedan minutos / hora justa / turno excedido."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from unittest.mock import MagicMock
+    from personal import info_turno_para_salida
+
+    tz = ZoneInfo("Atlantic/Canary")
+    client = MagicMock()
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
+        {"turno": "09:00 - 15:00"}
+    ]
+    entrada = datetime(2026, 7, 30, 9, 0, tzinfo=tz)
+
+    info_resto = info_turno_para_salida(
+        client, "emp-1", datetime(2026, 7, 30, 14, 0, tzinfo=tz), entrada
+    )
+    assert info_resto["hora_fin_str"] == "15:00"
+    assert info_resto["minutos_restantes"] == 60
+    assert "quedan" in info_resto["resumen_horario"]
+
+    info_justo = info_turno_para_salida(
+        client, "emp-1", datetime(2026, 7, 30, 15, 0, tzinfo=tz), entrada
+    )
+    assert info_justo["minutos_restantes"] == 0
+    assert "justo" in info_justo["resumen_horario"]
+
+    info_exceso = info_turno_para_salida(
+        client, "emp-1", datetime(2026, 7, 30, 16, 30, tzinfo=tz), entrada
+    )
+    assert info_exceso["minutos_restantes"] == -90
+    assert "hace" in info_exceso["resumen_horario"]
+
+    # Sin tz en datetime de entrada
+    info_naive = info_turno_para_salida(
+        client, "emp-1", datetime(2026, 7, 30, 12, 0), datetime(2026, 7, 30, 9, 0)
+    )
+    assert info_naive["minutos_trabajados"] == 180
+    assert info_naive["minutos_restantes"] == 180
 

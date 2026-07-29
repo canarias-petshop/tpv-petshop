@@ -34,3 +34,14 @@ def test_verificar_alertas_plan_marketing():
     
     # None: empty date
     assert verificar_alertas_plan_marketing("") is None
+    assert verificar_alertas_plan_marketing(None) is None
+    assert verificar_alertas_plan_marketing("fecha-invalida") is None
+    # Caducado (días negativos) -> sin alerta
+    fecha_pasada = (hoy - timedelta(days=5)).strftime("%Y-%m-%d")
+    assert verificar_alertas_plan_marketing(fecha_pasada) is None
+
+
+def test_calcular_progreso_objetivo_entradas_invalidas():
+    assert calcular_progreso_objetivo("abc", 100) == 0.0
+    assert calcular_progreso_objetivo(10, "x") == 0.0
+    assert calcular_progreso_objetivo("25", "50") == 0.5

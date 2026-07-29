@@ -103,3 +103,56 @@ def test_verificar_solape_manual():
     solapa, motivo = verificar_solape_manual(dt_ini_man, duracion, [], empleados_lista, turnos_dict, "Ana")
     assert solapa == False
     assert motivo == ""
+
+
+def test_bloqueo_todas_y_cita_cancelada_no_bloquea():
+    """Bloqueo 'Todas' afecta a todos; citas canceladas no ocupan hueco."""
+    fecha_c = date(2023, 10, 10)  # martes
+    turnos_dict = {"Ana": "09:00 - 14:00", "Luis": "09:00 - 14:00"}
+    empleados = ["Ana", "Luis"]
+    bloqueos = [{"empleado_afectado": "Todas", "hora_inicio": "10:00", "hora_fin": "10:30"}]
+    citas = [
+        {"fecha_hora": "2023-10-10 09:00:00", "duracion_minutos": 30,
+         "servicio": "[ESTADO: Cancelada] Baño (Ana)"},
+    ]
+    huecos, _, virt = calcular_huecos_libres(
+        fecha_c, citas, bloqueos, empleados, empleados, turnos_dict, 30
+    )
+    dts = [h["dt"] for h in huecos]
+    assert pd.to_datetime("2023-10-10 09:00:00") in dts  # cancelada no bloquea
+    assert pd.to_datetime("2023-10-10 10:00:00") not in dts  # bloqueo Todas
+    assert any("BLOQUEO (Ana)" in str(c.get("servicio", "")) for c in virt)
+    assert any("BLOQUEO (Luis)" in str(c.get("servicio", "")) for c in virt)
+
+
+def test_horario_finde_sin_horas_en_turno():
+    """Sin horas parseables en sábado → ventana 10:00-14:00."""
+    fecha_c = date(2023, 10, 14)  # sábado
+    huecos, _, _ = calcular_huecos_libres(
+        fecha_c, [], [], ["Ana"], ["Ana"], {"Ana": "Turno especial"}, 30
+    )
+    dts = [h["dt"] for h in huecos]
+    assert pd.to_datetime("2023-10-14 10:00:00") in dts
+    assert pd.to_datetime("2023-10-14 15:00:00") not in dts
+
+
+def test_solape_cualquiera_y_cita_anulada_ignorada():
+    dt_ini = pd.to_datetime("2023-10-10 10:00:00")
+    citas = [
+        {"fecha_hora": "2023-10-10 10:00:00", "duracion_minutos": 30,
+         "servicio": "[ESTADO: Anulada] X (Ana)"},
+    ]
+    solapa, _ = verificar_solape_manual(
+        dt_ini, 30, citas, ["Ana"], {"Ana": "09:00 - 14:00"}, "Cualquiera"
+    )
+    assert solapa is False
+
+    citas2 = [
+        {"fecha_hora": "2023-10-10 10:00:00", "duracion_minutos": 30,
+         "servicio": "Baño (Ana)"},
+    ]
+    solapa2, motivo2 = verificar_solape_manual(
+        dt_ini, 30, citas2, ["Ana"], {"Ana": "09:00 - 14:00"}, "Cualquiera"
+    )
+    assert solapa2 is True
+    assert "Solapa" in motivo2

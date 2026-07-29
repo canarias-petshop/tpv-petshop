@@ -124,6 +124,34 @@ def test_registrar_recogida_desde_cita_sin_mascota(db_client):
     with pytest.raises(ValueError, match="Falta el ID de la mascota"):
         registrar_recogida_desde_cita(db_client, "", "2026-07-21", "10:00")
 
+
+def test_registrar_recogida_mascota_inexistente(db_client):
+    with pytest.raises(ValueError, match="No se encontró la mascota"):
+        registrar_recogida_desde_cita(
+            db_client, "00000000-0000-0000-0000-999999999999", "2026-07-21", "10:00"
+        )
+
+
+def test_agendar_cita_recogida_rollback_si_falla_cascada(db_client, monkeypatch):
+    """Si falla registrar_recogida_desde_cita, se borra la cita huérfana."""
+    import core_crm as crm_mod
+
+    db_client.table("citas").delete().neq("id", 0).execute()
+    cli = crear_cliente(db_client, "Rollback Recogida", "622222222")
+    masc = crear_mascota(db_client, cli["id"], "Nala")
+
+    def boom(**kwargs):
+        raise RuntimeError("fallo cascada recogida")
+
+    monkeypatch.setattr(crm_mod, "registrar_recogida_desde_cita", boom)
+    with pytest.raises(RuntimeError, match="fallo cascada"):
+        agendar_cita(
+            db_client, masc["id"], "2026-08-01", "12:00",
+            "Peluquería", 30, recogida=True, direccion_recogida="Calle X 1",
+        )
+    citas = db_client.table("citas").select("id").eq("mascotas_id", masc["id"]).execute().data
+    assert citas == []
+
 def test_errores_validacion(db_client):
     with pytest.raises(ValueError, match="El nombre del dueño es obligatorio"):
         crear_cliente(db_client, "", "123")

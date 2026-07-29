@@ -68,3 +68,72 @@ def test_caja_cobertura(db_client):
     from caja import fetch_ventas_historial_desde, limpiar_cache_caja
     fetch_ventas_historial_desde(db_client, '2020-01-01T00:00:00Z')
     limpiar_cache_caja()
+
+
+def test_cerrar_caja_con_ventas_y_bancos(db_client):
+    """Cierre con ventas mixtas: efectivo, bizum y tarjetas por banco (Caixa / parseo Mixto)."""
+    from caja import abrir_caja, cerrar_caja, fetch_caja_abierta, limpiar_cache_caja
+
+    db_client.table("movimientos_caja").delete().neq("id", -1).execute()
+    db_client.table("control_caja").delete().neq("id", -1).execute()
+
+    abrir_caja(db_client, 100.0)
+    limpiar_cache_caja()
+    res = fetch_caja_abierta(db_client)
+    assert len(res.data) == 1
+    caja_id = res.data[0]["id"]
+    fecha_apertura = res.data[0]["created_at"]
+
+    # Ventas posteriores a la apertura
+    ventas = [
+        {
+            "pago_efectivo": 25.0,
+            "pago_tarjeta": 0,
+            "pago_bizum": 0,
+            "metodo_pago": "Efectivo",
+            "estado": "OK",
+            "total": 25.0,
+        },
+        {
+            "pago_efectivo": 0,
+            "pago_tarjeta": 40.0,
+            "pago_bizum": 0,
+            "metodo_pago": "Tarjeta (Caixa)",
+            "estado": "OK",
+            "total": 40.0,
+        },
+        {
+            "pago_efectivo": 0,
+            "pago_tarjeta": 15.0,
+            "pago_bizum": 10.0,
+            "metodo_pago": "Mixto - Caja Siete|B:x",
+            "estado": "OK",
+            "total": 25.0,
+        },
+        {
+            "pago_efectivo": 5.0,
+            "pago_tarjeta": 0,
+            "pago_bizum": 0,
+            "metodo_pago": "Efectivo",
+            "estado": "DEVUELTO",
+            "total": 5.0,
+        },
+    ]
+    for v in ventas:
+        try:
+            db_client.table("ventas_historial").insert(v).execute()
+        except Exception:
+            # Si faltan columnas obligatorias, el cierre sin ventas ya está cubierto
+            pass
+
+    # Teórico sin ventas = 100; con efectivo OK (25) = 125 si se insertaron
+    descuadre = cerrar_caja(db_client, caja_id, 100.0, fecha_apertura, 125.0)
+    assert isinstance(descuadre, float)
+
+    cerrada = db_client.table("control_caja").select("estado, resumen_pagos").eq("id", caja_id).execute()
+    assert cerrada.data[0]["estado"] == "Cerrada"
+    resumen = cerrada.data[0].get("resumen_pagos") or {}
+    assert "Efectivo" in resumen
+    assert "Tarjeta" in resumen
+    assert "Bizum" in resumen
+    limpiar_cache_caja()

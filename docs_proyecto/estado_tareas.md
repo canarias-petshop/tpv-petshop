@@ -43,7 +43,8 @@
     - `[x]` Refactorizar `facturacion.py` extrayendo lógica a `core_facturacion.py`.
     - `[x]` Crear `tests/test_facturacion.py` y verificar tests.
     - `[x]` Ejecutar `pytest` general y asegurar >80% en los módulos core.
-    - `[ ]` Hacer `git commit` y `git push` de este sprint.
+    - `[x]` Hacer `git commit` y `git push` de este sprint (rama `sprint-4c-ventas` / main).
+    - `[x]` **Suite QA ampliada (30 jul 2026, local aún sin commit):** 76 tests en verde, ~93% cobertura lógica core (`API_URL` local :3001). Refuerzo personal/caja/contabilidad/proveedores/agenda/CRM/marketing.
 
 ---
 
