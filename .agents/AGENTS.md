@@ -14,11 +14,11 @@ Documentación obligatoria antes de cambios grandes:
 → `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`
 
 ### Marketing H2 2026 (ago–dic)
-Plan con textos copy/paste, objetivos manuales, 150 €/mes (IG Ads + Google + cartelería), talleres sáb/dom — sembrado en **BD local**.  
-**No** volcar a `main`/prod sin pedirlo.  
-→ Handoff completo: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`  
-→ Semilla: `scripts/seed_marketing_h2_2026_local.py`  
-→ Innovate (etiqueta): `docs_proyecto/INICIATIVA_INNOVATE.md`  
+Plan con textos copy/paste, objetivos manuales, 150 €/mes (IG Ads + Google + cartelería), talleres sáb/dom.  
+**Datos:** sembrados en local y en **producción** (29 jul 2026).  
+→ Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`  
+→ Semilla: `scripts/seed_marketing_h2_2026_local.py` (`--prod` para Supabase)  
+→ Innovate: `docs_proyecto/INICIATIVA_INNOVATE.md`  
 → Plan anual: `PLAN_MARKETING_2026.md`
 
 ### Recogida a domicilio desde citas

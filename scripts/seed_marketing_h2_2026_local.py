@@ -11,7 +11,8 @@ Ritmo atractivo (no saturar):
     Instagram/Facebook Ads ~70 · Google Ads ~45 · Cartelería ~35 · WhatsApp = 0 (manual)
 
 Uso:
-  python scripts/seed_marketing_h2_2026_local.py
+  python scripts/seed_marketing_h2_2026_local.py          # BD local Docker
+  python scripts/seed_marketing_h2_2026_local.py --prod   # Supabase producción (secrets.toml)
 """
 from __future__ import annotations
 
@@ -24,6 +25,61 @@ from typing import Any, Optional
 from urllib.parse import quote
 
 API = "http://localhost:3001"
+AUTH_HEADERS: dict[str, str] = {}
+
+
+def configure_target(prod: bool = False) -> str:
+    """Local (default) o producción vía .streamlit/secrets.toml."""
+    global API, AUTH_HEADERS
+    if not prod:
+        API = "http://localhost:3001"
+        AUTH_HEADERS = {}
+        return "local"
+    import tomllib
+    from pathlib import Path
+    secrets_path = Path(__file__).resolve().parents[1] / ".streamlit" / "secrets.toml"
+    with open(secrets_path, "rb") as f:
+        secrets = tomllib.load(f)
+    raw = str(secrets.get("url", "")).strip().strip('"').strip("'").rstrip("/")
+    key = str(secrets.get("key", "")).strip().strip('"').strip("'")
+    if not raw or not key:
+        raise SystemExit("Faltan url/key en .streamlit/secrets.toml para producción.")
+    API = raw if raw.endswith("/rest/v1") else f"{raw}/rest/v1"
+    AUTH_HEADERS = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+    }
+    return "production"
+
+
+def api(method: str, path: str, body: Optional[Any] = None, prefer: Optional[str] = None) -> Any:
+    data = None if body is None else json.dumps(body).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        **AUTH_HEADERS,
+    }
+    if prefer:
+        headers["Prefer"] = prefer
+    req = urllib.request.Request(f"{API}{path}", data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            raw = resp.read().decode("utf-8")
+            return json.loads(raw) if raw else None
+    except urllib.error.HTTPError as e:
+        err = e.read().decode("utf-8", errors="replace")
+        raise SystemExit(f"HTTP {e.code} {path}: {err}") from e
+
+
+def http_delete(path: str) -> None:
+    req = urllib.request.Request(
+        f"{API}{path}",
+        method="DELETE",
+        headers={**AUTH_HEADERS, "Prefer": "return=minimal", "Accept": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=120):
+        pass
+
 
 CANAL_IG = "📱 Instagram / Facebook"
 CANAL_ADS = "💰 Campaña Pagada (Ads)"
@@ -40,21 +96,6 @@ TIPO_INN = "Iniciativa Innovate"
 EST = "Idea / Planificado"
 
 HASHTAGS = "#Animalarium #MascotasTenerife #PeluqueriaCanina #Tenerife #Canarias"
-
-
-def api(method: str, path: str, body: Optional[Any] = None, prefer: Optional[str] = None) -> Any:
-    data = None if body is None else json.dumps(body).encode("utf-8")
-    headers = {"Content-Type": "application/json", "Accept": "application/json"}
-    if prefer:
-        headers["Prefer"] = prefer
-    req = urllib.request.Request(f"{API}{path}", data=data, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            raw = resp.read().decode("utf-8")
-            return json.loads(raw) if raw else None
-    except urllib.error.HTTPError as e:
-        err = e.read().decode("utf-8", errors="replace")
-        raise SystemExit(f"HTTP {e.code} {path}: {err}") from e
 
 
 OBJETIVOS = [
@@ -942,12 +983,7 @@ def seed_talleres():
     """Upsert: borra por título H2 y vuelve a insertar (fechas sáb/dom actualizadas)."""
     for t in TALLERES:
         try:
-            req = urllib.request.Request(
-                f"{API}/eventos_talleres?titulo=eq.{quote(t['titulo'])}",
-                method="DELETE",
-                headers={"Prefer": "return=minimal"},
-            )
-            urllib.request.urlopen(req, timeout=30)
+            http_delete(f"/eventos_talleres?titulo=eq.{quote(t['titulo'])}")
         except Exception:
             pass
         payload = {k: t[k] for k in ("titulo", "fecha", "hora", "plazas_totales", "precio", "descripcion")}
@@ -958,12 +994,7 @@ def seed_talleres():
 def seed_objetivos() -> dict:
     for tit in OBJETIVOS_TITULOS:
         try:
-            req = urllib.request.Request(
-                f"{API}/marketing_objetivos?titulo=eq.{quote(tit)}",
-                method="DELETE",
-                headers={"Prefer": "return=minimal"},
-            )
-            urllib.request.urlopen(req, timeout=30)
+            http_delete(f"/marketing_objetivos?titulo=eq.{quote(tit)}")
         except Exception:
             pass
     mapping = {}
@@ -977,22 +1008,6 @@ def seed_objetivos() -> dict:
     return mapping
 
 
-def main():
-    print(f"Sembrando marketing H2 2026 en {API} (LOCAL)...")
-    api("GET", "/marketing_plan?limit=1")
-    seed_talleres()
-    # Primero borrar plan (FK a objetivos), luego objetivos, luego recrear
-    req = urllib.request.Request(
-        f"{API}/marketing_plan?fecha_planificada=gte.2026-08-01",
-        method="DELETE",
-        headers={"Prefer": "return=minimal"},
-    )
-    urllib.request.urlopen(req, timeout=60)
-    obj_map = seed_objetivos()
-    seed_plan(obj_map)
-    print("OK. TPV local -> Marketing (IG ~3/sem + talleres sab/dom + Ads 150/mes).")
-
-
 def seed_plan(obj_map: dict):
     rows = build_plan(obj_map)
     for i in range(0, len(rows), 25):
@@ -1000,6 +1015,21 @@ def seed_plan(obj_map: dict):
     paid = sum(r["presupuesto"] for r in rows)
     ig = sum(1 for r in rows if r["canal"] == CANAL_IG)
     print(f"Plan H2: {len(rows)} acciones | IG {ig} | presupuesto total {paid:.0f} EUR (150/mes x 5, IG+Google+carteleria)")
+
+
+def main():
+    prod = "--prod" in sys.argv or "--production" in sys.argv
+    target = configure_target(prod=prod)
+    print(f"Sembrando marketing H2 2026 ({target})...")
+    # Smoke test (no imprime datos sensibles)
+    probe = api("GET", "/marketing_plan?select=id&limit=1")
+    print(f"Conexion OK (filas muestra plan: {0 if probe is None else len(probe)})")
+    seed_talleres()
+    # Solo borra H2 (ago+); no toca mayo-julio
+    http_delete("/marketing_plan?fecha_planificada=gte.2026-08-01")
+    obj_map = seed_objetivos()
+    seed_plan(obj_map)
+    print(f"OK en {target}. Marketing -> Plan Maestro / Objetivos / Talleres.")
 
 
 if __name__ == "__main__":

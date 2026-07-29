@@ -1,11 +1,13 @@
 # Marketing H2 2026 + hoja de ruta (handoff)
 
 **Fecha:** 29 jul 2026  
-**Ámbito:** Solo **local / Docker** hasta que el usuario pida subir a `main` / producción.  
-**Script de semilla:** `scripts/seed_marketing_h2_2026_local.py`  
-**Regenerar BD local:** `python scripts/seed_marketing_h2_2026_local.py`
+**Ámbito datos:** Sembrado en **local** y en **producción Supabase** (29 jul 2026, script `--prod`).  
+**Código:** en `main` (UI TEXTO PARA PUBLICAR, etc.).  
+**Script:** `scripts/seed_marketing_h2_2026_local.py`  
+- Local: `python scripts/seed_marketing_h2_2026_local.py`  
+- Prod: `python scripts/seed_marketing_h2_2026_local.py --prod`  
 
-Este documento cierra el trabajo de marketing de esta conversación y deja listo el contexto para **seguir en una conversación nueva**.
+Este documento cierra el trabajo de marketing de esta conversación y deja listo el contexto para **seguir en una conversación nueva** (automatización de KPIs en local primero).
 
 ---
 
