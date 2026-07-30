@@ -5,11 +5,6 @@ import time
 import urllib.parse
 import calendar
 from core_agenda import aplicar_bloqueos_a_turnos, calcular_huecos_libres, verificar_solape_manual
-import pandas as pd
-from datetime import date, timedelta
-import time
-import urllib.parse
-import calendar
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_masc_ag_cached(_client, v):
@@ -399,7 +394,6 @@ def render_pestana_agenda(client):
                 empleados_a_revisar = [f_emp] if f_emp != "Cualquiera" else empleados_lista
                 
                 # --- LLAMADA A CORE_AGENDA ---
-                from core_agenda import aplicar_bloqueos_a_turnos, calcular_huecos_libres, verificar_solape_manual
                 huecos_obj, huecos_formateados, citas_virtuales = calcular_huecos_libres(
                     fecha_c=fecha_c,
                     citas_dia=citas_dia,

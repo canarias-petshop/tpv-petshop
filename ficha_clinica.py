@@ -325,7 +325,7 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
             
             if srv in precios_servicios:
                 # Rellenar Precio Base si está vacío
-                if pd.isna(precio_base) or str(precio_base).strip() == "" or float(precio_base) == 0.0:
+                if pd.isna(precio_base) or str(precio_base).strip() == "" or float(precio_base or 0) == 0.0:
                     precio_cat = float(precios_servicios[srv])
                     minutos_calc = df_save.at[idx, 'Duración (min)']
                     
@@ -345,28 +345,40 @@ def mostrar_ficha_clinica(m_id, m_nombre, m_data, prefix, client, servicios_list
                     df_save.at[idx, 'Precio Base (€)'] = precio_base
                 else:
                     precio_base = float(precio_base)
-            
-            # --- LLAMADA A CORE_FICHA_CLINICA ---
-            from core_ficha_clinica import aplicar_descuentos_fidelidad
-            df_save, mensajes_exito = aplicar_descuentos_fidelidad(df_save, fechas_oferta)
-            
-            for msg in mensajes_exito:
-                st.success(msg)
                     
-        df_save = df_save.fillna("")
+        from core_ficha_clinica import aplicar_descuentos_fidelidad
+        df_save, mensajes_exito = aplicar_descuentos_fidelidad(df_save, fechas_oferta)
+        for msg in mensajes_exito:
+            st.success(msg)
+                    
+        df_save = df_save.where(pd.notnull(df_save), None)
+        # JSON-friendly: NaN → None; fechas/horas ya son str
+        records = df_save.to_dict(orient='records')
+        for rec in records:
+            for k, v in list(rec.items()):
+                if v is None or (isinstance(v, float) and pd.isna(v)):
+                    rec[k] = None if k.startswith("Precio") or k.startswith("Duración") else ""
+                elif hasattr(v, "item"):  # numpy scalars
+                    try:
+                        rec[k] = v.item()
+                    except Exception:
+                        rec[k] = str(v)
         
         pref_actual = get_pref(m_data.get('observaciones', ''))
         final_obs = f"[Pref: {pref_actual}] {notas_clinicas}".strip() if pref_actual != "Cualquiera" else notas_clinicas
         
-        client.table("mascotas").update({
-            "historial_trabajos": df_save.to_dict(orient='records'),
-            "observaciones": final_obs
-        }).eq("id", m_id).execute()
-        
-        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-        st.success("Historial y notas actualizados correctamente."); time.sleep(0.1)
-        limpiar_cache_ficha_clinica()
-        st.rerun()
+        try:
+            client.table("mascotas").update({
+                "historial_trabajos": records,
+                "observaciones": final_obs
+            }).eq("id", m_id).execute()
+            
+            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+            st.success("Historial y notas actualizados correctamente."); time.sleep(0.1)
+            limpiar_cache_ficha_clinica()
+            st.rerun()
+        except Exception as e:
+            st.error(f"No se pudo guardar la ficha clínica: {e}")
         
     st.markdown("---")
     st.markdown("#### 🚫 Historial de Cancelaciones y Plantones")
