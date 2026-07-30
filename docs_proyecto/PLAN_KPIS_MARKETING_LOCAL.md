@@ -1,7 +1,7 @@
 # Plan: Sync KPIs marketing (solo local + tests)
 
-**Estado (30 jul 2026):** v1 en rama **`feature/marketing-kpis-sync-v1`** — probado en `:8501` (4 actualizados, 4 omitidos, 0 errores). **Sin merge a `main`** hasta validación completa.  
-**Objetivo futuro (usuario):** sync **totalmente automática** (cron/job), no solo botón manual — ver § “Fase 2” abajo.
+**Estado (30 jul 2026):** v1 en rama **`feature/marketing-kpis-sync-v1`** — probado en `:8501`.  
+**Fase 2:** cron nocturno **23:05 Atlantic/Canary** en Docker (`docker/crontab` + `scripts/sync_marketing_kpis_cron.py`). **Sin merge a `main`** hasta validación completa.
 
 **Fechas:** plan + implementación 30 jul 2026.
 
@@ -113,17 +113,21 @@ KPI desconocido → omitido.
 
 ---
 
-## Fase 2 — Automatización total (pendiente, pedida por usuario)
+## Fase 2 — Automatización nocturna (implementada en rama)
 
-v1 = botón manual. El usuario quiere que **no dependa del botón**:
+| Pieza | Detalle |
+|-------|---------|
+| Hora | **23:05** hora Canarias (`Atlantic/Canary`) — después de las 23:00 |
+| Cron | `docker/crontab` dentro del contenedor `animalarium-tpv` |
+| Script | `scripts/sync_marketing_kpis_cron.py` |
+| Log | `logs/kpis_cron.log` (en proyecto / contenedor) |
+| Desactivar | `MKT_KPIS_CRON_ENABLED=false` en docker-compose |
+| Manual | `python scripts/sync_marketing_kpis_cron.py --force` |
+| Rebuild | Tras cambiar Dockerfile: `docker compose build tpv-app && docker compose up -d tpv-app` |
 
-| Opción | Pros | Notas |
-|--------|------|--------|
-| Cron local (Docker) | Sync cada noche sin abrir UI | Solo local hasta validar |
-| Al cargar pestaña Objetivos | Sin cron; recalcula al entrar | Más simple; puede ser lento |
-| Streamlit scheduled / Cloud | Automático en nube | Requiere merge a `main` + deploy |
+El botón manual en Objetivos sigue disponible para forzar sync al instante.
 
-Mantener: ROI omitido hasta atribución; no pasar a Completado solo; no inventar 0 en KPIs dudosos.
+**Streamlit Cloud / prod:** el cron Docker no aplica en la nube; al merge habrá que definir job externo o sync al abrir app (pendiente).
 
 ---
 

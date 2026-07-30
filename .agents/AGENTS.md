@@ -22,9 +22,8 @@ Plan con textos copy/paste, objetivos, 150 €/mes (IG Ads + Google + cartelerí
 → Plan anual: `PLAN_MARKETING_2026.md`
 
 ### Sync KPIs marketing (rama `feature/marketing-kpis-sync-v1`)
-v1 = botón manual + tests; probado en `:8501`. **Sin merge a `main`/prod.**  
-Objetivo futuro usuario: **automatización total** (cron/job).  
-→ `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md` (§ Fase 2)
+v1 botón + **cron 23:05 Canarias** en Docker local. Sin merge a `main`/prod.  
+→ `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`
 
 ### Recogida a domicilio desde citas
 Agenda/CRM: control recogida + cascada `registrar_recogida_desde_cita` + rollback si falla (ya en `main` si se desplegó). Ver Compendio § Agenda.

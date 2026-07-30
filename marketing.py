@@ -25,12 +25,13 @@ def render_pestana_marketing(client):
         st.markdown("#### 🎯 Panel de Control: Objetivos de Marketing")
         st.info("Define las metas claras de tus acciones publicitarias y mide su retorno (ROI).")
 
-        # Sync KPIs: botón manual bien visible (NO es automático / cron)
+        # Sync KPIs: manual + cron nocturno (23:05 Canarias en Docker local)
         st.markdown("##### 🔄 Sincronización desde el TPV")
         st.caption(
-            "No es automático: al pulsar, recalcula el valor actual de los objetivos "
-            "**En progreso** con citas, altas CRM, ventas y talleres de la base de datos. "
-            "El ROI Ads se omite (sigue manual). La edición a mano en cada objetivo sigue disponible."
+            "Cada noche (~**23:05**, hora Canarias) el TPV local recalcula automáticamente "
+            "los objetivos **En progreso** (citas, altas CRM, ventas, talleres). "
+            "Puedes forzar ahora con el botón. ROI Ads se omite (manual). "
+            "Log cron: `logs/kpis_cron.log` en el contenedor."
         )
         if st.button(
             "🔄 Sincronizar KPIs desde TPV",

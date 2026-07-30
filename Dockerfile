@@ -7,6 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    cron \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar el archivo de requerimientos y las dependencias
@@ -22,5 +23,7 @@ EXPOSE 8501
 # Comando para comprobar que el contenedor está funcionando bien
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
 
-# Comando para ejecutar la aplicación cuando arranque el contenedor
-ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+RUN chmod +x /app/docker/entrypoint.sh
+
+# Streamlit + cron nocturno KPIs (23:05 Canarias)
+ENTRYPOINT ["/app/docker/entrypoint.sh"]

@@ -1,0 +1,3 @@
+# Sync KPIs marketing — 23:05 hora Canarias (después de las 23:00)
+CRON_TZ=Atlantic/Canary
+5 23 * * * cd /app && /usr/local/bin/python scripts/sync_marketing_kpis_cron.py >> /app/logs/kpis_cron.log 2>&1

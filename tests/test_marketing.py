@@ -226,3 +226,30 @@ def test_sincronizar_objetivos_error_en_calculo():
         resumen = sincronizar_objetivos_desde_tpv(client, objetivos)
     assert resumen[0]["accion"] == "error"
     client.table.return_value.update.assert_not_called()
+
+
+def test_sync_cron_script_resumir_y_main_desactivado():
+    from scripts.sync_marketing_kpis_cron import resumir_sync, main, cron_habilitado
+
+    resumen = [
+        {"accion": "actualizado"},
+        {"accion": "omitido"},
+        {"accion": "error"},
+    ]
+    assert "1 actualizado" in resumir_sync(resumen)
+    assert cron_habilitado() is True
+
+    with patch.dict(os.environ, {"MKT_KPIS_CRON_ENABLED": "false"}):
+        assert cron_habilitado() is False
+        assert main([]) == 0
+
+
+def test_sync_cron_script_run_sync_con_mock():
+    from scripts.sync_marketing_kpis_cron import run_sync
+
+    fake = [{"accion": "actualizado", "titulo": "Test"}]
+    with patch("scripts.sync_marketing_kpis_cron.build_postgrest_client") as mock_cli:
+        with patch("scripts.sync_marketing_kpis_cron.sincronizar_objetivos_desde_tpv", return_value=fake):
+            out = run_sync()
+    assert len(out) == 1
+    mock_cli.assert_called_once()

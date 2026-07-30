@@ -10,3 +10,6 @@ fichas_a_importar/
 # Ignorar backups y archivos zip para no filtrar secretos
 *.zip
 Backups_Datos_Nube/
+
+# Logs cron KPIs marketing (local)
+logs/

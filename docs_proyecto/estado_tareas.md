@@ -68,5 +68,5 @@
 - `[/]` **Sync KPIs marketing** — rama `feature/marketing-kpis-sync-v1` (sin merge a `main`).
   - `[x]` v1: botón manual + `core_marketing` + 11 tests OK.
   - `[x]` Prueba `:8501`: 4 actualizados, 4 omitidos, 0 errores (ceros = BD local / periodo H2).
-  - **Pendiente:** merge a `main` cuando todo validado · **Fase 2 usuario:** automatización total (cron/job, no solo botón).
+  - **Pendiente:** merge a `main` cuando todo validado · cron nocturno 23:05 en Docker (rama).
   - Plan: `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`
