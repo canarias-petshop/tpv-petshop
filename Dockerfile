@@ -20,10 +20,11 @@ COPY . .
 # Exponer el puerto que usa Streamlit
 EXPOSE 8501
 
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+
 # Comando para comprobar que el contenedor está funcionando bien
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
 
-RUN chmod +x /app/docker/entrypoint.sh
-
 # Streamlit + cron nocturno KPIs (23:05 Canarias)
-ENTRYPOINT ["/app/docker/entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
