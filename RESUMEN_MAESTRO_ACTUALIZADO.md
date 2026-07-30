@@ -1,5 +1,5 @@
 # Resumen Maestro Actualizado - TPV y E-Commerce Animalarium
-**Fecha de última actualización**: 30 de Julio de 2026
+**Fecha de última actualización**: 31 de Julio de 2026
 
 Este documento centraliza todos los avances, arquitecturas y módulos del ecosistema completo de Animalarium (TPV Físico + Tienda Web). Es el punto de partida **obligatorio** para retomar el proyecto en futuras sesiones.
 
@@ -13,22 +13,27 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
 
 ---
 
-## 🆕 Últimos Cambios (30 de Julio de 2026)
+## 🆕 Cierre 30–31 de Julio de 2026 (producción validada)
 
-### Mantenimiento de Material (módulo Tareas)
-- Nuevo submódulo **Tareas → 🛠️ Mantenimiento Material** (`mantenimiento_material.py` + `core_mantenimiento.py`).
-- Tablas propias (local): `mantenimiento_materiales`, `mantenimiento_planes`, `mantenimiento_ejecuciones`, `mantenimiento_movimientos`.
-- SQL reutilizable para Supabase más adelante: `scripts/sql_mantenimiento_material.sql`.
-- Frecuencias: diaria, semanal, 2×semana, 15 días, mensual, 3 meses, 6 meses, puntual.
-- Pendientes **no se cierran solos**: alertan hasta marcar Hecho; luego se recalcula la próxima fecha.
-- Movimientos de taller: afilar, reparación, **mantenimiento**, vuelta, incidencia, anotación.
-- Calendario semanal/mensual + resumen en Calendario General de Tareas.
-- **Aún solo local** (Docker); sin prod/Supabase hasta confirmación.
-- Spec V2 actualizada: `ESPECIFICACIONES_V2.md` §2.7 + `GUIA_V2_AVANCES_2026-07-30.md`.
+### Despliegue a `main` + verificación usuario
+- Merge a `main` / push remoto: mantenimiento material, sync KPIs + CI, bloqueo vacaciones agenda/CRM, docs V2.
+- SQL `mantenimiento_*` aplicado en **Supabase** por el usuario.
+- **Validado en producción** por el usuario (31 jul): ficha clínica (cierre/guardado), módulo de mantenimiento de material y operativa general OK.
+
+### Hotfixes post-despliegue
+- **Agenda `UnboundLocalError`**: import local de `aplicar_bloqueos_a_turnos` dentro de `render_pestana_agenda` → corregido (import solo a nivel módulo). Commit `d7e4084`.
+- **Ficha clínica**: `aplicar_descuentos_fidelidad` sacado del bucle al guardar; mensaje de error si falla el update a Supabase.
+- **Cron KPIs 23:05**: primera noche disparó pero `Connection refused` (cron sin `API_URL`). Fix entrypoint inyecta `API_URL=http://animalarium-api:3000` (`fb77ef8`); imagen Docker rebuild 31 jul. Cron = **solo local**; en nube el sync es el **botón manual**.
+
+### Mantenimiento de Material (módulo Tareas) — prod
+- Submódulo **Tareas → 🛠️ Mantenimiento Material**.
+- Tablas: `mantenimiento_materiales`, `mantenimiento_planes`, `mantenimiento_ejecuciones`, `mantenimiento_movimientos`.
+- Frecuencias: diaria, semanal, 2×semana, 15 días, mensual, 3m, 6m, puntual.
+- Pendientes hasta marcar Hecho; movimientos de taller (incl. Sale a mantenimiento).
+- Spec V2: `ESPECIFICACIONES_V2.md` §2.7 + `GUIA_V2_AVANCES_2026-07-30.md`.
 
 ### Agenda: vacaciones / ausencias bloquean huecos
-- Cerrada la antigua discrepancia del Compendio.
-- `core_agenda.aplicar_bloqueos_a_turnos` unifica Agenda y CRM: bloqueos RRHH + turnos vacaciones/ausencia/baja/libre no ofrecen huecos.
+- `core_agenda.aplicar_bloqueos_a_turnos` unifica Agenda y CRM.
 
 ---
 

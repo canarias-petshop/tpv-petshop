@@ -1,7 +1,7 @@
-# Guía de avances para V2 — 30 julio 2026
+# Guía de avances para V2 — 30–31 julio 2026
 
-**Propósito:** documento de handoff para el repositorio `animalarium-v2` (u otro chat/agente).  
-Resume lo implementado y validado en el TPV actual (`tpv-petshop`) que **debe preservarse** al portar módulos a Next.js/React.
+**Propósito:** handoff para `animalarium-v2` (u otro chat/agente).  
+**Actualización 31 jul:** mantenimiento y sync KPIs (botón) **validados en producción** TPV Streamlit.
 
 **Leer también (orden):**
 1. Este archivo  
@@ -20,16 +20,17 @@ Resume lo implementado y validado en el TPV actual (`tpv-petshop`) que **debe pr
 |--------|--------|----------------|
 | Caja / puntos / pagos | Estable | Reglas en Compendio § parametrización |
 | CRM + citas + recogida | Estable | Cascada `registrar_recogida_desde_cita` |
-| Agenda huecos | Estable | Bloqueo por vacaciones/ausencias en `core_agenda` |
+| Agenda huecos | Estable en prod | Vacaciones/ausencias; hotfix import UnboundLocalError |
+| Ficha clínica | Estable en prod | Guardado historial validado 31 jul |
 | Facturación compras | Estable | Borrador no mueve stock; pagos a 2 decimales |
 | RRHH fichajes | Estable | Anti-spam 30 min + confirmación salida |
-| Marketing H2 | Datos en prod; sync KPIs en rama local | Ver handoffs marketing |
-| **Mantenimiento material** | **Nuevo (local Docker)** | Aún **sin** tablas en Supabase prod |
+| Marketing H2 | Prod | Sync KPIs: botón en nube; cron solo Docker local |
+| **Mantenimiento material** | **Prod (validado 31 jul)** | Tablas en Supabase; portar a V2 |
 | Mensajería automática WA/Email | Aparcado | Manual 1 clic |
 
 ---
 
-## 2. Nuevo módulo: Mantenimiento de Material (30 jul 2026)
+## 2. Nuevo módulo: Mantenimiento de Material (30 jul 2026; prod 31 jul)
 
 ### 2.1 Dónde vive en el TPV
 - Pestaña **Tareas → 🛠️ 4. Mantenimiento Material**
@@ -93,8 +94,8 @@ Sale a afilar, Sale a reparación, **Sale a mantenimiento**, Vuelve de taller, I
 
 ### 2.8 Estado despliegue
 - ✅ Docker local (`animalarium-db` + PostgREST)  
-- ❌ Supabase producción (SQL pendiente de aplicar cuando el usuario lo pida)  
-- ❌ Streamlit Cloud / merge a `main` (hasta confirmación)
+- ✅ Supabase producción (SQL aplicado por el usuario)  
+- ✅ `main` + Streamlit Cloud — **validado usuario 31 jul 2026**
 
 ---
 

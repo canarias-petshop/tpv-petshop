@@ -8,30 +8,34 @@ Documentación obligatoria antes de cambios grandes:
 2. `docs_proyecto/estado_tareas.md`
 3. Para V2 / otro repo: `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` + `docs_proyecto/ESPECIFICACIONES_V2.md`
 
+## Cierre sesión 30–31 jul 2026 (producción OK)
+Usuario validó en **Streamlit Cloud / prod**: ficha clínica, mantenimiento de material y operativa general.  
+Código en **`main`**. Tablas `mantenimiento_*` aplicadas en Supabase.
+
 ## Decisiones y módulos recientes (leer si el tema aplica)
 
-### Mantenimiento de Material (30 jul 2026 — local)
-Submódulo en **Tareas → 🛠️ Mantenimiento Material**. Tablas `mantenimiento_*` en Docker; SQL listo para Supabase: `scripts/sql_mantenimiento_material.sql`.  
-Pendientes hasta marcar Hecho. Movimientos incluyen “Sale a mantenimiento”.  
-**Sin prod** hasta que el usuario lo pida.  
-→ `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` §2 · `core_mantenimiento.py`
+### Mantenimiento de Material — **en producción**
+Submódulo **Tareas → 🛠️ Mantenimiento Material**. Tablas `mantenimiento_*` en local **y** Supabase.  
+Pendientes hasta marcar Hecho. Movimientos: afilar / reparación / **mantenimiento** / taller / incidencia.  
+→ `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` §2 · `core_mantenimiento.py` · SQL `scripts/sql_mantenimiento_material.sql`
 
-### Vacaciones / ausencias bloquean agenda
-Resuelto: `core_agenda` + CRM. Ya no es discrepancia del Compendio.
+### Agenda / vacaciones + hotfix Nueva Cita
+Vacaciones/ausencias bloquean huecos (`core_agenda` + CRM).  
+Hotfix prod: `UnboundLocalError` por import local en `agenda.py` (commit `d7e4084`).  
+Ficha clínica: descuentos fuera del bucle al guardar + error visible si falla el update.
+
+### Sync KPIs marketing — **en `main`**
+Botón manual en Objetivos (funciona en prod).  
+Cron **23:05 Canarias** solo en **Docker local** (PC encendido). Fix `API_URL` en entrypoint (`fb77ef8`); rebuild hecho 31 jul.  
+Nube ≠ cron automático. Handoff: `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`
 
 ### Mensajería automática (WhatsApp / Email)
 **No implementar** salvo petición explícita. Recordatorios = **manuales** (1 clic).  
 → `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`
 
 ### Marketing H2 2026 (ago–dic)
-Plan con textos copy/paste, objetivos, 150 €/mes (IG Ads + Google + cartelería), talleres sáb/dom.  
-**Datos:** local y producción (verificados 30 jul). **Código UI plan:** en `main` (TEXTO PARA PUBLICAR).  
-→ `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md` · `scripts/seed_marketing_h2_2026_local.py`
-
-### Sync KPIs marketing — **rama** `feature/marketing-kpis-sync-v1`
-**Hecho (rama, commits locales):** sync manual + cron **23:05 Canarias** + CI.  
-**Pendiente:** push / merge solo si usuario confirma. **Sin prod.**  
-→ `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`
+Plan con textos copy/paste, objetivos, 150 €/mes, talleres sáb/dom. Datos local + prod.  
+→ `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`
 
 ### Recogida a domicilio desde citas
 Agenda/CRM: `registrar_recogida_desde_cita` (ver Compendio § Agenda).
@@ -46,6 +50,6 @@ Agenda/CRM: `registrar_recogida_desde_cita` (ver Compendio § Agenda).
 
 ## Instrucción de inicio para agentes nuevos
 Saluda, confirma lectura de `.agents/AGENTS.md`, pregunta prioridad.  
-**V2 / portar módulos:** lee **`docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md`**.  
-**Sync KPIs / marketing:** `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`.  
+**V2 / portar módulos:** **`docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md`**.  
+**Sync KPIs:** `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`.  
 **Plan H2 / Ads:** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.

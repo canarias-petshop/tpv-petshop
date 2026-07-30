@@ -45,22 +45,32 @@
     - `[x]` Ejecutar `pytest` general y asegurar >80% en los módulos core.
     - `[x]` Hacer `git commit` y `git push` de este sprint (rama `sprint-4c-ventas` / main).
     - `[x]` **Suite QA ampliada (30 jul 2026):** 76 tests en verde, ~93% cobertura lógica core (`API_URL` local :3001). Refuerzo personal/caja/contabilidad/proveedores/agenda/CRM/marketing.
-    - `[x]` **CI GitHub Actions (30 jul 2026 tarde):** workflow `.github/workflows/ci.yml` en rama `feature/marketing-kpis-sync-v1` — 86 pytest + smoke sync KPIs; **pendiente push** para activar en remoto.
+    - `[x]` **CI GitHub Actions (30 jul 2026):** workflow en `main` — pytest + smoke sync KPIs.
 
 ---
 
-## Mantenimiento de material (local, 30 jul 2026)
+## Cierre 30–31 jul 2026 (producción)
 
-- `[/]` **Submódulo Tareas → 🛠️ Mantenimiento Material**
-  - Tablas locales: `mantenimiento_materiales`, `mantenimiento_planes`, `mantenimiento_ejecuciones`, `mantenimiento_movimientos`.
-  - Script SQL (también para Supabase más adelante): `scripts/sql_mantenimiento_material.sql`.
+- `[x]` **Merge a `main` + push** (mantenimiento, KPIs sync, agenda bloqueos, docs V2).
+- `[x]` **SQL mantenimiento** aplicado en Supabase por el usuario.
+- `[x]` **Validación usuario en prod:** ficha clínica, mantenimiento material, operativa general OK.
+- `[x]` **Hotfix Agenda** `UnboundLocalError` (import local) → `d7e4084`.
+- `[x]` **Hotfix ficha clínica** (descuentos fuera del bucle + error visible).
+- `[x]` **Fix cron KPIs API_URL** en entrypoint → `fb77ef8` + rebuild Docker local 31 jul.
+- `[ ]` Confirmar log cron **siguiente noche** sin `Connection refused` (opcional; PC+Docker encendidos).
+- `[ ]` Cron KPIs en Streamlit Cloud / job externo — futuro, solo si se pide.
+
+## Mantenimiento de material — **cerrado en prod**
+
+- `[x]` **Submódulo Tareas → 🛠️ Mantenimiento Material**
+  - Tablas local + Supabase: `mantenimiento_materiales`, `mantenimiento_planes`, `mantenimiento_ejecuciones`, `mantenimiento_movimientos`.
+  - Script: `scripts/sql_mantenimiento_material.sql`.
   - Core + tests: `core_mantenimiento.py`, `tests/test_mantenimiento.py`.
   - UI: `mantenimiento_material.py` + pestaña en `tareas.py`; resumen en Calendario General.
   - Movimientos incluyen **Sale a mantenimiento**.
-  - **Docs V2 actualizadas (30 jul):** `GUIA_V2_AVANCES_2026-07-30.md`, `ESPECIFICACIONES_V2.md` §2.7, Resumen Maestro, AGENTS.
-  - **Pendiente:** validación operativa final en `:8501` → SQL en Supabase + merge cuando el usuario confirme.
-  - **Sin prod** hasta petición explícita.
+  - Docs V2: `GUIA_V2_AVANCES_2026-07-30.md`, `ESPECIFICACIONES_V2.md` §2.7.
 
+## Backlog aparcado (decisión de negocio, no sprint activo)
 
 - `[ ]` **Mensajería automática WhatsApp / Email** — **NO implementar por ahora** (29 jul 2026).
   - Hoy el flujo **manual** (Agenda → Recordatorios → WA 1 clic) es suficiente.
@@ -68,21 +78,14 @@
   - Detalle y checklist: `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
   - **No** abrir trabajo de API Meta/Twilio/SMTP hasta que el usuario lo pida explícitamente.
 
-## Marketing H2 2026 (datos + código en main; UI nube = redeploy)
+## Marketing H2 2026 (datos + código en main)
 
-- `[x]` **Plan marketing H2 2026 (ago–dic)** — 29 jul 2026; verificación TPV 30 jul 2026.
-  - Código en `main` (UI **TEXTO PARA PUBLICAR** + “Calendario (títulos y presupuesto)”, fix talleres/embeds).
-  - Datos en **local y producción Supabase**: ~131 campañas H2, 7 objetivos, 5 talleres; ~750 € H2 (150 €/mes); ~3 IG/sem; talleres sáb/dom.
-  - **Verificado en prod:** objetivos, presupuesto ~750 €, campañas especiales, gestión de canales.
-  - **Pendiente operativo:** si Streamlit Cloud aún muestra “Vista de Proyección de Campañas”, hacer **Reboot/Redeploy** (datos ya están; falta código nuevo en la app nube). Mayo–julio del calendario no se borraron.
-  - Script: `scripts/seed_marketing_h2_2026_local.py` (`--prod` para Supabase).
+- `[x]` **Plan marketing H2 2026 (ago–dic)** — verificado en TPV prod 30 jul.
   - Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md` · `PLAN_MARKETING_2026.md` · `INICIATIVA_INNOVATE.md`
-- `[/]` **Sync KPIs marketing** — rama `feature/marketing-kpis-sync-v1` (**4 commits**, **sin push**, sin merge a `main`).
-  - `[x]` v1: botón + `core_marketing` + 13 tests marketing.
-  - `[x]` Prueba manual `:8501`: 4 actualizados, 4 omitidos, 0 errores.
-  - `[x]` Cron 23:05 Canarias (Docker + `scripts/sync_marketing_kpis_cron.py`).
-  - `[x]` CI: `.github/workflows/ci.yml` + `run_ci_local.ps1` — **86 tests** OK local.
-  - `[ ]` **Esta noche:** verificar primera ejecución cron → `logs/kpis_cron.log`.
-  - `[ ]` Push rama → CI en GitHub Actions.
-  - `[ ]` Merge `main` + prod/cloud (solo si usuario confirma tras cron + CI).
-  - Plan / handoff: `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`
+- `[x]` **Sync KPIs marketing** — en **`main`** (merge 30 jul).
+  - `[x]` Botón + `core_marketing` + tests; botón usable en prod.
+  - `[x]` Cron 23:05 Canarias **Docker local** (fix API_URL 31 jul).
+  - `[x]` CI en `main`.
+  - `[ ]` Ver log cron noche siguiente (opcional).
+  - `[ ]` Automatizar en Streamlit Cloud (futuro).
+  - Plan: `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`

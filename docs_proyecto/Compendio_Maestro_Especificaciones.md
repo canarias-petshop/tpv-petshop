@@ -24,19 +24,18 @@ Sirve como "mapa" inquebrantable antes de iniciar la refactorización (Fase 2) y
 - 🚀 **[NEGOCIO/FUTURO]** **Mensajería automática (WA / Email)**: Aparcado (29 jul 2026). Ver `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
 
 ## 1-quater. Tareas y Mantenimiento de Material (`tareas.py`, `mantenimiento_material.py`, `core_mantenimiento.py`)
-- ✅ **[CÓDIGO / LOCAL]** **Submódulo Mantenimiento Material**: materiales, planes con frecuencias (diaria / semanal / 2×semana / 15 días / mensual / 3m / 6m / puntual), calendario, pendientes que **persisten hasta marcar Hecho**, movimientos (afilar / reparación / **mantenimiento** / taller / incidencia). Tablas `mantenimiento_*`. SQL: `scripts/sql_mantenimiento_material.sql` (Supabase cuando se pida).
-- ✅ **[CÓDIGO / LOCAL]** **Resumen en Calendario General**: avisos `🛠️` / `🚨` por día con conteo de pendientes/atrasados.
-- ✅ **[SPEC V2]** Documentado para portar a Next.js: `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` + `ESPECIFICACIONES_V2.md` §2.7.
+- ✅ **[CÓDIGO / PROD]** **Submódulo Mantenimiento Material** (validado usuario 31 jul): materiales, planes (diaria / semanal / 2×semana / 15 días / mensual / 3m / 6m / puntual), calendario, pendientes hasta **Hecho**, movimientos (afilar / reparación / **mantenimiento** / taller). Tablas `mantenimiento_*` en local y Supabase. SQL: `scripts/sql_mantenimiento_material.sql`.
+- ✅ **[CÓDIGO]** **Resumen en Calendario General**: avisos `🛠️` / `🚨` por día.
+- ✅ **[SPEC V2]** `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` + `ESPECIFICACIONES_V2.md` §2.7.
 
 ## 1-ter. Marketing (`marketing.py`, `core_marketing.py`, `proyectos_eventos.py`)
-- ✅ **[CÓDIGO]** **Objetivos y Resultados**: Tabla `marketing_objetivos`. Progreso = `valor_actual / meta`. Actualización **manual** + botón **“Sincronizar KPIs desde TPV”** + **cron 23:05 Canarias** en Docker local (rama `feature/marketing-kpis-sync-v1`; ROI omitido en v1). Plan: `PLAN_KPIS_MARKETING_LOCAL.md`.
-- ✅ **[CÓDIGO]** **CI**: `.github/workflows/ci.yml` — pytest (86) + smoke sync KPIs en push/PR (rama feature; pendiente push remoto).
-- ✅ **[CÓDIGO]** **Plan Maestro**: Tabla `marketing_plan` con canal, tema, `contenido_detallado` (texto para publicar), presupuesto/gasto, `tipo_campana`, `objetivo_id`. UI: bloque **TEXTO PARA PUBLICAR** (filtro mes + copiar/pegar) + calendario de títulos.
-- ✅ **[CÓDIGO / DATOS]** **Plan H2 2026**: ~3 IG/semana + talleres sáb/dom + 150 €/mes (IG Ads ~70 + Google ~45 + cartelería ~35; WA 0; H2 ~750 €). Textos en `contenido_detallado`. Semilla `scripts/seed_marketing_h2_2026_local.py` (`--prod`). **Datos en local y producción** (29 jul); **verificado en TPV** objetivos/presupuesto/especiales/canales (30 jul). UI copy/paste en `main`; si la nube muestra UI antigua (“Vista de Proyección…”), redeploy Streamlit. Mayo–julio del plan no se borraron. Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
-- ✅ **[CÓDIGO]** **Tipos de campaña**: Ordinaria / Evento-Feria / **Iniciativa Innovate** (solo etiqueta; ver `docs_proyecto/INICIATIVA_INNOVATE.md`).
-- ✅ **[CÓDIGO]** **Talleres**: `eventos_talleres` + `eventos_asistentes` (aforo, pagado). Horario de negocio: **sábado o domingo**.
-- 🚀 **[NEGOCIO/FUTURO]** **Gasto Ads / cumpleaños-winback / cron en prod/cloud**: ver `MARKETING_H2_2026_Y_SIGUIENTE.md` §3. Sync KPIs + cron Docker en rama feature (sin merge).
-
+- ✅ **[CÓDIGO / PROD]** **Objetivos y Resultados**: sync **manual** (botón) en TPV nube; **cron 23:05 Canarias** solo Docker local (`main`; entrypoint inyecta `API_URL`). ROI omitido en v1. Plan: `PLAN_KPIS_MARKETING_LOCAL.md`.
+- ✅ **[CÓDIGO]** **CI**: `.github/workflows/ci.yml` en `main` — pytest + smoke sync KPIs.
+- ✅ **[CÓDIGO]** **Plan Maestro**: `marketing_plan` + UI **TEXTO PARA PUBLICAR**.
+- ✅ **[CÓDIGO / DATOS]** **Plan H2 2026**: verificado en prod 30 jul. Handoff: `MARKETING_H2_2026_Y_SIGUIENTE.md`.
+- ✅ **[CÓDIGO]** **Tipos de campaña**: Ordinaria / Evento-Feria / **Iniciativa Innovate**.
+- ✅ **[CÓDIGO]** **Talleres**: sáb o dom.
+- 🚀 **[NEGOCIO/FUTURO]** **Cron KPIs en Streamlit Cloud / job externo**; gasto Ads auto; cumpleaños-winback.
 ## 2. Facturación y Contabilidad (`facturacion.py`, `caja.py`)
 - ✅ **[CÓDIGO]** **VeriFactu / Hashes**: El código (`facturacion.py`, lín. 281-290) calcula y guarda en la base de datos el `hash_anterior` y `hash_actual` para cada factura, cumpliendo la Ley Antifraude.
 - ✅ **[CÓDIGO]** **Borradores de Factura Recibida**: Las facturas recibidas procedentes de IA o carga manual pueden crear/enlazar artículos en inventario, pero **no actualizan stock** mientras estén en estado `Borrador`.
