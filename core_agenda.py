@@ -1,6 +1,29 @@
 import pandas as pd
 import re
 
+
+def aplicar_bloqueos_a_turnos(turnos_dict, bloqueos, empleados_lista):
+    """
+    Cruza agenda_bloqueos con el cuadrante del día.
+    Días completos (00:00-23:59) marcan al empleado como vacaciones; parciales se devuelven aparte.
+    """
+    turnos = dict(turnos_dict or {})
+    bloqueos_parciales = []
+    for b in bloqueos or []:
+        if not b.get("bloquea_agenda"):
+            continue
+        emp_af = b.get("empleado_afectado", "")
+        if b.get("hora_inicio") == "00:00" and b.get("hora_fin") == "23:59":
+            if emp_af == "Todas":
+                for e in empleados_lista:
+                    turnos[e] = "vacaciones"
+            else:
+                turnos[emp_af] = "vacaciones"
+        else:
+            bloqueos_parciales.append(b)
+    return turnos, bloqueos_parciales
+
+
 def calcular_huecos_libres(fecha_c, citas_dia, bloqueos_parciales, empleados_a_revisar, empleados_lista, turnos_dict, duracion_c):
     """
     Calcula los huecos libres para una fecha dada, considerando bloqueos, citas existentes y turnos de los empleados.

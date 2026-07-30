@@ -4,7 +4,28 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import pandas as pd
 from datetime import date
-from core_agenda import calcular_huecos_libres, verificar_solape_manual
+from core_agenda import aplicar_bloqueos_a_turnos, calcular_huecos_libres, verificar_solape_manual
+
+def test_aplicar_bloqueos_vacaciones_desde_rrhh():
+    """Vacaciones registradas en RRHH (agenda_bloqueos) deben bloquear huecos aunque el cuadrante siga con horario."""
+    turnos = {"Ana": "09:00 - 14:00", "Luis": "09:00 - 14:00"}
+    bloqueos = [{
+        "empleado_afectado": "Ana",
+        "hora_inicio": "00:00",
+        "hora_fin": "23:59",
+        "bloquea_agenda": True,
+        "titulo": "🌴 Vacaciones",
+    }]
+    turnos, parciales = aplicar_bloqueos_a_turnos(turnos, bloqueos, ["Ana", "Luis"])
+    assert turnos["Ana"] == "vacaciones"
+    assert turnos["Luis"] == "09:00 - 14:00"
+    assert parciales == []
+
+    huecos, _, _ = calcular_huecos_libres(
+        date(2023, 10, 10), [], [], ["Ana"], ["Ana", "Luis"], turnos, 30
+    )
+    assert len(huecos) == 0
+
 
 def test_calcular_huecos_libres():
     fecha_c = date(2023, 10, 10) # Martes (weekday 1)

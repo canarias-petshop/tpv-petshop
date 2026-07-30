@@ -4,7 +4,7 @@ from datetime import date, timedelta
 import time
 import urllib.parse
 import calendar
-from core_agenda import calcular_huecos_libres, verificar_solape_manual
+from core_agenda import aplicar_bloqueos_a_turnos, calcular_huecos_libres, verificar_solape_manual
 import pandas as pd
 from datetime import date, timedelta
 import time
@@ -385,18 +385,7 @@ def render_pestana_agenda(client):
                 
                 # --- APLICAR BLOQUEOS Y AUSENCIAS ---
                 res_bloqueos = get_bloqueos_ag_cached(client, st.session_state.get('db_version', 0), str(fecha_c), str(fecha_c))
-                bloqueos_parciales = []
-                if res_bloqueos:
-                    for b in res_bloqueos:
-                        if b.get('bloquea_agenda'):
-                            emp_af = b.get('empleado_afectado', '')
-                            if b.get('hora_inicio') == '00:00' and b.get('hora_fin') == '23:59':
-                                if emp_af == 'Todas':
-                                    for e in empleados_lista: turnos_dict[e] = "vacaciones"
-                                else:
-                                    turnos_dict[emp_af] = "vacaciones"
-                            else:
-                                bloqueos_parciales.append(b)
+                turnos_dict, bloqueos_parciales = aplicar_bloqueos_a_turnos(turnos_dict, res_bloqueos, empleados_lista)
 
                 citas_dia = []
                 if res_citas.data:
@@ -410,7 +399,7 @@ def render_pestana_agenda(client):
                 empleados_a_revisar = [f_emp] if f_emp != "Cualquiera" else empleados_lista
                 
                 # --- LLAMADA A CORE_AGENDA ---
-                from core_agenda import calcular_huecos_libres, verificar_solape_manual
+                from core_agenda import aplicar_bloqueos_a_turnos, calcular_huecos_libres, verificar_solape_manual
                 huecos_obj, huecos_formateados, citas_virtuales = calcular_huecos_libres(
                     fecha_c=fecha_c,
                     citas_dia=citas_dia,

@@ -13,7 +13,7 @@ Sirve como "mapa" inquebrantable antes de iniciar la refactorización (Fase 2) y
 - ✅ **[CÓDIGO]** **Guardián de Fichajes**: Bloqueo estricto de 30 minutos entre el último fichaje y un nuevo intento (Anti-doble click y errores).
 - ✅ **[CÓDIGO]** **Confirmación de Salida con Contexto**: Si un empleado ya tiene una entrada abierta y vuelve a fichar tras el bloqueo anti-spam, el sistema no registra la salida sin más; primero muestra una confirmación indicando la **hora de entrada registrada** y el **tiempo restante o excedido** según el turno del cuadrante de ese día.
 - ✅ **[CÓDIGO]** **Trazabilidad (Hashing)**: Todo fichaje genera un hash inalterable `SHA-256`.
-- ⚠️ **[DISCREPANCIA]** **Ausencias/Vacaciones**: Aunque se pueden marcar vacaciones en el panel, el sistema *sigue ofreciendo huecos* de peluquería en la agenda para ese empleado. *Se debe arreglar en la Fase 2.*
+- ✅ **[CÓDIGO]** **Ausencias/Vacaciones bloquean huecos**: RRHH → Ausencias crea `agenda_bloqueos` (`bloquea_agenda`); turnos con `vacaciones`/`ausencia`/`baja`/`libre` en cuadrante también excluyen huecos. Lógica centralizada en `core_agenda.py` (Agenda + CRM).
 
 ## 1-bis. Agenda y Recogida (`agenda.py`, `servicios_animalarium.py`)
 - ✅ **[CÓDIGO]** **Recogida desde Nueva Cita**: Al crear una cita se muestra un control compacto de recogida a domicilio con dirección (si existe) y botón activar/desactivar para esa cita.
@@ -22,6 +22,11 @@ Sirve como "mapa" inquebrantable antes de iniciar la refactorización (Fase 2) y
 - ✅ **[CÓDIGO]** **Estados de recogida en directorio**: Existen `Servicio de recogida pendiente` y `Servicio de recogida confirmado` (el legado `Servicio de recogida` se migra al pendiente).
 - ✅ **[CÓDIGO]** **Recordatorios = envío manual**: Agenda → Centro de Recordatorios genera enlaces WhatsApp (`api.whatsapp.com`) y marca `[RECORDATORIO: Avisado]` en observaciones. No hay API de envío ni cron.
 - 🚀 **[NEGOCIO/FUTURO]** **Mensajería automática (WA / Email)**: Aparcado (29 jul 2026). Ver `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
+
+## 1-quater. Tareas y Mantenimiento de Material (`tareas.py`, `mantenimiento_material.py`, `core_mantenimiento.py`)
+- ✅ **[CÓDIGO / LOCAL]** **Submódulo Mantenimiento Material**: materiales, planes con frecuencias (diaria / semanal / 2×semana / 15 días / mensual / 3m / 6m / puntual), calendario, pendientes que **persisten hasta marcar Hecho**, movimientos (afilar / reparación / **mantenimiento** / taller / incidencia). Tablas `mantenimiento_*`. SQL: `scripts/sql_mantenimiento_material.sql` (Supabase cuando se pida).
+- ✅ **[CÓDIGO / LOCAL]** **Resumen en Calendario General**: avisos `🛠️` / `🚨` por día con conteo de pendientes/atrasados.
+- ✅ **[SPEC V2]** Documentado para portar a Next.js: `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` + `ESPECIFICACIONES_V2.md` §2.7.
 
 ## 1-ter. Marketing (`marketing.py`, `core_marketing.py`, `proyectos_eventos.py`)
 - ✅ **[CÓDIGO]** **Objetivos y Resultados**: Tabla `marketing_objetivos`. Progreso = `valor_actual / meta`. Actualización **manual** + botón **“Sincronizar KPIs desde TPV”** + **cron 23:05 Canarias** en Docker local (rama `feature/marketing-kpis-sync-v1`; ROI omitido en v1). Plan: `PLAN_KPIS_MARKETING_LOCAL.md`.

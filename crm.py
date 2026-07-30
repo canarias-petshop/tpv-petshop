@@ -32,6 +32,10 @@ def fetch_turnos_dia_crm(_client, f_fecha_str):
     return res
 
 @st.cache_data(show_spinner=False, ttl=300)
+def fetch_bloqueos_dia_crm(_client, v, f_fecha_str):
+    return _client.table("agenda_bloqueos").select("*").eq("fecha", f_fecha_str).execute().data or []
+
+@st.cache_data(show_spinner=False, ttl=300)
 def fetch_encargos_crm(_client):
     _all = []
     _off = 0
@@ -326,53 +330,21 @@ def render_pestana_crm(client):
                     if t.get('personal_empleados'):
                         turnos_dict[t['personal_empleados']['nombre']] = t['turno'].lower()
                         
+            from core_agenda import aplicar_bloqueos_a_turnos, calcular_huecos_libres
+
+            res_bloqueos = fetch_bloqueos_dia_crm(client, st.session_state.get('db_version', 0), str(f_fecha))
+            turnos_dict, bloqueos_parciales = aplicar_bloqueos_a_turnos(turnos_dict, res_bloqueos, empleados_lista)
             empleados_a_revisar = [f_emp] if f_emp != "Cualquiera" else empleados_lista
-            huecos_obj = []
-            
-            for emp_nombre in empleados_a_revisar:
-                turno_str = turnos_dict.get(emp_nombre, "")
-                if not turno_str or "libre" in turno_str or "vacaciones" in turno_str:
-                    continue
-                    
-                import re
-                times = re.findall(r'(\d{1,2}:\d{2})', turno_str)
-                if len(times) >= 2:
-                    h_ini = pd.to_datetime(f"{f_fecha} {times[0]}")
-                    h_fin = pd.to_datetime(f"{f_fecha} {times[1]}")
-                else:
-                    if f_fecha.weekday() < 5:
-                        h_ini = pd.to_datetime(f"{f_fecha} 09:00")
-                        h_fin = pd.to_datetime(f"{f_fecha} 21:00")
-                    else:
-                        h_ini = pd.to_datetime(f"{f_fecha} 10:00")
-                        h_fin = pd.to_datetime(f"{f_fecha} 14:00")
-                    
-                for h in range(0, 24):
-                    for m in range(0, 60, 5):
-                        dt_ini = pd.to_datetime(f"{f_fecha} {h:02d}:{m:02d}")
-                        if dt_ini < h_ini: continue
-                        dt_fin = dt_ini + pd.Timedelta(minutes=f_dur)
-                        if dt_fin > h_fin: continue
-                        
-                        solapa = False
-                        for c in citas_dia:
-                            if "[ESTADO: Cancelada]" in c.get('servicio', '') or "[ESTADO: Anulada]" in c.get('servicio', '') or "[ESTADO: No presentado]" in c.get('servicio', ''): continue
-                            c_ini = pd.to_datetime(c['fecha_hora'])
-                            if c_ini.tzinfo: c_ini = c_ini.tz_localize(None)
-                            c_fin = c_ini + pd.Timedelta(minutes=c.get('duracion_minutos') or 60)
-                            if dt_ini < c_fin and dt_fin > c_ini:
-                                s = c.get('servicio', '')
-                                assigned_e = None
-                                for e in empleados_lista:
-                                    if f"({e})" in s: assigned_e = e; break
-                                if assigned_e == emp_nombre or assigned_e is None:
-                                    solapa = True; break
-                        if not solapa:
-                            huecos_obj.append({"dt": dt_ini, "hora": f"{h:02d}:{m:02d}", "emp": emp_nombre})
-            
-            huecos_obj.sort(key=lambda x: x["dt"])
-            huecos_formateados = [f"{x['hora']} (Con {x['emp']})" for x in huecos_obj]
-            huecos_formateados.append("Asignación Manual")
+
+            huecos_obj, huecos_formateados, _ = calcular_huecos_libres(
+                fecha_c=f_fecha,
+                citas_dia=citas_dia,
+                bloqueos_parciales=bloqueos_parciales,
+                empleados_a_revisar=empleados_a_revisar,
+                empleados_lista=empleados_lista,
+                turnos_dict=turnos_dict,
+                duracion_c=f_dur,
+            )
 
             if len(huecos_formateados) == 1:
                 st.error("🔴 No hay huecos disponibles para esta selección o están de descanso.")

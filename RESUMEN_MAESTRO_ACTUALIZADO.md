@@ -1,7 +1,9 @@
 # Resumen Maestro Actualizado - TPV y E-Commerce Animalarium
-**Fecha de última actualización**: 29 de Julio de 2026
+**Fecha de última actualización**: 30 de Julio de 2026
 
 Este documento centraliza todos los avances, arquitecturas y módulos del ecosistema completo de Animalarium (TPV Físico + Tienda Web). Es el punto de partida **obligatorio** para retomar el proyecto en futuras sesiones.
+
+> Para portar a **Animalarium V2**: leer también `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` y `docs_proyecto/ESPECIFICACIONES_V2.md`.
 
 > [!CAUTION]
 > **NORMA ESTRICTA: PRODUCTOS vs SERVICIOS**
@@ -11,7 +13,26 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
 
 ---
 
-## 🆕 Últimos Cambios (27-29 de Julio de 2026)
+## 🆕 Últimos Cambios (30 de Julio de 2026)
+
+### Mantenimiento de Material (módulo Tareas)
+- Nuevo submódulo **Tareas → 🛠️ Mantenimiento Material** (`mantenimiento_material.py` + `core_mantenimiento.py`).
+- Tablas propias (local): `mantenimiento_materiales`, `mantenimiento_planes`, `mantenimiento_ejecuciones`, `mantenimiento_movimientos`.
+- SQL reutilizable para Supabase más adelante: `scripts/sql_mantenimiento_material.sql`.
+- Frecuencias: diaria, semanal, 2×semana, 15 días, mensual, 3 meses, 6 meses, puntual.
+- Pendientes **no se cierran solos**: alertan hasta marcar Hecho; luego se recalcula la próxima fecha.
+- Movimientos de taller: afilar, reparación, **mantenimiento**, vuelta, incidencia, anotación.
+- Calendario semanal/mensual + resumen en Calendario General de Tareas.
+- **Aún solo local** (Docker); sin prod/Supabase hasta confirmación.
+- Spec V2 actualizada: `ESPECIFICACIONES_V2.md` §2.7 + `GUIA_V2_AVANCES_2026-07-30.md`.
+
+### Agenda: vacaciones / ausencias bloquean huecos
+- Cerrada la antigua discrepancia del Compendio.
+- `core_agenda.aplicar_bloqueos_a_turnos` unifica Agenda y CRM: bloqueos RRHH + turnos vacaciones/ausencia/baja/libre no ofrecen huecos.
+
+---
+
+## 🆕 Cambios (27-29 de Julio de 2026)
 
 ### Agenda / Recogida a Domicilio desde Nueva Cita
 - **Cuadro de recogida en el gestor de citas (`agenda.py`)**: Al seleccionar una mascota (o en alta rápida) aparece un control compacto de **Recogida a domicilio** con la dirección del cliente si ya existe y un botón Activar/Desmarcar **solo para esa cita**.
@@ -38,6 +59,7 @@ Este documento centraliza todos los avances, arquitecturas y módulos del ecosis
 ---
 
 ## 🆕 Últimos Cambios (14-17 de Julio de 2026)
+
 
 ### Integración de IA para Composición de Productos
 - **Script Autoadministrado (`generar_composiciones_ai.py`)**: Desarrollado un motor de IA usando Gemini que escanea el catálogo, busca las composiciones de los productos en internet y las inyecta en formato HTML estilizado dentro de Supabase.
@@ -228,8 +250,9 @@ Tras haber completado gran parte de los hitos operativos iniciales (Diseño Resp
 **Hito 3: Estabilidad y Testing (Preparación Comercial)**
 - **Pruebas Automatizadas (Tests)**: Desarrollar baterías de pruebas (unitarias y de integración) para asegurar la solidez del programa, garantizando que futuras modificaciones no rompan los flujos de caja o inventario. Fundamental para dar un buen soporte si el software se comercializa.
 
-**Hito 4: Documentación de Software mediante IA**
-- **Listado de Especificaciones**: Auditar el código actual completo y redactar un documento maestro técnico ("Software Requirements Specification") separando de forma estricta el ecosistema TPV y el ecosistema Web. 
+**Hito 4: Documentación / Especificaciones V2**
+- Compendio + Resumen Maestro + `ESPECIFICACIONES_V2.md` + handoff **`GUIA_V2_AVANCES_2026-07-30.md`** (incluye mantenimiento de material y vacaciones→agenda).
+- Usar esa guía al continuar módulos en el repo `animalarium-v2`.
 
 **Hito 5: Refactorización y Optimización (Fase 2)**
 - **Código Limpio**: Con el respaldo de los tests y las especificaciones, reestructurar el código existente para eliminar deuda técnica, optimizar consultas, mejorar el rendimiento global y aplicar prácticas modernas.
@@ -244,3 +267,6 @@ Tras haber completado gran parte de los hitos operativos iniciales (Diseño Resp
 - **Datos verificados en prod:** objetivos, ~750 €, campañas especiales, canales. Mayo–julio del plan no se borraron.
 - Si Streamlit Cloud muestra UI antigua (“Vista de Proyección…”): Reboot/Redeploy.
 - Continuación (automatizar KPIs en local): `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
+
+**Hito 8 (en curso local): Mantenimiento de Material**
+- Submódulo en Tareas; tablas locales; docs V2 listas. Prod/Supabase solo cuando se pida.

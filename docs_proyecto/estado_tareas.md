@@ -49,7 +49,18 @@
 
 ---
 
-## Backlog aparcado (decisión de negocio, no sprint activo)
+## Mantenimiento de material (local, 30 jul 2026)
+
+- `[/]` **Submódulo Tareas → 🛠️ Mantenimiento Material**
+  - Tablas locales: `mantenimiento_materiales`, `mantenimiento_planes`, `mantenimiento_ejecuciones`, `mantenimiento_movimientos`.
+  - Script SQL (también para Supabase más adelante): `scripts/sql_mantenimiento_material.sql`.
+  - Core + tests: `core_mantenimiento.py`, `tests/test_mantenimiento.py`.
+  - UI: `mantenimiento_material.py` + pestaña en `tareas.py`; resumen en Calendario General.
+  - Movimientos incluyen **Sale a mantenimiento**.
+  - **Docs V2 actualizadas (30 jul):** `GUIA_V2_AVANCES_2026-07-30.md`, `ESPECIFICACIONES_V2.md` §2.7, Resumen Maestro, AGENTS.
+  - **Pendiente:** validación operativa final en `:8501` → SQL en Supabase + merge cuando el usuario confirme.
+  - **Sin prod** hasta petición explícita.
+
 
 - `[ ]` **Mensajería automática WhatsApp / Email** — **NO implementar por ahora** (29 jul 2026).
   - Hoy el flujo **manual** (Agenda → Recordatorios → WA 1 clic) es suficiente.

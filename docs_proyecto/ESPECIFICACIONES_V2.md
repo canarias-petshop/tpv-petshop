@@ -1,8 +1,10 @@
 # Documento Maestro de Especificaciones (Animalarium V2)
 
-**Última Actualización**: Julio de 2026
-**Metodología**: Spec-Driven Development (spec-kit)
+**Última Actualización**: 30 de Julio de 2026  
+**Metodología**: Spec-Driven Development (spec-kit)  
 **Objetivo**: Sentar las bases arquitectónicas, técnicas y de negocio para la reescritura de Animalarium TPV + Web a la Versión 2.0 (Next.js/React + Supabase).
+
+**Handoff de avances recientes (obligatorio):** `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md`
 
 ---
 
@@ -23,6 +25,7 @@
 ### 1.3 Estructura de Repositorio
 - El proyecto V2 vivirá en un **repositorio de GitHub independiente** (`animalarium-v2`).
 - Esto asegura aislamiento total del código de producción actual en Python, evitando romper la tienda física durante el desarrollo.
+- Las reglas de negocio se contrastan contra el código vivo de `tpv-petshop` + Compendio + esta guía.
 
 ---
 
@@ -61,13 +64,32 @@ Cualquier desarrollo de la V2 debe respetar escrupulosamente estas lógicas ya v
 - **Contexto desde el Cuadrante**: En esa confirmación se debe mostrar la hora de entrada registrada y la hora prevista de salida/tiempo restante leído desde el turno del cuadrante del trabajador.
 - **Trazabilidad HR**: Todo fichaje genera un Hash `SHA-256`.
 - **Recogida desde Agenda**: En Nueva Cita debe poder activarse/desactivarse la recogida a domicilio con dirección visible. Si está activa al guardar: estado `Servicio de recogida pendiente`, alta en `servicios_recogida` y actualización de `clientes.direccion` + `clientes.servicio_domicilio`.
+- **Vacaciones / Ausencias bloquean huecos**: Los bloqueos de RRHH (`agenda_bloqueos` con `bloquea_agenda`) y turnos `vacaciones`/`ausencia`/`baja`/`libre` **no** deben ofrecer slots de peluquería. Lógica de referencia: `core_agenda.py` (Agenda + CRM).
 
 ### 2.6 Marketing (TPV actual → requisitos a preservar en V2)
 - Calendario `marketing_plan` con textos publicables (`contenido_detallado`) y presupuestos por canal.
-- Objetivos `marketing_objetivos` con KPI/meta/`valor_actual` (hoy manual; V2 puede sincronizar desde citas/CRM/ventas).
+- Objetivos `marketing_objetivos` con KPI/meta/`valor_actual` (sync desde TPV en curso en rama local; V2 puede nativizarlo).
 - Presupuesto mensual repartible (Ads IG/Meta, Google, cartelería); WhatsApp operativo puede seguir siendo 0 € si es envío manual.
 - Talleres `eventos_talleres` en fin de semana (sáb o dom) + asistentes.
 - Referencia operativa H2 2026: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
+
+### 2.7 Tareas y Mantenimiento de Material (NUEVO — portar a V2)
+Submódulo **independiente** (no reutilizar genéricamente `tareas_plannings` / `tareas_duenos`).
+
+**Tablas:** `mantenimiento_materiales`, `mantenimiento_planes`, `mantenimiento_ejecuciones`, `mantenimiento_movimientos`.  
+**DDL:** `scripts/sql_mantenimiento_material.sql`.  
+**Lógica:** `core_mantenimiento.py`.
+
+**Comportamiento:**
+- Alta de materiales (máquinas, cuchillas, bañeras, cepillos, zonas, etc.).
+- Planes con frecuencias: Diaria, Semanal, 2×semana, Cada 15 días, Mensual, Cada 3 meses, Cada 6 meses, Puntual.
+- Pendientes **persisten** (`Pendiente`/`Atrasado`) hasta marcar **Hecho**; entonces se recalcula la próxima fecha.
+- Movimientos: Sale a afilar / reparación / **mantenimiento**, Vuelve de taller, Incidencia, Anotación.
+- Calendario propio + **resumen** en el calendario general de tareas.
+- Detalle completo: `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` §2.
+
+### 2.8 Mensajería automática
+- **Aparcada.** Recordatorios = manuales. Ver `DECISION_MENSAJERIA_AUTOMATICA.md`.
 
 ---
 
@@ -77,19 +99,23 @@ Al construir la V2 en React/Next.js, solucionaremos de base los problemas que re
 
 1. **La "Zona Muerta" Táctil en Tablets**:
    - *Problema anterior*: Los `checkbox` / `toggle` fallaban en iPads/Androids por el bloqueo de teclado.
-   - *Solución V2*: Uso de Botones nativos `<button>` de HTML5 y `onClick` manejado por React. Adiós a las desincronizaciones táctiles.
+   - *Solución V2*: Uso de Botones nativos `<button>` de HTML5 y `onClick` manejado por React.
 
 2. **Pérdida de Estado al cambiar de Pantalla**:
    - *Problema anterior*: Cambiar de "Caja" a "Agenda" en Streamlit borraba el carrito.
-   - *Solución V2*: Uso de una store global (`Zustand`). El estado `cartStore` y `appointmentStore` persistirá a nivel de aplicación (layout), o incluso en `localStorage`, garantizando cero pérdida de datos.
+   - *Solución V2*: Store global (`Zustand`) para carrito, citas, etc.
 
 3. **Duplicación de Fichas (Data Mixing)**:
    - *Problema anterior*: Abrir fichas rápido mezclaba los IDs de los clientes.
-   - *Solución V2*: React gestiona el estado a nivel de componente aislado. Cada modal de cliente tendrá su propio contexto (Scope) hermético.
+   - *Solución V2*: Estado aislado por componente/modal.
 
 4. **Lentitud en Consultas Complejas Anidadas (Error PGRST200)**:
-   - *Problema anterior*: Consultar Pedidos + Proveedores con `.select("*, tabla_externa(*)")` reventaba el caché interno de Supabase/PostgREST.
-   - *Solución V2*: GraphQL / Múltiples peticiones asíncronas con `Promise.all()` gestionadas y cacheadas por `React Query`, fusionando los objetos en el cliente sin forzar al backend.
+   - *Problema anterior*: Embeds PostgREST profundos reventaban caché.
+   - *Solución V2*: Varias peticiones + `React Query`, merge en cliente.
+
+5. **HTML de calendarios en Streamlit**:
+   - *Problema*: `st.markdown` a veces muestra HTML crudo.
+   - *Solución V2*: componentes React / FullCalendar nativos.
 
 ---
 
@@ -97,21 +123,28 @@ Al construir la V2 en React/Next.js, solucionaremos de base los problemas que re
 
 ```text
 /app
- ├─ (tienda-online)        # E-Commerce Público
+ ├─ (tienda-online)
  │   ├─ /catalogo
  │   ├─ /carrito
  │   └─ /mi-cuenta
- ├─ (tpv-interno)          # Dashboard Privado (Protegido por Auth Guard)
- │   ├─ /tpv               # Caja (React POS Interface)
- │   ├─ /agenda            # Calendario Drag & Drop (FullCalendar)
- │   ├─ /crm               # Clientes y Mascotas
- │   ├─ /inventario        # Tablas de datos rápidas (Ag-Grid / TanStack Table)
- │   └─ /facturacion
- └─ api                    # Serverless Functions (Next.js API Routes)
-     ├─ /verifactu         # Generación de Hashes y Facturas
-     └─ /webhooks          # Sincronización
+ ├─ (tpv-interno)
+ │   ├─ /tpv
+ │   ├─ /agenda
+ │   ├─ /crm
+ │   ├─ /inventario
+ │   ├─ /facturacion
+ │   ├─ /personal
+ │   ├─ /tareas
+ │   │    ├─ /calendario
+ │   │    ├─ /ficha
+ │   │    ├─ /notas
+ │   │    └─ /mantenimiento-material
+ │   └─ /marketing
+ └─ api
+     ├─ /verifactu
+     └─ /webhooks
 ```
 
 ---
 
-*Este documento será la referencia obligatoria a leer antes de crear componentes o modificar lógica en el nuevo repositorio V2.*
+*Referencia obligatoria antes de crear componentes en V2. Completar con `GUIA_V2_AVANCES_2026-07-30.md`.*

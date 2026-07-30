@@ -71,21 +71,49 @@ def render_pestana_tareas(client):
     opciones_asignacion = opciones_rol + [f"👤 {e['nombre']}" for e in empleados]
 
     if is_admin:
-        opciones_seccion = ["📅 1. Calendario General", "👤 2. Mi Ficha de Trabajo", "📝 3. Notas Internas", "⚙️ 4. Gestión y Dueños"]
+        opciones_seccion = [
+            "📅 1. Calendario General",
+            "👤 2. Mi Ficha de Trabajo",
+            "📝 3. Notas Internas",
+            "🛠️ 4. Mantenimiento Material",
+            "⚙️ 5. Gestión y Dueños",
+        ]
     else:
-        opciones_seccion = ["📅 1. Calendario General", "👤 2. Mi Ficha de Trabajo", "📝 3. Notas Internas"]
+        opciones_seccion = [
+            "📅 1. Calendario General",
+            "👤 2. Mi Ficha de Trabajo",
+            "📝 3. Notas Internas",
+            "🛠️ 4. Mantenimiento Material",
+        ]
         
     seccion_tareas = st.radio("Sección Tareas:", opciones_seccion, horizontal=True, label_visibility="collapsed")
+
+    if seccion_tareas == "🛠️ 4. Mantenimiento Material":
+        from mantenimiento_material import render_mantenimiento_material
+        render_mantenimiento_material(client, empleados, mapa_emp, mapa_emp_inv)
+        return
         
     if seccion_tareas == "📅 1. Calendario General":
         st.markdown("#### 📅 Calendario General de Plannings")
-        st.info("Visión global de todas las rutinas de la tienda para esta semana.")
+        st.info("Visión global de todas las rutinas de la tienda para esta semana. Incluye resumen de mantenimiento de material.")
         c_cale1, c_cale2 = st.columns([1, 3])
         with c_cale1:
             dia_ref_emp = st.date_input("Ver semana del:", value=date.today(), key="sem_ref_emp")
         
         start_week_emp = dia_ref_emp - timedelta(days=dia_ref_emp.weekday())
         end_week_emp = start_week_emp + timedelta(days=6)
+
+        mant_items = []
+        try:
+            from mantenimiento_material import items_para_calendario_general, render_html_resumen_dia, sincronizar_ejecuciones
+            try:
+                sincronizar_ejecuciones(client)
+            except Exception:
+                pass
+            mant_items = items_para_calendario_general(client, start_week_emp, end_week_emp)
+        except Exception:
+            mant_items = []
+            render_html_resumen_dia = None
         
         try:
             plan_activos = fetch_tareas_plannings_activos(client)
@@ -93,7 +121,7 @@ def render_pestana_tareas(client):
         except:
             plan_activos = []
             registros_sem = []
-            
+        
         dias_semana_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
         html_cal_emp = '''
         <style>
@@ -123,6 +151,9 @@ def render_pestana_tareas(client):
             
             html_cal_emp += f"<td class='{td_class}'>"
             html_cal_emp += f"<div class='day-head-emp'>{d_obj.strftime('%d/%m')}</div>"
+
+            if render_html_resumen_dia and mant_items:
+                html_cal_emp += render_html_resumen_dia(mant_items, d_obj)
             
             regs_dia = [r for r in registros_sem if r.get('fecha_completada') == d_str]
             hechas_ids_dia = {r['tarea_id']: r for r in regs_dia}
@@ -325,7 +356,7 @@ def render_pestana_tareas(client):
 
 
 
-    if is_admin and seccion_tareas == "⚙️ 4. Gestión y Dueños":
+    if is_admin and seccion_tareas == "⚙️ 5. Gestión y Dueños":
             st.markdown("#### ⚙️ Configuración y Administración General")
             seccion_admin_tareas = st.radio("Sección Administración Tareas:", ["👔 1. Calendario y Tareas de Dueños", "⚙️ 2. Configurar Plannings", "✅ 3. Historial de Cumplimiento"], horizontal=True, label_visibility="collapsed")
             
