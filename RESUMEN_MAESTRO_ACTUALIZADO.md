@@ -273,5 +273,6 @@ Tras haber completado gran parte de los hitos operativos iniciales (Diseño Resp
 - Si Streamlit Cloud muestra UI antigua (“Vista de Proyección…”): Reboot/Redeploy.
 - Continuación (automatizar KPIs en local): `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
 
-**Hito 8 (en curso local): Mantenimiento de Material**
-- Submódulo en Tareas; tablas locales; docs V2 listas. Prod/Supabase solo cuando se pida.
+**Hito 8: Mantenimiento de Material — cerrado en prod (31 jul 2026)**
+- Submódulo en Tareas; tablas en local y Supabase; validado en Streamlit Cloud.
+- Spec V2: `GUIA_V2_AVANCES_2026-07-30.md` §2.
