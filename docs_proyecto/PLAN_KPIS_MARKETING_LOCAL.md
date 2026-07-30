@@ -1,142 +1,126 @@
-# Plan: Sync KPIs marketing (solo local + tests)
+# Plan: Sync KPIs marketing (local + automatización)
 
-**Estado (30 jul 2026):** v1 en rama **`feature/marketing-kpis-sync-v1`** — probado en `:8501`.  
-**Fase 2:** cron nocturno **23:05 Atlantic/Canary** en Docker (`docker/crontab` + `scripts/sync_marketing_kpis_cron.py`). **Sin merge a `main`** hasta validación completa.
+**Cierre documentación:** 30 jul 2026 (tarde) — **siguiente chat: tras verificar cron esta noche**  
+**Rama:** `feature/marketing-kpis-sync-v1` (**4 commits**, **sin push** a GitHub, **sin merge** a `main`)  
+**Handoff principal:** este archivo + `estado_tareas.md` + `.agents/AGENTS.md`
 
-**Fechas:** plan + implementación 30 jul 2026.
-
-Contexto H2 (datos/UI hechos): `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.  
-Semilla objetivos: `scripts/seed_marketing_h2_2026_local.py` (`OBJETIVOS` + `kpi_medidor`).
-
----
-
-## Snapshot para retomar mañana
-
-### Hecho
-- `core_marketing.py`: `clasificar_tipo_kpi`, `calcular_valor_kpi`, `sincronizar_objetivos_desde_tpv` (+ helpers).
-- `marketing.py`: bloque **“Sincronización desde el TPV”** arriba en Objetivos (antes de columnas crear/lista), botón primary + spinner + resumen ok/omitido/error.
-- `tests/test_marketing.py`: 11 tests en verde (`.venv\Scripts\python.exe -m pytest tests/test_marketing.py`).
-- Contenedor `animalarium-tpv` reiniciado; código montado por volumen Docker.
-- Docs: este plan, `estado_tareas.md`, `.agents/AGENTS.md`, Compendio § Marketing.
-
-### NO hecho / no tocar sin pedirlo
-- Commit git (cambios en working tree de `main`, **sin commit**).
-- Push / Streamlit Cloud / Supabase prod.
-- Cron automático.
-- ROI Ads / APIs Meta-Google.
-- Checklist operación Ads del mes.
-
-### Cómo probar (usuario)
-1. URL **local**: `http://localhost:8501` (no la nube).
-2. Marketing → **Objetivos y Resultados**.
-3. Arriba debe verse **“Sincronización desde el TPV”** + botón **Sincronizar KPIs desde TPV**.
-4. “Actualizar Resultados / Actualizar Progreso” = edición **manual** de siempre (sigue ahí).
-5. Tras pulsar sync: mensaje con N actualizados / omitidos / errores. ROI suele ir a omitidos.
-
-### Git (al cerrar PC — no perdido en disco, sí sin commit)
-Rama: `main` (solo working tree). Archivos tocados relevantes:
-- `core_marketing.py`, `marketing.py`, `tests/test_marketing.py`
-- `.agents/AGENTS.md`, `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`, `docs_proyecto/estado_tareas.md`, `docs_proyecto/Compendio_Maestro_Especificaciones.md`
-- (ignorar `.coverage` para commit)
-
-Si mañana no aparece el botón: `docker restart animalarium-tpv` + Ctrl+F5 en `:8501`.
+Contexto H2: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`  
+Semilla objetivos: `scripts/seed_marketing_h2_2026_local.py`
 
 ---
 
-## Objetivo
+## Snapshot — retomar después de esta noche
 
-En **local** (Docker / `http://localhost:8501`), recalcular `valor_actual` de `marketing_objetivos` desde datos del TPV con un botón manual y tests.  
-**No** producción, **no** push a `main`, **no** Ads/cron hasta petición explícita tras prueba local.
+### Implementado (en rama, commiteado)
 
-## Puertos (no confundir)
+| Pieza | Detalle |
+|-------|---------|
+| Sync KPIs v1 | `core_marketing.py` — clasificar / calcular / `sincronizar_objetivos_desde_tpv` |
+| UI | `marketing.py` — bloque arriba en Objetivos + botón manual + resumen |
+| Cron nocturno | **23:05** `Atlantic/Canary` — `docker/crontab`, `scripts/sync_marketing_kpis_cron.py`, entrypoint `/entrypoint.sh` |
+| Log cron | `logs/kpis_cron.log` (gitignored) |
+| CI GitHub | `.github/workflows/ci.yml` — 86 pytest + smoke sync KPIs |
+| CI local | `scripts/run_ci_local.ps1` / `run_ci_local.sh` |
+| Schema CI | `docker/init-test-db.sql` (BD nueva en CI) |
+| Tests | **86** suite completa OK · **13** en `test_marketing.py` |
+
+### Commits en la rama (orden)
+
+1. `3ac7909` — feat sync KPIs v1 (botón + core + tests)
+2. `bbe8c2d` — cron 23:05 Canarias
+3. `0938003` — fix Docker entrypoint + CRLF crontab
+4. `d17b811` — CI GitHub Actions + `run_ci_local`
+
+### Validado por el usuario
+
+- Botón sync en `:8501` → **4 actualizados, 4 omitidos, 0 errores** (ceros = BD local / periodo H2 aún vacío).
+- ROI y packs sin datos → omitidos (correcto v1).
+
+### Pendiente esta noche (usuario)
+
+1. PC + Docker encendidos **antes de 23:05** Canarias.
+2. Contenedores: `animalarium-tpv`, `animalarium-db`, `animalarium-api`.
+3. Tras 23:05:
+   ```powershell
+   Get-Content logs\kpis_cron.log -Tail 5
+   ```
+   Línea esperada: `[fecha] Sync KPIs cron: N actualizado(s)...`
+4. Si no hay línea nueva → `docker logs animalarium-tpv --tail 20` y revisar cron.
+
+### Pendiente siguiente conversación (orden sugerido)
+
+1. **Confirmar cron nocturno** (log de anoche).
+2. Si OK → `git push -u origin feature/marketing-kpis-sync-v1` → ver **Actions** en GitHub (86 tests + smoke).
+3. Si CI verde → **merge a `main`** solo si el usuario lo pide.
+4. **Prod / Streamlit Cloud:** cron Docker **no** viaja a la nube; definir job externo o sync al abrir app (futuro).
+5. Opcional: unificar objetivos ROI duplicados en BD; ticket medio sin ventas → 0 vs omitido.
+
+### NO hacer sin pedirlo
+
+- Push / merge a `main` / redeploy nube / Supabase prod
+- ROI Ads automático
+- Checklist operación Meta+Google del mes
+
+---
+
+## Automatizaciones activas
+
+| Qué | Cuándo | Dónde ver |
+|-----|--------|-----------|
+| Sync KPIs cron | 23:05 diario (Docker local) | `logs/kpis_cron.log` |
+| Sync KPIs manual | Al pulsar botón | UI Objetivos |
+| pytest CI | Tras `git push` (rama/feature o PR) | GitHub → Actions → Checks |
+| pytest local | `.\scripts\run_ci_local.ps1` | terminal + `pytest-results.xml` |
+
+**Requisito cron:** imagen reconstruida (`docker compose build tpv-app`). Variable `MKT_KPIS_CRON_ENABLED=false` desactiva cron.
+
+---
+
+## Puertos
 
 | Puerto | Qué es |
 |--------|--------|
 | **8501** | UI Streamlit (TPV local) |
-| **3001** | PostgREST / API datos local (tests y app Docker) |
-
----
-
-## Alcance v1
-
-### Sí
-- Lógica pura en `core_marketing.py`.
-- Botón **“Sincronizar KPIs desde TPV”** en Marketing → Objetivos (`marketing.py`), **fuera** de formularios; bloque arriba del panel.
-- Tests en `tests/test_marketing.py`.
-- Actualización manual por objetivo sigue disponible.
-
-### No (v1)
-- Push / producción / redeploy nube.
-- Cron nocturno (nada “se sincroniza solo”).
-- APIs Meta/Google ni import CSV Ads.
-- Mensajería WA/email (aparcado: `DECISION_MENSAJERIA_AUTOMATICA.md`).
-- ROI Ads con atribución → **omitido** (no escribir `0` inventado).
-- Cambiar `estado` del objetivo a Completado automáticamente.
+| **3001** | PostgREST local (tests + app Docker) |
 
 ---
 
 ## Mapeo KPI → fuente (v1)
 
-Matching por texto de `kpi_medidor` (keywords / contains), **no** por IDs fijos de fila.  
-Rango de fechas = `[fecha_inicio, fecha_fin]` del objetivo.
+Matching por `kpi_medidor` (keywords). ROI → omitido.
 
-| `kpi_medidor` (semilla H2) | Tipo interno | Cálculo | Notas |
-|----------------------------|--------------|---------|--------|
-| Citas peluquería confirmadas / semana | `citas_semana` | Media semanal citas; excluir Cancelada/Anulada/No presentado | |
-| Altas nuevas en CRM | `altas_crm` | Contar `clientes.created_at` en periodo | |
-| € ticket medio TPV (productos) | `ticket_medio` | Media `ventas_historial` excl. `DEVUELTO` | |
-| % plazas ocupadas (media talleres) | `ocupacion_talleres` | Media inscritos/plazas | |
-| € facturación productos campaña Nov-Dic | `facturacion_productos` | Suma ventas válidas en rango | |
-| Talleres/consultas anti-estrés + packs calma | `packs_calma` | Keywords; si no hay match → omitir | |
-| € ventas atribuidas / € gastado (Ads…) | `roi_ads` | **No auto** | omitido |
-
-KPI desconocido → omitido.
+| KPI H2 | Tipo | Notas |
+|--------|------|--------|
+| Citas pelu / semana | `citas_semana` | Excluye canceladas/anuladas/no presentado |
+| Altas CRM | `altas_crm` | `clientes.created_at` |
+| Ticket medio | `ticket_medio` | Sin ventas → **omitido** (no 0) |
+| Ocupación talleres | `ocupacion_talleres` | |
+| Facturación Nov-Dic | `facturacion_productos` | |
+| Packs calma / pirotecnia | `packs_calma` | Sin match → omitido |
+| ROI Ads | `roi_ads` | **No auto** |
 
 ---
 
-## Diseño técnico (resumen)
+## Checklist global
 
-- `clasificar_tipo_kpi` / `calcular_valor_kpi` / `sincronizar_objetivos_desde_tpv`
-- Solo objetivos **En progreso**; solo escribe `valor_actual` si el valor no es `None`.
-- Resumen: `actualizado` | `omitido` | `error`.
-
----
-
-## Checklist
-
-- [x] Ampliar `core_marketing`
-- [x] Tests en verde (11)
-- [x] Botón UI visible arriba + resumen
-- [ ] Merge a `main` + prod solo cuando el usuario confirme
-- [ ] Fase 2 (objetivo usuario): **automatización total** — cron nocturno o job al abrir TPV; ROI/atribución si se define
-- [ ] Fase siguiente (si se pide): checklist Meta/Google del mes
+- [x] Sync v1 + botón UI
+- [x] Cron 23:05 Docker
+- [x] Tests (86 + marketing)
+- [x] CI workflow + schema init
+- [x] Docs handoff
+- [ ] **Verificar cron primera noche** (esta noche)
+- [ ] Push rama → CI GitHub
+- [ ] Merge `main` (usuario)
+- [ ] Prod / cloud cron
 
 ---
 
-## Fase 2 — Automatización nocturna (implementada en rama)
+## Prompt — copiar en la siguiente conversación
 
-| Pieza | Detalle |
-|-------|---------|
-| Hora | **23:05** hora Canarias (`Atlantic/Canary`) — después de las 23:00 |
-| Cron | `docker/crontab` dentro del contenedor `animalarium-tpv` |
-| Script | `scripts/sync_marketing_kpis_cron.py` |
-| Log | `logs/kpis_cron.log` (en proyecto / contenedor) |
-| Desactivar | `MKT_KPIS_CRON_ENABLED=false` en docker-compose |
-| Manual | `python scripts/sync_marketing_kpis_cron.py --force` |
-| Rebuild | Tras cambiar Dockerfile: `docker compose build tpv-app && docker compose up -d tpv-app` |
-
-El botón manual en Objetivos sigue disponible para forzar sync al instante.
-
-**Streamlit Cloud / prod:** el cron Docker no aplica en la nube; al merge habrá que definir job externo o sync al abrir app (pendiente).
-
----
-
-## Prompt para conversación nueva (copiar/pegar)
-
-> Seguimos Animalarium TPV. Lee `.agents/AGENTS.md` y **`docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`** (snapshot cierre 30 jul).  
-> Sync KPIs v1 ya está en **código local** (sin commit/push). UI: bloque “Sincronización desde el TPV” arriba en Objetivos.  
-> Quiero: (1) confirmar prueba en `:8501`, (2) si OK, **commit** local, (3) **no** prod hasta que lo diga.  
-> Checklist Ads = después.
+> Animalarium TPV. Lee `.agents/AGENTS.md` y **`docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`** (cierre 30 jul tarde).  
+> Rama `feature/marketing-kpis-sync-v1` (4 commits, sin push).  
+> Anoche debía correr cron 23:05 — revisé / no revisé el log `logs/kpis_cron.log`.  
+> Siguiente: (1) validar cron, (2) push rama si OK, (3) merge a `main` solo si confirmo. Sin prod.
 
 ---
 
@@ -145,9 +129,11 @@ El botón manual en Objetivos sigue disponible para forzar sync al instante.
 | Archivo | Rol |
 |---------|-----|
 | `core_marketing.py` | Lógica sync |
-| `marketing.py` | UI Objetivos + botón |
-| `tests/test_marketing.py` | Tests |
-| `scripts/seed_marketing_h2_2026_local.py` | Semilla objetivos H2 |
-| `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md` | Handoff H2 |
-| `.agents/AGENTS.md` | Reglas |
-| `docs_proyecto/estado_tareas.md` | Backlog |
+| `marketing.py` | UI |
+| `scripts/sync_marketing_kpis_cron.py` | Cron nocturno |
+| `docker/crontab` | Hora 23:05 |
+| `docker/entrypoint.sh` | Arranca cron + Streamlit |
+| `.github/workflows/ci.yml` | CI |
+| `scripts/run_ci_local.ps1` | CI local Windows |
+| `tests/test_marketing.py` | Tests marketing |
+| `docker/init-test-db.sql` | Schema BD CI |

@@ -137,8 +137,9 @@ Pendiente futuro (solo si se pide): cron local, ROI con atribución, checklist A
 
 ## 5. Prompt sugerido para la siguiente conversación
 
-> Seguimos Animalarium TPV. Lee `.agents/AGENTS.md` y **`docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`** (cierre 30 jul).  
-> Sync KPIs v1 ya en código local (sin commit). Quiero confirmar prueba en `:8501` y, si OK, hacer **commit** (sin prod hasta que lo diga).
+> Animalarium TPV. Lee `.agents/AGENTS.md` y **`docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`** (cierre 30 jul tarde).  
+> Rama `feature/marketing-kpis-sync-v1` — sync KPIs + cron 23:05 + CI (4 commits, sin push).  
+> Revisar si anoche corrió el cron (`logs/kpis_cron.log`). Siguiente: push rama → CI GitHub → merge `main` si confirmo. Sin prod.
 
 ---
 

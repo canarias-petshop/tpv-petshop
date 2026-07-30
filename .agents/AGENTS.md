@@ -15,29 +15,27 @@ Documentación obligatoria antes de cambios grandes:
 
 ### Marketing H2 2026 (ago–dic)
 Plan con textos copy/paste, objetivos, 150 €/mes (IG Ads + Google + cartelería), talleres sáb/dom.  
-**Datos:** local y producción (verificados 30 jul). **Código UI plan:** en `main` (TEXTO PARA PUBLICAR). Si la nube aún muestra UI antigua → Reboot Streamlit Cloud.  
-→ Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`  
-→ Semilla: `scripts/seed_marketing_h2_2026_local.py` (`--prod` para Supabase)  
-→ Innovate: `docs_proyecto/INICIATIVA_INNOVATE.md`  
-→ Plan anual: `PLAN_MARKETING_2026.md`
+**Datos:** local y producción (verificados 30 jul). **Código UI plan:** en `main` (TEXTO PARA PUBLICAR).  
+→ `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md` · `scripts/seed_marketing_h2_2026_local.py`
 
-### Sync KPIs marketing (rama `feature/marketing-kpis-sync-v1`)
-v1 + cron 23:05 Docker + **CI** (pytest + smoke sync en GitHub Actions). Sin merge a `main`/prod.  
-→ `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md` · CI: `.github/workflows/ci.yml`
+### Sync KPIs marketing — **rama activa** `feature/marketing-kpis-sync-v1`
+**Hecho (rama, 4 commits, sin push):** sync manual + cron **23:05 Canarias** + CI GitHub Actions (86 pytest + smoke).  
+**Pendiente:** verificar cron esta noche (`logs/kpis_cron.log`) → push rama → merge `main` si usuario confirma. **Sin prod.**  
+→ Handoff completo: **`docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`**  
+→ CI: `.github/workflows/ci.yml` · local: `scripts/run_ci_local.ps1`
 
 ### Recogida a domicilio desde citas
-Agenda/CRM: control recogida + cascada `registrar_recogida_desde_cita` + rollback si falla (ya en `main` si se desplegó). Ver Compendio § Agenda.
+Agenda/CRM: `registrar_recogida_desde_cita` (ver Compendio § Agenda).
 
 ## Flujo de Trabajo Obligatorio
 1. **Desarrollo Modular**: ramas por sprint/feature cuando aplique.
-2. **Primero local, después producción**: validar en Docker/local. **Nunca** `main` sin petición explícita del usuario tras prueba local.
-3. **Documentación**: actualizar Compendio / estado_tareas / Resumen Maestro / este AGENTS cuando se cierren comportamientos de negocio.
-4. **Testing**: `tests/` en verde para lógica core.
-5. **No romper la DB**: PostgREST + tablas existentes; FKs necesarias para embeds (`marketing_objetivos`, `eventos_asistentes`↔`clientes`, etc.).
+2. **Primero local, después producción**: validar en Docker/local. **Nunca** `main` sin petición explícita tras prueba local.
+3. **Documentación**: actualizar Compendio / estado_tareas / Resumen Maestro / este AGENTS al cerrar sesión.
+4. **Testing**: `tests/` en verde; CI en GitHub tras push de rama.
+5. **No romper la DB**: PostgREST + tablas existentes.
 6. **UI Streamlit**: `# pragma: no cover` en pantallas puras UI si hace falta.
 
 ## Instrucción de inicio para agentes nuevos
-Saluda, confirma que has leído `.agents/AGENTS.md`, y pregunta por la prioridad del usuario.  
-Si el tema es sync KPIs / marketing objetivos: lee **`docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`** (snapshot cierre).  
-Si el tema es plan H2 / Ads / talleres: lee `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.  
-No asumas Sprint 4B automáticamente si el usuario trae otra tarea.
+Saluda, confirma lectura de `.agents/AGENTS.md`, pregunta prioridad.  
+**Sync KPIs / marketing objetivos:** lee **`docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`** (snapshot cierre).  
+**Plan H2 / Ads:** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.

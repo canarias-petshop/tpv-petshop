@@ -45,6 +45,7 @@
     - `[x]` Ejecutar `pytest` general y asegurar >80% en los módulos core.
     - `[x]` Hacer `git commit` y `git push` de este sprint (rama `sprint-4c-ventas` / main).
     - `[x]` **Suite QA ampliada (30 jul 2026):** 76 tests en verde, ~93% cobertura lógica core (`API_URL` local :3001). Refuerzo personal/caja/contabilidad/proveedores/agenda/CRM/marketing.
+    - `[x]` **CI GitHub Actions (30 jul 2026 tarde):** workflow `.github/workflows/ci.yml` en rama `feature/marketing-kpis-sync-v1` — 86 pytest + smoke sync KPIs; **pendiente push** para activar en remoto.
 
 ---
 
@@ -65,11 +66,12 @@
   - **Pendiente operativo:** si Streamlit Cloud aún muestra “Vista de Proyección de Campañas”, hacer **Reboot/Redeploy** (datos ya están; falta código nuevo en la app nube). Mayo–julio del calendario no se borraron.
   - Script: `scripts/seed_marketing_h2_2026_local.py` (`--prod` para Supabase).
   - Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md` · `PLAN_MARKETING_2026.md` · `INICIATIVA_INNOVATE.md`
-- `[/]` **Sync KPIs marketing** — rama `feature/marketing-kpis-sync-v1` (sin merge a `main`).
-  - `[x]` v1: botón + `core_marketing` + tests marketing OK.
-  - `[x]` Prueba `:8501`: 4 actualizados, 4 omitidos, 0 errores.
-  - `[x]` Cron 23:05 Canarias en Docker.
-  - `[x]` **CI GitHub Actions** (`.github/workflows/ci.yml`): pytest + smoke sync en push/PR; reporte en Checks.
-  - Local igual: `scripts/run_ci_local.ps1`
-  - **Pendiente:** merge a `main` · prod/cloud cron aparte.
-  - Plan: `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`
+- `[/]` **Sync KPIs marketing** — rama `feature/marketing-kpis-sync-v1` (**4 commits**, **sin push**, sin merge a `main`).
+  - `[x]` v1: botón + `core_marketing` + 13 tests marketing.
+  - `[x]` Prueba manual `:8501`: 4 actualizados, 4 omitidos, 0 errores.
+  - `[x]` Cron 23:05 Canarias (Docker + `scripts/sync_marketing_kpis_cron.py`).
+  - `[x]` CI: `.github/workflows/ci.yml` + `run_ci_local.ps1` — **86 tests** OK local.
+  - `[ ]` **Esta noche:** verificar primera ejecución cron → `logs/kpis_cron.log`.
+  - `[ ]` Push rama → CI en GitHub Actions.
+  - `[ ]` Merge `main` + prod/cloud (solo si usuario confirma tras cron + CI).
+  - Plan / handoff: `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`
