@@ -25,6 +25,56 @@ def render_pestana_marketing(client):
         st.markdown("#### 🎯 Panel de Control: Objetivos de Marketing")
         st.info("Define las metas claras de tus acciones publicitarias y mide su retorno (ROI).")
 
+        # Sync KPIs: botón manual bien visible (NO es automático / cron)
+        st.markdown("##### 🔄 Sincronización desde el TPV")
+        st.caption(
+            "No es automático: al pulsar, recalcula el valor actual de los objetivos "
+            "**En progreso** con citas, altas CRM, ventas y talleres de la base de datos. "
+            "El ROI Ads se omite (sigue manual). La edición a mano en cada objetivo sigue disponible."
+        )
+        if st.button(
+            "🔄 Sincronizar KPIs desde TPV",
+            type="primary",
+            use_container_width=True,
+            key="btn_sync_kpis_tpv",
+        ):  # pragma: no cover
+            from core_marketing import sincronizar_objetivos_desde_tpv
+            try:
+                with st.spinner("Sincronizando KPIs desde datos del TPV…"):
+                    resumen = sincronizar_objetivos_desde_tpv(client, objetivos)
+                n_ok = sum(1 for r in resumen if r.get("accion") == "actualizado")
+                n_omit = sum(1 for r in resumen if r.get("accion") == "omitido")
+                n_err = sum(1 for r in resumen if r.get("accion") == "error")
+                st.session_state["mkt_sync_kpis_resumen"] = {
+                    "ok": n_ok, "omitido": n_omit, "error": n_err, "detalle": resumen
+                }
+                st.session_state.db_version = st.session_state.get("db_version", 0) + 1
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al sincronizar KPIs: {e}")
+
+        sync_info = st.session_state.pop("mkt_sync_kpis_resumen", None)
+        if sync_info:
+            st.success(
+                f"Sync KPIs: {sync_info['ok']} actualizado(s), "
+                f"{sync_info['omitido']} omitido(s), {sync_info['error']} error(es)."
+            )
+            omitidos = [r for r in sync_info.get("detalle", []) if r.get("accion") == "omitido"]
+            if omitidos:
+                st.caption(
+                    "Omitidos (sin cálculo seguro o ROI): "
+                    + ", ".join(r.get("titulo") or "?" for r in omitidos)
+                )
+            actualizados = [r for r in sync_info.get("detalle", []) if r.get("accion") == "actualizado"]
+            if actualizados:
+                st.caption(
+                    "Actualizados: "
+                    + ", ".join(
+                        f"{r.get('titulo')} ({r.get('valor_antes')} → {r.get('valor_despues')})"
+                        for r in actualizados
+                    )
+                )
+
         col_obj1, col_obj2 = st.columns([1, 2])
         with col_obj1:
             with st.form("nuevo_objetivo", clear_on_submit=True):

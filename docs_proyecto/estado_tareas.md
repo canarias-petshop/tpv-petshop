@@ -65,6 +65,8 @@
   - **Pendiente operativo:** si Streamlit Cloud aún muestra “Vista de Proyección de Campañas”, hacer **Reboot/Redeploy** (datos ya están; falta código nuevo en la app nube). Mayo–julio del calendario no se borraron.
   - Script: `scripts/seed_marketing_h2_2026_local.py` (`--prod` para Supabase).
   - Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md` · `PLAN_MARKETING_2026.md` · `INICIATIVA_INNOVATE.md`
-- `[ ]` **Siguiente (automatización, preferible en local primero):** sincronizar KPIs de objetivos desde TPV; checklist operación Meta+Google del mes.
-  - **Plan listo (aún no implementado):** `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md` — v1 = botón sync KPIs + tests en local; ROI omitido; sin prod/Ads.
-  - **Plan guardado para conversación nueva:** `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md` (v1 = botón sync KPIs + tests en local; sin prod/Ads).
+- `[/]` **Sync KPIs marketing** — rama `feature/marketing-kpis-sync-v1` (sin merge a `main`).
+  - `[x]` v1: botón manual + `core_marketing` + 11 tests OK.
+  - `[x]` Prueba `:8501`: 4 actualizados, 4 omitidos, 0 errores (ceros = BD local / periodo H2).
+  - **Pendiente:** merge a `main` cuando todo validado · **Fase 2 usuario:** automatización total (cron/job, no solo botón).
+  - Plan: `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`

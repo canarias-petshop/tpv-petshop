@@ -88,16 +88,22 @@ FK: en prod ya existían (`marketing_plan`→objetivos, `eventos_asistentes`→t
 
 Priorizar solo si el usuario lo pide. Orden sugerido:
 
-### A. Objetivos (recomendado primero)
-| Idea | Cómo | Dependencias |
-|------|------|----------------|
-| Citas pelu / semana | Job o botón “Recalcular” que cuente `citas` no canceladas en rango | Tabla `citas`, parse estado |
-| Altas CRM | Contar `clientes.created_at` en el periodo | Tabla `clientes` |
-| Ticket medio | Media tickets TPV productos en periodo | Historial ventas |
-| Ocupación talleres | `inscritos / plazas` media en `eventos_*` | Ya hay tablas |
-| ROI Ads | `ventas_atribuidas / gasto_real` (gasto del plan o import CSV Ads) | Definir atribución (manual “¿cómo nos conociste?” o UTM) |
+### A. Objetivos — sync KPIs v1 (local, 30 jul 2026)
+**Implementado en local (sin commit/push):** botón manual arriba en Objetivos + `core_marketing` + tests.  
+**No es cron/automático.** ROI Ads sigue omitido.  
+Detalle y prompt de retoma: `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`.
 
-UI: botón **“Sincronizar KPIs desde TPV”** en Objetivos, o cron nocturno solo local primero.
+Pendiente futuro (solo si se pide): cron local, ROI con atribución, checklist Ads Meta/Google.
+
+| Idea | Estado |
+|------|--------|
+| Citas pelu / semana | ✅ v1 local |
+| Altas CRM | ✅ v1 local |
+| Ticket medio | ✅ v1 local |
+| Ocupación talleres | ✅ v1 local |
+| Facturación periodo | ✅ v1 local |
+| Packs calma (keywords) | ✅ v1 (omite si no hay match) |
+| ROI Ads | ❌ omitido en v1 |
 
 ### B. Gasto Ads
 - Campo gasto_real rellenado a mano (ahora) → o import CSV de Meta/Google → o API Marketing de cada plataforma (más trabajo / secretos).
@@ -118,10 +124,11 @@ UI: botón **“Sincronizar KPIs desde TPV”** en Objetivos, o cron nocturno so
 
 | Archivo | Rol |
 |---------|-----|
-| `marketing.py` | UI Objetivos, Plan Maestro (copy), Canales, Especiales |
-| `core_marketing.py` | Progreso % + alerta fin de plan |
+| `marketing.py` | UI Objetivos (sync KPIs + Plan Maestro copy), Canales, Especiales |
+| `core_marketing.py` | Progreso % + alerta plan + **sync KPIs** |
 | `proyectos_eventos.py` | Talleres + asistentes |
 | `scripts/seed_marketing_h2_2026_local.py` | Semilla H2 local / `--prod` |
+| `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md` | Handoff sync KPIs v1 |
 | `PLAN_MARKETING_2026.md` | Estrategia anual + estado H2 |
 | `docs_proyecto/INICIATIVA_INNOVATE.md` | Qué es la etiqueta Innovate |
 | `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md` | WA/Email auto aparcado |
@@ -130,11 +137,8 @@ UI: botón **“Sincronizar KPIs desde TPV”** en Objetivos, o cron nocturno so
 
 ## 5. Prompt sugerido para la siguiente conversación
 
-> Seguimos Animalarium TPV. Lee `.agents/AGENTS.md` y **`docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`**.  
-> Contexto H2: este archivo (`MARKETING_H2_2026_Y_SIGUIENTE.md`).  
-> Datos H2 en prod verificados. Código UI en `main`.  
-> Quiero **implementar en local** la sync de KPIs (botón + tests). No toques `main`/prod hasta que lo pida tras prueba en `:8501`.  
-> Checklist Ads = después, no ahora.
+> Seguimos Animalarium TPV. Lee `.agents/AGENTS.md` y **`docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`** (cierre 30 jul).  
+> Sync KPIs v1 ya en código local (sin commit). Quiero confirmar prueba en `:8501` y, si OK, hacer **commit** (sin prod hasta que lo diga).
 
 ---
 
@@ -144,3 +148,4 @@ UI: botón **“Sincronizar KPIs desde TPV”** en Objetivos, o cron nocturno so
 - Cumpleaños / win-back (“Próximamente”).
 - Re-sembrar producción sin petición (ya está cargado).
 - Borrar a mano mayo–julio del plan (opcional; no hace falta para usar H2).
+- Desplegar sync KPIs a Streamlit Cloud / prod sin petición.

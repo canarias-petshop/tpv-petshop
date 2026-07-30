@@ -14,17 +14,17 @@ Documentación obligatoria antes de cambios grandes:
 → `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`
 
 ### Marketing H2 2026 (ago–dic)
-Plan con textos copy/paste, objetivos manuales, 150 €/mes (IG Ads + Google + cartelería), talleres sáb/dom.  
-**Datos:** en local y producción (verificados 30 jul: objetivos, ~750 € H2, especiales, canales).  
-**Código UI:** en `main` (TEXTO PARA PUBLICAR). Si el TPV nube aún dice “Vista de Proyección de Campañas” → Reboot Streamlit Cloud. Mayo–julio del plan no se borraron.  
+Plan con textos copy/paste, objetivos, 150 €/mes (IG Ads + Google + cartelería), talleres sáb/dom.  
+**Datos:** local y producción (verificados 30 jul). **Código UI plan:** en `main` (TEXTO PARA PUBLICAR). Si la nube aún muestra UI antigua → Reboot Streamlit Cloud.  
 → Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`  
 → Semilla: `scripts/seed_marketing_h2_2026_local.py` (`--prod` para Supabase)  
 → Innovate: `docs_proyecto/INICIATIVA_INNOVATE.md`  
 → Plan anual: `PLAN_MARKETING_2026.md`
 
-### Sync KPIs marketing (siguiente, solo local)
-Botón “Sincronizar KPIs desde TPV” + tests; sin prod/Ads/cron hasta pedirlo.  
-→ Plan: `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`
+### Sync KPIs marketing (rama `feature/marketing-kpis-sync-v1`)
+v1 = botón manual + tests; probado en `:8501`. **Sin merge a `main`/prod.**  
+Objetivo futuro usuario: **automatización total** (cron/job).  
+→ `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md` (§ Fase 2)
 
 ### Recogida a domicilio desde citas
 Agenda/CRM: control recogida + cascada `registrar_recogida_desde_cita` + rollback si falla (ya en `main` si se desplegó). Ver Compendio § Agenda.
@@ -39,5 +39,6 @@ Agenda/CRM: control recogida + cascada `registrar_recogida_desde_cita` + rollbac
 
 ## Instrucción de inicio para agentes nuevos
 Saluda, confirma que has leído `.agents/AGENTS.md`, y pregunta por la prioridad del usuario.  
-Si el tema es marketing / Ads / objetivos / talleres H2: lee primero `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.  
+Si el tema es sync KPIs / marketing objetivos: lee **`docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`** (snapshot cierre).  
+Si el tema es plan H2 / Ads / talleres: lee `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.  
 No asumas Sprint 4B automáticamente si el usuario trae otra tarea.
