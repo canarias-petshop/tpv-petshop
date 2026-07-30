@@ -7,7 +7,7 @@ Uso manual:
   python scripts/sync_marketing_kpis_cron.py --force
 
 Variables de entorno:
-  API_URL          PostgREST (def. http://localhost:3000 en Docker)
+  API_URL          PostgREST (def. http://animalarium-api:3000 en Docker)
   MKT_KPIS_CRON_ENABLED  true/false — desactiva ejecución
   MKT_KPIS_LOG     ruta log (def. logs/kpis_cron.log)
   MKT_KPIS_TARGET  local | prod (prod lee .streamlit/secrets.toml)
@@ -56,7 +56,7 @@ def build_postgrest_client() -> SyncPostgrestClient:
         api_url = raw if raw.endswith("/rest/v1") else f"{raw}/rest/v1"
         api_key = key
     else:
-        api_url = os.getenv("API_URL", "http://localhost:3000").rstrip("/")
+        api_url = os.getenv("API_URL", "http://animalarium-api:3000").rstrip("/")
         api_key = os.getenv("LOCAL_POSTGREST_KEY", LOCAL_JWT)
     return SyncPostgrestClient(
         api_url,

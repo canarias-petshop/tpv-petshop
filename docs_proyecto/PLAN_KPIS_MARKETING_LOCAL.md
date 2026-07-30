@@ -47,13 +47,19 @@ Semilla objetivos: `scripts/seed_marketing_h2_2026_local.py`
    Línea esperada: `[fecha] Sync KPIs cron: N actualizado(s)...`
 4. Si no hay línea nueva → `docker logs animalarium-tpv --tail 20` y revisar cron.
 
+### Verificación primera noche (30→31 jul 2026)
+
+- Cron **sí disparó** a las 23:05 (mtime del log).
+- Resultado: `ERROR ... Connection refused` — cron no heredaba `API_URL` → apuntaba a `localhost:3000`.
+- **Fix (31 jul):** `docker/entrypoint.sh` inyecta `API_URL=http://animalarium-api:3000` en el crontab. Requiere rebuild del contenedor `tpv-app`.
+- Código ya estaba en **`main`** (merge 30 jul). El automatico nocturno es **solo Docker local** (PC encendido); Streamlit Cloud no ejecuta este cron.
+
 ### Pendiente siguiente conversación (orden sugerido)
 
-1. **Confirmar cron nocturno** (log de anoche).
-2. Si OK → `git push -u origin feature/marketing-kpis-sync-v1` → ver **Actions** en GitHub (86 tests + smoke).
-3. Si CI verde → **merge a `main`** solo si el usuario lo pide.
-4. **Prod / Streamlit Cloud:** cron Docker **no** viaja a la nube; definir job externo o sync al abrir app (futuro).
-5. Opcional: unificar objetivos ROI duplicados en BD; ticket medio sin ventas → 0 vs omitido.
+1. Rebuild local: `docker compose build tpv-app && docker compose up -d tpv-app` (o equivalente).
+2. Confirmar cron la siguiente noche (log sin Connection refused).
+3. **Prod / Streamlit Cloud:** cron Docker **no** viaja a la nube; definir job externo o sync al abrir app (futuro).
+4. Opcional: unificar objetivos ROI duplicados en BD; ticket medio sin ventas → 0 vs omitido.
 
 ### NO hacer sin pedirlo
 
@@ -108,9 +114,9 @@ Matching por `kpi_medidor` (keywords). ROI → omitido.
 - [x] Tests (86 + marketing)
 - [x] CI workflow + schema init
 - [x] Docs handoff
-- [ ] **Verificar cron primera noche** (esta noche)
-- [ ] Push rama → CI GitHub
-- [ ] Merge `main` (usuario)
+- [x] Verificar cron primera noche (disparó; falló por API_URL — fix entrypoint 31 jul)
+- [x] En `main` (merge 30 jul)
+- [ ] Rebuild imagen + confirmar cron OK la siguiente noche
 - [ ] Prod / cloud cron
 
 ---

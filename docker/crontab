@@ -1,3 +1,4 @@
-# Sync KPIs marketing — 23:05 hora Canarias (después de las 23:00)
+# Plantilla de referencia. El entrypoint genera el crontab real inyectando API_URL
+# (cron de Docker NO hereda variables de docker-compose).
 CRON_TZ=Atlantic/Canary
-5 23 * * * cd /app && /usr/local/bin/python scripts/sync_marketing_kpis_cron.py >> /app/logs/kpis_cron.log 2>&1
+5 23 * * * cd /app && API_URL=http://animalarium-api:3000 /usr/local/bin/python scripts/sync_marketing_kpis_cron.py >> /app/logs/kpis_cron.log 2>&1
