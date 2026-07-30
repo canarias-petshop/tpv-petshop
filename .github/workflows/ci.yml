@@ -1,0 +1,75 @@
+name: CI — Tests y automatización
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Pytest + smoke KPI sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Levantar PostgreSQL + PostgREST
+        run: docker compose up -d db postgrest
+
+      - name: Esperar API (:3001)
+        run: |
+          for i in $(seq 1 45); do
+            if curl -sf "http://localhost:3001/" >/dev/null 2>&1; then
+              echo "PostgREST OK"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "PostgREST no respondió"
+          docker compose logs postgrest db
+          exit 1
+
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar pytest (suite completa)
+        env:
+          API_URL: http://localhost:3001
+        run: |
+          pytest tests/ -v --tb=short --junitxml=pytest-results.xml
+
+      - name: Smoke — sync KPIs cron
+        env:
+          API_URL: http://localhost:3001
+          MKT_KPIS_CRON_ENABLED: "true"
+        run: python scripts/sync_marketing_kpis_cron.py --force
+
+      - name: Resumen de tests (GitHub Checks)
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Resultados pytest
+          path: pytest-results.xml
+          reporter: java-junit
+          fail-on-error: true
+
+      - name: Subir reportes (artefactos)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: pytest-results.xml
+          retention-days: 14

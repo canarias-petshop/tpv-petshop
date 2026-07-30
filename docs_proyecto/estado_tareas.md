@@ -66,7 +66,10 @@
   - Script: `scripts/seed_marketing_h2_2026_local.py` (`--prod` para Supabase).
   - Handoff: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md` · `PLAN_MARKETING_2026.md` · `INICIATIVA_INNOVATE.md`
 - `[/]` **Sync KPIs marketing** — rama `feature/marketing-kpis-sync-v1` (sin merge a `main`).
-  - `[x]` v1: botón manual + `core_marketing` + 11 tests OK.
-  - `[x]` Prueba `:8501`: 4 actualizados, 4 omitidos, 0 errores (ceros = BD local / periodo H2).
-  - **Pendiente:** merge a `main` cuando todo validado · cron nocturno 23:05 en Docker (rama).
+  - `[x]` v1: botón + `core_marketing` + tests marketing OK.
+  - `[x]` Prueba `:8501`: 4 actualizados, 4 omitidos, 0 errores.
+  - `[x]` Cron 23:05 Canarias en Docker.
+  - `[x]` **CI GitHub Actions** (`.github/workflows/ci.yml`): pytest + smoke sync en push/PR; reporte en Checks.
+  - Local igual: `scripts/run_ci_local.ps1`
+  - **Pendiente:** merge a `main` · prod/cloud cron aparte.
   - Plan: `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`

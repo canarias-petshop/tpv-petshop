@@ -13,3 +13,7 @@ Backups_Datos_Nube/
 
 # Logs cron KPIs marketing (local)
 logs/
+
+# Reportes CI local
+pytest-results.xml
+pytest-report.json
