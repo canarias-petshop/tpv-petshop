@@ -12,7 +12,7 @@ from postgrest import SyncPostgrestClient
 
 @pytest.fixture(scope="module")
 def db_client():
-    api_url = os.getenv("API_URL", "http://localhost:3000")
+    api_url = os.getenv("API_URL", "http://localhost:3001")
     secret = "super-secret-jwt-token-with-at-least-32-characters-long"
     payload = {
         "role": "admin",
@@ -173,3 +173,55 @@ def test_errores_validacion(db_client):
         
     with pytest.raises(ValueError, match="Faltan datos obligatorios para la cita"):
         agendar_cita(db_client, "", "2026-07-20", "10:00", "Serv", 60)
+
+
+def test_smoke_guardado_cliente_mascota_encargo(db_client):
+    """Smoke de ida y vuelta: crear → leer → actualizar (cliente/mascota/encargo)."""
+    sufijo = str(int(time.time()))
+    nombre = f"Smoke CRM {sufijo}"
+    telefono = f"699{sufijo[-6:]}"
+
+    cli = crear_cliente(db_client, nombre, telefono, email=f"smoke_{sufijo}@test.local")
+    assert cli and cli.get("id"), "crear_cliente no devolvió fila"
+    cli_id = cli["id"]
+
+    leido = (
+        db_client.table("clientes")
+        .select("id, nombre_dueno, telefono, email")
+        .eq("id", cli_id)
+        .execute()
+        .data
+    )
+    assert leido and leido[0]["nombre_dueno"] == nombre
+    assert leido[0]["telefono"] == telefono
+
+    cli_upd = actualizar_cliente(db_client, cli_id, {"telefono": "600111222", "puntos": 7})
+    assert cli_upd["telefono"] == "600111222"
+    assert cli_upd["puntos"] == 7
+
+    masc = crear_mascota(db_client, cli_id, f"SmokePet{sufijo[-4:]}", especie="Perro", raza="Mestizo")
+    assert masc and masc.get("id")
+    masc_db = (
+        db_client.table("mascotas")
+        .select("id, nombre, cliente_id")
+        .eq("id", masc["id"])
+        .execute()
+        .data
+    )
+    assert masc_db and masc_db[0]["cliente_id"] == cli_id
+
+    enc = crear_encargo(
+        db_client, nombre, "600111222", "Pienso Smoke 12kg", 1, "Smoke test guardado"
+    )
+    assert enc and enc.get("id")
+    enc_db = (
+        db_client.table("encargos_clientes")
+        .select("id, nombre_cliente, detalle_pedido, estado, notas")
+        .eq("id", enc["id"])
+        .execute()
+        .data
+    )
+    assert enc_db, "El encargo no se leyó tras insertar"
+    assert enc_db[0]["estado"] == "Pendiente"
+    assert "Pienso Smoke 12kg" in enc_db[0]["detalle_pedido"]
+    assert enc_db[0]["notas"] == "Smoke test guardado"

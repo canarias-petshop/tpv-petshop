@@ -10,6 +10,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  checks: write
+  actions: read
+
 jobs:
   test:
     name: Pytest + smoke KPI sync
@@ -23,16 +28,17 @@ jobs:
       - name: Levantar PostgreSQL + PostgREST
         run: docker compose up -d db postgrest
 
-      - name: Esperar API (:3001)
+      - name: Esperar API lista (schema clientes)
         run: |
-          for i in $(seq 1 45); do
-            if curl -sf "http://localhost:3001/" >/dev/null 2>&1; then
-              echo "PostgREST OK"
+          # PostgREST puede responder 200 en / antes de tener el schema cargado.
+          for i in $(seq 1 60); do
+            if curl -sf "http://localhost:3001/clientes?select=id&limit=1" >/dev/null 2>&1; then
+              echo "PostgREST + schema OK"
               exit 0
             fi
             sleep 2
           done
-          echo "PostgREST no respondió"
+          echo "PostgREST/schema no listos"
           docker compose logs postgrest db
           exit 1
 
@@ -49,7 +55,7 @@ jobs:
         env:
           API_URL: http://localhost:3001
         run: |
-          pytest tests/ -v --tb=short --junitxml=pytest-results.xml
+          python -m pytest tests/ -v --tb=short --junitxml=pytest-results.xml
 
       - name: Smoke — sync KPIs cron
         env:
@@ -64,7 +70,7 @@ jobs:
           name: Resultados pytest
           path: pytest-results.xml
           reporter: java-junit
-          fail-on-error: true
+          fail-on-error: false
 
       - name: Subir reportes (artefactos)
         uses: actions/upload-artifact@v4
