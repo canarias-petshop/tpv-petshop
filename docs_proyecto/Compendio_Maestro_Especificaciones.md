@@ -21,6 +21,7 @@ Sirve como "mapa" inquebrantable antes de iniciar la refactorización (Fase 2) y
 - ✅ **[CÓDIGO]** **Cascada al guardar con recogida (`registrar_recogida_desde_cita`)**: Si la recogida está activa, la cita se guarda con estado `Servicio de recogida pendiente`, se inserta en `servicios_recogida` y se actualiza el cliente (`direccion` + `servicio_domicilio=true`), incluso si el cliente partía sin dirección ni flag activo.
 - ✅ **[CÓDIGO]** **Estados de recogida en directorio**: Existen `Servicio de recogida pendiente` y `Servicio de recogida confirmado` (el legado `Servicio de recogida` se migra al pendiente).
 - ✅ **[CÓDIGO]** **Recordatorios = envío manual**: Agenda → Centro de Recordatorios genera enlaces WhatsApp (`api.whatsapp.com`) y marca `[RECORDATORIO: Avisado]` en observaciones. No hay API de envío ni cron.
+- ✅ **[CÓDIGO / QA]** **Smoke guardados CRM** (1 ago 2026): `test_smoke_guardado_cliente_mascota_encargo` — crear/leer/actualizar cliente + mascota + encargo. Spec V2: `ESPECIFICACIONES_V2.md` §2.9 · `GUIA_V2_AVANCES` §7.
 - 🚀 **[NEGOCIO/FUTURO]** **Mensajería automática (WA / Email)**: Aparcado (29 jul 2026). Ver `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
 
 ## 1-quater. Tareas y Mantenimiento de Material (`tareas.py`, `mantenimiento_material.py`, `core_mantenimiento.py`)
@@ -30,7 +31,7 @@ Sirve como "mapa" inquebrantable antes de iniciar la refactorización (Fase 2) y
 
 ## 1-ter. Marketing (`marketing.py`, `core_marketing.py`, `proyectos_eventos.py`)
 - ✅ **[CÓDIGO / PROD]** **Objetivos y Resultados**: sync **manual** (botón) en TPV nube; **cron 23:05 Canarias** solo Docker local (`main`; entrypoint inyecta `API_URL`). ROI omitido en v1. Plan: `PLAN_KPIS_MARKETING_LOCAL.md`.
-- ✅ **[CÓDIGO]** **CI**: `.github/workflows/ci.yml` en `main` — pytest + smoke sync KPIs.
+- ✅ **[CÓDIGO]** **CI** (1 ago 2026): `.github/workflows/ci.yml` — espera `/clientes` (schema), `python -m pytest`, smoke KPIs; smoke CRM en suite. Ver `GUIA_V2_AVANCES` §7.
 - ✅ **[CÓDIGO]** **Plan Maestro**: `marketing_plan` + UI **TEXTO PARA PUBLICAR**.
 - ✅ **[CÓDIGO / DATOS]** **Plan H2 2026**: verificado en prod 30 jul. Handoff: `MARKETING_H2_2026_Y_SIGUIENTE.md`.
 - ✅ **[CÓDIGO]** **Tipos de campaña**: Ordinaria / Evento-Feria / **Iniciativa Innovate**.

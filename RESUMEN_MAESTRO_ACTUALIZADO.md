@@ -1,15 +1,36 @@
 # Resumen Maestro Actualizado - TPV y E-Commerce Animalarium
-**Fecha de última actualización**: 31 de Julio de 2026
+**Fecha de última actualización**: 1 de Agosto de 2026
 
 Este documento centraliza todos los avances, arquitecturas y módulos del ecosistema completo de Animalarium (TPV Físico + Tienda Web). Es el punto de partida **obligatorio** para retomar el proyecto en futuras sesiones.
 
-> Para portar a **Animalarium V2**: leer también `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` y `docs_proyecto/ESPECIFICACIONES_V2.md`.
+> Para portar a **Animalarium V2**: leer también `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` (esp. **§7 CI/QA**) y `docs_proyecto/ESPECIFICACIONES_V2.md` (§2.9 guardados CRM).
 
 > [!CAUTION]
 > **NORMA ESTRICTA: PRODUCTOS vs SERVICIOS**
 > Una cosa son los productos (piensos, accesorios) y otra muy distinta son los servicios (peluquería, clínica).
 > Si el usuario ordena eliminar o modificar una marca concreta o un grupo de artículos en el contexto de "productos", **JAMÁS** debes alterar los registros que pertenezcan a "servicios" (aunque compartan tabla en la base de datos o utilicen la marca 'Genérico' u otra para categorizarse).
 > **No asumas ni interpretes nada.** Verifica siempre si la acción puede afectar a los servicios antes de ejecutar un borrado masivo.
+
+---
+
+## 🆕 1 de Agosto de 2026 (CI + smoke CRM / handoff V2)
+
+### QA técnico sobre `main`
+- Suite local Docker: **93+ tests en verde** + smoke sync KPIs.
+- Lógica CRM de guardado (cliente / mascota / encargo) cubierta por smoke de ida y vuelta.
+- Un rojo puntual de GitHub Actions en un commit de **docs** no se interpretó como fallo de producción; se endureció el CI.
+
+### CI endurecido (`dee59ae`)
+- Esperar schema real (`/clientes?select=id&limit=1`) antes de pytest.
+- `python -m pytest` + permisos de checks para el reporter.
+- Smoke CRM: `tests/test_crm.py::test_smoke_guardado_cliente_mascota_encargo`.
+
+### Documentación V2
+- `GUIA_V2_AVANCES_2026-07-30.md` §7 — contratos de guardado y lecciones de CI.
+- `ESPECIFICACIONES_V2.md` §2.9–2.10 — requisitos obligatorios al portar CRM/QA a Next.js.
+
+### Nota operativa tienda
+- Si un puesto “no guarda” encargos/clientes y otro sí con el mismo `main`: priorizar caché/sesión/red frente a cambiar `core_crm`.
 
 ---
 

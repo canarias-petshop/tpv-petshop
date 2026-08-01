@@ -1,10 +1,10 @@
 # Documento Maestro de Especificaciones (Animalarium V2)
 
-**Última Actualización**: 30 de Julio de 2026  
+**Última Actualización**: 1 de Agosto de 2026  
 **Metodología**: Spec-Driven Development (spec-kit)  
 **Objetivo**: Sentar las bases arquitectónicas, técnicas y de negocio para la reescritura de Animalarium TPV + Web a la Versión 2.0 (Next.js/React + Supabase).
 
-**Handoff de avances recientes (obligatorio):** `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md`
+**Handoff de avances recientes (obligatorio):** `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` (incluye §7 CI/QA y smoke CRM).
 
 ---
 
@@ -68,7 +68,7 @@ Cualquier desarrollo de la V2 debe respetar escrupulosamente estas lógicas ya v
 
 ### 2.6 Marketing (TPV actual → requisitos a preservar en V2)
 - Calendario `marketing_plan` con textos publicables (`contenido_detallado`) y presupuestos por canal.
-- Objetivos `marketing_objetivos` con KPI/meta/`valor_actual` (sync desde TPV en curso en rama local; V2 puede nativizarlo).
+- Objetivos `marketing_objetivos` con KPI/meta/`valor_actual` (**sync en `main`**: botón manual en nube; cron 23:05 solo Docker local).
 - Presupuesto mensual repartible (Ads IG/Meta, Google, cartelería); WhatsApp operativo puede seguir siendo 0 € si es envío manual.
 - Talleres `eventos_talleres` en fin de semana (sáb o dom) + asistentes.
 - Referencia operativa H2 2026: `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
@@ -90,6 +90,25 @@ Submódulo **independiente** (no reutilizar genéricamente `tareas_plannings` / 
 
 ### 2.8 Mensajería automática
 - **Aparcada.** Recordatorios = manuales. Ver `DECISION_MENSAJERIA_AUTOMATICA.md`.
+
+### 2.9 CRM: contratos de guardado (cliente / mascota / encargo) — obligatorio en V2
+Fuente TPV: `core_crm.py` + smoke `tests/test_crm.py::test_smoke_guardado_cliente_mascota_encargo` (en `main` desde 1 ago 2026).
+
+| Operación | Regla | Tabla |
+|-----------|-------|--------|
+| Crear cliente | `nombre_dueno` obligatorio; puntos iniciales 0 | `clientes` |
+| Actualizar cliente | Update por `id`; campos parciales (teléfono, puntos, etc.) | `clientes` |
+| Crear mascota | Nombre + `cliente_id` obligatorios | `mascotas` |
+| Crear encargo tienda | Nombre + producto obligatorios; `detalle_pedido` = `{n}x {producto}`; `estado=Pendiente`; `origen=Tienda` | `encargos_clientes` |
+| Recogida desde cita | Cascada: estado cita + `servicios_recogida` + ficha cliente | ver §2.5 |
+
+**QA V2:** todo flujo de alta/edición CRM debe tener test de **ida y vuelta** (insert → select → assert), no solo mock de UI.  
+**Ops:** si un puesto de tienda “no guarda” y otro sí con el mismo código, diagnosticar entorno (caché Streamlit/navegador, red a Supabase) antes de cambiar lógica.
+
+### 2.10 CI / readiness de API (lección del TPV → V2)
+- No considerar la API lista solo porque el health root responde `200`.
+- En el TPV, CI espera `/clientes?select=id&limit=1` antes de pytest (`.github/workflows/ci.yml`).
+- V2 debe aplicar el mismo criterio (health de schema / migration ready) en pipelines.
 
 ---
 
@@ -147,4 +166,4 @@ Al construir la V2 en React/Next.js, solucionaremos de base los problemas que re
 
 ---
 
-*Referencia obligatoria antes de crear componentes en V2. Completar con `GUIA_V2_AVANCES_2026-07-30.md`.*
+*Referencia obligatoria antes de crear componentes en V2. Completar con `GUIA_V2_AVANCES_2026-07-30.md` (§2 mantenimiento, §7 CI/QA CRM).*

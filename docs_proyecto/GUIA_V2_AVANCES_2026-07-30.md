@@ -1,7 +1,8 @@
-# Guía de avances para V2 — 30–31 julio 2026
+# Guía de avances para V2 — 30 jul – 1 ago 2026
 
 **Propósito:** handoff para `animalarium-v2` (u otro chat/agente).  
-**Actualización 31 jul:** mantenimiento y sync KPIs (botón) **validados en producción** TPV Streamlit.
+**Actualización 31 jul:** mantenimiento y sync KPIs (botón) **validados en producción** TPV Streamlit.  
+**Actualización 1 ago:** CI endurecido + smoke de guardados CRM en `main` (útil como contrato de tests para V2).
 
 **Leer también (orden):**
 1. Este archivo  
@@ -19,13 +20,14 @@
 | Módulo | Estado | Notas para V2 |
 |--------|--------|----------------|
 | Caja / puntos / pagos | Estable | Reglas en Compendio § parametrización |
-| CRM + citas + recogida | Estable | Cascada `registrar_recogida_desde_cita` |
+| CRM + citas + recogida | Estable | Cascada `registrar_recogida_desde_cita`; smoke ida/vuelta cliente/mascota/encargo |
 | Agenda huecos | Estable en prod | Vacaciones/ausencias; hotfix import UnboundLocalError |
 | Ficha clínica | Estable en prod | Guardado historial validado 31 jul |
 | Facturación compras | Estable | Borrador no mueve stock; pagos a 2 decimales |
 | RRHH fichajes | Estable | Anti-spam 30 min + confirmación salida |
 | Marketing H2 | Prod | Sync KPIs: botón en nube; cron solo Docker local |
 | **Mantenimiento material** | **Prod (validado 31 jul)** | Tablas en Supabase; portar a V2 |
+| QA / CI | En `main` | Esperar schema real + smoke CRM + smoke KPIs (ver §7) |
 | Mensajería automática WA/Email | Aparcado | Manual 1 clic |
 
 ---
@@ -140,6 +142,7 @@ Además de lo ya en `ESPECIFICACIONES_V2.md`, incluir:
 > `docs_proyecto/ESPECIFICACIONES_V2.md`,  
 > `docs_proyecto/Compendio_Maestro_Especificaciones.md`.  
 > Queremos portar el módulo **Mantenimiento de Material** a V2 respetando tablas, frecuencias y la regla “pendiente hasta marcar hecho”.  
+> Incluye también el **contrato de guardados CRM** (§7 / §2.9): smoke crear cliente → actualizar → mascota → encargo → releer, y CI que espere schema real.  
 > Primero local; no tocar prod sin pedirlo.
 
 ---
@@ -152,4 +155,38 @@ Además de lo ya en `ESPECIFICACIONES_V2.md`, incluir:
 - [ ] Resumen en calendario de tareas del TPV interno  
 - [ ] Tests de frecuencias y “atrasado hasta hecho”  
 - [ ] Vacaciones/ausencias bloquean slots de agenda  
+- [ ] Smoke CRM: crear cliente → actualizar → mascota → encargo → releer (mismo contrato que TPV)  
+- [ ] CI: no marcar “API lista” solo con `/`; esperar endpoint de schema real  
 - [ ] No implementar mensajería automática WA salvo petición  
+
+---
+
+## 7. CI, QA y contratos de guardado (1 ago 2026) — portar mentalidad a V2
+
+Tras el merge a `main` de marketing/KPIs + hotfixes de agenda, se validó la suite local (**93+ tests**) y se endureció GitHub Actions.
+
+### 7.1 Qué pasó (y qué NO implica)
+- Un run de CI en un commit **solo de docs** salió en rojo; no implica bug de guardado en Streamlit Cloud.
+- Causa plausible: PostgREST responde `200` en `/` **antes** de tener el schema cargado → tests fallan por carrera.
+- Incidente puntual en un PC de tienda (encargo/cliente “no guardaba”) mientras en otro equipo sí: apuntar primero a **caché/sesión/red**, no a lógica core (smoke CRM verde).
+
+### 7.2 Cambios en `main` (commit `dee59ae`)
+| Pieza | Archivo | Qué hace |
+|-------|---------|----------|
+| Espera schema | `.github/workflows/ci.yml` | Poll a `/clientes?select=id&limit=1` (no solo `/`) |
+| Pytest | mismo | `python -m pytest` + permisos `checks: write` |
+| Smoke CRM | `tests/test_crm.py` → `test_smoke_guardado_cliente_mascota_encargo` | Crear → leer → actualizar cliente; mascota; encargo; releer |
+| Smoke KPIs | `scripts/sync_marketing_kpis_cron.py --force` | Ya existía en CI |
+
+### 7.3 Contrato mínimo que V2 debe preservar (CRM)
+Fuente de verdad lógica: `core_crm.py` (`crear_cliente`, `actualizar_cliente`, `crear_mascota`, `crear_encargo`, `agendar_cita`, `registrar_recogida_desde_cita`).
+
+1. **Cliente**: insert con nombre obligatorio; update por `id`; lectura inmediata debe devolver los mismos campos.  
+2. **Mascota**: siempre ligada a `cliente_id` válido.  
+3. **Encargo** (`encargos_clientes`): `detalle_pedido` = `{cantidad}x {producto}`, `estado=Pendiente`, `origen=Tienda` (flujo tienda).  
+4. **Errores visibles**: la UI no debe tragar excepciones de insert/update en silencio (en Streamlit a veces solo `st.error` genérico; en V2 preferir mensaje + toast + log).  
+5. **Tests**: en V2, smoke de ida/vuelta equivalente (no solo unitarios de helpers).  
+
+### 7.4 Prompt extra para el chat V2 (QA)
+
+> Además del módulo de mantenimiento, replica el **smoke de guardados CRM** del TPV: crear cliente, actualizar teléfono/puntos, crear mascota, crear encargo y releer de Supabase. El CI no debe dar por lista la API hasta que exista el schema (`/clientes`). Primero local; no tocar prod sin pedirlo.

@@ -60,6 +60,15 @@
 - `[ ]` Confirmar log cron **siguiente noche** sin `Connection refused` (opcional; PC+Docker encendidos).
 - `[ ]` Cron KPIs en Streamlit Cloud / job externo — futuro, solo si se pide.
 
+## Cierre 1 ago 2026 (CI + smoke CRM / handoff V2)
+
+- `[x]` Suite local Docker: **93+ passed** + smoke sync KPIs OK (código `main` alineado).
+- `[x]` **CI endurecido** (`dee59ae`): espera schema `/clientes`, `python -m pytest`, reporter sin tumbar el job por UI.
+- `[x]` **Smoke CRM** `test_smoke_guardado_cliente_mascota_encargo` (cliente → mascota → encargo ida/vuelta).
+- `[x]` Docs V2 actualizados: `GUIA_V2_AVANCES` §7, `ESPECIFICACIONES_V2` §2.9–2.10.
+- `[ ]` Observación tienda: si un PC no guarda y otro sí → entorno (caché/red), no cambiar lógica sin evidencia.
+- `[ ]` Validación operativa usuario tras redeploy (caja / encargos) — seguimiento en tienda.
+
 ## Mantenimiento de material — **cerrado en prod**
 
 - `[x]` **Submódulo Tareas → 🛠️ Mantenimiento Material**

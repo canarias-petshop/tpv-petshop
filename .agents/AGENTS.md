@@ -8,11 +8,20 @@ Documentación obligatoria antes de cambios grandes:
 2. `docs_proyecto/estado_tareas.md`
 3. Para V2 / otro repo: `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` + `docs_proyecto/ESPECIFICACIONES_V2.md`
 
+## Cierre sesión 1 ago 2026
+- Suite local verde + **CI endurecido** y **smoke CRM** en `main` (`dee59ae` + docs handoff V2).
+- Usuario valida operativa en tienda tras redeploy (encargos/clientes); si un PC falla y otro no → entorno primero.
+- Handoff V2: `GUIA_V2_AVANCES` **§7** · `ESPECIFICACIONES_V2` **§2.9–2.10**.
+
 ## Cierre sesión 30–31 jul 2026 (producción OK)
 Usuario validó en **Streamlit Cloud / prod**: ficha clínica, mantenimiento de material y operativa general.  
 Código en **`main`**. Tablas `mantenimiento_*` aplicadas en Supabase.
 
 ## Decisiones y módulos recientes (leer si el tema aplica)
+
+### CI / QA — **en `main`** (1 ago)
+Espera schema `/clientes` antes de pytest; smoke cliente→mascota→encargo; smoke KPIs.  
+→ `GUIA_V2_AVANCES_2026-07-30.md` §7 · `.github/workflows/ci.yml` · `tests/test_crm.py`
 
 ### Mantenimiento de Material — **en producción**
 Submódulo **Tareas → 🛠️ Mantenimiento Material**. Tablas `mantenimiento_*` en local **y** Supabase.  
@@ -50,6 +59,6 @@ Agenda/CRM: `registrar_recogida_desde_cita` (ver Compendio § Agenda).
 
 ## Instrucción de inicio para agentes nuevos
 Saluda, confirma lectura de `.agents/AGENTS.md`, pregunta prioridad.  
-**V2 / portar módulos:** **`docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md`**.  
+**V2 / portar módulos:** **`docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md`** (mantenimiento §2 + **QA/CRM §7**).  
 **Sync KPIs:** `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`.  
 **Plan H2 / Ads:** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
