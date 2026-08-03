@@ -1,11 +1,18 @@
 # Marketing H2 2026 + hoja de ruta (handoff)
 
-**Fecha:** 29–30 jul 2026  
+**Fecha:** 29–30 jul 2026 (textos enriquecidos: 3 ago 2026)  
 **Ámbito datos:** Sembrado en **local** y en **producción Supabase** (29 jul 2026, script `--prod`).  
 **Código:** en `main` (UI **TEXTO PARA PUBLICAR** + calendario “títulos y presupuesto”).  
 **Script:** `scripts/seed_marketing_h2_2026_local.py`  
 - Local: `python scripts/seed_marketing_h2_2026_local.py`  
 - Prod: `python scripts/seed_marketing_h2_2026_local.py --prod`  
+
+**Textos enriquecidos (solo `contenido_detallado`, sin tocar `objetivo_id`):**  
+- Datos: `scripts/data/marketing_h2_2026_textos_enriquecidos.json`  
+- Aplicar: `python scripts/apply_marketing_textos_h2.py` (dry-run)  
+- Escribir local: `python scripts/apply_marketing_textos_h2.py --apply`  
+- Escribir prod: `python scripts/apply_marketing_textos_h2.py --prod --apply`  
+  (no re-siembra; no borra filas; empareja por fecha+canal+tema)  
 
 Este documento cierra el trabajo de marketing de esta conversación y deja listo el contexto para **seguir en una conversación nueva** (automatización de KPIs en local primero).
 
