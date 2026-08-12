@@ -3,6 +3,33 @@ from datetime import datetime
 from postgrest import SyncPostgrestClient
 import re
 
+# Columnas del directorio CRM que deben disparar update al guardar.
+# Incluye contacto/tel. alternativo y canal (antes se omitían y el guardado se saltaba).
+CAMPOS_DIR_CLIENTES = (
+    "nombre_dueno",
+    "telefono",
+    "nombre_dueno_2",
+    "telefono_2",
+    "email",
+    "metodo_contacto",
+    "fecha_nacimiento",
+    "direccion",
+    "RGPD",
+    "Puntos",
+    "Domicilio",
+)
+
+
+def fila_cliente_tiene_cambios(row, orig_row, cols=CAMPOS_DIR_CLIENTES) -> bool:
+    """True si alguna columna editable del directorio cambió respecto a la fila original."""
+    for col in cols:
+        if col not in row or col not in orig_row:
+            continue
+        if str(row.get(col, "") or "").strip() != str(orig_row.get(col, "") or "").strip():
+            return True
+    return False
+
+
 def crear_cliente(client: SyncPostgrestClient, nombre_dueno: str, telefono: str, nombre_dueno_2: str = "",
                   telefono_2: str = "", email: str = "", metodo_contacto: str = "WhatsApp",
                   fecha_nacimiento: str = "", rgpd_consent: bool = True, direccion: str = "",

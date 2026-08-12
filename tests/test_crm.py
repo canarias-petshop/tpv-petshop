@@ -7,7 +7,7 @@ import jwt
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from core_crm import (crear_cliente, crear_mascota, actualizar_cliente, 
                       anonimizar_cliente, crear_encargo, agendar_cita,
-                      registrar_recogida_desde_cita)
+                      registrar_recogida_desde_cita, fila_cliente_tiene_cambios)
 from postgrest import SyncPostgrestClient
 
 @pytest.fixture(scope="module")
@@ -173,6 +173,56 @@ def test_errores_validacion(db_client):
         
     with pytest.raises(ValueError, match="Faltan datos obligatorios para la cita"):
         agendar_cita(db_client, "", "2026-07-20", "10:00", "Serv", 60)
+
+
+def test_fila_cliente_detecta_contacto_y_tel_alternativo():
+    """Regresión: editar solo Contacto Alt. / Tel. Alt. debe contar como cambio (prod)."""
+    base = {
+        "nombre_dueno": "Ana",
+        "telefono": "600111222",
+        "nombre_dueno_2": "",
+        "telefono_2": "",
+        "email": "",
+        "metodo_contacto": "WhatsApp",
+        "fecha_nacimiento": "",
+        "direccion": "",
+        "RGPD": True,
+        "Puntos": 0,
+        "Domicilio": False,
+    }
+    assert fila_cliente_tiene_cambios(base, base) is False
+
+    solo_alt_nombre = {**base, "nombre_dueno_2": "Pedro"}
+    assert fila_cliente_tiene_cambios(solo_alt_nombre, base) is True
+
+    solo_alt_tel = {**base, "telefono_2": "622333444"}
+    assert fila_cliente_tiene_cambios(solo_alt_tel, base) is True
+
+    solo_canal = {**base, "metodo_contacto": "Llamada"}
+    assert fila_cliente_tiene_cambios(solo_canal, base) is True
+
+
+def test_actualizar_cliente_contacto_alternativo(db_client):
+    """Persiste nombre_dueno_2 y telefono_2 en BD (flujo directorio)."""
+    cli = crear_cliente(db_client, "Alt Contact Test", "611000001")
+    cli_id = cli["id"]
+    upd = actualizar_cliente(
+        db_client,
+        cli_id,
+        {"nombre_dueno_2": "Maria Alt", "telefono_2": "622000002"},
+    )
+    assert upd is not None
+    assert upd["nombre_dueno_2"] == "Maria Alt"
+    assert upd["telefono_2"] == "622000002"
+    leido = (
+        db_client.table("clientes")
+        .select("nombre_dueno_2, telefono_2")
+        .eq("id", cli_id)
+        .execute()
+        .data[0]
+    )
+    assert leido["nombre_dueno_2"] == "Maria Alt"
+    assert leido["telefono_2"] == "622000002"
 
 
 def test_smoke_guardado_cliente_mascota_encargo(db_client):

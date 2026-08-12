@@ -5,7 +5,10 @@ from datetime import date
 import urllib.parse
 import base64
 import streamlit.components.v1 as components
-from core_crm import crear_cliente, crear_mascota, actualizar_cliente, anonimizar_cliente, crear_encargo, agendar_cita
+from core_crm import (
+    crear_cliente, crear_mascota, actualizar_cliente, anonimizar_cliente,
+    crear_encargo, agendar_cita, fila_cliente_tiene_cambios,
+)
 
 @st.cache_data(show_spinner=False, ttl=300)
 def fetch_empleados_crm(_client):
@@ -583,13 +586,7 @@ def render_pestana_crm(client):
                             orig_match = df_cli_vista[df_cli_vista['id'] == row['id']]
                             if not orig_match.empty:
                                 orig_row = orig_match.iloc[0]
-                                cambiado = False
-                                for col in ['nombre_dueno', 'telefono', 'email', 'fecha_nacimiento', 'direccion', 'RGPD', 'Puntos', 'Domicilio']:
-                                    if col in row and col in orig_row:
-                                        if str(row.get(col, '')).strip() != str(orig_row.get(col, '')).strip():
-                                            cambiado = True
-                                            break
-                                if not cambiado:
+                                if not fila_cliente_tiene_cambios(row, orig_row):
                                     continue
                                     
                             datos_update = {
