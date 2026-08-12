@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+
 def calcular_desviacion_presupuesto(presupuesto_estimado, coste_real):
     """
     Calcula la desviación de un proyecto respecto al presupuesto.
@@ -30,3 +33,36 @@ def analizar_estado_proyecto(proyecto_data):
         "en_peligro": sobrecoste and estado not in ["Cancelado", "Completado"],
         "estado_actual": estado
     }
+
+
+def construir_bloqueos_rango(
+    fecha_ini,
+    fecha_fin,
+    hora_inicio: str,
+    hora_fin: str,
+    titulo: str,
+    empleado_afectado: str,
+    bloquea_agenda: bool = True,
+):
+    """
+    Genera filas para agenda_bloqueos, un día por cada fecha del rango inclusivo.
+    Raises ValueError si el rango es inválido o faltan datos.
+    """
+    if not titulo or not hora_inicio or not hora_fin:
+        raise ValueError("Título y horas son obligatorios.")
+    if fecha_fin < fecha_ini:
+        raise ValueError("La fecha de fin no puede ser anterior a la de inicio.")
+
+    filas = []
+    delta = fecha_fin - fecha_ini
+    for i in range(delta.days + 1):
+        dia = fecha_ini + timedelta(days=i)
+        filas.append({
+            "fecha": str(dia),
+            "hora_inicio": hora_inicio,
+            "hora_fin": hora_fin,
+            "titulo": titulo,
+            "empleado_afectado": empleado_afectado,
+            "bloquea_agenda": bloquea_agenda,
+        })
+    return filas

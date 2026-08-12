@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 import time
+from core_proyectos import construir_bloqueos_rango
 
 def render_pestana_proyectos_eventos(client):
     st.markdown("<h3 style='margin-top: -15px;'>🗓️ Proyectos, Reuniones y Eventos</h3>", unsafe_allow_html=True)
@@ -147,8 +148,10 @@ def render_pestana_proyectos_eventos(client):
         with c_r1:
             with st.form("form_nuevo_bloqueo", clear_on_submit=True):
                 st.markdown("##### ➕ Nuevo Bloqueo / Reunión")
-                b_tit = st.text_input("Título (Ej: Reunión de equipo) *")
-                b_fec = st.date_input("Fecha *", value=date.today())
+                b_tit = st.text_input("Título (Ej: Remodelación / Reunión de equipo) *")
+                c_f1, c_f2 = st.columns(2)
+                with c_f1: b_fec_ini = st.date_input("Desde el día *", value=date.today())
+                with c_f2: b_fec_fin = st.date_input("Hasta el día *", value=date.today())
                 c_h1, c_h2 = st.columns(2)
                 with c_h1: b_ini = st.time_input("Hora Inicio *")
                 with c_h2: b_fin = st.time_input("Hora Fin *")
@@ -158,12 +161,26 @@ def render_pestana_proyectos_eventos(client):
                 
                 if st.form_submit_button("Programar Reunión", type="primary", use_container_width=True):
                     if b_tit and b_ini and b_fin:
-                        client.table("agenda_bloqueos").insert({
-                            "fecha": str(b_fec), "hora_inicio": b_ini.strftime("%H:%M"), "hora_fin": b_fin.strftime("%H:%M"),
-                            "titulo": b_tit, "empleado_afectado": b_emp, "bloquea_agenda": b_bloq
-                        }).execute()
-                        st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                        st.success("Reunión programada."); time.sleep(1); st.rerun()
+                        try:
+                            inserts = construir_bloqueos_rango(
+                                b_fec_ini,
+                                b_fec_fin,
+                                b_ini.strftime("%H:%M"),
+                                b_fin.strftime("%H:%M"),
+                                b_tit,
+                                b_emp,
+                                b_bloq,
+                            )
+                            client.table("agenda_bloqueos").insert(inserts).execute()
+                            st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                            dias = len(inserts)
+                            st.success(
+                                f"Reunión/bloqueo programado ({dias} día{'s' if dias != 1 else ''})."
+                            )
+                            time.sleep(1)
+                            st.rerun()
+                        except ValueError as e:
+                            st.error(str(e))
                     else:
                         st.warning("Completa título y horas.")
 
