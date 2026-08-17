@@ -1,8 +1,9 @@
-# Guía de avances para V2 — 30 jul – 1 ago 2026
+# Guía de avances para V2 — 30 jul – 17 ago 2026
 
 **Propósito:** handoff para `animalarium-v2` (u otro chat/agente).  
 **Actualización 31 jul:** mantenimiento y sync KPIs (botón) **validados en producción** TPV Streamlit.  
-**Actualización 1 ago:** CI endurecido + smoke de guardados CRM en `main` (útil como contrato de tests para V2).
+**Actualización 1 ago:** CI endurecido + smoke de guardados CRM en `main`.  
+**Actualización 17 ago (sello):** contacto alternativo CRM + reuniones por rango de fechas en `main` / prod. Ver **§8**.
 
 **Leer también (orden):**
 1. Este archivo  
@@ -20,12 +21,13 @@
 | Módulo | Estado | Notas para V2 |
 |--------|--------|----------------|
 | Caja / puntos / pagos | Estable | Reglas en Compendio § parametrización |
-| CRM + citas + recogida | Estable | Cascada `registrar_recogida_desde_cita`; smoke ida/vuelta cliente/mascota/encargo |
+| CRM + citas + recogida | Estable en prod | Cascada recogida; smoke ida/vuelta; **Contacto Alt. / Tel. Alt. deben persistir** (ver §8) |
 | Agenda huecos | Estable en prod | Vacaciones/ausencias; hotfix import UnboundLocalError |
 | Ficha clínica | Estable en prod | Guardado historial validado 31 jul |
 | Facturación compras | Estable | Borrador no mueve stock; pagos a 2 decimales |
 | RRHH fichajes | Estable | Anti-spam 30 min + confirmación salida |
 | Marketing H2 | Prod | Sync KPIs: botón en nube; cron solo Docker local |
+| **Reuniones / bloqueos** | **Prod (13 ago)** | Rango Desde/Hasta → un `agenda_bloqueos` por día (§8) |
 | **Mantenimiento material** | **Prod (validado 31 jul)** | Tablas en Supabase; portar a V2 |
 | QA / CI | En `main` | Esperar schema real + smoke CRM + smoke KPIs (ver §7) |
 | Mensajería automática WA/Email | Aparcado | Manual 1 clic |
@@ -142,7 +144,8 @@ Además de lo ya en `ESPECIFICACIONES_V2.md`, incluir:
 > `docs_proyecto/ESPECIFICACIONES_V2.md`,  
 > `docs_proyecto/Compendio_Maestro_Especificaciones.md`.  
 > Queremos portar el módulo **Mantenimiento de Material** a V2 respetando tablas, frecuencias y la regla “pendiente hasta marcar hecho”.  
-> Incluye también el **contrato de guardados CRM** (§7 / §2.9): smoke crear cliente → actualizar → mascota → encargo → releer, y CI que espere schema real.  
+> Incluye también el **contrato de guardados CRM** (§7 / §2.9): smoke crear cliente → actualizar (incl. contacto/tel. alternativo) → mascota → encargo → releer, y CI que espere schema real.  
+> Reuniones: alta por **rango de fechas** (§8 / §2.11).  
 > Primero local; no tocar prod sin pedirlo.
 
 ---
@@ -155,8 +158,9 @@ Además de lo ya en `ESPECIFICACIONES_V2.md`, incluir:
 - [ ] Resumen en calendario de tareas del TPV interno  
 - [ ] Tests de frecuencias y “atrasado hasta hecho”  
 - [ ] Vacaciones/ausencias bloquean slots de agenda  
-- [ ] Smoke CRM: crear cliente → actualizar → mascota → encargo → releer (mismo contrato que TPV)  
+- [ ] Smoke CRM: crear cliente → actualizar (incl. **contacto/tel. alternativo y canal**) → mascota → encargo → releer  
 - [ ] CI: no marcar “API lista” solo con `/`; esperar endpoint de schema real  
+- [ ] Reuniones/bloqueos: alta por **rango de fechas** (un registro por día)  
 - [ ] No implementar mensajería automática WA salvo petición  
 
 ---
@@ -189,4 +193,27 @@ Fuente de verdad lógica: `core_crm.py` (`crear_cliente`, `actualizar_cliente`, 
 
 ### 7.4 Prompt extra para el chat V2 (QA)
 
-> Además del módulo de mantenimiento, replica el **smoke de guardados CRM** del TPV: crear cliente, actualizar teléfono/puntos, crear mascota, crear encargo y releer de Supabase. El CI no debe dar por lista la API hasta que exista el schema (`/clientes`). Primero local; no tocar prod sin pedirlo.
+> Además del módulo de mantenimiento, replica el **smoke de guardados CRM** del TPV: crear cliente, actualizar teléfono/puntos **y contacto/tel. alternativo**, crear mascota, crear encargo y releer de Supabase. El CI no debe dar por lista la API hasta que exista el schema (`/clientes`). Reuniones: alta por rango de fechas. Primero local; no tocar prod sin pedirlo.
+
+---
+
+## 8. CRM contacto alternativo y reuniones por rango (12–17 ago 2026)
+
+### 8.1 Directorio de clientes — no omitir columnas al guardar
+En Streamlit, un “optimizador” comparaba solo un subconjunto de columnas antes del `update`. Si el usuario cambiaba **solo** Contacto Alt. / Tel. Alt. / Canal, el guardado se saltaba.
+
+**Contrato V2:** cualquier campo editable del directorio debe entrar en la detección de dirty / PATCH. Campos obligatorios a incluir:
+
+`nombre_dueno`, `telefono`, `nombre_dueno_2`, `telefono_2`, `email`, `metodo_contacto`, `fecha_nacimiento`, `direccion`, RGPD, puntos, domicilio.
+
+Referencia: `core_crm.CAMPOS_DIR_CLIENTES` + `fila_cliente_tiene_cambios`. Tests: `tests/test_crm.py`.
+
+### 8.2 Reuniones de Equipo — rango inclusivo
+UI TPV: **Proyectos, Reuniones y Eventos → 🤝 Reuniones de Equipo**.  
+Campos: título, **Desde el día**, **Hasta el día**, hora inicio/fin, empleado (`Todas` o uno), checkbox bloquear agenda.
+
+Regla: `fecha_fin >= fecha_ini`; se genera **una fila `agenda_bloqueos` por cada día** del rango (mismas horas). Un solo día = Desde = Hasta.
+
+Referencia: `core_proyectos.construir_bloqueos_rango` · `proyectos_eventos.py`. Tests: `tests/test_proyectos.py`.
+
+V2: el formulario de bloqueo no debe forzar un día a la vez.

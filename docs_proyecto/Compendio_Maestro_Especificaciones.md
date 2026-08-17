@@ -22,6 +22,7 @@ Sirve como "mapa" inquebrantable antes de iniciar la refactorización (Fase 2) y
 - ✅ **[CÓDIGO]** **Estados de recogida en directorio**: Existen `Servicio de recogida pendiente` y `Servicio de recogida confirmado` (el legado `Servicio de recogida` se migra al pendiente).
 - ✅ **[CÓDIGO]** **Recordatorios = envío manual**: Agenda → Centro de Recordatorios genera enlaces WhatsApp (`api.whatsapp.com`) y marca `[RECORDATORIO: Avisado]` en observaciones. No hay API de envío ni cron.
 - ✅ **[CÓDIGO / QA]** **Smoke guardados CRM** (1 ago 2026): `test_smoke_guardado_cliente_mascota_encargo` — crear/leer/actualizar cliente + mascota + encargo. Spec V2: `ESPECIFICACIONES_V2.md` §2.9 · `GUIA_V2_AVANCES` §7.
+- ✅ **[CÓDIGO / PROD]** **Directorio CRM — contacto alternativo** (13 ago 2026): al pulsar Guardar Cambios en Clientes, cambios solo en `nombre_dueno_2` / `telefono_2` / `metodo_contacto` **sí** persisten. Detector: `fila_cliente_tiene_cambios`.
 - 🚀 **[NEGOCIO/FUTURO]** **Mensajería automática (WA / Email)**: Aparcado (29 jul 2026). Ver `docs_proyecto/DECISION_MENSAJERIA_AUTOMATICA.md`.
 
 ## 1-quater. Tareas y Mantenimiento de Material (`tareas.py`, `mantenimiento_material.py`, `core_mantenimiento.py`)
@@ -36,6 +37,7 @@ Sirve como "mapa" inquebrantable antes de iniciar la refactorización (Fase 2) y
 - ✅ **[CÓDIGO / DATOS]** **Plan H2 2026**: verificado en prod 30 jul. Handoff: `MARKETING_H2_2026_Y_SIGUIENTE.md`.
 - ✅ **[CÓDIGO]** **Tipos de campaña**: Ordinaria / Evento-Feria / **Iniciativa Innovate**.
 - ✅ **[CÓDIGO]** **Talleres**: sáb o dom.
+- ✅ **[CÓDIGO / PROD]** **Reuniones de Equipo por rango** (13 ago 2026): Proyectos → 🤝 Reuniones; **Desde / Hasta**; un registro `agenda_bloqueos` por día (`construir_bloqueos_rango`). Spec V2: `ESPECIFICACIONES_V2.md` §2.11 · `GUIA_V2_AVANCES` §8.
 - 🚀 **[NEGOCIO/FUTURO]** **Cron KPIs en Streamlit Cloud / job externo**; gasto Ads auto; cumpleaños-winback.
 ## 2. Facturación y Contabilidad (`facturacion.py`, `caja.py`)
 - ✅ **[CÓDIGO]** **VeriFactu / Hashes**: El código (`facturacion.py`, lín. 281-290) calcula y guarda en la base de datos el `hash_anterior` y `hash_actual` para cada factura, cumpliendo la Ley Antifraude.

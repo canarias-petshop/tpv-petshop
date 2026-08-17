@@ -66,8 +66,16 @@
 - `[x]` **CI endurecido** (`dee59ae`): espera schema `/clientes`, `python -m pytest`, reporter sin tumbar el job por UI.
 - `[x]` **Smoke CRM** `test_smoke_guardado_cliente_mascota_encargo` (cliente → mascota → encargo ida/vuelta).
 - `[x]` Docs V2 actualizados: `GUIA_V2_AVANCES` §7, `ESPECIFICACIONES_V2` §2.9–2.10.
-- `[ ]` Observación tienda: si un PC no guarda y otro sí → entorno (caché/red), no cambiar lógica sin evidencia.
-- `[ ]` Validación operativa usuario tras redeploy (caja / encargos) — seguimiento en tienda.
+- `[x]` Observación tienda (encargos/clientes en un PC y no en otro): entorno primero; no se tocó lógica por eso.
+
+## Cierre 12–17 ago 2026 (prod + docs selladas)
+
+- `[x]` **Fix CRM directorio** (`1d5e361`): Contacto Alt. / Tel. Alt. / Canal se detectan al guardar. Tests CRM 13/13.
+- `[x]` **Reuniones de Equipo por rango** (`c5ff197`): Desde/Hasta → un `agenda_bloqueos` por día. Tests proyectos 4/4.
+- `[x]` Marketing H2 textos enriquecidos (`6577d07`) — copy listo sin reseeding.
+- `[x]` Docs selladas a **17 ago 2026**: Compendio, Resumen, estado, AGENTS, GUIA_V2 §8, ESPECIFICACIONES_V2 §2.9–2.11.
+- `[ ]` Confirmar log cron KPIs noche (opcional; PC+Docker encendidos).
+- `[ ]` Cron KPIs en Streamlit Cloud — futuro, solo si se pide.
 
 ## Mantenimiento de material — **cerrado en prod**
 

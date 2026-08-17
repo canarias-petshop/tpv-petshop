@@ -1,10 +1,10 @@
 # Documento Maestro de Especificaciones (Animalarium V2)
 
-**Última Actualización**: 1 de Agosto de 2026  
+**Última Actualización**: 17 de Agosto de 2026  
 **Metodología**: Spec-Driven Development (spec-kit)  
 **Objetivo**: Sentar las bases arquitectónicas, técnicas y de negocio para la reescritura de Animalarium TPV + Web a la Versión 2.0 (Next.js/React + Supabase).
 
-**Handoff de avances recientes (obligatorio):** `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` (incluye §7 CI/QA y smoke CRM).
+**Handoff de avances recientes (obligatorio):** `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` (incluye §7 CI/QA, §8 CRM alternativo y reuniones por rango).
 
 ---
 
@@ -97,7 +97,7 @@ Fuente TPV: `core_crm.py` + smoke `tests/test_crm.py::test_smoke_guardado_client
 | Operación | Regla | Tabla |
 |-----------|-------|--------|
 | Crear cliente | `nombre_dueno` obligatorio; puntos iniciales 0 | `clientes` |
-| Actualizar cliente | Update por `id`; campos parciales (teléfono, puntos, etc.) | `clientes` |
+| Actualizar cliente | Update por `id`; campos parciales. **Obligatorio persistir** `nombre_dueno_2`, `telefono_2` y `metodo_contacto` aunque no cambie el resto | `clientes` |
 | Crear mascota | Nombre + `cliente_id` obligatorios | `mascotas` |
 | Crear encargo tienda | Nombre + producto obligatorios; `detalle_pedido` = `{n}x {producto}`; `estado=Pendiente`; `origen=Tienda` | `encargos_clientes` |
 | Recogida desde cita | Cascada: estado cita + `servicios_recogida` + ficha cliente | ver §2.5 |
@@ -109,6 +109,15 @@ Fuente TPV: `core_crm.py` + smoke `tests/test_crm.py::test_smoke_guardado_client
 - No considerar la API lista solo porque el health root responde `200`.
 - En el TPV, CI espera `/clientes?select=id&limit=1` antes de pytest (`.github/workflows/ci.yml`).
 - V2 debe aplicar el mismo criterio (health de schema / migration ready) en pipelines.
+
+### 2.11 Reuniones de Equipo / bloqueos por rango — obligatorio en V2
+Fuente TPV: `core_proyectos.construir_bloqueos_rango` + UI `proyectos_eventos.py` (sección 🤝 Reuniones de Equipo). En `main` desde 13 ago 2026.
+
+- Alta con **fecha inicio y fecha fin** (rango inclusivo), no solo un día.
+- Por cada día del rango: una fila en `agenda_bloqueos` con las mismas `hora_inicio`, `hora_fin`, `titulo`, `empleado_afectado`, `bloquea_agenda`.
+- Si fin < inicio → error visible, no insertar.
+- Un día suelto: inicio = fin (sigue válido).
+- Los bloqueos con `bloquea_agenda=true` deben seguir cruzándose con huecos (misma lógica §2.5 / `core_agenda`).
 
 ---
 
@@ -166,4 +175,4 @@ Al construir la V2 en React/Next.js, solucionaremos de base los problemas que re
 
 ---
 
-*Referencia obligatoria antes de crear componentes en V2. Completar con `GUIA_V2_AVANCES_2026-07-30.md` (§2 mantenimiento, §7 CI/QA CRM).*
+*Referencia obligatoria antes de crear componentes en V2. Completar con `GUIA_V2_AVANCES_2026-07-30.md` (§2 mantenimiento, §7 CI/QA CRM, §8 contacto alt. y reuniones por rango).*

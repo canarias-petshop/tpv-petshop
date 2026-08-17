@@ -1,15 +1,35 @@
 # Resumen Maestro Actualizado - TPV y E-Commerce Animalarium
-**Fecha de última actualización**: 1 de Agosto de 2026
+**Fecha de última actualización**: 17 de Agosto de 2026
 
 Este documento centraliza todos los avances, arquitecturas y módulos del ecosistema completo de Animalarium (TPV Físico + Tienda Web). Es el punto de partida **obligatorio** para retomar el proyecto en futuras sesiones.
 
-> Para portar a **Animalarium V2**: leer también `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` (esp. **§7 CI/QA**) y `docs_proyecto/ESPECIFICACIONES_V2.md` (§2.9 guardados CRM).
+> Para portar a **Animalarium V2**: leer también `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` (esp. **§7 CI/QA** y **§8 reuniones/CRM**) y `docs_proyecto/ESPECIFICACIONES_V2.md` (§2.9–2.11).
 
 > [!CAUTION]
 > **NORMA ESTRICTA: PRODUCTOS vs SERVICIOS**
 > Una cosa son los productos (piensos, accesorios) y otra muy distinta son los servicios (peluquería, clínica).
 > Si el usuario ordena eliminar o modificar una marca concreta o un grupo de artículos en el contexto de "productos", **JAMÁS** debes alterar los registros que pertenezcan a "servicios" (aunque compartan tabla en la base de datos o utilicen la marca 'Genérico' u otra para categorizarse).
 > **No asumas ni interpretes nada.** Verifica siempre si la acción puede afectar a los servicios antes de ejecutar un borrado masivo.
+
+---
+
+## 🆕 12–17 de Agosto de 2026 (prod + documentación sellada)
+
+### CRM — Contacto y teléfono alternativo (`1d5e361`)
+- En el **Directorio de clientes**, editar solo **Contacto Alt.** / **Tel. Alt.** (o Canal pref.) no disparaba el update: el detector de cambios omitía esas columnas.
+- Corregido con `core_crm.fila_cliente_tiene_cambios` (incluye `nombre_dueno_2`, `telefono_2`, `metodo_contacto`).
+- Tests: `test_fila_cliente_detecta_contacto_y_tel_alternativo` + `test_actualizar_cliente_contacto_alternativo`. En `main` / Streamlit Cloud.
+
+### Proyectos — Reuniones de Equipo por rango (`c5ff197`)
+- Antes: una sola fecha; bloquear varios días era uno a uno.
+- Ahora: **Desde el día / Hasta el día**; se inserta un `agenda_bloqueos` por cada día (mismas horas, empleado y flag de bloquear agenda).
+- Lógica: `core_proyectos.construir_bloqueos_rango` · UI `proyectos_eventos.py`. Tests en `tests/test_proyectos.py`.
+
+### Marketing H2 (`6577d07`)
+- Textos H2 enriquecidos listos para aplicar sin reseeding de datos.
+
+### Estado operativo
+- TPV producción = `main`. No hay sprint abierto. Mensajería automática sigue **aparcada**.
 
 ---
 

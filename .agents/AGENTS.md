@@ -8,6 +8,13 @@ Documentación obligatoria antes de cambios grandes:
 2. `docs_proyecto/estado_tareas.md`
 3. Para V2 / otro repo: `docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md` + `docs_proyecto/ESPECIFICACIONES_V2.md`
 
+## Cierre sesión 17 ago 2026 (documentación sellada)
+TPV Streamlit en **`main` / prod**. Últimos cambios de código:
+- CRM directorio: **Contacto Alt. / Tel. Alt.** se guardan (`1d5e361`).
+- Reuniones de Equipo: bloqueo por **rango Desde/Hasta** (`c5ff197`).
+Handoff V2: `GUIA_V2_AVANCES` **§7–§8** · `ESPECIFICACIONES_V2` **§2.9–2.11**.
+No hay sprint activo; siguiente sesión: lo que pida el usuario.
+
 ## Cierre sesión 1 ago 2026
 - Suite local verde + **CI endurecido** y **smoke CRM** en `main` (`dee59ae` + docs handoff V2).
 - Usuario valida operativa en tienda tras redeploy (encargos/clientes); si un PC falla y otro no → entorno primero.
@@ -18,6 +25,14 @@ Usuario validó en **Streamlit Cloud / prod**: ficha clínica, mantenimiento de 
 Código en **`main`**. Tablas `mantenimiento_*` aplicadas en Supabase.
 
 ## Decisiones y módulos recientes (leer si el tema aplica)
+
+### CRM directorio — contacto alternativo (12–13 ago, **en `main`**)
+Editar solo Contacto Alt. / Tel. Alt. / Canal debe disparar el update.  
+→ `core_crm.fila_cliente_tiene_cambios` · `crm.py` · tests `test_crm.py`
+
+### Reuniones de Equipo — rango de fechas (13 ago, **en `main`**)
+Proyectos → Reuniones: **Desde / Hasta**; un `agenda_bloqueos` por día.  
+→ `core_proyectos.construir_bloqueos_rango` · `proyectos_eventos.py`
 
 ### CI / QA — **en `main`** (1 ago)
 Espera schema `/clientes` antes de pytest; smoke cliente→mascota→encargo; smoke KPIs.  
@@ -59,6 +74,6 @@ Agenda/CRM: `registrar_recogida_desde_cita` (ver Compendio § Agenda).
 
 ## Instrucción de inicio para agentes nuevos
 Saluda, confirma lectura de `.agents/AGENTS.md`, pregunta prioridad.  
-**V2 / portar módulos:** **`docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md`** (mantenimiento §2 + **QA/CRM §7**).  
+**V2 / portar módulos:** **`docs_proyecto/GUIA_V2_AVANCES_2026-07-30.md`** (mantenimiento §2 + **QA/CRM §7** + **reuniones §8**).  
 **Sync KPIs:** `docs_proyecto/PLAN_KPIS_MARKETING_LOCAL.md`.  
 **Plan H2 / Ads:** `docs_proyecto/MARKETING_H2_2026_Y_SIGUIENTE.md`.
