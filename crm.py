@@ -43,7 +43,7 @@ def fetch_encargos_crm(_client):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("encargos_clientes").select("id, created_at, nombre_cliente, telefono, detalle_pedido, notas, estado, origen").order("created_at", desc=True).range(_off, _off + 999).execute()
+        _r = _client.table("encargos_clientes").select("id, created_at, nombre_cliente, telefono, detalle_pedido, notas, estado, origen, recibido_por").order("created_at", desc=True).range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
@@ -932,7 +932,12 @@ def render_pestana_crm(client):
                     st.markdown("---")
                     e_prod = st.text_input("2. Producto que pide *", key=f"ne_prod_{st.session_state.llave_crm_enc}")
                     e_cant = st.number_input("3. Cantidad *", min_value=1, value=1, key=f"ne_cant_{st.session_state.llave_crm_enc}")
-                    e_obs = st.text_area("4. Observaciones", key=f"ne_obs_{st.session_state.llave_crm_enc}")
+                    e_recibido = st.selectbox(
+                        "4. ¿Quién recibió el encargo? *",
+                        ["---"] + empleados_lista,
+                        key=f"ne_rec_{st.session_state.llave_crm_enc}"
+                    )
+                    e_obs = st.text_area("5. Observaciones", key=f"ne_obs_{st.session_state.llave_crm_enc}")
                     
                     if st.form_submit_button("Guardar Encargo", type="primary", use_container_width=True):
                         # Determinar cliente
@@ -944,15 +949,19 @@ def render_pestana_crm(client):
                             final_tel = e_tel_man
                             
                         if final_cli and e_prod:
-                            try:
-                                crear_encargo(client, final_cli, final_tel, e_prod, e_cant, e_obs)
-                                st.session_state.db_version = st.session_state.get('db_version', 0) + 1
-                                st.session_state.llave_crm_enc += 1
-                                limpiar_cache_crm()
-                                st.success("Encargo guardado."); time.sleep(0.5); st.rerun()
-                            except Exception as e:
-                                st.error("Error al guardar en la base de datos.")
-            
+                            if e_recibido == "---":
+                                st.error("Indica quién de la plantilla recibió el encargo.")
+                            else:
+                                try:
+                                    crear_encargo(client, final_cli, final_tel, e_prod, e_cant, e_obs, recibido_por=e_recibido)
+                                    st.session_state.db_version = st.session_state.get('db_version', 0) + 1
+                                    st.session_state.llave_crm_enc += 1
+                                    limpiar_cache_crm()
+                                    st.success("Encargo guardado."); time.sleep(0.5); st.rerun()
+                                except Exception as e:
+                                    st.error("Error al guardar en la base de datos.")
+                        else:
+                            st.error("Faltan el cliente o el producto.")            
             with col_en2:
                 st.markdown("#### 📌 Encargos Pendientes")
                 
@@ -1068,6 +1077,8 @@ def render_pestana_crm(client):
                         if 'notas' not in df_e.columns: df_e['notas'] = ""
                         if 'WhatsApp' not in df_e.columns: df_e['WhatsApp'] = None
                         if 'origen' not in df_e.columns: df_e['origen'] = 'Tienda'
+                        if 'recibido_por' not in df_e.columns: df_e['recibido_por'] = ""
+                        df_e['recibido_por'] = df_e['recibido_por'].fillna("")
                         
                         hoy_date = pd.Timestamp.now('Atlantic/Canary')
                         alertas_encargos = []
@@ -1166,10 +1177,12 @@ def render_pestana_crm(client):
                                     else:
                                         st.error(msg)
                         
-                        df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'notas', 'estado', 'WhatsApp', 'origen']].copy()
+                        df_e_vista = df_e[['id', 'Fecha', 'nombre_cliente', 'telefono', 'detalle_pedido', 'recibido_por', 'notas', 'estado', 'WhatsApp', 'origen']].copy()
                         df_e_vista['notas'] = df_e_vista['notas'].fillna("")
+                        df_e_vista['recibido_por'] = df_e_vista['recibido_por'].fillna("")
                         
                         seccion_encargos = st.radio("Sección Encargos:", ["🛍️ Encargos de Tienda", "🌐 Pedidos Web"], horizontal=True, label_visibility="collapsed")
+                        opc_recibido = [""] + empleados_lista
                         
                         if "Encargos de Tienda" in seccion_encargos:
                             df_tnd = df_e_vista[df_e_vista['origen'] != 'Web'].copy()
@@ -1177,7 +1190,9 @@ def render_pestana_crm(client):
                                 df_tnd, hide_index=True, use_container_width=True, height=300, key=f"ed_tabla_encargos_tnd_{st.session_state.get('db_version', 0)}",
                                 column_config={
                                     "id": None, "origen": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
-                                    "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
+                                    "detalle_pedido": "Producto y Cant.",
+                                    "recibido_por": st.column_config.SelectboxColumn("Recibido por", options=opc_recibido),
+                                    "notas": "Observaciones",
                                     "estado": st.column_config.SelectboxColumn("Estado", options=["Pendiente", "Pedido", "Recibido y Avisado", "Confirmación de aviso", "Retrasado por cliente", "Entregado", "Cancelado"]),
                                     "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
                                 },
@@ -1190,7 +1205,9 @@ def render_pestana_crm(client):
                                 df_web, hide_index=True, use_container_width=True, height=300, key=f"ed_tabla_encargos_web_{st.session_state.get('db_version', 0)}",
                                 column_config={
                                     "id": None, "origen": None, "Fecha": "Día", "nombre_cliente": "Cliente", "telefono": "Tel.",
-                                    "detalle_pedido": "Producto y Cant.", "notas": "Observaciones",
+                                    "detalle_pedido": "Producto y Cant.",
+                                    "recibido_por": st.column_config.SelectboxColumn("Recibido por", options=opc_recibido),
+                                    "notas": "Observaciones",
                                     "estado": st.column_config.SelectboxColumn("Estado", options=["Recibido", "Avisado sin stock", "Aviso de recogida local con enlace de pago", "Aviso de servicio a domicilio con enlace de pago", "Confirmado con reparto a domicilio", "Confirmado con recogida local", "Entregado", "Cancelado"]),
                                     "WhatsApp": st.column_config.LinkColumn("📱 Avisar", display_text="💬 WhatsApp")
                                 },
@@ -1306,6 +1323,9 @@ def render_pestana_crm(client):
                                             nuevo_nombre = str(r.get('nombre_cliente', '')).strip()
                                             nuevo_tel = str(r.get('telefono', '')).strip()
                                             nuevo_det = str(r.get('detalle_pedido', '')).strip()
+                                            nuevo_recibido = str(r.get('recibido_por', '')).strip()
+                                            if nuevo_recibido in ('nan', 'None', '<NA>'):
+                                                nuevo_recibido = ""
                                             
                                             # Inyectar etiqueta de aviso
                                             if nuevo_est == 'Recibido y Avisado' and viejo_est != 'Recibido y Avisado':
@@ -1314,11 +1334,16 @@ def render_pestana_crm(client):
                                                     etiqueta = f"[Aviso: {hoy_str}]"
                                                     nuevas_notas = f"{nuevas_notas} {etiqueta}".strip()
                                             
+                                            viejo_recibido = str(orig_row.get('recibido_por', '')).strip()
+                                            if viejo_recibido in ('nan', 'None', '<NA>'):
+                                                viejo_recibido = ""
+                                            
                                             if (nuevo_est != viejo_est or 
                                                 nuevas_notas != str(orig_row.get('notas', '')).strip() or
                                                 nuevo_nombre != str(orig_row.get('nombre_cliente', '')).strip() or
                                                 nuevo_tel != str(orig_row.get('telefono', '')).strip() or
-                                                nuevo_det != str(orig_row.get('detalle_pedido', '')).strip()):
+                                                nuevo_det != str(orig_row.get('detalle_pedido', '')).strip() or
+                                                nuevo_recibido != viejo_recibido):
                                                 import json
                                                 import hashlib
                                                 
@@ -1423,7 +1448,8 @@ def render_pestana_crm(client):
                                                         "notas": nuevas_notas,
                                                         "nombre_cliente": nuevo_nombre,
                                                         "telefono": nuevo_tel,
-                                                        "detalle_pedido": nuevo_det
+                                                        "detalle_pedido": nuevo_det,
+                                                        "recibido_por": nuevo_recibido or None
                                                     }).eq("id", r['id']).execute()
                                                     
                                                     if nuevo_tel != str(orig_row.get('telefono', '')).strip():

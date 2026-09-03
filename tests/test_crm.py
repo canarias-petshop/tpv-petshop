@@ -69,11 +69,12 @@ def test_actualizar_cliente(db_client):
 
 def test_crear_encargo(db_client):
     db_client.table("encargos_clientes").delete().neq("id", 0).execute()
-    encargo = crear_encargo(db_client, "Maria", "655444333", "Saco Pienso 12kg", 2, "Llamar cuando llegue")
+    encargo = crear_encargo(db_client, "Maria", "655444333", "Saco Pienso 12kg", 2, "Llamar cuando llegue", recibido_por="Ana")
     assert encargo is not None
     assert encargo['nombre_cliente'] == "Maria"
     assert encargo['detalle_pedido'] == "2x Saco Pienso 12kg"
     assert encargo['estado'] == "Pendiente"
+    assert encargo.get('recibido_por') == "Ana"
 
 def test_agendar_cita(db_client):
     db_client.table("citas").delete().neq("id", 0).execute()

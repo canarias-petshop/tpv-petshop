@@ -240,12 +240,12 @@ def render_pestana_agenda(client):
         servicios_lista = ["Otro"]
         precios_servicios = {}
 
-    ESTADOS_CITA = ["Confirmada", "Asistió", "Cancelada", "Anulada", "No presentado", "Cambio (días después)", "Servicio de recogida pendiente", "Servicio de recogida confirmado", "Cambio (día antes)", "Cambio (mismo día)", "Oferta / Descuento", "Pendiente", "Pendiente (Avisar hueco)"]
+    ESTADOS_CITA = ["Confirmada", "Asistió", "Cancelada", "Anulada", "No presentado", "Cambio (días después)", "Servicio de recogida pendiente", "Servicio de recogida confirmado", "Cambio (día antes)", "Cambio (mismo día)", "Oferta / Descuento", "Ofrecida", "Pendiente", "Pendiente (Avisar hueco)"]
     EMOJIS_ESTADO = {
         "Confirmada": "🟢", "Asistió": "✅", "Cancelada": "💖", "Anulada": "🚫", "No presentado": "❌", "Cambio (días después)": "🔵", "Cambio de cita": "🔵", 
         "Servicio de recogida": "🟣", "Servicio de recogida pendiente": "🟣🟡", "Servicio de recogida confirmado": "🟣🟢",
         "Cambio (día antes)": "🟤", "Cambio (mismo día)": "⚪", 
-        "Oferta / Descuento": "🟩", "Pendiente": "🟡", "Pendiente (Avisar hueco)": "🟡🟠"
+        "Oferta / Descuento": "🟩", "Ofrecida": "🟣", "Pendiente": "🟡", "Pendiente (Avisar hueco)": "🟡🟠"
     }
 
     def parse_cita_estado(servicio_raw):
@@ -720,6 +720,7 @@ def render_pestana_agenda(client):
                     st.write("🟢 **Confirmada**")
                     st.write("✅ **Asistió**")
                     st.write("🟩 **Oferta / Dto.**")
+                    st.write("🟣 **Ofrecida** (Hueco propuesto al cliente)")
                 with c_ley2:
                     st.write("💖 **Cancelada por cliente** (Libera hueco)")
                     st.write("🚫 **Anulada por tienda** (Libera hueco)")
@@ -1019,6 +1020,7 @@ def render_pestana_agenda(client):
                         
                         border_color = "#4caf50"
                         if "Cambio" in estado_c: border_color = "#2196f3"
+                        elif estado_c == "Ofrecida": border_color = "#7b1fa2"
                         elif "recogida" in estado_c.lower(): border_color = "#9c27b0"
                         elif "Pendiente" in estado_c: border_color = "#ffeb3b"
                         

@@ -284,7 +284,8 @@ CREATE TABLE public.encargos_clientes (
     detalle_pedido text,
     notas text,
     estado text,
-    origen text
+    origen text,
+    recibido_por text
 );
 
 

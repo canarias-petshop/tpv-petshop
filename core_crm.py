@@ -93,7 +93,7 @@ def anonimizar_cliente(client: SyncPostgrestClient, cliente_id: str):
     }).eq("id", cliente_id).execute()
     return res.data[0] if res.data else None
 
-def crear_encargo(client: SyncPostgrestClient, nombre_cliente: str, telefono: str, producto: str, cantidad: int, observaciones: str = ""):
+def crear_encargo(client: SyncPostgrestClient, nombre_cliente: str, telefono: str, producto: str, cantidad: int, observaciones: str = "", recibido_por: str = ""):
     """Registra un nuevo encargo pendiente."""
     if not nombre_cliente or not producto:
         raise ValueError("Nombre de cliente y producto son obligatorios.")
@@ -104,7 +104,8 @@ def crear_encargo(client: SyncPostgrestClient, nombre_cliente: str, telefono: st
         "detalle_pedido": f"{cantidad}x {producto}",
         "notas": observaciones,
         "estado": "Pendiente",
-        "origen": "Tienda"
+        "origen": "Tienda",
+        "recibido_por": recibido_por or None
     }).execute()
     return res.data[0] if res.data else None
 
