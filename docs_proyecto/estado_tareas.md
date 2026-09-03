@@ -77,6 +77,23 @@
 - `[ ]` Confirmar log cron KPIs noche (opcional; PC+Docker encendidos).
 - `[ ]` Cron KPIs en Streamlit Cloud — futuro, solo si se pide.
 
+## Cierre 3 sep 2026 (TPV escáner + agenda Ofrecida + encargos)
+
+- `[x]` **TPV escáner de pistola** (`537dbbf`): busca por **código de barras** (`codigo_barras`), no por SKU.
+  - Carga `codigo_barras` en inventario del TPV.
+  - Fix colateral: `UnboundLocalError` por `import time` local en cobro.
+  - Inventario: al guardar productos sí persiste la columna **Barras**; limpia caché TPV.
+- `[x]` **Agenda — estado Ofrecida** (`f7aee2a` → `71112a0`):
+  - Nuevo estado en directorio de citas: **💬 Ofrecida** (hueco propuesto al cliente).
+  - Leyenda actualizada. No usa bolita de color (morado=recogida, naranja=avisar hueco).
+  - Vista semanal: borde turquesa `#00acc1`.
+- `[x]` **Encargos — quién recibió el pedido** (`f7aee2a`):
+  - Columna BD `recibido_por` (SQL: `scripts/sql_encargos_recibido_por.sql`).
+  - **Aplicado en Supabase** por el usuario (3 sep).
+  - Alta de encargo: select obligatorio de trabajador; editable en tablas Tienda/Web.
+- `[x]` Push a `main` + redeploy Streamlit Cloud a cargo del usuario.
+- Local sin commit: `.coverage`, `core_tpv.py` (helper no usado), foto WhatsApp — no subir.
+
 ## Mantenimiento de material — **cerrado en prod**
 
 - `[x]` **Submódulo Tareas → 🛠️ Mantenimiento Material**
