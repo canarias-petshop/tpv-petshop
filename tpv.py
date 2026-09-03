@@ -16,7 +16,7 @@ def fetch_inv_tpv(_client):
     _all = []
     _off = 0
     while True:
-        _r = _client.table("productos").select("id, nombre, precio_pvp, stock_actual, sku, igic_tipo").range(_off, _off + 999).execute()
+        _r = _client.table("productos").select("id, nombre, precio_pvp, stock_actual, sku, codigo_barras, igic_tipo").range(_off, _off + 999).execute()
         if _r.data:
             _all.extend(_r.data)
             if len(_r.data) < 1000: break
@@ -163,7 +163,10 @@ def render_pestana_tpv(client):
         with cp2: cant_p = st.number_input("p2", min_value=1, value=1, label_visibility="collapsed", key=f"cant_p_{st.session_state.llave_busqueda_tpv}")
         
         if cod_leido and not df_inv.empty:
-            coincid = df_inv[df_inv['sku'] == cod_leido]
+            # Pistola: buscar SOLO por código de barras (no por SKU interno)
+            cod_norm = str(cod_leido).strip()
+            barras = df_inv['codigo_barras'].fillna('').astype(str).str.strip()
+            coincid = df_inv[barras == cod_norm]
             if not coincid.empty:
                 fila_pist = coincid.iloc[0]
                 st.session_state.carrito.append({
@@ -928,7 +931,6 @@ def render_pestana_tpv(client):
                     bloqueo = (pendiente > 0 and "Ninguno" in cliente_fidelidad) or (metodo is None)
                     if st.button("🛒 FINALIZAR COBRO", use_container_width=True, type="primary", disabled=bloqueo):
                         # --- PROTECCIÓN DOBLE CLIC BACKEND ---
-                        import time
                         current_time = time.time()
                         if current_time - st.session_state.get('last_cobro_time', 0) < 3:
                             st.warning("⏳ Procesando cobro, por favor espera...")

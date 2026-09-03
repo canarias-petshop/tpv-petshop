@@ -48,6 +48,12 @@ def get_inv_full(_client):
 def limpiar_cache_inventario():
     get_proveedores.clear()
     get_inv_full.clear()
+    # Que el escáner del TPV vea códigos de barras recién guardados
+    try:
+        from tpv import fetch_inv_tpv
+        fetch_inv_tpv.clear()
+    except Exception:
+        pass
 
 def procesar_lote_ia_gemini(productos_lote, client):
     import google.generativeai as genai
@@ -392,7 +398,7 @@ def render_pestana_inventario(client):
                                 if not orig_match.empty:
                                     orig_row = orig_match.iloc[0]
                                     cambiado = False
-                                    for col in ['sku', 'nombre', 'precio_pvp', 'igic_tipo', 'precio_base', 'stock_actual', 'stock_minimo', 'cantidad_reponer', 'fecha_caducidad', 'Proveedor', 'familia', 'subcategoria', 'gama', 'mascota', 'edad', 'tamano', 'necesidad_especial', 'sabor_principal', 'caracteristicas', 'marca']:
+                                    for col in ['sku', 'codigo_barras', 'nombre', 'precio_pvp', 'igic_tipo', 'precio_base', 'stock_actual', 'stock_minimo', 'cantidad_reponer', 'fecha_caducidad', 'Proveedor', 'familia', 'subcategoria', 'gama', 'mascota', 'edad', 'tamano', 'necesidad_especial', 'sabor_principal', 'caracteristicas', 'marca']:
                                         if col in row and col in orig_row:
                                             v1 = str(row[col]).strip()
                                             v2 = str(orig_row[col]).strip()
